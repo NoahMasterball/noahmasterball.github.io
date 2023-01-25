@@ -1,19 +1,21 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Average Size Calculator</title>
+  <title> Average Size Calculator</title>
    <style>
       body {
          background-image: url("sunnyforest.png");
+         background-repeat:no-repeat;
+	   background-position:center;
       }
    </style>
 </head>
 <body>
 	
-<div style = "position:relative; left:80px; top:20px; background-color:yellow;">
-  <h1>Average Size Calculator</h1>
+<div style = "position:relative; left:80px; top:20px; width:380px; height:120px; background-color:yellow;">
+  <h1>&nbsp;&nbsp;Average Size Calculator</h1>
   <form>
-    <label for="age">Enter your age:</label>
+    <label for="age">&nbsp;&nbsp;&nbsp;Enter your age:</label>
     <input type="number" id="ageinput" name="ageinput" max="120">
     <button type="button" onclick="calculateSize()">Calculate</button>
   </form>
@@ -24,29 +26,29 @@
       var size;
       
       if (age < 0) {
-        size = "Your age is not a possible age!";
+        size = "&nbsp;&nbsp;&nbsp;Your age is not a possible age!";
       } else if (age < 1) {
-        size = "Your size is around 30cm!\"";
+        size = "&nbsp;&nbsp;&nbsp;Your size is around 30cm!\"";
       } else if (age < 2) {
-        size = "Your size is around 40cm!\"";
+        size = "&nbsp;&nbsp;&nbsp;Your size is around 40cm!\"";
       } else if (age < 3) {
-        size = "Your size is around 50cm!\"";
+        size = "&nbsp;&nbsp;&nbsp;Your size is around 50cm!\"";
       } else if (age < 4) {
-        size = "Your size is around 70cm!\"";
+        size = "&nbsp;&nbsp;&nbsp;Your size is around 70cm!\"";
       } else if (age < 5) {
-        size = "Your size is around 100cm!\"";
+        size = "&nbsp;&nbsp;&nbsp;Your size is around 100cm!\"";
       } else if (age < 7) {
-        size = "Your size is around 125cm!\"";
+        size = "&nbsp;&nbsp;&nbsp;Your size is around 125cm!\"";
       } else if (age < 10) {
-        size = "Your size is around 135cm!\"";
+        size = "&nbsp;&nbsp;&nbsp;Your size is around 135cm!\"";
       } else if (age < 15) {
-        size = "Your size is around 160cm!\"";
+        size = "&nbsp;&nbsp;&nbsp;Your size is around 160cm!\"";
 	} else if (age < 20) {
-        size = "Your size is around 195cm!\"";
+        size = "&nbsp;&nbsp;&nbsp;Your size is around 195cm!\"";
       } else if (age < 40) {
-        size = "Your size is around 180cm!\"";
+        size = "&nbsp;&nbsp;&nbsp;Your size is around 180cm!\"";
       } else {
-        size = "Your size is around 170cm!\"";
+        size = "&nbsp;&nbsp;&nbsp;Your size is around 170cm!\"";
       }
       document.getElementById("result").innerHTML = size + " ";
     }
