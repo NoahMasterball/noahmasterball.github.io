@@ -1,107 +1,19 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" >
 <head>
-  <title>Noahs Link Liste</title>
+  <title>Noah´s Link List</title>
   <meta charset="UTF-8">
-
-<style>
-
-.overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 30vh;
-  z-index: 100;
-  background: white;
-  background: linear-gradient(0deg, white 75%, rgba(255, 255, 255, 0.9) 80%, rgba(255, 255, 255, 0.25) 95%, rgba(255, 255, 255, 0) 100%);
-}
-
-.text {
-  font-family: "Yanone Kaffeesatz";
-  font-size: 100px;
-  display: flex;
-  position: absolute;
-  bottom: 20vh;
-  left: 50%;
-  transform: translateX(-50%);
-  user-select: none;
-}
-.text .wrapper {
-  padding-left: 20px;
-  padding-right: 20px;
-  padding-top: 20px;
-}
-.text .wrapper .letter {
-  transition: ease-out 1s;
-  transform: translateY(40%);
-}
-.text .wrapper .shadow {
-  transform: scale(1, -1);
-  color: #999;
-  transition: ease-in 5s, ease-out 5s;
-}
-.text .wrapper:hover .letter {
-  transform: translateY(-100%);
-}
-.text .wrapper:hover .shadow {
-  opacity: 0;
-  transform: translateY(200%);
-}
-
-
-
-      .noah {
-        color: rgb(112, 64, 224);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: 1px;
-      }
-      .noah:hover {
-        color: rgb(224, 64, 64);
-      }
-      .title {
-        color: rgb(0, 8, 101);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: 20px;
-      }
-
-      header {
-       background-color: rgb(73, 226, 43);
-       height: 80px;
-}
-  </style>
+  <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <header>
-     <h1 class="overlay" class="text" class="wrapper" class="shadow" class="title">Noahs Link Liste</h1>
-  </header>
+  <div class="fontuberschrift"><span>NOAH'S LINK LIST</span></div>
 
-  <div class="overlay"></div>
-
-  <div class="text">
-    <div class="wrapper">
-      <div id="L" class="letter">Noah's</div>
-      <div class="shadow">Noah's</div>
-    </div>
-    <div class="wrapper">
-      <div id="I" class="letter">Link</div>
-      <div class="shadow">Link</div>
-    </div>
-    <div class="wrapper">
-      <div id="G" class="letter">Liste</div>
-      <div class="shadow">Liste</div>
-    </div>
-  </div>
-<div>
-
-  <p> <a class="shadow" href="calculator.html">Human Average Size Calculator</a> </p>
-
-  <p> <a class="shadow" href="englischvokabeltrainer.html">English Vocabulary Trainer Gymnasium 5 Class</a> </p>
-</div>
+  <a class="button-22" href="calculator.html">Noah's Human Average Size Calculator</a>
+  <br>
+  <span class="linktext">01/2023 This page got originally created by ChatGTP and got enhanced by Noah</span>
+  <a class="button-22" href="https://www.youtube.com/watch?v=Pafb_UtISkA&list=PLLWRzvPF53ODWn8aa-UWXi80ZNUo7_HI8">(see video here)</a>
+  <br><br>
+  <a class="button-22" href="english.html">English Vocabulary Trainer 5th Class Gymnasium</a>
 
 </body>
 </html>
