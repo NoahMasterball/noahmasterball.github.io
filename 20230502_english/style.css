@@ -1,0 +1,64 @@
+@font-face {
+    font-family: "myfont";
+    src: url("myfont-Light.ttf");
+}
+
+@font-face {
+    font-family: "myfont2";
+    src: url("myfont-Regular.ttf");
+}
+
+.ebenecloud1 {
+    position: absolute;
+    display: flex;
+    top: 20px;
+    left: 20px;
+  }
+
+  .ebenecloud2 {
+    position: absolute;
+    display: flex;
+    top: 80px;
+    left: 640px;
+  }
+
+  .ebenewiese {
+    position: absolute;
+    display: flex;
+    top: 820px;
+    left: 20px;
+  }
+
+  .ebenebaum {
+    position: absolute;
+    display: flex;
+    top: 485px;
+    left: 700px;
+    z-index: 1;
+  }
+
+  .ebenebus {
+    position: absolute;
+    display: flex;
+    top: 835px;
+    left: 605px;
+    z-index: 10;
+  }
+
+  .ebenebus {
+    position: absolute;
+    top: 835px;
+    left: 605px;
+    z-index: 10;
+    transform: translateX(100%);
+    animation-name: chug;
+    animation-duration: 10s;
+    animation-iteration-count: infinite;
+  }
+
+  @keyframes chug {
+    30% {
+      transform: translateX(-100%);
+    }
+  }
+
