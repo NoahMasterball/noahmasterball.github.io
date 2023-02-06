@@ -1,0 +1,230 @@
+@font-face {
+    font-family: "myfont";
+    src: url("myfont-Light.ttf");
+}
+
+@font-face {
+    font-family: "myfont2";
+    src: url("myfont-Regular.ttf");
+}
+
+/*
+div {
+  border: 2px solid green;
+}
+*/
+
+.ebenecloud1 {
+  position: relative;
+  display: flex;
+  margin: auto;
+  top: 20px;
+  left: -150px;
+  width: 520px;
+}
+.ebenecloud1 img {
+  width: 358px;
+  height: 292px;
+}
+.ebenecloud1text {
+  font-family: "myfont2";
+  font-size: 42px;
+  position: relative;
+  display: flex;
+  margin: auto;
+  top: -145px;
+  left: -70px;
+  width: 520px;
+}
+
+
+.ebenecloud2 {
+  position: relative;
+  display: flex;
+  margin: auto;
+  top: -275px;
+  left: 180px;
+  width: 420px;
+}
+
+.ebenecloud2 img{
+  width: 414x;
+  height: 238px;
+}
+
+.ebenecloud2text {
+  position: relative;
+  display: flex;
+  margin: auto;
+  font-family: "myfont2";
+  font-size: 42px;
+  color: black;
+  padding-top: 25px;
+  padding-left: 80px;
+  top: -390px;
+  left: 175px;
+  width: 400px;
+  height: 80px;
+  z-index: 2;
+}
+.ebenecloud2text:hover {
+  color:rgb(13, 6, 113);
+}
+
+/*
+  color:rgb(13, 6, 113);
+*/
+
+.ebenecloud2text:hover .dropdowncontent{
+  display: flex;
+}
+
+.dropdowncontent {
+  position: relative;
+  display: none;
+  font-family: "myfont2";
+  font-size: 42px;
+  color: black;
+  /*
+  background-color: #ffffff;
+  box-shadow: rgba(0, 0, 0, 0.25) 0px 14px 28px, rgba(0, 0, 0, 0.22) 0px 10px 10px;
+  */
+  margin: auto;
+  top: 0px;
+  left: -370px;
+  width: 500px;
+  height: 200px;
+  z-index: 50;
+}
+.dropdowncontent img {
+  width: 150px;
+  height: 122px;
+}
+
+.ebenecloud2menu1 {
+  position: relative;
+  margin: auto;
+  top: 20px;
+  left: 2px;
+  width: 150px;
+  height: 122px;
+  z-index: 60;
+}
+.ebenecloud2menu1text {
+  position: relative;
+  margin: auto;
+  text-align: center;
+  top: -80px;
+  left: 0px;
+  width: 150px;
+  height: 60px;
+  font-size:16px;
+  z-index: 60;
+  transform: rotate(-0deg);
+}
+.ebenecloud2menu1:hover .ebenecloud2menu1text {
+  color:rgb(13, 6, 113);
+}
+
+
+.ebenecloud2menu2 {
+  position: relative;
+  margin: auto;
+  top: 50px;
+  left: -10px;
+  width: 150px;
+  height: 122px;
+  z-index: 60;
+}
+.ebenecloud2menu2text {
+  position: relative;
+  margin: auto;
+  text-align: center;
+  top: -80px;
+  left: 0px;
+  width: 150px;
+  height: 60px;
+  font-size:16px;
+  z-index: 60;
+}
+.ebenecloud2menu2:hover .ebenecloud2menu2text {
+  color:rgb(13, 6, 113);
+}
+
+.ebenecloud2menu3 {
+  position: relative;
+  margin: auto;
+  top: 15px;  
+  left: -10px;
+  width: 150px;
+  height: 122px;
+  z-index: 60;
+}
+.ebenecloud2menu3text {
+  position: relative;
+  margin: auto;
+  text-align: center;
+  top: -80px;
+  left: 0px;
+  width: 150px;
+  height: 60px;
+  font-size:16px;
+  z-index: 60;
+}
+.ebenecloud2menu3:hover .ebenecloud2menu3text {
+  color:rgb(13, 6, 113);
+}
+
+
+.ebenebaum {
+  position: relative;
+  display: flex;
+  margin: auto;
+  top: -280px;
+  left: 250px;
+  width: 320px;
+  z-index: 1;
+}
+.ebenebaum img {
+  width: 304px;
+  height: 345px;
+}
+
+
+.ebenewiese {
+  position: relative;
+  display: flex;
+  margin: auto;
+  top: -420px;
+  left: 0px;
+  width: 820px;
+}
+.ebenewiese img {
+  width: 818px;
+  height: 420px;
+}
+
+
+.ebenebus {
+  position: relative;
+  display: flex;
+  margin: auto;
+  top: -720px;
+  left: -200px;
+  width: 400px;
+  z-index: 10;
+}
+.ebenebus img {
+  width: 398px;
+  height: 278px;
+}
+.ebenebus {
+  animation-name: chug;
+  animation-duration: 5s;
+  animation-iteration-count: infinite;
+}
+@keyframes chug {
+  0% {
+    transform: translateX(100%);
+  }
+}
