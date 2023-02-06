@@ -8,61 +8,121 @@
     src: url("myfont-Regular.ttf");
 }
 
-body {
-  background-color: rgb(81, 190, 233);
-}
+  div {
+    border: 2px solid green;
+  }
 
-.ebenecloud1 {
-    position: absolute;
+  .ebenecloud1 {
+    position: relative;
     display: flex;
+    margin: auto;
     top: 20px;
-    left: 20px;
+    left: -150px;
+    width: 520px;
+  }
+
+  img.could1 {
+    width: 358px;
+    height: 292px;
+  }
+  .ebenecloud1text {
+    font-family: "myfont2";
+    font-size: 42px;
+    position: relative;
+    display: flex;
+    margin: auto;
+    top: -145px;
+    left: -70px;
+    width: 520px;
   }
 
   .ebenecloud2 {
-    position: absolute;
+    position: relative;
     display: flex;
-    top: 80px;
-    left: 640px;
+    margin: auto;
+    top: -275px;
+    left: 180px;
+    width: 420px;
   }
-
-  .ebenewiese {
-    position: absolute;
+  img.cloud2 {
+    width: 414x;
+    height: 238px;
+  }
+  .ebenecloud2text {
+    font-family: "myfont2";
+    font-size: 42px;
+    position: relative;
     display: flex;
-    top: 820px;
-    left: 20px;
+    margin: auto;
+    top: -360px;
+    left: 200px;
+    width: 320px;
+    z-index: 2;
+  }
+  .ebenecloud2text:hover {
+    font-family: "myfont2";
+    font-size: 42px;
+    position: relative;
+    display: flex;
+    margin: auto;
+    top: -360px;
+    left: 200px;
+    width: 320px;
+    z-index: 2;
+    color:rgb(18, 8, 148);
   }
 
   .ebenebaum {
-    position: absolute;
+    position: relative;
     display: flex;
-    top: 485px;
-    left: 700px;
-    z-index: 1;
+    margin: auto;
+    top: -280px;
+    left: 250px;
+    width: 320px;
+    z-index: 5;
+  }
+  
+    img.baum {
+    width: 304px;
+    height: 345px;
   }
 
-  .ebenebus {
-    position: absolute;
+  .ebenewiese {
+    position: relative;
     display: flex;
-    top: 835px;
-    left: 605px;
+    margin: auto;
+    top: -420px;
+    left: 0px;
+    width: 820px;
+  }
+  img.wiese {
+    width: 818px;
+    height: 420px;
+  }
+  
+  .ebenebus {
+    position: relative;
+    display: flex;
+    margin: auto;
+    top: -720px;
+    left: -200px;
+    width: 400px;
     z-index: 10;
   }
-
+  img.bus {
+    width: 398px;
+    height: 278px;
+  }
+  
   .ebenebus {
-    position: absolute;
-    top: 835px;
-    left: 605px;
-    z-index: 10;
-    transform: translateX(100%);
     animation-name: chug;
-    animation-duration: 10s;
+    animation-duration: 5s;
     animation-iteration-count: infinite;
   }
 
   @keyframes chug {
-    30% {
-      transform: translateX(-100%);
+    0% {
+      transform: translateX(100%);
     }
   }
 
