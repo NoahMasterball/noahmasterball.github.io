@@ -22,8 +22,7 @@
     left: -150px;
     width: 520px;
   }
-
-  img.could1 {
+  .ebenecloud1 img {
     width: 358px;
     height: 292px;
   }
@@ -46,7 +45,7 @@
     left: 180px;
     width: 420px;
   }
-  img.cloud2 {
+  .ebenecloud2 img{
     width: 414x;
     height: 238px;
   }
@@ -83,8 +82,7 @@
     width: 320px;
     z-index: 5;
   }
-  
-    img.baum {
+    .ebenebaum img {
     width: 304px;
     height: 345px;
   }
@@ -97,7 +95,7 @@
     left: 0px;
     width: 820px;
   }
-  img.wiese {
+  .ebenewiese img {
     width: 818px;
     height: 420px;
   }
@@ -111,7 +109,7 @@
     width: 400px;
     z-index: 10;
   }
-  img.bus {
+  .ebenebus img {
     width: 398px;
     height: 278px;
   }
