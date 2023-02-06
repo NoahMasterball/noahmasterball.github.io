@@ -8,6 +8,10 @@
     src: url("myfont-Regular.ttf");
 }
 
+body {
+  background-color: rgb(81, 190, 233);
+}
+
 .ebenecloud1 {
     position: absolute;
     display: flex;
