@@ -1,5 +1,6 @@
 
 var myLanguage = 'deutsch';
+var myvocabluary = 'button1';
 
 function onmouseoverdeutsch() {
   myLanguage = 'deutsch';
@@ -16,22 +17,22 @@ function onmouseoverenglish() {
 
 function changeClass1() {
   document.getElementById("button1").className="open";
-  document.getElementById("button2").className="";
-  document.getElementById("button3").className="";
+  document.getElementById("button2").className="close";
+  document.getElementById("button3").className="close";
   myvocabluary = 'button1';
 }
 
 function changeClass2() {
   document.getElementById("button2").className="open";
-  document.getElementById("button1").className="";
-  document.getElementById("button3").className="";
+  document.getElementById("button1").className="close";
+  document.getElementById("button3").className="close";
   myvocabluary = 'button2';
 }
 
 function changeClass3() {
   document.getElementById("button3").className="open";
-  document.getElementById("button1").className="";
-  document.getElementById("button2").className="";
+  document.getElementById("button1").className="close";
+  document.getElementById("button2").className="close";
   myvocabluary = 'button3';
 }
 

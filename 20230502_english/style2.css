@@ -124,6 +124,8 @@ div {    border: 1px solid green;
   font-size:25px;
   z-index: 60;
   transform: rotate(-0deg);
+  color:rgb(13, 6, 113);
+  text-shadow: 1px 1px rgb(132, 248, 46);
 }
 .ebenecloud2menu1:hover .ebenecloud2menu1text {
   color:rgb(13, 6, 113);
@@ -184,7 +186,10 @@ div {    border: 1px solid green;
   color:rgb(13, 6, 113);
   text-shadow: 1px 1px rgb(132, 248, 46);
 }
-
+.close {
+  color:rgb(0, 0, 0);
+  text-shadow: none;
+}
 
 
 
