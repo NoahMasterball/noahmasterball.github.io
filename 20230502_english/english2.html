@@ -7,8 +7,9 @@
  <script language="javascript" type="text/javascript" src="javascript2.js"></script>
 </head>
 <body>
+<div class="ebenemaster">
  <div class="ebenecloud1"><img src=wolke1.gif></img></div>
- <div class="ebenecloud1text"><span>Noah's Vocabulary<br>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbspTrainer: English</span></div> 
+ <div class="ebenecloud1text"><span>Noah's Vocabulary<br>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbspTrainer: English</span></div> 
  <div class="ebenecloud2"><img src=wolke2.gif></img></div>
  <div class="ebenecloud2text">Select&nbspVocabulary&nbsphere
   <div class="dropdowncontent">
@@ -29,9 +30,21 @@
  <div class="ebenebaum"><img src=baum1.gif></img></div>
  <div class="ebenewiese"><img src=wiese1.gif></img></div>
  <div class="ebenebus"><img src=bus.gif></img></div>
- <div> 
-  <p class="testausgabe" id="seitenausgabe"></p>
-  <button class="button testausgabe" onClick="javascript:knopfhastdruckst()"><img src="wolke1.gif" /></button>
+ <div class="ebenesprachwahl"> 
+    <div class="ebenetextsetup">
+      <span>Setup</span>
+      <div class="ebenewolkeknopf">
+        <!-- <button class="button" onclick="javascript:knopfhastdruckst()"><img src="wolke1.gif"></img></button> -->
+        <button class="button"><img src="wolke1.gif"></img></button>
+          <div class="buttonflagge"><img id="deutsch" onclick="javascript:knopfhastdruckstdeutsch()" onmouseover="javascript:onmouseoverdeutsch()" src="flagge_de2.gif"></img><span>&nbsp&nbsp&nbsp</span>
+                                    <img id="english" onclick="javascript:knopfhastdruckstenglish()" onmouseover="javascript:onmouseoverenglish()" src="flagge_eng.gif"></img>
+          </div>
+        <span class="buttontext" id="seitenausgabe"></span>
+       </div>  
+    </div>
+  </div>
+</div>
 </div>
 </body>
 </html>
+
