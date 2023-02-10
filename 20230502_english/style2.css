@@ -8,91 +8,17 @@
     src: url("myfont-Regular.ttf");
 }
 
-/* div {    border: 2px solid green;     }
- background: #000;
-*/
+div {    border: 1px solid green; 
+    }
+
 
 .ebenemaster {
+  position: relative;
+  display: flex;
+  margin: auto;
   width: 850px;
-  height: 800px;
-  margin: auto;
-
+  height: 1200px;
 }
-
-.ebenesprachwahl {
-  position: relative;
-  display: flex;
-  margin: auto;
-  top: -1765px;
-  left: 175px;
-  width: 500px;
-  height: 200px;
-}
-.ebenetextsetup {
-  position: relative;
-  display: flex;
-  margin: auto;
-  font-family: "myfont2";
-  font-size: 42px;
-  color: black;
-  padding-top: 25px;
-  padding-left: 65px;
-  top: 80px;
-  left: 0px;
-  width: 150px;
-  height: 60px;
-  z-index: 2;
-}
-.ebenewolkeknopf {
-  position: relative;
-  display: none;
-  margin: auto;
-  top: -80px;
-  left: 20px;
-  z-index: 10;
-
-}
-.ebenewolkeknopf img {
-width: 150px;
-height: 122px;
-}
-.ebenetextsetup:hover {
-  color:rgb(13, 6, 113);
-}
-.ebenetextsetup:hover .ebenewolkeknopf{
-  display: flex;
-}
-
-.button {
-  position: relative;
-  display: flex;
-  margin: auto;
-  border: none;
-  background: none;
-}
-.buttonflagge{
-  position: relative;
-  display: flex;
-  margin: auto;
-  width: 68px;
-  height: 15px;
-  left: -105px;
-  top: 7px;
-}
-.buttonflagge img{
-  width: 29px;
-  height: 19px;
-}
-
-.buttontext {
-  font-family: "myfont2";
-  font-size: 42px;
-  position: relative;
-  display: flex;
-  margin: auto;
-  z-index: 11;
-}
-
 
 
 
@@ -100,9 +26,9 @@ height: 122px;
   position: relative;
   display: flex;
   margin: auto;
-  top: 20px;
-  left: -150px;
   width: 520px;
+  top: -445px;
+  left: 0px;
 }
 .ebenecloud1 img {
   width: 358px;
@@ -114,19 +40,20 @@ height: 122px;
   position: relative;
   display: flex;
   margin: auto;
-  top: -145px;
-  left: -70px;
-  width: 520px;
+  width: 550px;
+  top: -425px;
+  left: -280px;
 }
+
 
 
 .ebenecloud2 {
   position: relative;
   display: flex;
   margin: auto;
-  top: -380px;
-  left: 180px;
   width: 420px;
+  top: -350px;
+  left: -180px;
 }
 .ebenecloud2 img{
   width: 414x;
@@ -141,49 +68,43 @@ height: 122px;
   color: rgb(0, 0, 0);
   padding-top: 25px;
   padding-left: 80px;
-  top: -491px;
-  left: 200px;
-  width: 370px;
+  width: 345px;
   height: 80px;
   z-index: 2;
+  top: -290px;
+  left: -605px;
 }
 .ebenecloud2text:hover {
   color:rgb(13, 6, 113);
 }
-/*
-  color:rgb(13, 6, 113);
-*/
 .ebenecloud2text:hover .dropdowncontent{
   display: flex;
 }
 
+
+
 .dropdowncontent {
   position: relative;
-  display: none;
+  display: flex;
+  margin: auto;
   font-family: "myfont2";
   font-size: 42px;
   color: black;
-  /*
-  background-color: #ffffff;
-  box-shadow: rgba(0, 0, 0, 0.25) 0px 14px 28px, rgba(0, 0, 0, 0.22) 0px 10px 10px;
-  */
-  margin: auto;
   top: 0px;
-  left: -370px;
+  left: -400px;
   width: 450px;
-  height: 200px;
+  height: 240px;
   z-index: 50;
 }
 .dropdowncontent img {
-  width: 150px;
-  height: 122px;
+  width: 175px;
+  height: 143px;
 }
-
 .ebenecloud2menu1 {
   position: relative;
   margin: auto;
-  top: 20px;
-  left: 2px;
+  top: 10px;
+  left: -20px;
   width: 150px;
   height: 122px;
   z-index: 60;
@@ -192,24 +113,22 @@ height: 122px;
   position: relative;
   margin: auto;
   text-align: center;
-  top: -80px;
-  left: 0px;
-  width: 150px;
+  top: -90px;
+  left: -15px;
+  width: 180px;
   height: 60px;
-  font-size:16px;
+  font-size:25px;
   z-index: 60;
   transform: rotate(-0deg);
 }
 .ebenecloud2menu1:hover .ebenecloud2menu1text {
   color:rgb(13, 6, 113);
 }
-
-
 .ebenecloud2menu2 {
   position: relative;
   margin: auto;
-  top: 50px;
-  left: -10px;
+  top: 40px;
+  left: -30px;
   width: 150px;
   height: 122px;
   z-index: 60;
@@ -218,22 +137,21 @@ height: 122px;
   position: relative;
   margin: auto;
   text-align: center;
-  top: -80px;
-  left: 0px;
-  width: 150px;
+  top: -90px;
+  left: -15px;
+  width: 180px;
   height: 60px;
-  font-size:16px;
+  font-size:25px;
   z-index: 60;
 }
 .ebenecloud2menu2:hover .ebenecloud2menu2text {
   color:rgb(13, 6, 113);
 }
-
 .ebenecloud2menu3 {
   position: relative;
   margin: auto;
-  top: 15px;  
-  left: -10px;
+  top: 20px;
+  left: -20px;
   width: 150px;
   height: 122px;
   z-index: 60;
@@ -242,11 +160,11 @@ height: 122px;
   position: relative;
   margin: auto;
   text-align: center;
-  top: -80px;
-  left: 0px;
-  width: 150px;
+  top: -90px;
+  left: -15px;
+  width: 180px;
   height: 60px;
-  font-size:16px;
+  font-size:25px;
   z-index: 60;
 }
 .ebenecloud2menu3:hover .ebenecloud2menu3text {
@@ -254,12 +172,87 @@ height: 122px;
 }
 
 
+
+
+
+
+.ebenesetup {
+  position: relative;
+  display: flex;
+  margin: auto;
+  width: 400px;
+  height: 200px;
+  top: -380px;
+  left: -2350px;
+}
+.ebenetextsetup {
+  position: relative;
+  display: flex;
+  margin: auto;
+  font-family: "myfont2";
+  font-size: 42px;
+  color: black;
+  padding-top: 100px;
+  padding-left: 100px;
+  width: 200px;
+  height: 150px;
+  z-index: 2;
+  top: -50px;
+  left: -75px;
+}
+.ebenewolkesetup {
+  position: relative;
+  display: flex;
+  margin: auto;
+  z-index: 10;
+  width: 175px;
+  height: 143px;
+  top: -170px;
+  left: -20px;
+}
+.ebenewolkesetup img {
+width: 175px;
+height: 143px;
+}
+.ebenetextsetup:hover {
+  color:rgb(13, 6, 113);
+}
+.ebenetextsetup:hover .ebenewolkesetup{
+  display: flex;
+}
+
+
+
+.wolkeflaggen {
+  position: relative;
+  display: flex;
+  margin: auto;
+  border: none;
+  background: none;
+}
+.ebeneflaggen {
+  position: relative;
+  display: flex;
+  margin: auto;
+  width: 68px;
+  height: 15px;
+  top: 0px;
+  left: -135px;
+
+}
+.ebeneflaggen img{
+  width: 49px;
+  height: 32px;
+}
+
+
+
 .ebenebaum {
   position: relative;
   display: flex;
   margin: auto;
-  top: -480px;
-  left: 250px;
+  top: 150px;
+  left: -950px;
   width: 320px;
   z-index: 1;
 }
@@ -273,8 +266,8 @@ height: 122px;
   position: relative;
   display: flex;
   margin: auto;
-  top: -620px;
-  left: 0px;
+  top: 380px;
+  left: -1645px;
   width: 820px;
 }
 .ebenewiese img {
