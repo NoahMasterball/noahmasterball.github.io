@@ -14,7 +14,35 @@ function onmouseoverenglish() {
   // document.getElementById("seitenausgabe").innerHTML = myLanguage;
 }
 
+function changeClass1() {
+  document.getElementById("button1").className="open";
+  document.getElementById("button2").className="";
+  document.getElementById("button3").className="";
+  myvocabluary = 'button1';
+}
+
+function changeClass2() {
+  document.getElementById("button2").className="open";
+  document.getElementById("button1").className="";
+  document.getElementById("button3").className="";
+  myvocabluary = 'button2';
+}
+
+function changeClass3() {
+  document.getElementById("button3").className="open";
+  document.getElementById("button1").className="";
+  document.getElementById("button2").className="";
+  myvocabluary = 'button3';
+}
+
+
+
+
+
+
 /*
+
+
 //Standartmässig nehmen wir english als sprache
 var myLanguage = 'deutsch';
 var zaehler = 0;

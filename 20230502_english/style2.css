@@ -127,6 +127,7 @@ div {    border: 1px solid green;
 }
 .ebenecloud2menu1:hover .ebenecloud2menu1text {
   color:rgb(13, 6, 113);
+  text-shadow: 1px 1px rgb(132, 248, 46);
 }
 .ebenecloud2menu2 {
   position: relative;
@@ -151,6 +152,7 @@ div {    border: 1px solid green;
 }
 .ebenecloud2menu2:hover .ebenecloud2menu2text {
   color:rgb(13, 6, 113);
+  text-shadow: 1px 1px rgb(132, 248, 46);
 }
 .ebenecloud2menu3 {
   position: relative;
@@ -175,8 +177,13 @@ div {    border: 1px solid green;
 }
 .ebenecloud2menu3:hover .ebenecloud2menu3text {
   color:rgb(13, 6, 113);
+  /* text-shadow: 1px 1px rgb(132, 248, 46);*/
 }
 
+.open {
+  color:rgb(13, 6, 113);
+  text-shadow: 1px 1px rgb(132, 248, 46);
+}
 
 
 
@@ -191,7 +198,16 @@ div {    border: 1px solid green;
   top: -1590px;
   left: 180px;
 }
-
+.ebenewolkesetup {
+  position: relative;
+  display: none;
+  margin: auto;
+  z-index: 10;
+  width: 175px;
+  height: 143px;
+  top: -140px;
+  left: 5px;
+}
 .ebenetextsetup {
   position: relative;
   display: flex;
@@ -206,16 +222,6 @@ div {    border: 1px solid green;
   z-index: 2;
   top: 35px;
   left: -18px;
-}
-.ebenewolkesetup {
-  position: relative;
-  display: none;
-  margin: auto;
-  z-index: 10;
-  width: 175px;
-  height: 143px;
-  top: -148px;
-  left: 5px;
 }
 .ebenewolkesetup img {
 width: 175px;
