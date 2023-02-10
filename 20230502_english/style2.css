@@ -16,7 +16,7 @@ div {    border: 1px solid green;
   position: relative;
   display: flex;
   margin: auto;
-  width: 850px;
+  width: 822px;
   height: 1200px;
 }
 
@@ -266,8 +266,8 @@ height: 143px;
   position: relative;
   display: flex;
   margin: auto;
-  top: 380px;
-  left: -1645px;
+  top: 386px;
+  left: -1673px;
   width: 820px;
 }
 .ebenewiese img {
@@ -280,8 +280,8 @@ height: 143px;
   position: relative;
   display: flex;
   margin: auto;
-  top: -920px;
-  left: -200px;
+  top: 0px;
+  left: -2460px;
   width: 400px;
   z-index: 10;
 }
