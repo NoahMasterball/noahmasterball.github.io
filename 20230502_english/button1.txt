@@ -1,0 +1,80 @@
+dog:Hund
+cat:Katze
+house:Haus
+to sleep:schlafen
+car:Auto
+dog:Hund
+cat:Katze
+house:Haus
+to sleep:schlafen
+car:Auto
+dog:Hund
+cat:Katze
+house:Haus
+to sleep:schlafen
+car:Auto
+dog:Hund
+cat:Katze
+house:Haus
+to sleep:schlafen
+car:Auto
+dog:Hund
+cat:Katze
+house:Haus
+to sleep:schlafen
+car:Auto
+dog:Hund
+cat:Katze
+house Haus
+to sleep:schlafen
+car:Auto
+dog:Hund
+cat:Katze
+house:Haus
+to to sleep:schlafen
+car:Auto
+dog:Hund
+cat:Katze
+house:Haus
+to sleep:schlafen
+car:Auto
+dog:Hund
+cat:Katze
+house:Haus
+to sleep:schlafen
+car:Auto
+dog:Hund
+cat:Katze
+house:Haus
+to sleep:schlafen
+car:Auto
+dog:Hund
+cat:Katze
+house:Haus
+to sleep:schlafen
+car:Auto
+dog:Hund
+cat:Katze
+house:Haus
+to sleep:schlafen
+car:Auto
+dog:Hund
+cat:Katze
+house:Haus
+to sleep:schlafen
+car:Auto
+dog:Hund
+cat:Katze
+house:Haus
+to sleep:schlafen
+car:Auto
+dog:Hund
+cat:Katze
+house:Haus
+to sleep:schlafen
+car:Auto
+dog:Hund
+cat:Katze
+house:Haus
+to sleep:schlafen
+car:Auto

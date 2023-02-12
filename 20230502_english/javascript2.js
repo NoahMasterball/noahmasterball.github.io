@@ -1,40 +1,174 @@
-
-var myLanguage = 'deutsch';
-var myvocabluary = 'button1';
+var myLanguage = "deutsch";
+var myvocabluary = "button1";
 
 function onmouseoverdeutsch() {
-  myLanguage = 'deutsch';
-  document.getElementById("deutsch").src="flagge_de2.gif";
-  document.getElementById("english").src="flagge_eng.gif";
+  myLanguage = "deutsch";
+  document.getElementById("deutsch").src = "flagge_de2.gif";
+  document.getElementById("english").src = "flagge_eng.gif";
   // document.getElementById("seitenausgabe").innerHTML = myLanguage;
 }
 function onmouseoverenglish() {
-  myLanguage = 'english';
-  document.getElementById("deutsch").src="flagge_de.gif";
-  document.getElementById("english").src="flagge_eng2.gif";
+  myLanguage = "english";
+  document.getElementById("deutsch").src = "flagge_de.gif";
+  document.getElementById("english").src = "flagge_eng2.gif";
   // document.getElementById("seitenausgabe").innerHTML = myLanguage;
 }
 
 function changeClass1() {
-  document.getElementById("button1").className="open";
-  document.getElementById("button2").className="close";
-  document.getElementById("button3").className="close";
-  myvocabluary = 'button1';
+  document.getElementById("button1").className = "open";
+  document.getElementById("button2").className = "close";
+  document.getElementById("button3").className = "close";
+  myvocabluary = "button1";
 }
 
 function changeClass2() {
-  document.getElementById("button2").className="open";
-  document.getElementById("button1").className="close";
-  document.getElementById("button3").className="close";
-  myvocabluary = 'button2';
+  document.getElementById("button2").className = "open";
+  document.getElementById("button1").className = "close";
+  document.getElementById("button3").className = "close";
+  myvocabluary = "button2";
 }
 
 function changeClass3() {
-  document.getElementById("button3").className="open";
-  document.getElementById("button1").className="close";
-  document.getElementById("button2").className="close";
-  myvocabluary = 'button3';
+  document.getElementById("button3").className = "open";
+  document.getElementById("button1").className = "close";
+  document.getElementById("button2").className = "close";
+  myvocabluary = "button3";
 }
+
+function fragewort() {
+  fetch("button1.txt")
+    .then((response) => response.text())
+    .then((text) => {
+      const inhalt = text.split("\n");
+
+      const vocabularyarray = [];
+      for (const zeilen of inhalt) {
+        if (zeilen.length === 0) {
+          continue;
+        }
+        const [english, german] = zeilen.split(":");
+        vocabularyarray.push({ english, german });
+      }
+
+      let currentWord = 0;
+      interval = setInterval(showWord, 1000);
+
+      function showWord() {
+        if (currentWord >= vocabularyarray.length) {
+          console.log("You have finished all the words!");
+          clearInterval(interval);
+          return;
+        }
+        const word = vocabularyarray[currentWord];
+        document.getElementById("wortausgabede").innerHTML = word.german;
+        document.getElementById("wortausgabeeng").innerHTML = word.english;
+        currentWord++;
+      }
+    })
+    .catch((error) => {
+      console.error(error);
+    });
+}
+
+/*
+
+
+  const importfilesystem = require("fs");
+  const importreadline = require("readline");
+  
+
+  // Read the vocabulary file, then split it, then create array
+  const vocabFile = fs.readFileSync("button1.txt", "utf-8");
+  const vocabLines = vocabFile.split("\n");
+  // const vocabularyarray = [];
+
+  // Parse the vocabulary lines and add each word to the vocabulary array
+  for (const line of vocabLines) {
+    if (line.length === 0) {
+      continue;
+    }
+    const [english, german] = line.split(":");
+    vocabularyarray.push({ english, german });
+  }
+
+  const wort = vocabularyarray[aktuelleswort];
+
+  test = "lalala";
+  document.getElementById("wortausgabe").innerHTML = test + "walum";
+}
+
+
+
+const person = {firstName:"John", lastName:"Doe", age:46};
+document.getElementById("demo").innerHTML = person.firstName;
+
+const fs = require("fs");
+const readline = require("readline");
+
+// Read the vocabulary file, then split it, then create array
+const vocabFile = fs.readFileSync("button1.txt", "utf-8");
+const vocabLines = vocabFile.split("\n");
+const vocabularyarray = [];
+
+// Parse the vocabulary lines and add each word to the vocabulary array
+for (const line of vocabLines) {
+  if (line.length === 0) {
+    continue;
+  }
+  
+  const [english, german] = line.split(":");
+  vocabularyarray.push({english, german});
+}
+
+
+
+/*
+// Create a readline interface for user input
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+function changeClass3() {
+
+function fragewort() {
+  {
+  if (currentWord >= vocabulary.length) {
+    console.log("You have finished all the words!");
+    rl.close();
+    return;
+  }
+
+
+// Start the vocabulary trainer
+console.log("Welcome to the German-English Vocabulary Trainer!");
+console.log("Translate the following word from German to English:");
+
+let currentWord = 0;
+
+const askNextWord = () => {
+  if (currentWord >= vocabulary.length) {
+    console.log("You have finished all the words!");
+    rl.close();
+    return;
+  }
+  
+  const word = vocabulary[currentWord];
+  console.log(word.german);
+  
+  rl.question("> ", answer => {
+    if (answer.toLowerCase() === word.english.toLowerCase()) {
+      console.log("Correct!");
+    } else {
+      console.log(`Incorrect. The correct answer is "${word.english}"`);
+    }
+    
+    currentWord++;
+    askNextWord();
+  });
+};
+
+askNextWord();
 
 
 
@@ -87,6 +221,3 @@ function knopfhastdruckstenglish() {
   document.getElementById("english").src="flagge_eng2.gif";
 }
 */
-
-
-
