@@ -1,42 +1,70 @@
-var myLanguage = "deutsch";
-var myvocabluary = "button1";
+vocabluaryfile = "button2.txt";
+myLanguage = "deutsch";
+intervalauswahl = 5000;
+
+function onmouseover5() {
+  intervalauswahl = 1000;
+  document.getElementById("5").className = ".wolkespeedtext5auswahl";
+}
+
+function onmouseover10() {
+  intervalauswahl = 3000;
+  document.getElementById("10").className = "auswahlrahmen";
+}
+
+function onmouseover15() {
+  intervalauswahl = 6000;
+  document.getElementById("15").className = "auswahlrahmen";
+}
 
 function onmouseoverdeutsch() {
   myLanguage = "deutsch";
   document.getElementById("deutsch").src = "flagge_de2.gif";
   document.getElementById("english").src = "flagge_eng.gif";
-  // document.getElementById("seitenausgabe").innerHTML = myLanguage;
+  //document.getElementById("seitenausgabe").innerHTML = myLanguage;
+  fragewort();
 }
 function onmouseoverenglish() {
   myLanguage = "english";
   document.getElementById("deutsch").src = "flagge_de.gif";
   document.getElementById("english").src = "flagge_eng2.gif";
-  // document.getElementById("seitenausgabe").innerHTML = myLanguage;
+  //document.getElementById("seitenausgabe").innerHTML = myLanguage;
+  fragewort();
 }
 
 function changeClass1() {
   document.getElementById("button1").className = "open";
   document.getElementById("button2").className = "close";
   document.getElementById("button3").className = "close";
-  myvocabluary = "button1";
+  vocabluaryfile = "button1.txt";
+  fragewort();
 }
 
 function changeClass2() {
   document.getElementById("button2").className = "open";
   document.getElementById("button1").className = "close";
   document.getElementById("button3").className = "close";
-  myvocabluary = "button2";
+  vocabluaryfile = "button2.txt";
+  fragewort();
 }
 
 function changeClass3() {
   document.getElementById("button3").className = "open";
   document.getElementById("button1").className = "close";
   document.getElementById("button2").className = "close";
-  myvocabluary = "button3";
+  vocabluaryfile = "button3.txt";
+  fragewort();
+}
+
+let interval;
+function haltFunction() {
+  clearInterval(interval);
+  interval = null;
 }
 
 function fragewort() {
-  fetch("button1.txt")
+  haltFunction();
+  fetch(vocabluaryfile)
     .then((response) => response.text())
     .then((text) => {
       const inhalt = text.split("\n");
@@ -51,7 +79,18 @@ function fragewort() {
       }
 
       let currentWord = 0;
-      interval = setInterval(showWord, 1000);
+      interval = setInterval(showWord, intervalauswahl);
+      const word = vocabularyarray[currentWord];
+
+      if (myLanguage == "deutsch") {
+        document.getElementById("wortausgabede").innerHTML = word.german;
+        document.getElementById("wortausgabeeng").innerHTML = word.english;
+        currentWord++;
+      } else {
+        document.getElementById("wortausgabede").innerHTML = word.english;
+        document.getElementById("wortausgabeeng").innerHTML = word.german;
+        currentWord++;
+      }
 
       function showWord() {
         if (currentWord >= vocabularyarray.length) {
@@ -60,9 +99,15 @@ function fragewort() {
           return;
         }
         const word = vocabularyarray[currentWord];
-        document.getElementById("wortausgabede").innerHTML = word.german;
-        document.getElementById("wortausgabeeng").innerHTML = word.english;
-        currentWord++;
+        if (myLanguage == "deutsch") {
+          document.getElementById("wortausgabede").innerHTML = word.german;
+          document.getElementById("wortausgabeeng").innerHTML = word.english;
+          currentWord++;
+        } else {
+          document.getElementById("wortausgabede").innerHTML = word.english;
+          document.getElementById("wortausgabeeng").innerHTML = word.german;
+          currentWord++;
+        }
       }
     })
     .catch((error) => {
@@ -72,7 +117,8 @@ function fragewort() {
 
 /*
 
-
+      document.getElementById("wortausgabede").style.whiteSpace = "nowrap";
+      document.getElementById("wortausgabeeng").style.whiteSpace = "nowrap";
   const importfilesystem = require("fs");
   const importreadline = require("readline");
   

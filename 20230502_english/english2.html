@@ -30,7 +30,7 @@
  <div class="ebenebaum"><img src=baum1.gif></img></div>
  <div class="ebenewiese"><img src=wiese1.gif></img></div>
  <div class="ebenebus"><img src=bus.gif></img>
-  <div class="ebenewortausgabede"><span class="ebenewortausgabetextde" id="wortausgabede"></span>
+  <div class="ebenewortausgabede"><span class="ebenewortausgabetextde nozeilenumbruch" id="wortausgabede"></span>
   </div>
 </div>
  <div class="ebenesetup"> 
@@ -40,6 +40,12 @@
         <!-- <button class="button" onclick="javascript:knopfhastdruckst()"><img src="wolke1.gif"></img></button> -->
           <div class="wolkeflaggen"><img src="wolke1.gif"></img>
           </div>
+          <div class="wolkespeed"><img src="wolke1.gif"></img>
+            <span class="wolkespeedtext">Speed</span>
+            <span id="5"  onmouseover="javascript:onmouseover5()" class="wolkespeedtext5">5s</span>
+            <span id="10" onmouseover="javascript:onmouseover10()" class="wolkespeedtext10">10s</span>
+            <span id="15" onmouseover="javascript:onmouseover15()" class="wolkespeedtext15">15s</span>
+          </div>
           <div class="ebeneflaggen"><img id="deutsch" onclick="javascript:knopfhastdruckstdeutsch()" onmouseover="javascript:onmouseoverdeutsch()" src="flagge_de2.gif"></img><span>&nbsp&nbsp&nbsp</span>
                                     <img id="english" onclick="javascript:knopfhastdruckstenglish()" onmouseover="javascript:onmouseoverenglish()" src="flagge_eng.gif"></img>
           </div>
@@ -48,10 +54,12 @@
     </div>
   </div>
 </div>
-<div class="ebenewortverbergen"><span class="ebenewortverbergentext">See&nbspsolution&nbsphere</span>
-    <div class="ebenewortausgabeeng"><span class="ebenewortausgabetexteng" id="wortausgabeeng"></span>
+ <div class="ebenesolution">
+    <div><span class="ebeneeng">See&nbspsolution&nbsphere</span>
     </div>
-</div>
+    <div class="ebeneengtext"><span id="wortausgabeeng"></span>
+    </div>
+ </div>
 </div>
 </div>
 </body>

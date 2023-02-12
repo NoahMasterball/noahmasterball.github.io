@@ -26,7 +26,7 @@ div {    border: 1px solid green;
   margin: auto;
   width: 0px;
   top: -40px;
-  left: -185px;
+  left: -245px;
   background: #000;
 }
 
@@ -36,6 +36,7 @@ div {    border: 1px solid green;
   margin: auto;
   font-family: "myfont2";
   font-size: 42px;
+  white-space: nowrap;
   text-decoration: none;
   color: black;
   width: 0px;
@@ -43,66 +44,48 @@ div {    border: 1px solid green;
   left: 0px;
 }
 
-.ebenewortausgabeeng {
-  font-family: "myfont2";
+.ebenesolution {
   position: relative;
   display: flex;
   margin: auto;
-  width: 0px;
-  top: -0px;
-  left: -250px;
-  background: #000;
-}
-
-.ebenewortausgabetexteng {
-  position: relative;
-  display: flex;
-  margin: auto;
-  font-family: "myfont2";
-  font-size: 42px;
-  text-decoration: none;
-  color: black;
-  width: 0px;
-  top: 0px;
-  left: 0px;
-}
-
-.ebenewortverbergen {
-  font-family: "myfont2";
-  position: relative;
-  display: flex;
-  margin: auto;
-  background-color: white;
-  box-shadow: rgba(50, 50, 93, 0.25) 0px 30px 60px -12px inset,
-    rgba(0, 0, 0, 0.3) 0px 18px 36px -18px inset;
   width: 400px;
   height: 200px;
-  top: -580px;
-  left: -197px;
-  z-index: 20;
+  top: -540px;
+  left: -198px;
 }
 
-.ebenewortverbergentext {
-  position: relative;
-  display: flex;
-  margin: auto;
+.ebeneeng {
   font-family: "myfont2";
   font-size: 42px;
-  text-decoration: none;
-  text-align: center;
-  color: black;
-  top: 0px;
-  left: 0px;
-  width: 400px;
-  height: 200px;
-  z-index: 25;
+  padding-left: 50px;
+  padding-top: 5px;
+  position: absolute;
+  display: flex;
+  margin: auto;
+  width: 300px;
+  height: 140px;
+  top: 25px;
+  left: 25px;
 }
 
-.ebenewortverbergen:hover .ebenewortverbergentext {
-  display: none;
+.ebeneengtext {
+  position: relative;
+  font-family: "myfont2";
+  font-size: 42px;
+  white-space: "nowrap";
+  padding-left: 50px;
+  padding-top: 65px;
+  position: absolute;
+  display: flex;
+  margin: auto;
+  width: 300px;
+  height: 90px;
+  top: 25px;
+  left: 25px;
 }
-.ebenewortverbergen:hover .ebenewortausgabetexteng {
-  z-index: 40;
+
+.ebenesolution:hover .ebeneengtext {
+  display: flex;
 }
 
 .ebenecloud1 {
@@ -282,13 +265,14 @@ div {    border: 1px solid green;
 }
 .ebenewolkesetup {
   position: relative;
-  display: none;
+  display: flex;
   margin: auto;
   z-index: 10;
-  width: 175px;
+  width: 240px;
   height: 143px;
   top: -140px;
-  left: 5px;
+  left: -205px;
+  border: 2px solid green;
 }
 .ebenetextsetup {
   position: relative;
@@ -305,6 +289,80 @@ div {    border: 1px solid green;
   top: 35px;
   left: -18px;
 }
+
+.wolkespeed {
+  position: relative;
+  display: flex;
+  margin: auto;
+  border: none;
+  background: none;
+}
+.wolkespeedtext {
+  position: relative;
+  font-size: 28px;
+  display: flex;
+  margin: auto;
+  border: none;
+  background: none;
+  top: -35px;
+  left: -275px;
+}
+
+.wolkespeedtext5 {
+  position: relative;
+  font-size: 28px;
+  color: #000;
+  margin: auto;
+  border: none;
+  background: none;
+  top: 25px;
+  left: -355px;
+}
+.wolkespeedtext5auswahl {
+  position: relative;
+  font-size: 28px;
+  margin: auto;
+  border: none;
+  background: none;
+  top: 25px;
+  left: -355px;
+  border: 1px solid green;
+}
+
+.wolkespeedtext10 {
+  position: relative;
+  font-size: 28px;
+  color: #000;
+  display: flex;
+  margin: auto;
+  border: none;
+  background: none;
+  top: 0px;
+  left: -349px;
+}
+.wolkespeedtext15 {
+  position: relative;
+  font-size: 28px;
+  color: #000;
+  display: flex;
+  margin: auto;
+  border: none;
+  background: none;
+  top: 10px;
+  left: -335px;
+}
+
+.auswahlrahmen {
+  position: absolute;
+  font-size: 28px;
+  color: #000;
+  display: flex;
+  margin: auto;
+  border: none;
+  background: none;
+  border: 1px solid green;
+}
+
 .ebenewolkesetup img {
   width: 175px;
   height: 143px;
@@ -330,7 +388,7 @@ div {    border: 1px solid green;
   width: 68px;
   height: 15px;
   top: 0px;
-  left: -135px;
+  left: -267px;
 }
 .ebeneflaggen img {
   width: 49px;
