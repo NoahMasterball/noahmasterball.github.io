@@ -7,12 +7,11 @@
   font-family: "myfont2";
   src: url("myfont-Regular.ttf");
 }
-
 /*
-div {    border: 1px solid green; 
-    }
+div {
+  border: 1px solid green;
+}
 */
-
 .ebenemaster {
   margin: auto;
   width: 800px;
@@ -29,7 +28,6 @@ div {    border: 1px solid green;
   left: -245px;
   background: #000;
 }
-
 .ebenewortausgabetextde {
   position: relative;
   display: flex;
@@ -48,27 +46,74 @@ div {    border: 1px solid green;
   position: relative;
   display: flex;
   margin: auto;
-  width: 400px;
+  width: 450px;
   height: 200px;
   top: -540px;
-  left: -198px;
+  left: -172px;
 }
-
-.ebeneeng {
+.ebeneengdiv {
   font-family: "myfont2";
   font-size: 42px;
-  padding-left: 50px;
+  padding-left: 0px;
   padding-top: 5px;
   position: absolute;
   display: flex;
   margin: auto;
-  width: 300px;
+  width: 445px;
+  height: 190px;
+  top: 0px;
+  left: 0px;
+}
+.ebeneeng {
+  font-family: "myfont2";
+  font-size: 42px;
+  padding-left: 0px;
+  padding-top: 5px;
+  position: absolute;
+  display: flex;
+  margin: auto;
+  width: 00px;
   height: 140px;
+  top: 20px;
+  left: 15px;
+}
+.ebeneengtext {
+  position: relative;
+  font-family: "myfont2";
+  font-size: 42px;
+  white-space: "nowrap";
+  padding-left: 0px;
+  padding-top: 65px;
+  position: absolute;
+  display: none;
+  margin: auto;
+  width: 300px;
+  height: 90px;
   top: 25px;
   left: 25px;
 }
-
-.ebeneengtext {
+/*
+.ebenesolution:hover .ebeneengtext {
+  display: flex;
+}
+*/
+.sichtbarjavaadd {
+  position: relative;
+  font-family: "myfont2";
+  font-size: 42px;
+  white-space: "nowrap";
+  padding-left: 0px;
+  padding-top: 0px;
+  position: absolute;
+  display: flex;
+  margin: auto;
+  width: 440px;
+  height: 40px;
+  top: 80px;
+  left: 15px;
+  z-index: -2;
+}
+.ebeneclose {
   position: relative;
   font-family: "myfont2";
   font-size: 42px;
@@ -76,16 +121,12 @@ div {    border: 1px solid green;
   padding-left: 50px;
   padding-top: 65px;
   position: absolute;
-  display: flex;
+  display: none;
   margin: auto;
   width: 300px;
   height: 90px;
-  top: 25px;
+  top: -225px;
   left: 25px;
-}
-
-.ebenesolution:hover .ebeneengtext {
-  display: flex;
 }
 
 .ebenecloud1 {
@@ -180,8 +221,8 @@ div {    border: 1px solid green;
   position: relative;
   margin: auto;
   text-align: center;
-  top: -90px;
-  left: -15px;
+  top: -95px;
+  left: -13px;
   width: 180px;
   height: 60px;
   font-size: 25px;
@@ -197,8 +238,8 @@ div {    border: 1px solid green;
 .ebenecloud2menu2 {
   position: relative;
   margin: auto;
-  top: 40px;
-  left: -30px;
+  top: 45px;
+  left: -28px;
   width: 150px;
   height: 122px;
   z-index: 60;
@@ -249,6 +290,10 @@ div {    border: 1px solid green;
   color: rgb(13, 6, 113);
   text-shadow: 1px 1px rgb(132, 248, 46);
 }
+.open2 {
+  color: rgb(13, 6, 113);
+  text-shadow: 2px 2px rgb(132, 248, 46);
+}
 .close {
   color: rgb(0, 0, 0);
   text-shadow: none;
@@ -265,14 +310,13 @@ div {    border: 1px solid green;
 }
 .ebenewolkesetup {
   position: relative;
-  display: flex;
+  display: none;
   margin: auto;
   z-index: 10;
   width: 240px;
   height: 143px;
   top: -140px;
   left: -205px;
-  border: 2px solid green;
 }
 .ebenetextsetup {
   position: relative;
@@ -289,9 +333,9 @@ div {    border: 1px solid green;
   top: 35px;
   left: -18px;
 }
-
 .wolkespeed {
   position: relative;
+  color: black;
   display: flex;
   margin: auto;
   border: none;
@@ -317,23 +361,13 @@ div {    border: 1px solid green;
   background: none;
   top: 25px;
   left: -355px;
+  color: rgb(13, 6, 113);
+  text-shadow: 1px 1px rgb(132, 248, 46);
 }
-.wolkespeedtext5auswahl {
-  position: relative;
-  font-size: 28px;
-  margin: auto;
-  border: none;
-  background: none;
-  top: 25px;
-  left: -355px;
-  border: 1px solid green;
-}
-
 .wolkespeedtext10 {
   position: relative;
   font-size: 28px;
   color: #000;
-  display: flex;
   margin: auto;
   border: none;
   background: none;
@@ -344,23 +378,21 @@ div {    border: 1px solid green;
   position: relative;
   font-size: 28px;
   color: #000;
-  display: flex;
   margin: auto;
   border: none;
   background: none;
   top: 10px;
   left: -335px;
 }
-
-.auswahlrahmen {
-  position: absolute;
+.wolkespeedtext3 {
+  position: relative;
   font-size: 28px;
   color: #000;
-  display: flex;
   margin: auto;
   border: none;
   background: none;
-  border: 1px solid green;
+  top: 28px;
+  left: -398px;
 }
 
 .ebenewolkesetup img {
@@ -388,7 +420,7 @@ div {    border: 1px solid green;
   width: 68px;
   height: 15px;
   top: 0px;
-  left: -267px;
+  left: -292px;
 }
 .ebeneflaggen img {
   width: 49px;

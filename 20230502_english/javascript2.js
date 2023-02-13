@@ -1,20 +1,52 @@
 vocabluaryfile = "button2.txt";
 myLanguage = "deutsch";
 intervalauswahl = 5000;
+zaehler = 0;
+
+function addvisibility() {
+  if (zaehler % 2 == 0) {
+    document.getElementById("sichtbarviajava").className = "sichtbarjavaadd";
+    zaehler++;
+  } else {
+    document.getElementById("sichtbarviajava").className = "ebeneengtext";
+    zaehler++;
+  }
+}
 
 function onmouseover5() {
-  intervalauswahl = 1000;
-  document.getElementById("5").className = ".wolkespeedtext5auswahl";
+  document.getElementById("speed1").className = "open2";
+  document.getElementById("speed2").className = "close";
+  document.getElementById("speed3").className = "close";
+  document.getElementById("speed4").className = "close";
+  intervalauswahl = 5000;
+  fragewort();
 }
 
 function onmouseover10() {
-  intervalauswahl = 3000;
-  document.getElementById("10").className = "auswahlrahmen";
+  document.getElementById("speed2").className = "open2";
+  document.getElementById("speed1").className = "close";
+  document.getElementById("speed3").className = "close";
+  document.getElementById("speed4").className = "close";
+  intervalauswahl = 10000;
+  fragewort();
 }
 
 function onmouseover15() {
-  intervalauswahl = 6000;
-  document.getElementById("15").className = "auswahlrahmen";
+  document.getElementById("speed3").className = "open2";
+  document.getElementById("speed2").className = "close";
+  document.getElementById("speed1").className = "close";
+  document.getElementById("speed4").className = "close";
+  intervalauswahl = 15000;
+  fragewort();
+}
+
+function onmouseover3() {
+  document.getElementById("speed3").className = "close";
+  document.getElementById("speed2").className = "close";
+  document.getElementById("speed1").className = "close";
+  document.getElementById("speed4").className = "open2";
+  intervalauswahl = 3000;
+  fragewort();
 }
 
 function onmouseoverdeutsch() {
