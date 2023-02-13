@@ -1,4 +1,3 @@
-dog:Hund
 smile:Lächeln
 Excuse me…:Entschuldigung!; Entschuldigen Sie!
 of course:natürlich; Selbstverständlich
@@ -10,7 +9,7 @@ timetable:Stundenplan; Fahrplan
 to be in the way:im Weg sein/stehen
 bus station:Busbahnhof
 person; people:Person; Mensch
-box:Box,. Kasten; Schachtel; Kiste
+box:Box; Kasten; Schachtel; Kiste
 to open:öffnen; aufmachen
 train:Zug
 window:Fenster
@@ -47,7 +46,7 @@ high:hoch; groß
 mountain:Berg
 forest:Wald
 island:Insel
-map:Stadtplan;Landkarte
+map:Stadtplan; Landkarte
 north:nördlich; im Norden
 north:Norden, Nord-, nördlich
 east:Osten, Ost-, östlich

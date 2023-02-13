@@ -1,58 +1,50 @@
-smile:Lächeln
-Excuse me…:Entschuldigung!; Entschuldigen Sie!
-of course:natürlich; Selbstverständlich
-to have (a sweet):(ein Bonbon) nehmen; (ein Bonobon) essen
-You're welcome.:Bitte schön.; Nichts zu danken.; Gern geschehen
-way:Weg; Art und weise
-lemonade:Limonade
-timetable:Stundenplan; Fahrplan
-to be in the way:im Weg sein/stehen
-bus station:Busbahnhof
-person; people:Person; Mensch
-box:Box; Kasten; Schachtel; Kiste
-to open:öffnen; aufmachen
-train:Zug
-window:Fenster
-at home:zu Hause
-at school:in der Schule
-at the (bus/train) station:am (Bus-)Bahnhof
-in Britain:in Großbritannien
-in Greenwich:in Greenwich
-in the house:im Haus
-in the park:im Park
-in the shop:im Laden
-in the street:auf der Straße
-on the bus:im Bus
-on the train:im Zug
-in the car:im Auto
-We're at the table:Wir sind an dem Tisch
-And our Breakfast is on the table:Und unser Frühstück ist an auf dem Tisch
-to hold:halten;festhalten
-to jump the queue:sich vordrängeln
-British:britisch; Brite/Britin
-escalator:Rolltreppe
-to stand:stehen 
-to walk:gehen;laufen
-castle:Schloss; Burg
-flag:Flagge; Fahne
-beach:Strand
-sea:Meer
-cold:kalt
-rock:Fels; Stein
-special:besonders; speziell
-shape:Form
-a lot of:viel/-e; eine Menge
-high:hoch; groß
-mountain:Berg
-forest:Wald
-island:Insel
-map:Stadtplan; Landkarte
-north:nördlich; im Norden
-north:Norden, Nord-, nördlich
-east:Osten, Ost-, östlich
-south:Süden, Süd-, südlich
-west:Westen, West-, westlich
-rock:Fels; Stein
-moutain:Berg
-forest:Wald
+museum:Museum 
+capital:Hauptstadt 
+city:Stadt; GroBstadt 
+fact:Fakt; Tatsache 
+most famous:berühmteste/-r/s
+famous:berühmt 
+sight:Sehenswürdigkeit;Anblick
+queen:Königin
 river:Fluss
+to ride:fahren; reiten 
+most interesting	:am interessantesten 
+town:Stadt 
+near:nahe; in der Nahe von 
+village:Dorf 
+church:Kirche 
+cinema:Kino 
+theatre:Theater 
+concert:Konzert 
+surfing:Surfen, Wellenreiten
+hiking:Wandern
+mountain biking:Mountainbikefahren
+skiing:Skifahren
+canoeing:Kanufahren
+camping:Camping, Zelten
+fishing:Angeln
+pony trekking:Wanderreiten
+shopping:Einkaufen
+sightseeing:Besichtigen von Sehenswürdigkeiten
+to cost:kosten
+ship:Schiff
+over:hinüber; über
+foot, feet:Fuß
+pier:Pier; Hafendamm
+to start:anfangen; beginnen; starten
+across:auf der anderen Seite von; über; hinüber; herüber; quer durch
+free:frei; kostenlos
+water side:Wasserrutsche
+leisure centre:Freizeitzentrum
+free time:Freizeit
+look:Blick
+together:zusammen; miteinander; gemeinsam
+at the weekend:am Wochenende
+What time?:Um wie viel Uhr?
+exciting:spannend; aufregend
+fine:gut; in Ordnung; schön
+See you!:Bis dann; Bis…
+to close:schließen; zumachen
+enough:genug; genügend
+no…either:auch nicht
+Bye!:Tschüss!

@@ -1,4 +1,4 @@
-vocabluaryfile = "button2.txt";
+vocabluaryfile = "button3.txt";
 myLanguage = "deutsch";
 intervalauswahl = 5000;
 zaehler = 0;
