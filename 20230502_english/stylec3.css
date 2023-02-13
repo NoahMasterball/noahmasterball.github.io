@@ -1,0 +1,127 @@
+.ebenesetup {
+  position: relative;
+  display: flex;
+  margin: auto;
+  width: 400px;
+  height: 200px;
+  top: -1590px;
+  left: 180px;
+}
+.ebenewolkesetup {
+  position: relative;
+  display: none;
+  margin: auto;
+  z-index: 10;
+  width: 240px;
+  height: 143px;
+  top: -140px;
+  left: -205px;
+}
+.ebenetextsetup {
+  position: relative;
+  display: flex;
+  margin: auto;
+  font-family: "myfont2";
+  font-size: 42px;
+  color: black;
+  padding-top: 100px;
+  padding-left: 100px;
+  width: 200px;
+  height: 80px;
+  z-index: 2;
+  top: 35px;
+  left: -18px;
+}
+.wolkespeed {
+  position: relative;
+  color: black;
+  display: flex;
+  margin: auto;
+  border: none;
+  background: none;
+}
+.wolkespeedtext {
+  position: relative;
+  font-size: 28px;
+  display: flex;
+  margin: auto;
+  border: none;
+  background: none;
+  top: -35px;
+  left: -275px;
+}
+
+.wolkespeedtext5 {
+  position: relative;
+  font-size: 28px;
+  color: #000;
+  margin: auto;
+  border: none;
+  background: none;
+  top: 25px;
+  left: -355px;
+  color: rgb(13, 6, 113);
+  text-shadow: 1px 1px rgb(132, 248, 46);
+}
+.wolkespeedtext10 {
+  position: relative;
+  font-size: 28px;
+  color: #000;
+  margin: auto;
+  border: none;
+  background: none;
+  top: 0px;
+  left: -349px;
+}
+.wolkespeedtext15 {
+  position: relative;
+  font-size: 28px;
+  color: #000;
+  margin: auto;
+  border: none;
+  background: none;
+  top: 10px;
+  left: -335px;
+}
+.wolkespeedtext3 {
+  position: relative;
+  font-size: 28px;
+  color: #000;
+  margin: auto;
+  border: none;
+  background: none;
+  top: 28px;
+  left: -398px;
+}
+
+.ebenewolkesetup img {
+  width: 175px;
+  height: 143px;
+}
+.ebenetextsetup:hover {
+  color: rgb(13, 6, 113);
+}
+.ebenetextsetup:hover .ebenewolkesetup {
+  display: flex;
+}
+
+.wolkeflaggen {
+  position: relative;
+  display: flex;
+  margin: auto;
+  border: none;
+  background: none;
+}
+.ebeneflaggen {
+  position: relative;
+  display: flex;
+  margin: auto;
+  width: 68px;
+  height: 15px;
+  top: 0px;
+  left: -292px;
+}
+.ebeneflaggen img {
+  width: 49px;
+  height: 32px;
+}
