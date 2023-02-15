@@ -28,7 +28,6 @@ div {
   color: black;
   text-decoration-line: none;
 }
-
 .text:hover {
   color: rgb(18, 8, 148);
 }
@@ -66,46 +65,39 @@ div {
   position: absolute;
   display: flex;
   margin: auto;
-  width: 600px;
+  width: 550px;
   height: 250px;
   top: 235px;
-  left: 221px;
+  left: 271px;
 }
 .ebenewolkemenu1 img {
   position: absolute;
-  width: 220px;
-  height: 179px;
+  width: 175px;
+  height: 143px;
 }
-
 .mw1 {
   top: 93px;
-  left: 377px;
+  left: 370px;
 }
 .mw2 {
   top: 110px;
-  left: 180px;
+  left: 193px;
 }
 .mw3 {
-  top: 40px;
-  left: 15px;
-}
-
-.mwtext {
-  font-size: 36px;
-  color: rgb(18, 8, 148);
-  z-index: 1;
+  top: 75px;
+  left: 40px;
 }
 .mw1text {
-  top: 165px;
-  left: 420px;
+  top: 93px;
+  left: 370px;
 }
 .mw2text {
-  top: 182px;
-  left: 223px;
+  top: 110px;
+  left: 193px;
 }
 .mw3text {
-  top: 112px;
-  left: 58px;
+  top: 75px;
+  left: 140px;
 }
 
 .baum {

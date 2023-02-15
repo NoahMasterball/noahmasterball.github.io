@@ -8,13 +8,13 @@
   src: url("myfont-Regular.ttf");
 }
 
+/*
 div {
   border: 2px solid green;
 }
-
+*/
 .master {
   position: relative;
-  display: flex;
   margin: auto;
   width: 825px;
   height: 1380px;
@@ -23,14 +23,11 @@ div {
 
 .text {
   position: absolute;
+  display: flex;
   font-family: "myfont2";
   font-size: 42px;
   color: black;
   text-decoration-line: none;
-}
-
-.text:hover {
-  color: rgb(18, 8, 148);
 }
 
 .wolke1 {
@@ -45,67 +42,113 @@ div {
   top: 120px;
   left: 70px;
 }
+.wolke1text:hover {
+  color: rgb(18, 8, 148);
+}
 
 .wolke2 {
   position: absolute;
   width: 414x;
   height: 238px;
-  top: 100px;
+  top: 120px;
   left: 400px;
 }
-.wolke2text {
+.wolke2text1 {
   position: absolute;
-  width: 414x;
-  height: 238px;
-  top: 251px;
-  left: 467px;
+  justify-content: center;
+  align-items: center;
+  z-index: 2;
+  top: 160px;
+  left: 215px;
+}
+.wolke2text2 {
+  position: absolute;
+  top: 30px;
+  left: 255px;
   z-index: 1;
 }
 
-.ebenewolkemenu1 {
-  position: absolute;
-  display: flex;
-  margin: auto;
-  width: 600px;
-  height: 250px;
-  top: 235px;
-  left: 221px;
-}
-.ebenewolkemenu1 img {
-  position: absolute;
-  width: 220px;
-  height: 179px;
-}
-
 .mw1 {
-  top: 93px;
-  left: 377px;
+  top: 83px;
+  left: 383px;
 }
 .mw2 {
-  top: 110px;
+  top: 90px;
   left: 180px;
 }
 .mw3 {
-  top: 40px;
-  left: 15px;
+  left: 35px;
+}
+.mw4 {
+  position: absolute;
+  width: 220px;
+  height: 179px;
+  left: 35px;
+}
+.mw5 {
+  position: absolute;
+  width: 200px;
+  height: 179px;
+  left: 299px;
+  top: -1px;
+  z-index: 1;
 }
 
 .mwtext {
   font-size: 36px;
-  color: rgb(18, 8, 148);
   z-index: 1;
 }
 .mw1text {
-  top: 165px;
-  left: 420px;
+  top: 152px;
+  left: 424px;
+  color: rgb(13, 6, 113);
+  text-shadow: 1px 1px rgb(132, 248, 46);
 }
 .mw2text {
-  top: 182px;
+  top: 162px;
   left: 223px;
 }
 .mw3text {
-  top: 112px;
-  left: 58px;
+  top: 70px;
+  left: 78px;
+}
+.speedtext {
+  top: 25px;
+  left: 128px;
+}
+.mws3text {
+  top: 105px;
+  left: 145px;
+}
+.mws5text {
+  top: 100px;
+  left: 95px;
+  color: rgb(13, 6, 113);
+  text-shadow: 2px 2px rgb(132, 248, 46);
+}
+.mws10text {
+  top: 67px;
+  left: 125px;
+}
+.mws15text {
+  top: 82px;
+  left: 185px;
+}
+
+.flagge {
+  width: 49px;
+  height: 32px;
+  z-index: 1;
+}
+.de {
+  position: relative;
+  top: 85px;
+  left: 355px;
+}
+.eng {
+  position: relative;
+  top: 85px;
+  left: 370px;
 }
 
 .baum {
@@ -122,11 +165,20 @@ div {
   height: 420px;
   top: 952px;
 }
-.bus {
+
+.ebenebus {
   position: absolute;
+  height: 300px;
+  width: 400px;
+  top: 1050px;
+}
+
+.bus {
+  position: relative;
   width: 398px;
   height: 278px;
-  top: 1050px;
+}
+.animation {
   animation-name: schulbus;
   animation-duration: 5s;
   animation-iteration-count: infinite;

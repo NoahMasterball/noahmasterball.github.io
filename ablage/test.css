@@ -1,0 +1,37 @@
+div {
+  border: 2px solid black;
+}
+
+.master {
+  position: absolute;
+  display: flex;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px;
+  height: 500px;
+}
+
+.divtext {
+  position: absolute;
+  display: flex;
+  margin: auto;
+  align-items: center;
+  justify-content: center;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px;
+  height: 200px;
+}
+
+.spantext {
+  display: flex;
+  margin: auto;
+  align-items: center;
+  justify-content: center;
+  width: 50%;
+  height: 100%;
+  border-radius: 10px;
+  border: 3px dashed #1c87c9;
+}
