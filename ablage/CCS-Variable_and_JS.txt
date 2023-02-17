@@ -1,0 +1,13 @@
+:root {
+  --anzahlwoerter: 1;
+}
+
+animation-iteration-count: var(--anzahlwoerter);
+  
+woerterlaufzeit = vocabularyarray.length * intervalauswahl;
+      busrunden = Math.round(woerterlaufzeit / 5 / 1000);
+      console.log(busrunden);
+      document.documentElement.style.setProperty("--anzahlwoerter", busrunden);
+     
+
+

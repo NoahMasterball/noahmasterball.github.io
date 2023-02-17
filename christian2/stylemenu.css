@@ -4,45 +4,45 @@
   width: 500px;
   left: 320px;
 }
-
 .unsichtbar1 {
   position: absolute;
   display: none;
-  margin: auto;
   width: 490px;
   height: 200px;
   top: 3px;
   left: 3px;
   z-index: 1;
 }
+.unsichtbar1 img {
+  position: absolute;
+}
+
 .sichtbar1:hover .unsichtbar1 {
   display: flex;
 }
+
 .sichtbar1:hover .wolke2text1 {
   color: rgb(18, 8, 148);
 }
 
 .sichtbar2 {
   position: absolute;
-  height: 310px;
-  width: 608px;
-  left: 212px;
+  height: 280px;
+  width: 808px;
+  left: 12px;
   top: 240px;
   z-index: 10;
 }
 .unsichtbar2 {
   position: absolute;
   display: none;
-  margin: auto;
-  width: 600px;
-  height: 300px;
+  height: 290px;
+  width: 800px;
   top: 2px;
   left: 2px;
 }
 .unsichtbar2 img {
   position: absolute;
-  width: 220px;
-  height: 179px;
 }
 .sichtbar2:hover .unsichtbar2 {
   display: flex;
@@ -66,6 +66,64 @@
   text-shadow: none;
 }
 
+.solution {
+  position: absolute;
+  height: 220px;
+  width: 460px;
+  top: 710px;
+  z-index: 50;
+}
+
+.solutiontext {
+  position: absolute;
+  display: flex;
+  white-space: nowrap;
+  top: 710px;
+  left: 20px;
+  z-index: 1;
+}
+
+.wortausgabeengsichtbar {
+  position: absolute;
+  display: flex;
+  pointer-events: none;
+  top: 100px;
+  left: 25px;
+}
+
+.wortausgabeengunsichtbar {
+  display: none;
+}
+
+.ebeneinput {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 35px;
+  top: 63px;
+  left: 110px;
+  height: 105px;
+  width: 270px;
+  z-index: 10;
+}
+
+.ebeneinputunsichtbar {
+  display: none;
+}
+
+.inputtext {
+  left: 2px;
+  top: 2px;
+  width: 260px;
+  height: 98px;
+  border: none;
+  opacity: 50;
+  border-radius: 25% 15px 25%;
+  background: none;
+  border: 2px solid green;
+}
+
 .wortausgabede {
   position: absolute;
   display: flex;
@@ -77,31 +135,6 @@
   height: 105px;
   width: 270px;
 }
-.solution {
-  position: absolute;
-  height: 175px;
-  width: 440px;
-  top: 780px;
-  z-index: 50;
-}
-
-.solutiontext {
-  position: absolute;
-  display: flex;
-  white-space: nowrap;
-  top: 790px;
-  left: 25px;
-  z-index: -100;
-}
-
-.wortausgabeengsichtbar {
-  position: absolute;
-  display: flex;
-  pointer-events: none;
-  top: 60px;
-  left: 25px;
-}
-
-.wortausgabeengunsichtbar {
+.wortausgabedeunsichtbar {
   display: none;
 }

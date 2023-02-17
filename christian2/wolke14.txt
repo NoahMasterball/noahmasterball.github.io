@@ -1,0 +1,3 @@
+dog:hund
+car:auto
+hat:hut
