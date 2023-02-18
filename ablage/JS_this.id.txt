@@ -1,0 +1,42 @@
+This is sehr mächtig. Es kann die gesamte html umgebung sehen und man sie abfragen.
+
+möchte ich z.b.: wissen welches element eine JS funktion getriggert hat kann man es übergeben:
+
+<input id="worteingetippt" type="text" size="15" onchange="worteingetippt(this)">
+function busonmouse(ubergabe) {
+	console.log('ubergabe');
+}
+OUTTPUT gesmate Zeile die this getriggered hat also this == <input id="worteingetippt" type="text" size="15" onchange="worteingetippt(this)">
+
+
+Nur ID holem:
+<input id="worteingetipptID" type="text" size="15" onchange="worteingetippt(this.id)">
+function busonmouse(ubergabe) {
+	console.log('ubergabe');
+}
+OUTTPUT: worteingetipptID
+Also this.id == ubergabe == worteingetipptID
+
+
+
+
+
+
+Oder halt mit eigenem string:
+<input id="worteingetipptID" type="text" size="15" onchange="worteingetippt('over')">
+
+function busonmouse(overorleave) {
+   // console.log(overorleave);
+  if (overorleave == "over") {
+    document.getElementById("ebenebus").className = "ebenebus animation pause";
+    pause = "ja";
+    } else {
+      if (overorleave == "leave") {
+        document.getElementById("ebenebus").className = "ebenebus animation";
+        pause = "nein";
+        fragewort();
+      } else {
+        console.log('no clue what to do - no leave and no over was handovered');
+      }
+  }
+}

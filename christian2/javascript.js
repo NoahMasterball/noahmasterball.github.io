@@ -5,22 +5,21 @@ zaehler = 0;
 pause = "nein";
 currentWord = 0;
 wort = "";
-style = "type";
+style = "flow";
 
-// prettier-ignore
-function hoveronbus() {
-  if (style == "flow") {
+function busstop(wert) {
+  console.log(wert);
+  if (wert == "mouseover") {
     document.getElementById("ebenebus").className = "ebenebus animation pause";
-     // console.log(event.target);
-     pause = "ja";
+    pause = "ja";
+  } else {
+    if (wert == "mouseleave") {
+      document.getElementById("ebenebus").className = "ebenebus animation";
+      pause = "nein";
+      fragewort();
+    } else {
+      console.log("no clue what to do - no wert start or stop was handovered");
     }
-}
-function hoveroutbus() {
-  if (style == "flow") {
-    document.getElementById("ebenebus").className = "ebenebus animation";
-    // console.log(event.target);
-    pause = "nein";
-    fragewort();
   }
 }
 
