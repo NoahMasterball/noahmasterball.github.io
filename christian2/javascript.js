@@ -16,6 +16,7 @@ function busstop(wert) {
     if (wert == "mouseleave") {
       document.getElementById("ebenebus").className = "ebenebus animation";
       pause = "nein";
+      //TODO: Change bla la
       fragewort();
     } else {
       console.log("no clue what to do - no wert start or stop was handovered");
