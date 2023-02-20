@@ -104,6 +104,9 @@ function typeword(lang2) {
   //myLanguage = [lang2[1], lang2[2]];
   console.log([myLanguage[0]]);
   console.log(vocabularyarray[zaehler2]);
+  console.log(vocabularyarray);
+  console.log(zaehler2);
+
   //document.getElementById("word1").innerHTML = vocabularyarray[zaehler2][myLanguage[0]];
   document.getElementById("ebenebus").classList.add("animationmiddle");
   document.getElementById("seehidetext").innerHTML = "Type the correct translation (a word) <br> into the bus and press Return/Enter.";
