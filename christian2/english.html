@@ -1,18 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
+  <!-- prettier-ignore -->
   <head>
     <title>Noah's English Vocabulary Trainer</title>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=-1" />
     <link rel="stylesheet" href="./styleobjekte.css" />
     <link rel="stylesheet" href="./stylemenu.css" />
-    <script
-      language="javascript"
-      type="text/javascript"
-      src="javascript.js"
-    ></script>
+    <script language="javascript" type="text/javascript" src="javascript.js"></script>
+    <!-- <script language="javascript" type="text/javascript" src="javascript2.js"></script>-->
   </head>
-  <body onload="javascript:fragewort()">
+  <body>
     <!-- prettier-ignore -->
     <div class="master masterposition">
       <img class="wolke1" src="wolke1.gif" />
@@ -26,20 +24,21 @@
           <img class="mw1 mwsize1" src="wolke1.gif" />
           <img class="mw2 mwsize1" src="wolke1.gif" />
           <img class="mw3 mwsize1" src="wolke1.gif" />
-          <span class="speedtext mwtext text">Speed</span>
-          <span id="speed3" class="mws3text mwtext text" 
-              onmouseover="javascript:onmouseover3()">3s</span>
-          <span id="speed5" class="mws5text mwtext text"
-              onmouseover="javascript:onmouseover5()">5s</span>
-          <span id="speed10" class="mws10text mwtext text"
-              onmouseover="javascript:onmouseover10()">10s</span>
-          <span id="speed15" class="mws15text mwtext text"
-              onmouseover="javascript:onmouseover15()">15s</span>
-          <img class="flagge de" id="deutsch" onmouseover="javascript:onmouseoverdeutsch()" src="flagge_de2.gif">
-          <img class="flagge eng" id="english" onmouseover="javascript:onmouseoverenglish()" src="flagge_eng.gif">
+          <span id="speed1" class="speedtext mwtext text"
+            onmouseover="javascript:changespeed([1,1000])">Speed</span>
+          <span id="speed2" class="mws3text mwtext text" 
+              onmouseover="javascript:changespeed([2,3000])">3s</span>
+          <span id="speed3" class="mws5text mwtext text"
+              onmouseover="javascript:changespeed([3,5000])">5s</span>
+          <span id="speed4" class="mws10text mwtext text"
+              onmouseover="javascript:changespeed([4,10000])">10s</span>
+          <span id="speed5" class="mws15text mwtext text"
+              onmouseover="javascript:changespeed([5,15000])">15s</span>
+          <img class="flagge de" id="lang1" onmouseover="javascript:changelang([1,'ger','eng'])" src="flagge_ger1.gif">
+          <img class="flagge eng" id="lang2" onmouseover="javascript:changelang([2,'eng','ger'])" src="flagge_eng1.gif">
           <span class="mw3style text">Style</span>
-          <span class="mw3flow mwtext text" id="flow" onmouseover="javascript:flowortype()">Flow</span>
-          <span class="mw3type mwtext text" id="type" onmouseover="javascript:flowortype2()">Type</span>
+          <span class="mw3flow mwtext text" id="flow1" onmouseover="javascript:flowortype([1,'flow'])">Flow</span>
+          <span class="mw3type mwtext text" id="flow2" onmouseover="javascript:flowortype([2,'type'])">Type</span>
         </div>
       </div>  
       <div class="sichtbar2">
@@ -49,10 +48,10 @@
             <img class="mw12 mwsize2" src="wolke1.gif" />
             <img class="mw13 mwsize2" src="wolke1.gif" />
             <img class="mw14 mwsize2" src="wolke1.gif" />
-            <span onmouseover="javascript:changewolke11()" class="mw11text mwtext text" id="wolke11">Import Text <br />or File</span>
-            <span onmouseover="javascript:changewolke12()" class="mw12text mwtext text" id="wolke12">5th Class Book<br />Page 220-221</span>
-            <span onmouseover="javascript:changewolke13()" class="mw13text mwtext text" id="wolke13">5th Class Book<br />Page 222-223</span>
-            <span onmouseover="javascript:changewolke14()" class="mw14text mwtext text" id="wolke14">5th Class Book<br />Page 224-225</span>
+            <span onmouseover="javascript:changevoc('11')" class="mw11text mwtext text" id="wolke11">Import Text <br />or File</span>
+            <span onmouseover="javascript:changevoc('12')" class="mw12text mwtext text" id="wolke12">5th Class Book<br />Page 220-221</span>
+            <span onmouseover="javascript:changevoc('13')" class="mw13text mwtext text" id="wolke13">5th Class Book<br />Page 222-223</span>
+            <span onmouseover="javascript:changevoc('14')" class="mw14text mwtext text" id="wolke14">5th Class Book<br />Page 224-225</span>
         </div>
       </div>
       <img class="baum" src="baum1.gif" />
@@ -61,19 +60,17 @@
         <span id="richtigfalsch" class="text"></span>
       </div>
       <div id="ebenebus" class="ebenebus animation">
-          <img id="test" class="bus" onmouseover="javascript:busstop('mouseover')" onmouseleave="javascript:busstop('mouseleave')" src="bus.gif" />
-          <span class="wortausgabede text" id="wortausgabede">Welcome to the Vocabulary Trainer!</span>
+        <img id="test" class="bus" onmouseover="javascript:buspause(['add','pause','clearTimeout(interval);'])" onmouseleave="javascript:buspause(['remove','weiter','interval = setTimeout(showwords, 2000)'])" src="bus.gif" />
+        <span class="word2 text" id="word2">Welcome to the Vocabulary Trainer!</span>
         <div id="ebeneinput" class="ebeneinput ebeneinputunsichtbar">
-        <input id="worteingetippt" type="text" size="15" onchange="worteingetippt()" placeholder="   Please type here" class="inputtext text">
+          <input id="worteingetippt" type="text" size="15" onchange="worteingetippt()" placeholder="   Please type here" class="inputtext text">
         </div>
       </div>
       <div class="solutiontext">
         <span id="seehidetext" class="text">See/hide solution here</span>
       </div>
-      <div class="solution" onmouseover="javascript:addvisibility()" onclick="javascript:addvisibility()">
-          <div id="sichtbarviajava">
-            <span class="wortausgabeengunsichtbar text" id="wortausgabeeng">Welcome</span>
-          </div>
+      <div class="solution" onmouseover="javascript:seeword()" onclick="javascript:seeword()">
+        <span class="visible text invisible" id="word1">Welcome</span>
       </div>
     </div>
   </body>
