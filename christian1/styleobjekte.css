@@ -1,0 +1,267 @@
+@font-face {
+  font-family: "myfont";
+  src: url("myfont-Light.ttf");
+}
+
+@font-face {
+  font-family: "myfont2";
+  src: url("myfont-Regular.ttf");
+}
+/*
+div {
+  border: 2px solid green;
+}
+*/
+
+.master {
+  position: relative;
+  margin: auto;
+  width: 825px;
+  height: 1380px;
+  margin-top: 3%;
+}
+
+.text {
+  position: absolute;
+  display: flex;
+  font-family: "myfont2";
+  font-size: 42px;
+  color: black;
+  text-decoration-line: none;
+}
+
+.wolke1 {
+  position: absolute;
+  width: 358px;
+  height: 292px;
+}
+.wolke1text {
+  position: absolute;
+  width: 414x;
+  height: 238px;
+  top: 120px;
+  left: 70px;
+}
+.wolke1text:hover {
+  color: rgb(18, 8, 148);
+}
+
+.wolke2 {
+  position: absolute;
+  width: 414x;
+  height: 238px;
+  top: 120px;
+  left: 400px;
+}
+.wolke2text1 {
+  position: absolute;
+  justify-content: center;
+  align-items: center;
+  z-index: 2;
+  top: 160px;
+  left: 215px;
+}
+.wolke2text2 {
+  position: absolute;
+  top: 27px;
+  left: 453px;
+  z-index: 1;
+}
+.mwsize2 {
+  width: 220px;
+  height: 179px;
+}
+.mw11 {
+  top: 90px;
+  left: 580px;
+  z-index: 1;
+}
+.mw12 {
+  top: 83px;
+  left: 383px;
+  z-index: 2;
+}
+.mw13 {
+  left: 225px;
+  z-index: 3;
+}
+.mw14 {
+  top: 80px;
+  left: 35px;
+  z-index: 4;
+}
+
+.mwsize1 {
+  position: absolute;
+  width: 181px;
+  height: 147px;
+}
+.mw1 {
+  left: 150px;
+  top: 50px;
+  left: 316px;
+  z-index: 3;
+}
+.mw2 {
+  left: 190px;
+  top: 0px;
+  z-index: 2;
+}
+.mw3 {
+  left: 35px;
+  top: 50px;
+  z-index: 1;
+}
+.mwtext {
+  font-size: 36px;
+  z-index: 4;
+}
+
+.mw11text {
+  top: 164px;
+  left: 635px;
+}
+.mw12text {
+  top: 152px;
+  left: 427px;
+  color: rgb(13, 6, 113);
+  text-shadow: 1px 1px rgb(132, 248, 46);
+}
+.mw13text {
+  top: 70px;
+  left: 268px;
+}
+.mw14text {
+  top: 150px;
+  left: 78px;
+}
+
+.speedtext {
+  font-size: 28px;
+  top: 25px;
+  left: 268px;
+}
+.mws3text {
+  top: 45px;
+  left: 230px;
+}
+.mws5text {
+  top: 95px;
+  left: 210px;
+  color: rgb(13, 6, 113);
+  text-shadow: 2px 2px rgb(132, 248, 46);
+}
+.mws10text {
+  top: 85px;
+  left: 252px;
+}
+.mws15text {
+  top: 62px;
+  left: 305px;
+}
+
+.mw3style {
+  font-size: 28px;
+  top: 70px;
+  left: 116px;
+  z-index: 5;
+}
+
+.mw3flow {
+  top: 100px;
+  left: 75px;
+  z-index: 5;
+}
+
+.mw3type {
+  top: 120px;
+  left: 135px;
+  z-index: 5;
+  color: rgb(13, 6, 113);
+  text-shadow: 2px 2px rgb(132, 248, 46);
+}
+
+.flagge {
+  position: absolute;
+  width: 49px;
+  height: 32px;
+  z-index: 4;
+}
+.de {
+  top: 117px;
+  left: 365px;
+}
+.eng {
+  top: 117px;
+  left: 425px;
+}
+
+.baum {
+  position: absolute;
+  top: 680px;
+  left: 450px;
+  width: 304px;
+  height: 345px;
+  z-index: 1;
+}
+.wiese {
+  position: absolute;
+  width: 818px;
+  height: 420px;
+  top: 952px;
+}
+
+.ebenebus {
+  position: absolute;
+  height: 300px;
+  width: 400px;
+  top: 1050px;
+  left: 410px;
+}
+.bus {
+  position: relative;
+  width: 398px;
+  height: 278px;
+  z-index: 10;
+}
+.animation {
+  animation-name: schulbus;
+  animation-duration: 5s;
+  animation-iteration-count: infinite;
+  animation-delay: 1s;
+  animation-fill-mode: forwards;
+}
+.richtigfalsch {
+  position: absolute;
+  top: 1030px;
+  left: 20px;
+}
+
+@keyframes schulbus {
+  0% {
+    left: 410px;
+  }
+  100% {
+    left: 10px;
+  }
+}
+.animationmiddle {
+  animation-name: schulbusmiddle;
+  animation-duration: 5s;
+  animation-iteration-count: 1;
+  animation-delay: 1s;
+  animation-fill-mode: forwards;
+}
+@keyframes schulbusmiddle {
+  0% {
+    left: 410px;
+  }
+  100% {
+    left: 205px;
+  }
+}
+.pause {
+  animation-play-state: paused;
+  /* prettier-ignore */
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 512 512'><path d='M464 256A208 208 0 1 0 48 256a208 208 0 1 0 416 0zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zm224-72V328c0 13.3-10.7 24-24 24s-24-10.7-24-24V184c0-13.3 10.7-24 24-24s24 10.7 24 24zm112 0V328c0 13.3-10.7 24-24 24s-24-10.7-24-24V184c0-13.3 10.7-24 24-24s24 10.7 24 24z'/></svg>") 16 0, auto;
+}

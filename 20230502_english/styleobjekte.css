@@ -1,0 +1,143 @@
+@font-face {
+  font-family: "myfont";
+  src: url("myfont-Light.ttf");
+}
+
+@font-face {
+  font-family: "myfont2";
+  src: url("myfont-Regular.ttf");
+}
+/*
+div {
+  border: 2px solid green;
+}
+*/
+
+.master {
+  position: relative;
+  margin: auto;
+  width: 825px;
+  height: 1380px;
+  margin-top: 3%;
+}
+
+.text {
+  position: absolute;
+  display: flex;
+  font-family: "myfont2";
+  font-size: 42px;
+  color: black;
+  text-decoration-line: none;
+}
+
+.wolke1 {
+  position: absolute;
+  width: 358px;
+  height: 292px;
+}
+.wolke1text {
+  position: absolute;
+  width: 414x;
+  height: 238px;
+  top: 120px;
+  left: 70px;
+}
+.wolke1text:hover {
+  color: rgb(18, 8, 148);
+}
+
+.wolke2 {
+  position: absolute;
+  width: 414x;
+  height: 238px;
+  top: 120px;
+  left: 400px;
+}
+.wolke2text1 {
+  position: absolute;
+  justify-content: center;
+  align-items: center;
+  z-index: 2;
+  top: 160px;
+  left: 215px;
+}
+.wolke2text2 {
+  position: absolute;
+  top: 27px;
+  left: 453px;
+  z-index: 1;
+}
+.mwsize2 {
+  width: 220px;
+  height: 179px;
+}
+.mw11 {
+  top: 90px;
+  left: 580px;
+  z-index: 1;
+}
+.mw12 {
+  top: 83px;
+  left: 383px;
+  z-index: 2;
+}
+.mw13 {
+  left: 225px;
+  z-index: 3;
+}
+.mw14 {
+  top: 80px;
+  left: 35px;
+  z-index: 4;
+}
+
+.mwtext {
+  font-size: 36px;
+  z-index: 4;
+}
+
+.mw11text {
+  top: 164px;
+  left: 635px;
+}
+.mw12text {
+  top: 152px;
+  left: 427px;
+}
+.mw13text {
+  top: 70px;
+  left: 268px;
+}
+.mw14text {
+  top: 150px;
+  left: 78px;
+}
+
+.baum {
+  position: absolute;
+  top: 680px;
+  left: 450px;
+  width: 304px;
+  height: 345px;
+  z-index: 1;
+}
+.wiese {
+  position: absolute;
+  width: 818px;
+  height: 420px;
+  top: 952px;
+}
+
+.ebenebus {
+  position: absolute;
+  height: 300px;
+  width: 400px;
+  top: 1050px;
+  left: 410px;
+}
+.bus {
+  position: relative;
+  width: 398px;
+  height: 278px;
+  z-index: 10;
+}

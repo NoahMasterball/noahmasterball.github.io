@@ -1,86 +1,62 @@
 @font-face {
-    font-family: "myfont";
-    src: url("myfont-Light.ttf");
+  font-family: "myfont";
+  src: url("myfont-Light.ttf");
 }
 
 @font-face {
-    font-family: "myfont2";
-    src: url("myfont-Regular.ttf");
+  font-family: "myfont2";
+  src: url("myfont-Regular.ttf");
 }
 
-.fontuberschrift {
-    font-family: "myfont2";
-    font-size: 90px;
-    text-align: center;
-    margin-top: 40px;
-    margin-bottom: 30px;
+.masterbackground {
+  position: relative;
+  margin: auto;
+  display: flex;
+  height: 1000px;
+  width: 1024px;
 }
 
-.linktext {
-    font-family: "myfont";
-    font-size: 30px;
+.ebenegreen {
+  position: relative;
+  margin: auto;
+  left: -200px;
+  top: -900px;
+  width: 450px;
+  height: 170px;
+  padding-top: 15px;
+  padding-left: 20px;
+  border: 1px solid rgb(77, 76, 76);
+  background-color: rgb(6, 158, 62);
+  text-shadow: 1px 1px rgb(71, 217, 35);
 }
 
-.button-21 {
-    font-family: "myfont2";
-    font-size: 30px;
-    text-decoration: none;
-    color: #000000;
+.uberschrift {
+  font-family: "myfont2";
+  font-size: 38px;
+  text-decoration: none;
+  color: #000000;
+}
+.uberschrift:hover {
+  font-family: "myfont2";
+  font-size: 38px;
+  text-decoration: none;
+  color: rgb(18, 8, 148);
 }
 
-.button-22 {
-    font-family: "myfont2";
-    font-size: 30px;
-    text-decoration: none;
-    color: #000000;
+.text1 {
+  font-family: "myfont2";
+  font-size: 28px;
 }
 
-.button-22:hover{
-    font-family: "myfont2";
-    font-size: 30px;
-    text-decoration: none;
-    color:rgb(18, 8, 148);
+.text2 {
+  border: none;
+  font-family: "myfont2";
+  font-size: 28px;
+  padding-top: 5px;
 }
 
-.button-23 {
-    background-color: #FFFFFF;
-    border: 1px solid #222222;
-    border-radius: 8px;
-    box-sizing: border-box;
-    color: #222222;
-    cursor: pointer;
-    display: inline-block;
-    font-family: "myfont2";
-    font-size: 30px;
-    line-height: 20px;
-    margin: 0;
-    outline: none;
-    padding: 13px 23px;
-    position: relative;
-    text-align: center;
-    text-decoration: none;
-    touch-action: manipulation;
-    transition: box-shadow .2s,-ms-transform .1s,-webkit-transform .1s,transform .1s;
-    user-select: none;
-    -webkit-user-select: none;
-    width: auto;
-    margin-bottom: 5px;
-}
-
-.button-23:focus-visible {
-    box-shadow: #222222 0 0 0 2px, rgba(255, 255, 255, 0.8) 0 0 0 4px;
-    transition: box-shadow .2s;
-}
-
-.button-23:active {
-    background-color: #F7F7F7;
-    border-color: #000000;
-    transform: scale(.96);
-}
-
-.button-23:disabled {
-    border-color: #DDDDDD;
-    color: #DDDDDD;
-    cursor: not-allowed;
-    opacity: 1;
+.text3 {
+  font-family: "myfont2";
+  font-size: 28px;
+  padding-top: 5px;
 }
