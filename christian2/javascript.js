@@ -12,7 +12,7 @@ window.addEventListener("load", function () {
   changevoc("12");
   pickvoc();
   setTimeout(showwords, 1000);
-  typeword(2, "eng", "ger");
+  setTimeout(typeword(2, "eng", "ger"), 3000);
 });
 
 function changelang(lang) {
@@ -100,13 +100,12 @@ function myFunction() {
 }
 
 // prettier-ignore
-function typeword(lang2) {
-  //myLanguage = [lang2[1], lang2[2]];
+function typeword() {
   console.log([myLanguage[0]]);
   console.log(vocabularyarray[zaehler2]);
   console.log(vocabularyarray);
   console.log(zaehler2);
-
+  console.log(vocabularyarray[0]);
   //document.getElementById("word1").innerHTML = vocabularyarray[zaehler2][myLanguage[0]];
   document.getElementById("ebenebus").classList.add("animationmiddle");
   document.getElementById("seehidetext").innerHTML = "Type the correct translation (a word) <br> into the bus and press Return/Enter.";
