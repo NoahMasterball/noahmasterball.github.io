@@ -1,0 +1,266 @@
+
+      <div class="sichtbar1">
+        <span class="wolke2text1 text">Setup</span>
+        <div class="unsichtbar1 mwtext text">
+          <img class="mw1 mwsize1" src="wolke1.gif" />
+          <img class="mw2 mwsize1" src="wolke1.gif" />
+          <img class="mw3 mwsize1" src="wolke1.gif" />
+          <span id="speed1" class="speedtext mwtext text"
+            onmouseover="javascript:changespeed([1,1000])">Speed</span>
+          <span id="speed2" class="mws3text mwtext text" 
+              onmouseover="javascript:changespeed([2,3000])">3s</span>
+          <span id="speed3" class="mws5text mwtext text"
+              onmouseover="javascript:changespeed([3,5000])">5s</span>
+          <span id="speed4" class="mws10text mwtext text"
+              onmouseover="javascript:changespeed([4,10000])">10s</span>
+          <span id="speed5" class="mws15text mwtext text"
+              onmouseover="javascript:changespeed([5,15000])">15s</span>
+          <img class="flagge de" id="lang1" onmouseover="javascript:changelang([1,'ger','eng'])" src="flagge_ger1.gif">
+          <img class="flagge eng" id="lang2" onmouseover="javascript:changelang([2,'eng','ger'])" src="flagge_eng1.gif">
+          <span class="mw3style text">Style</span>
+          <span class="mw3flow mwtext text" id="flow1" onmouseover="javascript:flowortype([1,'flow'])">Flow</span>
+          <span class="mw3type mwtext text" id="flow2" onmouseover="javascript:flowortype([2,'type'])">Type</span>
+        </div>
+      </div>  
+
+      <div class="richtigfalsch">
+        <span id="richtigfalsch" class="text"></span>
+      </div>
+
+     <div id="ebenebus" class="ebenebus animation">
+        <img id="test" class="bus" onmouseover="javascript:buspause(['add','pause','clearTimeout(interval);'])" onmouseleave="javascript:buspause(['remove','weiter','interval = setTimeout(showwords, 2000)'])" src="bus.gif" />
+        <span class="word2 text" id="word2">Welcome to the Vocabulary Trainer!</span>
+        <div id="ebeneinput" class="ebeneinput ebeneinputunsichtbar">
+          <input id="worteingetippt" type="text" size="15" onchange="worteingetippt()" placeholder="   Please type here" class="inputtext text">
+        </div>
+      </div>
+
+      <div class="solutiontext">
+        <span id="seehidetext" class="text">See/hide solution here</span>
+      </div>
+
+      <div class="solution" onmouseover="javascript:seeword()" onclick="javascript:seeword()">
+        <span class="visible text invisible" id="word1">Welcome</span>
+      </div>
+
+.sichtbar1 {
+  position: absolute;
+  height: 210px;
+  width: 500px;
+  left: 320px;
+}
+.unsichtbar1 {
+  position: absolute;
+  display: none;
+  width: 490px;
+  height: 200px;
+  top: 3px;
+  left: 3px;
+  z-index: 1;
+}
+.unsichtbar1 img {
+  position: absolute;
+}
+
+
+
+
+.mwsize1 {
+  position: absolute;
+  width: 181px;
+  height: 147px;
+}
+.mw1 {
+  left: 150px;
+  top: 50px;
+  left: 316px;
+  z-index: 3;
+}
+.mw2 {
+  left: 190px;
+  top: 0px;
+  z-index: 2;
+}
+.mw3 {
+  left: 35px;
+  top: 50px;
+  z-index: 1;
+}
+
+
+
+.speedtext {
+  font-size: 28px;
+  top: 25px;
+  left: 268px;
+}
+.mws3text {
+  top: 45px;
+  left: 230px;
+}
+.mws5text {
+  top: 95px;
+  left: 210px;
+}
+.mws10text {
+  top: 85px;
+  left: 252px;
+}
+.mws15text {
+  top: 62px;
+  left: 305px;
+}
+
+
+
+.mw3style {
+  font-size: 28px;
+  top: 70px;
+  left: 116px;
+  z-index: 5;
+}
+
+.mw3flow {
+  top: 100px;
+  left: 75px;
+  z-index: 5;
+}
+
+.mw3type {
+  top: 120px;
+  left: 135px;
+  z-index: 5;
+}
+
+.flagge {
+  position: absolute;
+  width: 49px;
+  height: 32px;
+  z-index: 4;
+}
+.de {
+  top: 117px;
+  left: 365px;
+}
+.eng {
+  top: 117px;
+  left: 425px;
+}
+
+
+
+.solution {
+  position: absolute;
+  height: 220px;
+  width: 460px;
+  top: 710px;
+  z-index: 50;
+}
+.solutiontext {
+  position: absolute;
+  display: flex;
+  white-space: nowrap;
+  top: 710px;
+  left: 20px;
+  z-index: 1;
+}
+.visible {
+  position: absolute;
+  display: flex;
+  pointer-events: none;
+  top: 100px;
+  left: 25px;
+}
+.invisible {
+  display: none;
+}
+
+.ebeneinput {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 35px;
+  top: 63px;
+  left: 110px;
+  height: 105px;
+  width: 270px;
+  z-index: 10;
+}
+.ebeneinputunsichtbar {
+  display: none;
+}
+
+.inputtext {
+  left: 2px;
+  top: 2px;
+  width: 260px;
+  height: 98px;
+  border: none;
+  opacity: 50;
+  border-radius: 25% 15px 25%;
+  background: none;
+  border: 2px solid green;
+}
+
+.word2 {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 35px;
+  top: 63px;
+  left: 110px;
+  height: 105px;
+  width: 270px;
+}
+.word2unsichtbar {
+  display: none;
+}
+
+
+.animation {
+  animation-name: schulbus;
+  animation-duration: 5s;
+  animation-iteration-count: infinite;
+  animation-delay: 1s;
+  animation-fill-mode: forwards;
+}
+.richtigfalsch {
+  position: absolute;
+  top: 1030px;
+  left: 20px;
+}
+
+@keyframes schulbus {
+  0% {
+    left: 410px;
+  }
+  100% {
+    left: 10px;
+  }
+}
+.animationmiddle {
+  animation-name: schulbusmiddle;
+  animation-duration: 5s;
+  animation-iteration-count: 1;
+  animation-delay: 1s;
+  animation-fill-mode: forwards;
+}
+@keyframes schulbusmiddle {
+  0% {
+    left: 410px;
+  }
+  100% {
+    left: 205px;
+  }
+}
+.pause {
+  animation-play-state: paused;
+  /* prettier-ignore */
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 512 512'><path d='M464 256A208 208 0 1 0 48 256a208 208 0 1 0 416 0zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zm224-72V328c0 13.3-10.7 24-24 24s-24-10.7-24-24V184c0-13.3 10.7-24 24-24s24 10.7 24 24zm112 0V328c0 13.3-10.7 24-24 24s-24-10.7-24-24V184c0-13.3 10.7-24 24-24s24 10.7 24 24z'/></svg>") 16 0, auto;
+}
+
+
+
+

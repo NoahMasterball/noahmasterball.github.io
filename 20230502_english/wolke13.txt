@@ -4,11 +4,11 @@ city:Stadt; GroBstadt
 fact:Fakt; Tatsache 
 most famous:berühmteste/-r/s
 famous:berühmt 
-sight:Sehenswürdigkeit;Anblick
+sight:Sehenswürdigkeit; Anblick
 queen:Königin
 river:Fluss
 to ride:fahren; reiten 
-most interesting	:am interessantesten 
+most interesting:am interessantesten 
 town:Stadt 
 near:nahe; in der Nahe von 
 village:Dorf 
@@ -46,5 +46,5 @@ fine:gut; in Ordnung; schön
 See you!:Bis dann; Bis…
 to close:schließen; zumachen
 enough:genug; genügend
-no…either:auch nicht
+no either:auch nicht
 Bye!:Tschüss!

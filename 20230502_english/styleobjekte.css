@@ -7,14 +7,14 @@
   font-family: "myfont2";
   src: url("myfont-Regular.ttf");
 }
-
+/*
 div {
   border: 2px solid green;
 }
+*/
 
 .master {
   position: relative;
-  display: flex;
   margin: auto;
   width: 825px;
   height: 1380px;
@@ -23,14 +23,11 @@ div {
 
 .text {
   position: absolute;
+  display: flex;
   font-family: "myfont2";
   font-size: 42px;
   color: black;
   text-decoration-line: none;
-}
-
-.text:hover {
-  color: rgb(18, 8, 148);
 }
 
 .wolke1 {
@@ -45,67 +42,75 @@ div {
   top: 120px;
   left: 70px;
 }
+.wolke1text:hover {
+  color: rgb(18, 8, 148);
+}
 
 .wolke2 {
   position: absolute;
   width: 414x;
   height: 238px;
-  top: 100px;
+  top: 120px;
   left: 400px;
 }
-.wolke2text {
+.wolke2text1 {
   position: absolute;
-  width: 414x;
-  height: 238px;
-  top: 251px;
-  left: 467px;
+  justify-content: center;
+  align-items: center;
+  z-index: 2;
+  top: 160px;
+  left: 215px;
+}
+.wolke2text2 {
+  position: absolute;
+  top: 27px;
+  left: 453px;
   z-index: 1;
 }
-
-.ebenewolkemenu1 {
-  position: absolute;
-  display: flex;
-  margin: auto;
-  width: 600px;
-  height: 250px;
-  top: 235px;
-  left: 221px;
-}
-.ebenewolkemenu1 img {
-  position: absolute;
+.mwsize2 {
   width: 220px;
   height: 179px;
 }
-
-.mw1 {
-  top: 93px;
-  left: 377px;
+.mw11 {
+  top: 90px;
+  left: 580px;
+  z-index: 1;
 }
-.mw2 {
-  top: 110px;
-  left: 180px;
+.mw12 {
+  top: 83px;
+  left: 383px;
+  z-index: 2;
 }
-.mw3 {
-  top: 40px;
-  left: 15px;
+.mw13 {
+  left: 225px;
+  z-index: 3;
+}
+.mw14 {
+  top: 80px;
+  left: 35px;
+  z-index: 4;
 }
 
 .mwtext {
   font-size: 36px;
-  color: rgb(18, 8, 148);
-  z-index: 1;
+  z-index: 4;
 }
-.mw1text {
-  top: 165px;
-  left: 420px;
+
+.mw11text {
+  top: 164px;
+  left: 635px;
 }
-.mw2text {
-  top: 182px;
-  left: 223px;
+.mw12text {
+  top: 152px;
+  left: 427px;
 }
-.mw3text {
-  top: 112px;
-  left: 58px;
+.mw13text {
+  top: 70px;
+  left: 268px;
+}
+.mw14text {
+  top: 150px;
+  left: 78px;
 }
 
 .baum {
@@ -122,17 +127,17 @@ div {
   height: 420px;
   top: 952px;
 }
-.bus {
+
+.ebenebus {
   position: absolute;
+  height: 300px;
+  width: 400px;
+  top: 1050px;
+  left: 410px;
+}
+.bus {
+  position: relative;
   width: 398px;
   height: 278px;
-  top: 1050px;
-  animation-name: schulbus;
-  animation-duration: 5s;
-  animation-iteration-count: infinite;
-}
-@keyframes schulbus {
-  0% {
-    transform: translateX(105%);
-  }
+  z-index: 10;
 }
