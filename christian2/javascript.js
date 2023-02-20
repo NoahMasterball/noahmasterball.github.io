@@ -12,6 +12,7 @@ window.addEventListener("load", function () {
   changevoc("12");
   pickvoc();
   setTimeout(showwords, 1000);
+  typeword(2, "eng", "ger");
 });
 
 function changelang(lang) {
@@ -96,4 +97,17 @@ function myFunction() {
   if (lastCallTime) { const timeDiff = currentTime - lastCallTime;
     console.log(`Die Funktion wurde zuletzt vor ${timeDiff} Millisekunden aufgerufen.`);
   } lastCallTime = currentTime;
+}
+
+// prettier-ignore
+function typeword(lang2) {
+  //myLanguage = [lang2[1], lang2[2]];
+  console.log([myLanguage[0]]);
+  console.log(vocabularyarray[zaehler2]);
+  //document.getElementById("word1").innerHTML = vocabularyarray[zaehler2][myLanguage[0]];
+  document.getElementById("ebenebus").classList.add("animationmiddle");
+  document.getElementById("seehidetext").innerHTML = "Type the correct translation (a word) <br> into the bus and press Return/Enter.";
+  document.getElementById("word2").classList.add("word2unsichtbar");
+  document.getElementById("ebeneinput").className = "ebeneinput";
+  document.getElementById("word1").classList.remove("invisible");
 }
