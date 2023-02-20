@@ -20,6 +20,7 @@
 .sichtbar1:hover .unsichtbar1 {
   display: flex;
 }
+
 .sichtbar1:hover .wolke2text1 {
   color: rgb(18, 8, 148);
 }
@@ -65,17 +66,6 @@
   text-shadow: none;
 }
 
-.wortausgabede {
-  position: absolute;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 35px;
-  top: 63px;
-  left: 110px;
-  height: 105px;
-  width: 270px;
-}
 .solution {
   position: absolute;
   height: 220px;
@@ -102,5 +92,49 @@
 }
 
 .wortausgabeengunsichtbar {
+  display: none;
+}
+
+.ebeneinput {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 35px;
+  top: 63px;
+  left: 110px;
+  height: 105px;
+  width: 270px;
+  z-index: 10;
+}
+
+.ebeneinputunsichtbar {
+  display: none;
+}
+
+.inputtext {
+  left: 2px;
+  top: 2px;
+  width: 260px;
+  height: 98px;
+  border: none;
+  opacity: 50;
+  border-radius: 25% 15px 25%;
+  background: none;
+  border: 2px solid green;
+}
+
+.wortausgabede {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 35px;
+  top: 63px;
+  left: 110px;
+  height: 105px;
+  width: 270px;
+}
+.wortausgabedeunsichtbar {
   display: none;
 }

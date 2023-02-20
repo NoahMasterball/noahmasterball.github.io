@@ -57,9 +57,15 @@
       </div>
       <img class="baum" src="baum1.gif" />
       <img class="wiese" src="wiese1.gif" />
-      <div id="ebenebus" class="ebenebus animation2">
+      <div class="richtigfalsch">
+        <span id="richtigfalsch" class="text"></span>
+      </div>
+      <div id="ebenebus" class="ebenebus animation">
           <img class="bus" onmouseover="javascript:hoveronbus()" onmouseleave="javascript:hoveroutbus()" src="bus.gif" />
           <span class="wortausgabede text" id="wortausgabede">Welcome to the Vocabulary Trainer!</span>
+        <div id="ebeneinput" class="ebeneinput ebeneinputunsichtbar">
+        <input id="worteingetippt" type="text" size="15" onchange="worteingetippt()" placeholder="   Please type here" class="inputtext text">
+        </div>
       </div>
       <div class="solutiontext">
         <span id="seehidetext" class="text">See/hide solution here</span>

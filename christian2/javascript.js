@@ -80,7 +80,7 @@ function pickvoc() {
 
 // prettier-ignore
 function showwords() {
-    myFunction();
+    // myFunction();
     if (zaehler2 < vocabularyarray.length) {
       document.getElementById("word1").innerHTML = vocabularyarray[zaehler2][myLanguage[0]];
       document.getElementById("word2").innerHTML = vocabularyarray[zaehler2][myLanguage[1]];

@@ -12,6 +12,7 @@ div {
   border: 2px solid green;
 }
 */
+
 .master {
   position: relative;
   margin: auto;
@@ -170,14 +171,14 @@ div {
   top: 100px;
   left: 75px;
   z-index: 5;
-  color: rgb(13, 6, 113);
-  text-shadow: 2px 2px rgb(132, 248, 46);
 }
 
 .mw3type {
   top: 120px;
   left: 135px;
   z-index: 5;
+  color: rgb(13, 6, 113);
+  text-shadow: 2px 2px rgb(132, 248, 46);
 }
 
 .flagge {
@@ -215,41 +216,52 @@ div {
   height: 300px;
   width: 400px;
   top: 1050px;
+  left: 410px;
 }
-
 .bus {
   position: relative;
   width: 398px;
   height: 278px;
   z-index: 10;
 }
-.animation2 {
+.animation {
   animation-name: schulbus;
   animation-duration: 5s;
   animation-iteration-count: infinite;
+  animation-delay: 1s;
+  animation-fill-mode: forwards;
 }
-.animation {
-  animation-name: chug;
+.richtigfalsch {
+  position: absolute;
+  top: 1030px;
+  left: 20px;
+}
+
+@keyframes schulbus {
+  0% {
+    left: 410px;
+  }
+  100% {
+    left: 10px;
+  }
+}
+.animationmiddle {
+  animation-name: schulbusmiddle;
   animation-duration: 5s;
-  animation-iteration-count: infinite;
+  animation-iteration-count: 1;
+  animation-delay: 1s;
+  animation-fill-mode: forwards;
+}
+@keyframes schulbusmiddle {
+  0% {
+    left: 410px;
+  }
+  100% {
+    left: 205px;
+  }
 }
 .pause {
   animation-play-state: paused;
   /* prettier-ignore */
   cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 512 512'><path d='M464 256A208 208 0 1 0 48 256a208 208 0 1 0 416 0zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zm224-72V328c0 13.3-10.7 24-24 24s-24-10.7-24-24V184c0-13.3 10.7-24 24-24s24 10.7 24 24zm112 0V328c0 13.3-10.7 24-24 24s-24-10.7-24-24V184c0-13.3 10.7-24 24-24s24 10.7 24 24z'/></svg>") 16 0, auto;
-}
-
-@keyframes schulbus {
-  0% {
-    transform: translateX(105%);
-  }
-}
-
-@keyframes chug {
-  50% {
-    transform: translateX(0%);
-  }
-  0% {
-    transform: translateX(100%);
-  }
 }
