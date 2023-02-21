@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Raumschiffschlacht</title>
+    <style>
+      canvas {
+        background-color: rgba(0, 0, 0, 0.8);
+      }
+    </style>
+
+    <script>
+      let KEY_SPACE = false;
+      let KEY_UP = false;
+      let KEY_DOWN = false;
+      let rocket = {
+        x: 100,
+        y: 200,
+        width: 200,
+        height: 80,
+        src: "img/rocket.png",
+      };
+      let ufo = {
+        x: 500,
+        y: 200,
+        width: 100,
+        height: 40,
+        src: "img/ufo.png",
+      };
+
+      document.onkeydown = function (e) {
+        if (e.keycode == 32) {
+          //leertaste gedrückt
+          KEY_SPACE = true;
+        }
+      };
+
+      document.onkeydown = function (e) {
+        if (e.keycode == 38) {
+          //nach oben gedrückt
+          KEY_UP = true;
+        }
+      };
+      document.onkeydown = function (e) {
+        if (e.keycode == 40) {
+          //nach unten gedrückt
+          KEY_DOWN = true;
+        }
+      };
+
+      document.onkeydown = function (e) {
+        if (e.keycode == 32) {
+          //leertaste losgellassen
+          KEY_SPACE = false;
+        }
+      };
+
+      document.onkeydown = function (e) {
+        if (e.keycode == 38) {
+          //nach oben losgellassen
+          KEY_UP = false;
+        }
+      };
+      document.onkeydown = function (e) {
+        if (e.keycode == 40) {
+          //nach unten losgellassen
+          KEY_DOWN = false;
+        }
+      };
+    </script>
+  </head>
+  <body>
+    <canvas width="720" height="480"></canvas>
+  </body>
+</html>
