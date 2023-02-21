@@ -1,3 +1,4 @@
+Page 222-223:Seite 222-223
 museum:Museum 
 capital:Hauptstadt 
 city:Stadt; GroBstadt 

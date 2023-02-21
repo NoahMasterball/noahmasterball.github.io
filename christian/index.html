@@ -37,8 +37,8 @@
           <img class="flagge de" id="lang1" onmouseover="javascript:changelang([1,'ger','eng'])" src="flagge_ger1.gif">
           <img class="flagge eng" id="lang2" onmouseover="javascript:changelang([2,'eng','ger'])" src="flagge_eng1.gif">
           <span class="mw3style text">Style</span>
-          <span class="mw3flow mwtext text" id="flow1" onmouseover="javascript:flowortype([1,'flow'])">Flow</span>
-          <span class="mw3type mwtext text" id="flow2" onmouseover="javascript:flowortype([2,'type'])">Type</span>
+          <span class="mw3flow mwtext text" id="flow1" onmouseover="javascript:flowortype([1, 'flow', 2, 'type']),typeword()">Flow</span>
+          <span class="mw3type mwtext text" id="flow2" onmouseover="javascript:flowortype([2, 'type', 1, 'flow']),typeword()">Type</span>
         </div>
       </div>  
       <div class="sichtbar2">
@@ -54,23 +54,24 @@
             <span onmouseover="javascript:changevoc('14')" class="mw14text mwtext text" id="wolke14">5th Class Book<br />Page 224-225</span>
         </div>
       </div>
-      <img class="baum" src="baum1.gif" />
+      <img class="baum" onclick="javascript:fastcontinue()" src="baum1.gif" />
       <img class="wiese" src="wiese1.gif" />
       <div class="richtigfalsch">
-        <span id="richtigfalsch" class="text"></span>
+        <span id="richtigfalsch" class="text richtigfalschtext"></span>
       </div>
-      <div id="ebenebus" class="ebenebus animation">
-        <img id="test" class="bus" onmouseover="javascript:buspause(['add','pause','clearTimeout(interval);'])" onmouseleave="javascript:buspause(['remove','weiter','interval = setTimeout(showwords, 2000)'])" src="bus.gif" />
-        <span class="word2 text" id="word2">Welcome to the Vocabulary Trainer!</span>
-        <div id="ebeneinput" class="ebeneinput ebeneinputunsichtbar">
+      <div id="ebenebus" class="ebenebus animation1">
+        <img id="test" class="bus" onmouseover="javascript:buspause(['add','pause','clearTimeout(interval);'])" onmouseleave="javascript:buspause(['remove','weiter','interval = setTimeout(showwords, 2000)'])" src="bus.gif" />        <span class="word2 text" id="word2">Welcome to the Vocabulary Trainer!</span>
+        <div id="ebeneinput" class="ebeneinput2">
           <input id="worteingetippt" type="text" size="15" onchange="worteingetippt()" placeholder="   Please type here" class="inputtext text">
         </div>
       </div>
       <div class="solutiontext">
-        <span id="seehidetext" class="text">See/hide solution here</span>
+        <span id="seetext1" class="text">See/hide solution here <br>(Click on tree for fast continue)</span>
+        <span id="seetext2" class="text invisible">Type the correct translation (a word) <br> into the bus and press Return/Enter.</span>
       </div>
       <div class="solution" onmouseover="javascript:seeword()" onclick="javascript:seeword()">
-        <span class="visible text invisible" id="word1">Welcome</span>
+        <span class="word1 aktiviert2 text invisible" id="word1">Welcome</span>
+        <span class="word3 text invisible" id="word3"></span>
       </div>
     </div>
   </body>

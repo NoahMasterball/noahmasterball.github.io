@@ -83,35 +83,6 @@
   z-index: 1;
 }
 
-.visible {
-  position: absolute;
-  display: flex;
-  pointer-events: none;
-  top: 100px;
-  left: 25px;
-}
-
-.invisible {
-  display: none;
-}
-
-.ebeneinput {
-  position: absolute;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 35px;
-  top: 63px;
-  left: 110px;
-  height: 105px;
-  width: 270px;
-  z-index: 10;
-}
-
-.ebeneinputunsichtbar {
-  display: none;
-}
-
 .inputtext {
   left: 2px;
   top: 2px;
@@ -124,7 +95,7 @@
   border: 2px solid green;
 }
 
-.word2 {
+.ebeneinput1 {
   position: absolute;
   display: flex;
   justify-content: center;
@@ -134,7 +105,50 @@
   left: 110px;
   height: 105px;
   width: 270px;
+  z-index: 10;
 }
-.word2unsichtbar {
+
+.ebeneinput2 {
+  position: absolute;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  font-size: 35px;
+  top: 63px;
+  left: 110px;
+  height: 105px;
+  width: 270px;
+  z-index: 10;
+}
+
+.word1 {
+  position: absolute;
+  display: flex;
+  pointer-events: none;
+  top: 110px;
+  left: 20px;
+}
+
+.word2 {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 35px;
+  top: 55px;
+  left: 110px;
+  height: 105px;
+  width: 270px;
+}
+
+.word3 {
+  position: absolute;
+  display: flex;
+  pointer-events: none;
+  top: 195px;
+  left: 20px;
+}
+
+.invisible {
   display: none;
 }

@@ -72,6 +72,7 @@ div {
   height: 179px;
 }
 .mw11 {
+  display: none;
   top: 90px;
   left: 580px;
   z-index: 1;
@@ -86,6 +87,7 @@ div {
   z-index: 3;
 }
 .mw14 {
+  display: none;
   top: 80px;
   left: 35px;
   z-index: 4;
@@ -118,6 +120,7 @@ div {
 }
 
 .mw11text {
+  display: none;
   top: 164px;
   left: 635px;
 }
@@ -130,6 +133,7 @@ div {
   left: 268px;
 }
 .mw14text {
+  display: none;
   top: 150px;
   left: 78px;
 }
@@ -218,17 +222,23 @@ div {
   height: 278px;
   z-index: 10;
 }
-.animation {
+.animation1 {
   animation-name: schulbus;
   animation-duration: 5s;
   animation-iteration-count: infinite;
   animation-delay: 1s;
   animation-fill-mode: forwards;
 }
+
 .richtigfalsch {
   position: absolute;
-  top: 1030px;
+  top: 1035px;
   left: 20px;
+}
+
+.richtigfalschtext {
+  white-space: nowrap;
+  font-size: 40px;
 }
 
 @keyframes schulbus {
@@ -239,7 +249,7 @@ div {
     left: 10px;
   }
 }
-.animationmiddle {
+.animation2 {
   animation-name: schulbusmiddle;
   animation-duration: 5s;
   animation-iteration-count: 1;
