@@ -1,18 +1,21 @@
 //Defining defaults and build page on it
 let vocabularyarray = [];
 let pause;
-var interval;
+let interval;
 let zaehler = 0;
 let zaehler2 = 0;
+let flowtype = [];
+
 window.addEventListener("load", function () {
   changelang([1, "ger", "eng"]);
-  changespeed([2, 3000]);
-  flowortype([1, "flow"]);
+  changespeed([4, 10000]);
+  flowortype(["1", "flow", "2", "type"]);
+  //flowortype(["2", "type", "1", "flow"]);
+  //setTimeout(typeword, 1500);
   buspause(["remove", "ohne"]);
   changevoc("12");
-  pickvoc();
-  setTimeout(showwords, 1000);
-  setTimeout(typeword(2, "eng", "ger"), 3000);
+  //pickvoc(); wird duch changevoc gestartet.
+  interval = setTimeout(showwords, 3000);
 });
 
 function changelang(lang) {
@@ -20,16 +23,14 @@ function changelang(lang) {
   document.getElementById("lang2").src = "flagge_eng1.gif";
   document.getElementById("lang" + lang[0]).src = "flagge_" + lang[1] + "2.gif";
   myLanguage = [lang[1], lang[2]];
-  //document.getElementById("worteingetippt").placeholder = "Please type here"; //document.getElementById("richtigfalsch").innerHTML = ""; //currentWord = 0; //fragewort();
 }
 
-function flowortype(flowortype) {
+function flowortype(fort) {
   for (let i = 1; i <= 2; i++) {
     document.getElementById("flow" + i).classList.remove("aktiviert2");
   }
-  document.getElementById("flow" + flowortype[0]).classList.add("aktiviert2");
-  style = flowortype[1];
-  // style = "type"; // pause = "nein"; // currentWord = 0; // word = vocabularyarray[currentWord]; // document.getElementById("richtigfalsch").innerHTML = ""; // haltFunction() // typeWord()
+  document.getElementById("flow" + fort[0]).classList.add("aktiviert2");
+  flowtype = fort;
 }
 
 // prettier-ignore
@@ -47,24 +48,35 @@ function changevoc(welchewolke) {
   }
   document.getElementById("wolke" + welchewolke).classList.add("aktiviert");
   vocabluaryfile = "wolke" + welchewolke + ".txt";
+  setTimeout(pickvoc, 1000);
 }
 
 // prettier-ignore
 function buspause(wert) {
-  document.getElementById("ebenebus").classList[wert[0]]("pause");
-  pause = wert[1];
-  eval(wert[2]);
+  if (flowtype[1] == "flow") {
+    document.getElementById("ebenebus").classList[wert[0]]("pause");
+    pause = wert[1];
+    eval(wert[2]);
+  }
 }
 
 function seeword() {
-  zaehler++;
-  // if (style == "flow") {
-  zaehler % 2 == 0
-    ? document.getElementById("word1").classList.remove("invisible")
-    : document.getElementById("word1").classList.add("invisible");
+  if (flowtype[1] == "flow") {
+    if (zaehler % 2 == 0) {
+      document.getElementById("word1").classList.remove("invisible");
+      document.getElementById("word3").classList.remove("invisible");
+    } else {
+      document.getElementById("word1").classList.add("invisible");
+      document.getElementById("word3").classList.add("invisible");
+      //document.getElementById("word3").innerHTML = "";
+    }
+    zaehler++;
+  }
 }
 
 function pickvoc() {
+  vocabularyarray.splice(0, vocabularyarray.length);
+  zaehler2 = 0;
   fetch(vocabluaryfile)
     .then((response) => response.text())
     .then((text) => {
@@ -77,39 +89,161 @@ function pickvoc() {
         vocabularyarray.push({ eng, ger });
       }
     });
+  if (flowtype[1] == "type") {
+    setTimeout(typeword, 1500);
+  }
 }
 
 // prettier-ignore
 function showwords() {
-    // myFunction();
+    myFunction();
     if (zaehler2 < vocabularyarray.length) {
-      document.getElementById("word1").innerHTML = vocabularyarray[zaehler2][myLanguage[0]];
-      document.getElementById("word2").innerHTML = vocabularyarray[zaehler2][myLanguage[1]];
-      zaehler2++;
-      interval = setTimeout(showwords, intervalauswahl);
+        if (flowtype[1] == "flow") {
+          if (zaehler2 > 1) {
+            document.getElementById("word1").innerHTML = vocabularyarray[zaehler2][myLanguage[1]];
+            document.getElementById("word3").innerHTML = "(Last word: " + vocabularyarray[zaehler2 - 1][myLanguage[1]] + ")";
+            
+            document.getElementById("word2").innerHTML = vocabularyarray[zaehler2][myLanguage[0]];
+          } else {
+            document.getElementById("word1").innerHTML = vocabularyarray[zaehler2][myLanguage[1]];
+            document.getElementById("word2").innerHTML = vocabularyarray[zaehler2][myLanguage[0]];
+          }
+          
+          
+          zaehler2++;
+          interval = setTimeout(showwords, intervalauswahl);
+        } else {
+          document.getElementById("word1").innerHTML = vocabularyarray[zaehler2][myLanguage[0]];
+          document.getElementById("word2").innerHTML = vocabularyarray[zaehler2][myLanguage[1]];
+          clearTimeout(interval);
+        }
+    } else {
+        console.log('All words are finished!')
+        document.getElementById('word' + flowtype[2]).innerHTML = "Alles Fertig! -> Neustart!";
+        document.getElementById('word' + flowtype[0]).innerHTML = "All finished! -> restart!";
+        zaehler2 = 0;
+        interval = setTimeout(showwords, 10000);
     }
-  }
+}
 
 let lastCallTime = null;
 // prettier-ignore
 function myFunction() {
   const currentTime = new Date().getTime();
   if (lastCallTime) { const timeDiff = currentTime - lastCallTime;
-    console.log(`Die Funktion wurde zuletzt vor ${timeDiff} Millisekunden aufgerufen.`);
+    console.log(`Die Funktion showwords wurde zuletzt vor ${timeDiff} Millisekunden aufgerufen.`);
   } lastCallTime = currentTime;
 }
 
 // prettier-ignore
 function typeword() {
-  console.log([myLanguage[0]]);
-  console.log(vocabularyarray[zaehler2]);
-  console.log(vocabularyarray);
-  console.log(zaehler2);
-  console.log(vocabularyarray[0]);
-  //document.getElementById("word1").innerHTML = vocabularyarray[zaehler2][myLanguage[0]];
-  document.getElementById("ebenebus").classList.add("animationmiddle");
-  document.getElementById("seehidetext").innerHTML = "Type the correct translation (a word) <br> into the bus and press Return/Enter.";
-  document.getElementById("word2").classList.add("word2unsichtbar");
-  document.getElementById("ebeneinput").className = "ebeneinput";
-  document.getElementById("word1").classList.remove("invisible");
+  console.log('typeword ran ' + flowtype[0] + flowtype[1] + flowtype[2] + flowtype[3]);
+  document.getElementById('word' + flowtype[2]).innerHTML = vocabularyarray[zaehler2][myLanguage[0]];
+  document.getElementById('word' + flowtype[0]).innerHTML = vocabularyarray[zaehler2][myLanguage[1]];
+  document.getElementById('word' + flowtype[2]).classList.remove("invisible");
+  document.getElementById('word' + flowtype[0]).classList.add("invisible");
+  document.getElementById("ebenebus").classList.add('animation' + flowtype[0]);
+  document.getElementById("ebenebus").classList.remove('animation' + flowtype[2]);
+  document.getElementById('seetext' + flowtype[0]).classList.remove("invisible");
+  document.getElementById('seetext' + flowtype[2]).classList.add("invisible");
+  document.getElementById("ebeneinput").classList.remove('ebeneinput' + flowtype[0]);
+  document.getElementById("ebeneinput").classList.add('ebeneinput' + flowtype[2]);
+  if (flowtype[1] == "type") {
+    console.log(vocabularyarray[zaehler2][myLanguage[1]]);
+    if (vocabularyarray[zaehler2][myLanguage[1]].includes("Page")) {
+      zaehler2++
+      //console.log('cleared+restart Page')
+      //console.log('cleared by page');
+      clearTimeout(interval);
+      interval = setTimeout(showwords, 3000)
+    }
+    if (vocabularyarray[zaehler2][myLanguage[1]].includes("Seite")) {
+      zaehler2++
+      //console.log('cleared+restart Page')
+      //console.log('cleared by page');
+      clearTimeout(interval);
+      interval = setTimeout(showwords, 3000)
+    }
+  }
+  if (flowtype[1] == "flow") {
+    clearTimeout(interval);
+    interval = setTimeout(showwords, 1500)
+    // console.log('cleared+restart')
+  } 
+}
+
+// prettier-ignore
+function worteingetippt() {
+  wort = document.getElementById("worteingetippt").value;
+  document.getElementById("worteingetippt").value = "";
+  if (zaehler2 >= vocabularyarray.length) {
+    console.log("You have finished all the words!");
+    document.getElementById("word" + flowtype[2]).innerHTML = "Alles Fertig! -> Neustart!";
+    document.getElementById("word" + flowtype[0]).innerHTML = "All done - finished! -> restart!";
+    clearInterval(interval);
+    return;
+  }
+  compareword();
+}
+
+let zaehler3 = 0;
+// prettier-ignore
+function compareword () {
+    console.log("started function comparewortdeutsch");
+    wordlower = vocabularyarray[zaehler2][myLanguage[1]].toLowerCase();
+    wordtypelower = wort.toLowerCase()
+    if (zaehler2 >= vocabularyarray.length) {
+      console.log("You have finished all the words!");
+      document.getElementById("word" + flowtype[2]).innerHTML = "Alles Fertig! -> Neustart!";
+      document.getElementById("word" + flowtype[0]).innerHTML = "All done - finished! -> restart!";
+      clearInterval(interval);
+      return;
+    }
+    console.log('vor if' + zaehler3);
+    if (wordlower.includes(wordtypelower)) {
+      console.log("Richtig! If " + wordlower + 'enthält' + wordtypelower + "==" + vocabularyarray[zaehler2][myLanguage[1]]);
+      // word = vocabularyarray[zaehler2];
+      document.getElementById("richtigfalsch").innerHTML = "Correct: " + vocabularyarray[zaehler2][myLanguage[1]];
+      setTimeout(deletesolution, 3500);
+      zaehler2++;
+    } else {
+      document.getElementById("richtigfalsch").innerHTML = "Wrong: " + vocabularyarray[zaehler2][myLanguage[1]];
+      setTimeout(deletesolution, 3500);
+      zaehler2++;
+      /*
+      if (zaehler3 == 0) {
+        console.log(zaehler3 == 0);
+        console.log("Falsch! If " + wordlower + 'enthält' + wordtypelower + "==" + vocabularyarray[zaehler2][myLanguage[1]]);
+        document.getElementById("richtigfalsch").innerHTML = "Wrong - please retry - 2 retries left";
+        console.log('1 retry' + zaehler3);
+        typeword()
+        zaehler3++;
+      }
+      if (zaehler3 == 1) {
+        console.log("Falsch! If " + wordlower + 'enthält' + wordtypelower + "==" + vocabularyarray[zaehler2][myLanguage[1]]);
+        document.getElementById("richtigfalsch").innerHTML = "Wrong - please retry - 1 retries left";
+        console.log('2 retry' + zaehler3);
+        typeword()
+      }
+      if (zaehler3 == 2) {
+        console.log("Falsch! If " + wordlower + 'enthält' + wordtypelower + "==" + vocabularyarray[zaehler2][myLanguage[1]]);
+        document.getElementById("richtigfalsch").innerHTML = "Wrongxxx: " + vocabularyarray[zaehler2][myLanguage[1]];
+        zaehler2++;
+        console.log('no retry - end' + zaehler3);
+        typeword()
+    }
+    */
+    }
+    clearTimeout(interval);
+    interval = setTimeout(showwords, 1500)
+    //console.log('cleared+restart by end')
+}
+
+function deletesolution() {
+  document.getElementById("richtigfalsch").innerHTML = "";
+}
+
+function fastcontinue() {
+  clearTimeout(interval);
+  showwords();
 }
