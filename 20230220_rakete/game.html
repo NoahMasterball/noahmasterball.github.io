@@ -18,57 +18,43 @@
       let canvas;
       let ctx;
       let backgroundImage = new Image();
+      let ufos = [];
 
       let rocket = {
-        x: 100,
-        y: 200,
-        width: 200,
-        height: 80,
-        src: "img/rocket.png",
-      };
-      let ufo = {
-        x: 500,
+        x: 50,
         y: 200,
         width: 100,
-        height: 40,
-        src: "img/ufo.png",
+        height: 60,
+        src: "img/rocket.png",
       };
 
       document.onkeydown = function (e) {
-        if (e.keycode == 32) {
+        //console.log(e.keyCode);
+        if (e.keyCode == 32) {
           //leertaste gedrückt
           KEY_SPACE = true;
+          console.log("affeeeeeeee");
         }
-      };
-
-      document.onkeydown = function (e) {
-        if (e.keycode == 38) {
+        if (e.keyCode == 38) {
           //nach oben gedrückt
           KEY_UP = true;
         }
-      };
-      document.onkeydown = function (e) {
-        if (e.keycode == 40) {
+        if (e.keyCode == 40) {
           //nach unten gedrückt
           KEY_DOWN = true;
         }
       };
 
-      document.onkeydown = function (e) {
-        if (e.keycode == 32) {
+      document.onkeyup = function (e) {
+        if (e.keyCode == 32) {
           //leertaste losgellassen
           KEY_SPACE = false;
         }
-      };
-
-      document.onkeydown = function (e) {
-        if (e.keycode == 38) {
+        if (e.keyCode == 38) {
           //nach oben losgellassen
           KEY_UP = false;
         }
-      };
-      document.onkeydown = function (e) {
-        if (e.keycode == 40) {
+        if (e.keyCode == 40) {
           //nach unten losgellassen
           KEY_DOWN = false;
         }
@@ -78,18 +64,57 @@
         canvas = document.getElementById("canvas");
         ctx = canvas.getContext("2d");
         loadImages();
+        setInterval(update, 1000 / 50);
+        setInterval(createUfos, 5000);
         draw();
         //calculate
       }
+
+      function createUfos() {
+        let ufo = {
+          x: 750,
+          y: 200,
+          width: 100,
+          height: 40,
+          src: "img/ufo.png",
+          img: new Image(),
+        };
+
+        ufo.img.src = ufo.src;
+        ufos.push(ufo);
+      }
+
+      function update() {
+        if (KEY_UP) {
+          rocket.y -= 4;
+        }
+        if (KEY_DOWN) {
+          rocket.y += 4;
+        }
+
+        ufos.forEach(function (ufo) {
+          ufo.x -= 2.5;
+        });
+      }
+
       function loadImages() {
         backgroundImage.src = "img/background.png";
         rocket.img = new Image();
         rocket.img.src = rocket.src;
-
-        ufo.img = new Image();
-        ufo.img.src = ufo.src;
       }
       function draw() {
+        ctx.drawImage(backgroundImage, 0, 0);
+        ctx.drawImage(
+          rocket.img,
+          rocket.x,
+          rocket.y,
+          rocket.width,
+          rocket.height
+        );
+
+        ufos.forEach(function (ufo) {
+          ctx.drawImage(ufo.img, ufo.x, ufo.y, ufo.width, ufo.height);
+        });
         requestAnimationFrame(draw);
       }
     </script>
