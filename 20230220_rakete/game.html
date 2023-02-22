@@ -15,6 +15,10 @@
       let KEY_SPACE = false;
       let KEY_UP = false;
       let KEY_DOWN = false;
+      let canvas;
+      let ctx;
+      let backgroundImage = new Image();
+
       let rocket = {
         x: 100,
         y: 200,
@@ -69,9 +73,28 @@
           KEY_DOWN = false;
         }
       };
+
+      function startGame() {
+        canvas = document.getElementById("canvas");
+        ctx = canvas.getContext("2d");
+        loadImages();
+        draw();
+        //calculate
+      }
+      function loadImages() {
+        backgroundImage.src = "img/background.png";
+        rocket.img = new Image();
+        rocket.img.src = rocket.src;
+
+        ufo.img = new Image();
+        ufo.img.src = ufo.src;
+      }
+      function draw() {
+        requestAnimationFrame(draw);
+      }
     </script>
   </head>
-  <body>
-    <canvas width="720" height="480"></canvas>
+  <body onload="startGame()">
+    <canvas id="canvas" width="720" height="480"></canvas>
   </body>
 </html>
