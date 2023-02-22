@@ -101,12 +101,13 @@ function showwords() {
         if (flowtype[1] == "flow") {
           if (zaehler2 > 1) {
             document.getElementById("word1").innerHTML = vocabularyarray[zaehler2][myLanguage[1]];
-            document.getElementById("word3").innerHTML = "(Last word: " + vocabularyarray[zaehler2 - 1][myLanguage[1]] + ")";
-            
             document.getElementById("word2").innerHTML = vocabularyarray[zaehler2][myLanguage[0]];
+            document.getElementById("word3").innerHTML = "(Last word: " + vocabularyarray[zaehler2 - 1][myLanguage[1]] + ")" 
+            setTimeout(deletelastword, 3500);
           } else {
             document.getElementById("word1").innerHTML = vocabularyarray[zaehler2][myLanguage[1]];
             document.getElementById("word2").innerHTML = vocabularyarray[zaehler2][myLanguage[0]];
+            document.getElementById("word3").innerHTML = "";
           }
           
           
@@ -148,6 +149,7 @@ function typeword() {
   document.getElementById('seetext' + flowtype[2]).classList.add("invisible");
   document.getElementById("ebeneinput").classList.remove('ebeneinput' + flowtype[0]);
   document.getElementById("ebeneinput").classList.add('ebeneinput' + flowtype[2]);
+  document.getElementById("word3").innerHTML = "";
   if (flowtype[1] == "type") {
     console.log(vocabularyarray[zaehler2][myLanguage[1]]);
     if (vocabularyarray[zaehler2][myLanguage[1]].includes("Page")) {
@@ -239,11 +241,16 @@ function compareword () {
     //console.log('cleared+restart by end')
 }
 
+function deletelastword() {
+  document.getElementById("word3").innerHTML = "";
+}
 function deletesolution() {
   document.getElementById("richtigfalsch").innerHTML = "";
 }
 
 function fastcontinue() {
-  clearTimeout(interval);
-  showwords();
+  if (flowtype[1] == "flow") {
+    clearTimeout(interval);
+    showwords();
+  }
 }
