@@ -8,7 +8,7 @@
   src: url("myfont-Regular.ttf");
 }
 
-.masterbackground {
+.master {
   position: relative;
   margin: auto;
   display: flex;
