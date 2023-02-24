@@ -3,7 +3,33 @@
   <head>
     <title>Noah´s Link List</title>
     <meta charset="UTF-8" />
-    <link rel="stylesheet" href="./style.css" />
+    <link rel="stylesheet" href="./index/style.css" />
+    <script type="text/javascript" language="javascript" defer>
+      // prettier-ignore
+      window.addEventListener("load", function () {
+        document.getElementById("rocket1").addEventListener("mousedown", function() {mouseOver1("rocket1.jpg")});
+        document.getElementById("rocket2").addEventListener("mousedown", function() {mouseOver1("rocket2.jpg")});
+        document.getElementById("rocket3").addEventListener("mousedown", function() {mouseOver1("rocket3.jpg")});
+        document.getElementById("rocket4").addEventListener("mousedown", function() {mouseOver1("rocket4.jpg")});
+        document.getElementById("rocket5").addEventListener("mousedown", function() {mouseOver1("rocket5.jpg")});
+        document.getElementById("rocketseepictext").addEventListener("mouseover", function() {mouseOver2()});
+        document.getElementById("linktextspace").addEventListener("mouseover", function() {mouseOver3()});
+        document.getElementById("englishvoclink").addEventListener("mouseover", function() {mouseOver3()});
+      });
+      function mouseOver1(filename) {
+        window.open("./index/" + encodeURI(filename));
+      }
+      function mouseOver2() {
+        document
+          .getElementById("rocketpicunsichtbar")
+          .classList.add("rocketpicsichtbar");
+      }
+      function mouseOver3() {
+        document
+          .getElementById("rocketpicunsichtbar")
+          .classList.remove("rocketpicsichtbar");
+      }
+    </script>
   </head>
   <body>
     <div class="fontuberschrift"><span>NOAH'S LINK LIST</span></div>
@@ -13,8 +39,8 @@
     >
     <br />
     <span class="linktext"
-      >01/2023 This page got originally created by ChatGTP and got enhanced by
-      Noah</span
+      >01/2023, 10Yrs, 5th Grade, This page got originally created by ChatGTP
+      and got enhanced by Noah</span
     >
     <a
       class="button-22"
@@ -22,11 +48,55 @@
       >(see video here)</a
     >
     <br /><br />
-    <a class="button-25" href="20230502_english/english.html"
-      >English Vocabulary Trainer 5th Class Gymnasium (not ready yet!)</a
-    >
     <a class="button-22" href="20230220_rakete/game.html"
       >Noah Rocket Game "Space Invader"</a
     >
+    <br />
+    <span id="linktextspace" class="linktextspace"
+      >02/2023, 10Yrs, 5th Grade, First game project in HTML (Canvas), CSS, and
+      Java Script. Complex calulations (coordinates collision calc) where
+      needed.
+    </span>
+    <div class="rocketseepic">
+      <a id="rocketseepictext" class="rocketseepictext">See pictures here</a>
+      <div id="rocketpicunsichtbar" class="rocketpicunsichtbar">
+        <div id="container" class="container">
+          <div class="box">
+            <!-- prettier-ignore -->
+            <img id="rocket1" src="./index/rocket1.jpg" />
+            <span>Noah´s</span>
+          </div>
+          <div class="box">
+            <img id="rocket2" src="./index/rocket2.jpg" />
+            <span>Rocket</span>
+          </div>
+          <div class="box">
+            <img id="rocket3" src="./index/rocket3.jpg" />
+            <span>Space</span>
+          </div>
+          <div class="box">
+            <img id="rocket4" src="./index/rocket4.jpg" />
+            <span>Project</span>
+          </div>
+          <div class="box">
+            <img id="rocket5" src="./index/rocket5.jpg" />
+            <span>Java Script</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <br />
+    <br />
+    <a id="englishvoclink" class="button-22 forbidden" href=""
+      >English Vocabulary Trainer 5th Class Gymnasium (Under Construction!)</a
+    >
+
+    <br />
+    <span id="linktextenglish" class="linktext forbidden"
+      >02/2023, 10Yrs, 5th Grade, English Vocuabulary Trainer for 5th Grade
+      Gymnasium</span
+    >
+    <a class="button-25" href="20230502_english/english.html">hidden link</a>
+    <br /><br />
   </body>
 </html>
