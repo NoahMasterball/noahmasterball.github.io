@@ -6,8 +6,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Raumschiffschlacht</title>
     <style>
+      @font-face {
+        font-family: "myfont";
+        src: url("myfont-Regular.ttf");
+      }
+
+      button {
+        font-family: "myfont";
+        font-size: 20px;
+      }
+
       canvas {
         background-color: rgba(0, 0, 0, 0.8);
+      }
+      .up {
+        position: relative;
+        left: 25px;
+        height: 50px;
+        width: 75px;
+      }
+      .down {
+        position: relative;
+        left: 75px;
+        height: 50px;
+        width: 75px;
+      }
+      .space {
+        position: relative;
+        left: 200px;
+        height: 50px;
+        width: 75px;
+      }
+
+      .text {
+        font-family: "myfont";
+        font-size: 20px;
+        position: relative;
+        left: 125px;
       }
     </style>
 
@@ -33,7 +68,6 @@
         if (e.keyCode == 32) {
           //leertaste gedrückt
           KEY_SPACE = true;
-          console.log("affeeeeeeee");
         }
         if (e.keyCode == 38) {
           //nach oben gedrückt
@@ -80,7 +114,6 @@
             ufo.y + ufo.height > rocket.y
           ) {
             rocket.img.src = "img/boom.png";
-            console.log("Collision");
             ufos = ufos.filter((u) => u != ufo);
             setTimeout(() => {
               window.location.reload(); //Seite neu laden sobald rakete getroffen wurde.
@@ -95,7 +128,10 @@
               ufo.y + ufo.height > shot.y
             ) {
               ufo.img.src = "img/boom.png";
-              console.log("CollisionShot");
+              ufo.getroffen = true;
+              setTimeout(() => {
+                ufos = ufos.filter((u) => u != ufo);
+              }, 2000);
             }
           });
         });
@@ -104,10 +140,9 @@
       //Brauchen wir um zu checken ob schuss abgegeben wurde, geht auch in update aber dann zu schnell da 1000 / 25
       function checkforshots() {
         if (KEY_SPACE) {
-          console.log("whatss ip");
           let shot = {
             x: rocket.x + rocket.width,
-            y: rocket.y + rocket.height / 2 + 2,
+            y: rocket.y + rocket.height / 2 - 2,
             width: 10,
             height: 4,
             src: "img/shot.png",
@@ -132,11 +167,15 @@
       }
 
       function update() {
-        if (KEY_UP) {
-          rocket.y -= 5;
+        if (rocket.y != -25) {
+          if (KEY_UP) {
+            rocket.y -= 5;
+          }
         }
-        if (KEY_DOWN) {
-          rocket.y += 5;
+        if (rocket.y != 445) {
+          if (KEY_DOWN) {
+            rocket.y += 5;
+          }
         }
 
         //Brauchen wir um die Schüsse zu bewegen
@@ -145,7 +184,9 @@
         });
 
         ufos.forEach(function (ufo) {
-          ufo.x -= 2.5;
+          if (!ufo.getroffen) {
+            ufo.x -= 2.5;
+          }
         });
       }
 
@@ -174,9 +215,45 @@
 
         requestAnimationFrame(draw);
       }
+
+      function upover() {
+        KEY_UP = true;
+      }
+      function upleave() {
+        KEY_UP = false;
+      }
+
+      function downover() {
+        KEY_DOWN = true;
+      }
+      function downleave() {
+        KEY_DOWN = false;
+      }
+
+      function spaceover() {
+        KEY_SPACE = true;
+      }
+      function spaceleave() {
+        KEY_SPACE = false;
+      }
     </script>
   </head>
+  <!--prettier-ignore-->
   <body onload="startGame()">
-    <canvas id="canvas" width="720" height="480"></canvas>
+    <canvas id="canvas" width="720" height="480"></canvas><br />
+    <button class="up" id="up"
+      onmouseover="javascript:upover()"
+      onmouseleave="javascript:upleave()"
+    >UP</button>
+
+    <button class="down" id="down"
+      onmouseover="javascript:downover()"
+      onmouseleave="javascript:downleave()"
+    >DOWN</button>
+    <span class="text" id="text">Use keyboard on pc (up,down,space)</span>
+    <button class="space" id="space"
+      onmouseover="javascript:spaceover()"
+      onmouseleave="javascript:spaceleave()"
+    >SHOOT</button>
   </body>
 </html>
