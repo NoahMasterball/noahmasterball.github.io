@@ -19,7 +19,6 @@
       let ctx;
       let backgroundImage = new Image();
       let ufos = [];
-
       let rocket = {
         x: 50,
         y: 200,
@@ -27,17 +26,6 @@
         height: 60,
         src: "img/rocket.png",
       };
-
-      let shot = {
-        x: rocket.x + rocket.width,
-        y: rocket.y + rocket.height / 2 - 2,
-        width: 15,
-        height: 4,
-        src: "img/shot.png",
-        img: new Image(),
-      };
-
-      let shots = [];
 
       document.onkeydown = function (e) {
         //console.log(e.keyCode);
@@ -78,11 +66,7 @@
         setInterval(update, 1000 / 50);
         setInterval(createUfos, 5000);
         setInterval(checkforcollision, 1000 / 25);
-        setInterval(checkforcollisionshot, 1000 / 25);
-
-        //setInterval(shot, 1000 / 25);
         draw();
-        //calculate
       }
 
       function checkforcollision() {
@@ -96,21 +80,9 @@
             rocket.img.src = "img/boom.png";
             console.log("Collision");
             ufos = ufos.filter((u) => u != ufo);
-          }
-        });
-      }
-
-      function checkforcollisionshot(shot) {
-        ufos.forEach(function (ufo) {
-          if (
-            ufo.x < shot.x + shot.width &&
-            ufo.y < shot.y + shot.height &&
-            ufo.x + ufo.width > shot.x &&
-            ufo.y + ufo.height > shot.y
-          ) {
-            ufo.img.src = "img/boom.png";
-            console.log("Collisionshot");
-            ufos = ufos.filter((u) => u != ufo);
+            setTimeout(() => {
+              window.location.reload();
+            }, 2000);
           }
         });
       }
@@ -124,21 +96,11 @@
           src: "img/ufo.png",
           img: new Image(),
         };
-
         ufo.img.src = ufo.src;
         ufos.push(ufo);
       }
 
       function update() {
-        if (KEY_SPACE) {
-          shot.img.src = shot.src;
-          shots.push(shot);
-        }
-
-        shots.forEach(function (shot) {
-          shot.x += 2.5;
-        });
-
         if (KEY_UP) {
           rocket.y -= 5;
         }
@@ -147,7 +109,9 @@
         }
 
         ufos.forEach(function (ufo) {
-          ufo.x -= 2.5;
+          if (!ufo.hit) {
+            ufo.x -= 2.5;
+          }
         });
       }
 
@@ -165,11 +129,6 @@
           rocket.width,
           rocket.height
         );
-
-        shots.forEach(function (shot) {
-          ctx.drawImage(shot.img, shot.x, shot.y, shot.width, shot.height);
-        });
-
         ufos.forEach(function (ufo) {
           ctx.drawImage(ufo.img, ufo.x, ufo.y, ufo.width, ufo.height);
         });
