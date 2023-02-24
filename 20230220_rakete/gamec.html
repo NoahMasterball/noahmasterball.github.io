@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Raumschiffschlacht</title>
+    <style>
+      canvas {
+        background-color: rgba(0, 0, 0, 0.8);
+        width: 100%;
+        height: 100%;
+      }
+      .button-up {
+        position: relative;
+        left: 25px;
+      }
+      .button-down {
+        position: absolute;
+        left: 75px;
+      }
+      .button-space {
+        position: absolute;
+        right: 75px;
+      }
+    </style>
+
+    <script defer>
+      let KEY_SPACE = false;
+      let KEY_UP = false;
+      let KEY_DOWN = false;
+      let canvas;
+      let ctx;
+      let backgroundImage = new Image();
+      let ufos = [];
+      let shots = []; // muss initialisiert werden
+      let rocket = {
+        x: 50,
+        y: 200,
+        width: 100,
+        height: 60,
+        src: "img/rocket.png",
+      };
+
+      document.onkeydown = function (e) {
+        //console.log(e.keyCode);
+        if (e.keyCode == 32) {
+          //leertaste gedrückt
+          KEY_SPACE = true;
+        }
+        if (e.keyCode == 38) {
+          //nach oben gedrückt
+          KEY_UP = true;
+        }
+        if (e.keyCode == 40) {
+          //nach unten gedrückt
+          KEY_DOWN = true;
+        }
+      };
+
+      document.onkeyup = function (e) {
+        if (e.keyCode == 32) {
+          //leertaste losgellassen
+          KEY_SPACE = false;
+        }
+        if (e.keyCode == 38) {
+          //nach oben losgellassen
+          KEY_UP = false;
+        }
+        if (e.keyCode == 40) {
+          //nach unten losgellassen
+          KEY_DOWN = false;
+        }
+      };
+
+      function startGame() {
+        canvas = document.getElementById("canvas");
+        ctx = canvas.getContext("2d");
+        loadImages();
+        setInterval(update, 1000 / 50);
+        setInterval(createUfos, 1000);
+        setInterval(checkforshots, 1000 / 10); //extra gestartet als via upadate da langsamer
+        setInterval(checkforcollision, 1000 / 25);
+        draw();
+      }
+
+      function checkforcollision() {
+        ufos.forEach(function (ufo) {
+          if (
+            ufo.x < rocket.x + rocket.width &&
+            ufo.y < rocket.y + rocket.height &&
+            ufo.x + ufo.width > rocket.x &&
+            ufo.y + ufo.height > rocket.y
+          ) {
+            rocket.img.src = "img/boom.png";
+            ufos = ufos.filter((u) => u != ufo);
+            setTimeout(() => {
+              window.location.reload(); //Seite neu laden sobald rakete getroffen wurde.
+            }, 2000);
+          }
+          shots.forEach(function (shot) {
+            // wichtig MUSS in ufos.forEach eingefügt werden!!!
+            if (
+              ufo.x < shot.x + shot.width &&
+              ufo.y < shot.y + shot.height &&
+              ufo.x + ufo.width > shot.x &&
+              ufo.y + ufo.height > shot.y
+            ) {
+              ufo.img.src = "img/boom.png";
+              setTimeout(() => {
+                ufos = ufos.filter((u) => u != ufo);
+              }, 2000);
+              ufo.getroffen = "ja";
+            }
+          });
+        });
+      }
+
+      //Brauchen wir um zu checken ob schuss abgegeben wurde, geht auch in update aber dann zu schnell da 1000 / 25
+      function checkforshots() {
+        if (KEY_SPACE) {
+          let shot = {
+            x: rocket.x + rocket.width,
+            y: rocket.y + rocket.height / 2 - 2,
+            width: 10,
+            height: 4,
+            src: "img/shot.png",
+            img: new Image(),
+          };
+          shot.img.src = shot.src;
+          shots.push(shot);
+        }
+      }
+
+      function createUfos() {
+        let ufo = {
+          x: 750,
+          y: Math.random() * 450,
+          width: 100,
+          height: 40,
+          src: "img/ufo.png",
+          img: new Image(),
+        };
+        ufo.img.src = ufo.src;
+        ufos.push(ufo);
+      }
+
+      function update() {
+        if (rocket.y !== -25) {
+          if (KEY_UP) {
+            rocket.y -= 5;
+          }
+        }
+
+        if (rocket.y !== 445) {
+          if (KEY_DOWN) {
+            rocket.y += 5;
+          }
+        }
+        //Brauchen wir um die Schüsse zu bewegen
+        shots.forEach(function (shot) {
+          shot.x += 2.5;
+        });
+
+        ufos.forEach(function (ufo) {
+          if (!ufo.getroffen) {
+            ufo.x -= 2.5;
+          }
+        });
+      }
+
+      function loadImages() {
+        backgroundImage.src = "img/background.png";
+        rocket.img = new Image();
+        rocket.img.src = rocket.src;
+      }
+      function draw() {
+        ctx.drawImage(backgroundImage, 0, 0);
+        ctx.drawImage(
+          rocket.img,
+          rocket.x,
+          rocket.y,
+          rocket.width,
+          rocket.height
+        );
+        ufos.forEach(function (ufo) {
+          ctx.drawImage(ufo.img, ufo.x, ufo.y, ufo.width, ufo.height);
+        });
+
+        //Brauchen wir um jeden Schuss zu zeichen/darzustellen
+        shots.forEach(function (shots) {
+          ctx.drawImage(shots.img, shots.x, shots.y, shots.width, shots.height);
+        });
+
+        requestAnimationFrame(draw);
+      }
+
+      window.onload = function () {
+        //prettier-ignore
+        document.getElementById("button-up").addEventListener("mouseover", mouseOver1);
+        //prettier-ignore
+        document.getElementById("button-up").addEventListener("mouseout", mouseOut1);
+      };
+
+      function mouseOver1() {
+        console.log("drüber1");
+        KEY_UP = true;
+      }
+      function mouseOut1() {
+        console.log("raus1");
+        KEY_UP = false;
+      }
+      function mouseOver2() {
+        console.log("drüber2");
+        KEY_DOWN = true;
+      }
+      function mouseOut2() {
+        console.log("raus2");
+        KEY_DOWN = false;
+      }
+      function mouseOver3() {
+        console.log("drüber3");
+        KEY_SPACE = true;
+      }
+      function mouseOut3() {
+        console.log("raus3");
+        KEY_SPACE = false;
+      }
+    </script>
+  </head>
+  <!--prettier-ignore-->
+  <body onload="startGame()">
+    <canvas id="canvas" width="720" height="480"></canvas>
+    <button id="button-up" onmouseover="javascript:mouseOver1()" onmouseleave ="javascript:mouseOut1()" class="button-up">Up</button>
+    <button id="button-down" onmouseover="javascript:mouseOver2()" onmouseleave="javascript:mouseOut2()"  class="button-down">Down</button>
+    <button id="button-space" onmouseover="javascript:mouseOver3()" onmouseleave="javascript:mouseOut3()" class="button-space">space</button>
+  </body>
+</html>
