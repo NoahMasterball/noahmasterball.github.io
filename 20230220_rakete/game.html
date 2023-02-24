@@ -19,6 +19,7 @@
       let ctx;
       let backgroundImage = new Image();
       let ufos = [];
+      let shots = []; // muss initialisiert werden
       let rocket = {
         x: 50,
         y: 200,
@@ -64,7 +65,8 @@
         ctx = canvas.getContext("2d");
         loadImages();
         setInterval(update, 1000 / 50);
-        setInterval(createUfos, 5000);
+        setInterval(createUfos, 1000);
+        setInterval(checkforshots, 1000 / 10); //extra gestartet als via upadate da langsamer
         setInterval(checkforcollision, 1000 / 25);
         draw();
       }
@@ -81,16 +83,45 @@
             console.log("Collision");
             ufos = ufos.filter((u) => u != ufo);
             setTimeout(() => {
-              window.location.reload();
+              window.location.reload(); //Seite neu laden sobald rakete getroffen wurde.
             }, 2000);
           }
+          shots.forEach(function (shot) {
+            // wichtig MUSS in ufos.forEach eingefügt werden!!!
+            if (
+              ufo.x < shot.x + shot.width &&
+              ufo.y < shot.y + shot.height &&
+              ufo.x + ufo.width > shot.x &&
+              ufo.y + ufo.height > shot.y
+            ) {
+              ufo.img.src = "img/boom.png";
+              console.log("CollisionShot");
+            }
+          });
         });
+      }
+
+      //Brauchen wir um zu checken ob schuss abgegeben wurde, geht auch in update aber dann zu schnell da 1000 / 25
+      function checkforshots() {
+        if (KEY_SPACE) {
+          console.log("whatss ip");
+          let shot = {
+            x: rocket.x + rocket.width,
+            y: rocket.y + rocket.height / 2 + 2,
+            width: 10,
+            height: 4,
+            src: "img/shot.png",
+            img: new Image(),
+          };
+          shot.img.src = shot.src;
+          shots.push(shot);
+        }
       }
 
       function createUfos() {
         let ufo = {
           x: 750,
-          y: 200,
+          y: Math.random() * 450,
           width: 100,
           height: 40,
           src: "img/ufo.png",
@@ -108,10 +139,13 @@
           rocket.y += 5;
         }
 
+        //Brauchen wir um die Schüsse zu bewegen
+        shots.forEach(function (shot) {
+          shot.x += 2.5;
+        });
+
         ufos.forEach(function (ufo) {
-          if (!ufo.hit) {
-            ufo.x -= 2.5;
-          }
+          ufo.x -= 2.5;
         });
       }
 
@@ -132,6 +166,12 @@
         ufos.forEach(function (ufo) {
           ctx.drawImage(ufo.img, ufo.x, ufo.y, ufo.width, ufo.height);
         });
+
+        //Brauchen wir um jeden Schuss zu zeichen/darzustellen
+        shots.forEach(function (shots) {
+          ctx.drawImage(shots.img, shots.x, shots.y, shots.width, shots.height);
+        });
+
         requestAnimationFrame(draw);
       }
     </script>
