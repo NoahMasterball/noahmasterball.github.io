@@ -19,21 +19,29 @@
       canvas {
         background-color: rgba(0, 0, 0, 0.8);
       }
+
+      .grid {
+        display: grid;
+        grid-gap: 50px;
+        grid-template-columns: 100px 100px 250px 100px;
+        grid-template-rows: 80px auto 80px auto;
+        column-gap: 10px;
+        row-gap: 15px;
+        align-items: center;
+      }
+
       .up {
         position: relative;
-        left: 25px;
         height: 50px;
         width: 75px;
       }
       .down {
         position: relative;
-        left: 75px;
         height: 50px;
         width: 75px;
       }
       .space {
         position: relative;
-        left: 200px;
         height: 50px;
         width: 75px;
       }
@@ -42,7 +50,6 @@
         font-family: "myfont";
         font-size: 20px;
         position: relative;
-        left: 125px;
       }
     </style>
 
@@ -241,11 +248,11 @@
   <!--prettier-ignore-->
   <body onload="startGame()">
     <canvas id="canvas" width="720" height="480"></canvas><br />
+    <div id="grid" class="grid">
     <button class="up" id="up"
       onmouseover="javascript:upover()"
       onmouseleave="javascript:upleave()"
     >UP</button>
-
     <button class="down" id="down"
       onmouseover="javascript:downover()"
       onmouseleave="javascript:downleave()"
@@ -255,5 +262,6 @@
       onmouseover="javascript:spaceover()"
       onmouseleave="javascript:spaceleave()"
     >SHOOT</button>
+  </div>
   </body>
 </html>
