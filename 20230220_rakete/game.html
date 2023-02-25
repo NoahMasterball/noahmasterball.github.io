@@ -169,7 +169,7 @@
         if (KEY_SPACE) {
           let shot = {
             x: rocket.x + rocket.width,
-            y: rocket.y + rocket.height / 2 - 9,
+            y: rocket.y + rocket.height / 2 - 2,
             width: 10,
             height: 4,
             src: "img/shot.png",
@@ -207,7 +207,7 @@
 
         //Brauchen wir um die Schüsse zu bewegen
         shots.forEach(function (shot) {
-          shot.x += 2.5;
+          shot.x += 5;
         });
 
         ufos.forEach(function (ufo) {
