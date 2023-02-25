@@ -141,6 +141,11 @@ span {
 
 .forbidden {
   cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.forbidden2 {
+  cursor: not-allowed;
 }
 
 .button-25 {
