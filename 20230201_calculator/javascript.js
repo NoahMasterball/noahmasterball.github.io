@@ -1,7 +1,6 @@
 function calculateSize() {
   var age = document.getElementById("ageinput").value;
   var size;
-
   if (age != "") {
     if (age < 0) {
       size = "Your age is not possible, you must be at least 1 year old!";
