@@ -258,7 +258,11 @@
       }
 
       function spaceover() {
-        KEY_SPACE = true;
+        if (KEY_SPACE) {
+          KEY_SPACE = false;
+        } else {
+          KEY_SPACE = true;
+        }
       }
       function spaceleave() {
         KEY_SPACE = false;
@@ -280,7 +284,6 @@
     >DOWN</button>
     <button class="space" id="space"
       onmouseover="javascript:spaceover()"
-      onmouseleave="javascript:spaceleave()"
     >SHOOT</button>
   </div>
   <span class="text" id="text">Use keyboard on pc (up, down, space)</span>
