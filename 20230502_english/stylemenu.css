@@ -1,3 +1,22 @@
+.sichtbar1 {
+  position: absolute;
+  height: 210px;
+  width: 500px;
+  left: 320px;
+}
+.unsichtbar1 {
+  position: absolute;
+  display: none;
+  width: 490px;
+  height: 200px;
+  top: 3px;
+  left: 3px;
+  z-index: 1;
+}
+.unsichtbar1 img {
+  position: absolute;
+}
+
 .sichtbar1:hover .unsichtbar1 {
   display: flex;
 }
@@ -45,4 +64,91 @@
 .deaktiviert {
   color: rgb(0, 0, 0);
   text-shadow: none;
+}
+
+.solution {
+  position: absolute;
+  height: 220px;
+  width: 460px;
+  top: 710px;
+  z-index: 50;
+}
+
+.solutiontext {
+  position: absolute;
+  display: flex;
+  white-space: nowrap;
+  top: 710px;
+  left: 20px;
+  z-index: 1;
+}
+
+.inputtext {
+  left: 2px;
+  top: 2px;
+  width: 260px;
+  height: 98px;
+  border: none;
+  opacity: 50;
+  border-radius: 25% 15px 25%;
+  background: none;
+  border: 2px solid green;
+}
+
+.ebeneinput1 {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 35px;
+  top: 63px;
+  left: 110px;
+  height: 105px;
+  width: 270px;
+  z-index: 10;
+}
+
+.ebeneinput2 {
+  position: absolute;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  font-size: 35px;
+  top: 63px;
+  left: 110px;
+  height: 105px;
+  width: 270px;
+  z-index: 10;
+}
+
+.word1 {
+  position: absolute;
+  display: flex;
+  pointer-events: none;
+  top: 110px;
+  left: 20px;
+}
+
+.word2 {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 35px;
+  top: 55px;
+  left: 110px;
+  height: 105px;
+  width: 270px;
+}
+
+.word3 {
+  position: absolute;
+  display: flex;
+  pointer-events: none;
+  top: 195px;
+  left: 20px;
+}
+
+.invisible {
+  display: none;
 }
