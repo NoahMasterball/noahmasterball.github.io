@@ -94,16 +94,19 @@ function pickvoc() {
   }
 }
 
+let deleteTimeout;
 // prettier-ignore
 function showwords() {
     myFunction();
     if (zaehler2 < vocabularyarray.length) {
         if (flowtype[1] == "flow") {
-          if (zaehler2 > 1) {
+          if (zaehler2 >= 1) {
             document.getElementById("word1").innerHTML = vocabularyarray[zaehler2][myLanguage[1]];
             document.getElementById("word2").innerHTML = vocabularyarray[zaehler2][myLanguage[0]];
             document.getElementById("word3").innerHTML = "(Last word: " + vocabularyarray[zaehler2 - 1][myLanguage[1]] + ")" 
-            setTimeout(deletelastword, 3500);
+            clearTimeout(deleteTimeout);
+            deleteTimeout = setTimeout(deletelastword, 5000);
+
           } else {
             document.getElementById("word1").innerHTML = vocabularyarray[zaehler2][myLanguage[1]];
             document.getElementById("word2").innerHTML = vocabularyarray[zaehler2][myLanguage[0]];
@@ -189,6 +192,11 @@ function worteingetippt() {
 }
 
 let zaehler3 = 0;
+let zaehler4 = 1;
+let zaehler5 = 1;
+let deletingTimeout;
+let score1 = 0;
+let score2 = 0;
 // prettier-ignore
 function compareword () {
     console.log("started function comparewortdeutsch");
@@ -206,12 +214,26 @@ function compareword () {
       console.log("Richtig! If " + wordlower + 'enthält' + wordtypelower + "==" + vocabularyarray[zaehler2][myLanguage[1]]);
       // word = vocabularyarray[zaehler2];
       document.getElementById("richtigfalsch").innerHTML = "Correct: " + vocabularyarray[zaehler2][myLanguage[1]];
-      setTimeout(deletesolution, 3500);
+      document.getElementById("richtigfalschicon").src = "icons/happy" + zaehler4 + ".gif";
+      score1++;
+      document.getElementById("score").innerHTML = "Your score: <br> Correct: " + score1 + " / Wrong: " + score2;  
+      clearTimeout(deletingTimeout);
+      deletingTimeout = setTimeout(deletesolution, 10000);
+       if (zaehler4 == 11) {zaehler4 = 0};
       zaehler2++;
+      zaehler4++;
     } else {
       document.getElementById("richtigfalsch").innerHTML = "Wrong: " + vocabularyarray[zaehler2][myLanguage[1]];
-      setTimeout(deletesolution, 3500);
+      document.getElementById("richtigfalschicon").src = "icons/unhappy" + zaehler5 + ".gif";
+      document.getElementById("busfeuer").classList.remove("invisible");
+      score2++;
+      document.getElementById("score").innerHTML = "Your score: <br> Correct: " + score1 + " / Wrong: " + score2;
+      clearTimeout(deletingTimeout);
+      deletingTimeout = setTimeout(deletesolution, 10000);
+      if (zaehler5 == 10) {zaehler5 = 0};
       zaehler2++;
+      zaehler5++;
+
       /*
       if (zaehler3 == 0) {
         console.log(zaehler3 == 0);
@@ -246,6 +268,9 @@ function deletelastword() {
 }
 function deletesolution() {
   document.getElementById("richtigfalsch").innerHTML = "";
+  document.getElementById("busfeuer").classList.add("invisible");
+  document.getElementById("richtigfalschicon").src = "";
+  document.getElementById("score").innerHTML = "";
 }
 
 function fastcontinue() {

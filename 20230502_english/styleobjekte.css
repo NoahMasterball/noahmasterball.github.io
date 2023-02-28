@@ -8,9 +8,11 @@
   src: url("myfont-Regular.ttf");
 }
 
+/*
 div {
   border: 2px solid green;
 }
+*/
 
 .master {
   position: relative;
@@ -216,11 +218,20 @@ div {
   left: 410px;
 }
 .bus {
-  position: relative;
+  position: absolute;
   width: 398px;
   height: 278px;
   z-index: 10;
 }
+.busfeuer {
+  position: absolute;
+  width: 318px;
+  height: 65px;
+  left: 72px;
+  top: -30px;
+  z-index: 9;
+}
+
 .animation1 {
   animation-name: schulbus;
   animation-duration: 5s;
@@ -233,6 +244,20 @@ div {
   position: absolute;
   top: 1035px;
   left: 20px;
+}
+
+.richtigfalschicon {
+  position: absolute;
+  top: 55px;
+  left: 10px;
+}
+
+.score {
+  white-space: nowrap;
+  font-size: 40px;
+  position: absolute;
+  top: 165px;
+  left: 0px;
 }
 
 .richtigfalschtext {
@@ -260,7 +285,7 @@ div {
     left: 410px;
   }
   100% {
-    left: 205px;
+    left: 335px;
   }
 }
 .pause {
