@@ -41,8 +41,8 @@
           <span class="mw3flow mwtext text" id="flow1" onmouseover="javascript:flowortype([1, 'flow', 2, 'type']),typeword()">Flow</span>
           <span class="mw3type mwtext text" id="flow2" onmouseover="javascript:flowortype([2, 'type', 1, 'flow']),typeword()">Type</span>
           <span class="mw4art mwtext text">Art</span>
-          <span class="mw4arton mwtext text" id="on" onmouseover="javascript:artonoff('on')">On</span>
-          <span class="mw4artoff mwtext text"id="off" onmouseover="javascript:artonoff('off')">Off</span>
+          <span class="mw4arton mwtext text" id="on" onmouseover="javascript:artonoff(['on',2])">On</span>
+          <span class="mw4artoff mwtext text"id="off" onmouseover="javascript:artonoff(['off',2])">Off</span>
         </div>
       </div>  
       <div class="sichtbar2">
@@ -58,7 +58,9 @@
             <span onmouseover="javascript:changevoc('14')" class="mw14text mwtext text" id="wolke14">5th Class Book<br />Page 224-225</span>
         </div>
       </div>
-      <img id="art" class="art" src=""/>
+      <div id="artdiv" class="artdiv">
+        <img id="art" class="art" src=""/>
+      </div>
       <img class="baum" onclick="javascript:fastcontinue()" src="baum1.gif" />
       <img class="wiese" src="wiese1.gif" />
       <div class="richtigfalsch">

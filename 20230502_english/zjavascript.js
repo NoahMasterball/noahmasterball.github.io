@@ -6,6 +6,9 @@ let zaehler = 0;
 let zaehler2 = 0;
 let flowtype = [];
 let artshow = "on";
+let isRunning = false;
+let anaus = "aus";
+
 window.addEventListener("load", function () {
   changelang([1, "ger", "eng"]);
   changespeed([4, 10000]);
@@ -14,31 +17,69 @@ window.addEventListener("load", function () {
   //setTimeout(typeword, 1500);
   buspause(["remove", "ohne"]);
   changevoc("12");
-  artonoff("on");
+  artonoff(["on", 1]);
   //pickvoc(); wird duch changevoc gestartet.
   interval = setTimeout(showwords, 3000);
-  changeartinterval = setTimeout(changeart, 1000);
+  document
+    .getElementById("art")
+    .addEventListener("transitionend", function (event) {
+      if (
+        event.propertyName === "opacity" &&
+        event.target.classList.contains("artfadein")
+      ) {
+        removeFadeinClass();
+      }
+    });
 });
 
-function artonoff(anauswert) {
-  console.log(anauswert);
-  if (anauswert == "on") {
-    document.getElementById("off").classList.remove("aktiviert2");
-    document.getElementById("on").classList.add("aktiviert2");
-    artshow = "on";
-  }
-  if (anauswert == "off") {
-    document.getElementById("on").classList.remove("aktiviert2");
-    document.getElementById("off").classList.add("aktiviert2");
-    artshow = "off";
+function removeFadeinClass() {
+  if (!isRunning) {
+    isRunning = true;
+    setTimeout(function () {
+      document.getElementById("art").classList.remove("artfadein");
+      console.log("jetzt fadeout");
+      isRunning = false;
+    }, 10000);
+  } else {
+    console.log("Funktion wird bereits ausgeführt...");
   }
 }
 
+function artonoff(anauswert) {
+  console.log(anauswert[0]);
+  if (anauswert[1] == 2) {
+    anaus = "an";
+  }
+  if (anauswert[1] == 1) {
+    anaus = "aus";
+  }
+  if (anauswert[0] == "on") {
+    document.getElementById("off").classList.remove("aktiviert2");
+    document.getElementById("on").classList.add("aktiviert2");
+    artshow = "on";
+    clearInterval(intervalId);
+    intervalId = setTimeout(changeart, 1000);
+  }
+  if (anauswert[0] == "off") {
+    document.getElementById("on").classList.remove("aktiviert2");
+    document.getElementById("off").classList.add("aktiviert2");
+    artshow = "off";
+    clearInterval(intervalId);
+    document.getElementById("art").src = "";
+    return;
+  }
+}
+
+let intervalId;
 function changeart() {
-  if (artshow == "on") {
-    let t = 1;
-    setInterval(function () {
+  console.log(anaus);
+  if (anaus == "an") {
+    document.getElementById("art").src = "art/art1.png";
+    document.getElementById("art").classList.add("artfadein");
+    let t = 2;
+    intervalId = setInterval(function () {
       document.getElementById("art").src = "art/art" + t + ".png";
+      document.getElementById("art").classList.add("artfadein");
       console.log(
         (document.getElementById("art").src = "art/art" + t + ".png")
       );
@@ -46,7 +87,21 @@ function changeart() {
       if (t > 58) {
         t = 1;
       }
-    }, 3000);
+    }, 25000);
+  }
+  if (anaus == "aus") {
+    let t = 1;
+    intervalId = setInterval(function () {
+      document.getElementById("art").src = "art/art" + t + ".png";
+      document.getElementById("art").classList.add("artfadein");
+      console.log(
+        (document.getElementById("art").src = "art/art" + t + ".png")
+      );
+      t++;
+      if (t > 58) {
+        t = 1;
+      }
+    }, 25000);
   }
 }
 

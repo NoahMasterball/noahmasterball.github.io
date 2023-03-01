@@ -22,6 +22,34 @@ div {
   margin-top: 3%;
 }
 
+.artdiv {
+  position: absolute;
+  margin: auto;
+  justify-content: center;
+  align-items: center;
+  display: flex;
+  left: 150px;
+  top: 280px;
+  width: 525px;
+  height: 525px;
+}
+.art {
+  opacity: 0%;
+  position: absolute;
+  width: 80%;
+  height: auto;
+  z-index: 0;
+  transition-property: opacity;
+  transition-duration: 5s;
+  transition-timing-function: linear;
+}
+.artfadein {
+  opacity: 80%;
+  transition-property: opacity;
+  transition-duration: 5s;
+  transition-timing-function: linear;
+}
+
 .text {
   position: absolute;
   display: flex;
@@ -35,6 +63,7 @@ div {
   position: absolute;
   width: 358px;
   height: 292px;
+  z-index: 1;
 }
 .wolke1text {
   position: absolute;
@@ -42,6 +71,7 @@ div {
   height: 238px;
   top: 120px;
   left: 70px;
+  z-index: 2;
 }
 .wolke1text:hover {
   color: rgb(18, 8, 148);
@@ -53,6 +83,7 @@ div {
   height: 238px;
   top: 120px;
   left: 400px;
+  z-index: 1;
 }
 .wolke2text1 {
   position: absolute;
@@ -214,13 +245,6 @@ div {
 .eng {
   top: 117px;
   left: 425px;
-}
-
-.art {
-  position: absolute;
-  top: 280px;
-  left: 150px;
-  z-index: 0;
 }
 
 .baum {
