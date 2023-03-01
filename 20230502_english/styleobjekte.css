@@ -111,6 +111,11 @@ div {
   z-index: 2;
 }
 .mw3 {
+  left: -70px;
+  top: 0px;
+  z-index: 1;
+}
+.mw4 {
   left: 35px;
   top: 50px;
   z-index: 1;
@@ -180,6 +185,22 @@ div {
   z-index: 5;
 }
 
+.mw4art {
+  top: 25px;
+  left: 15px;
+  z-index: 5;
+}
+.mw4arton {
+  top: 50px;
+  left: -25px;
+  z-index: 5;
+}
+.mw4artoff {
+  top: 75px;
+  left: 25px;
+  z-index: 5;
+}
+
 .flagge {
   position: absolute;
   width: 49px;
@@ -193,6 +214,13 @@ div {
 .eng {
   top: 117px;
   left: 425px;
+}
+
+.art {
+  position: absolute;
+  top: 280px;
+  left: 150px;
+  z-index: 0;
 }
 
 .baum {

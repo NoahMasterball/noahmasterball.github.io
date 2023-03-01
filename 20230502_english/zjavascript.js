@@ -5,7 +5,7 @@ let interval;
 let zaehler = 0;
 let zaehler2 = 0;
 let flowtype = [];
-
+let artshow = "on";
 window.addEventListener("load", function () {
   changelang([1, "ger", "eng"]);
   changespeed([4, 10000]);
@@ -14,9 +14,41 @@ window.addEventListener("load", function () {
   //setTimeout(typeword, 1500);
   buspause(["remove", "ohne"]);
   changevoc("12");
+  artonoff("on");
   //pickvoc(); wird duch changevoc gestartet.
   interval = setTimeout(showwords, 3000);
+  changeartinterval = setTimeout(changeart, 1000);
 });
+
+function artonoff(anauswert) {
+  console.log(anauswert);
+  if (anauswert == "on") {
+    document.getElementById("off").classList.remove("aktiviert2");
+    document.getElementById("on").classList.add("aktiviert2");
+    artshow = "on";
+  }
+  if (anauswert == "off") {
+    document.getElementById("on").classList.remove("aktiviert2");
+    document.getElementById("off").classList.add("aktiviert2");
+    artshow = "off";
+  }
+}
+
+function changeart() {
+  if (artshow == "on") {
+    let t = 1;
+    setInterval(function () {
+      document.getElementById("art").src = "art/art" + t + ".png";
+      console.log(
+        (document.getElementById("art").src = "art/art" + t + ".png")
+      );
+      t++;
+      if (t > 58) {
+        t = 1;
+      }
+    }, 3000);
+  }
+}
 
 function changelang(lang) {
   document.getElementById("lang1").src = "flagge_ger1.gif";
