@@ -303,7 +303,8 @@ function compareword () {
       document.getElementById("richtigfalsch").innerHTML = "Correct: " + vocabularyarray[zaehler2][myLanguage[1]];
       document.getElementById("richtigfalschicon").src = "icons/happy" + zaehler4 + ".gif";
       score1++;
-      document.getElementById("score").innerHTML = "Your score: <br> Correct: " + score1 + " / Wrong: " + score2;  
+      document.getElementById("score").innerHTML = "Your score: <br> Correct: " + score1 + " / Wrong: " + score2;
+      document.getElementById("orangediv").classList.add("richtigfalschsichtbar");
       clearTimeout(deletingTimeout);
       deletingTimeout = setTimeout(deletesolution, 10000);
        if (zaehler4 == 11) {zaehler4 = 0};
@@ -313,8 +314,10 @@ function compareword () {
       document.getElementById("richtigfalsch").innerHTML = "Wrong: " + vocabularyarray[zaehler2][myLanguage[1]];
       document.getElementById("richtigfalschicon").src = "icons/unhappy" + zaehler5 + ".gif";
       document.getElementById("busfeuer").classList.remove("invisible");
+      document.getElementById("busfeuer2").classList.remove("invisible");
       score2++;
       document.getElementById("score").innerHTML = "Your score: <br> Correct: " + score1 + " / Wrong: " + score2;
+      document.getElementById("orangediv").classList.add("richtigfalschsichtbar");
       clearTimeout(deletingTimeout);
       deletingTimeout = setTimeout(deletesolution, 10000);
       if (zaehler5 == 10) {zaehler5 = 0};
@@ -356,8 +359,12 @@ function deletelastword() {
 function deletesolution() {
   document.getElementById("richtigfalsch").innerHTML = "";
   document.getElementById("busfeuer").classList.add("invisible");
+  document.getElementById("busfeuer2").classList.add("invisible");
   document.getElementById("richtigfalschicon").src = "";
   document.getElementById("score").innerHTML = "";
+  document
+    .getElementById("orangediv")
+    .classList.remove("richtigfalschsichtbar");
 }
 
 function fastcontinue() {

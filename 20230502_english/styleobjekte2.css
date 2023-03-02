@@ -20,6 +20,10 @@ div {
   width: 825px;
   height: 1380px;
   margin-top: 3%;
+  background-image: url("himmel.gif");
+  left: -3px;
+  top: -5px;
+  background-repeat: no-repeat;
 }
 
 .artdiv {
@@ -73,16 +77,18 @@ div {
   left: 70px;
   z-index: 1;
 }
+
 .wolke1text:hover {
-  color: rgb(18, 8, 148);
+  color: rgb(15, 7, 119);
 }
 
 .wolke2 {
   position: absolute;
-  width: 414x;
+  width: 425px;
   height: 238px;
   top: 120px;
   left: 400px;
+  opacity: 90;
   z-index: 1;
 }
 .wolke2text1 {
@@ -100,88 +106,64 @@ div {
   z-index: 1;
 }
 .mwsize2 {
-  width: 220px;
-  height: 179px;
+  width: 250px;
+  height: 200px;
 }
 .mw11 {
   display: none;
-  top: 90px;
-  left: 580px;
+  top: 80px;
+  left: 570px;
   z-index: 1;
 }
 .mw12 {
-  top: 83px;
-  left: 383px;
+  top: 73px;
+  left: 373px;
   z-index: 2;
 }
 .mw13 {
   left: 225px;
+  top: -10px;
   z-index: 3;
 }
 .mw14 {
   display: none;
-  top: 80px;
-  left: 35px;
+  top: 70px;
+  left: 25px;
   z-index: 4;
 }
 
 .mwsize1 {
   position: absolute;
-  width: 181px;
-  height: 147px;
+  width: 210px;
+  height: 160px;
 }
 .mw1 {
-  left: 150px;
   top: 100px;
-  left: 316px;
+  left: 297px;
   z-index: 3;
 }
 .mw2 {
-  left: 190px;
-  top: 0px;
-  z-index: 4;
+  left: 175px;
+  top: -5px;
+  z-index: 2;
 }
 .mw3 {
-  left: -70px;
-  top: 0px;
+  left: -80px;
+  top: -10px;
   z-index: 1;
 }
 .mw4 {
-  left: 35px;
-  top: 50px;
+  left: 25px;
+  top: 30px;
   z-index: 1;
 }
 .mw5 {
-  left: 315px;
-  z-index: 3;
+  left: 297px;
+  z-index: 1;
 }
-
 .mwtext {
   font-size: 36px;
   z-index: 4;
-}
-
-.mw5layout {
-  font-size: 28px;
-  top: 20px;
-  left: 390px;
-  z-index: 5;
-}
-
-.mw5cartoon {
-  font-size: 34px;
-  position: absolute;
-  top: 52px;
-  left: 372px;
-  z-index: 5;
-}
-
-.mw5realistic {
-  font-size: 34px;
-  position: absolute;
-  top: 85px;
-  left: 390px;
-  z-index: 5;
 }
 
 .mw11text {
@@ -245,6 +227,7 @@ div {
 }
 
 .mw4art {
+  font-size: 28px;
   top: 25px;
   left: 15px;
   z-index: 5;
@@ -260,6 +243,29 @@ div {
   z-index: 5;
 }
 
+.mw5layout {
+  font-size: 28px;
+  top: 15px;
+  left: 400px;
+  z-index: 5;
+}
+
+.mw5cartoon {
+  font-size: 34px;
+  position: absolute;
+  top: 55px;
+  left: 375px;
+  z-index: 5;
+}
+
+.mw5realistic {
+  font-size: 34px;
+  position: absolute;
+  top: 95px;
+  left: 400px;
+  z-index: 5;
+}
+
 .flagge {
   position: absolute;
   width: 49px;
@@ -268,24 +274,24 @@ div {
 }
 .de {
   top: 167px;
-  left: 365px;
+  left: 355px;
 }
 .eng {
   top: 167px;
-  left: 425px;
+  left: 415px;
 }
 
 .baum {
   position: absolute;
   top: 680px;
-  left: 450px;
+  left: 520px;
   width: 304px;
   height: 345px;
   z-index: 1;
 }
 .wiese {
   position: absolute;
-  width: 818px;
+  width: 825px;
   height: 420px;
   top: 952px;
 }
@@ -294,22 +300,33 @@ div {
   position: absolute;
   height: 300px;
   width: 400px;
-  top: 1050px;
+  top: 1070px;
   left: 410px;
 }
 .bus {
   position: absolute;
-  width: 398px;
+  width: 515px;
   height: 278px;
   z-index: 10;
+  left: -110px;
 }
 .busfeuer {
   position: absolute;
-  width: 318px;
-  height: 65px;
-  left: 72px;
+  width: 391px;
+  height: 215px;
+  left: 25px;
   top: -30px;
-  z-index: 9;
+  z-index: 11;
+  opacity: 70%;
+}
+.busfeuer2 {
+  position: absolute;
+  width: 340px;
+  height: 243px;
+  left: 55px;
+  top: -202px;
+  z-index: 11;
+  opacity: 70%;
 }
 
 .animation1 {
@@ -322,27 +339,72 @@ div {
 
 .richtigfalsch {
   position: absolute;
-  top: 1035px;
+  top: 1000px;
   left: 20px;
+  width: 490px;
+  height: 355px;
+  align-items: center;
+  justify-content: center;
+  background-color: rgb(253, 177, 35);
+  opacity: 0%;
+  border-radius: 30px;
+  box-shadow: 2px 2px 30px black inset;
+  z-index: 0;
+  transition-property: opacity;
+  transition-duration: 1s;
+  transition-timing-function: linear;
 }
 
-.richtigfalschicon {
-  position: absolute;
-  top: 55px;
-  left: 10px;
+.richtigfalschsichtbar {
+  opacity: 85%;
+  z-index: 0;
+  transition-property: opacity;
+  transition-duration: 2s;
+  transition-timing-function: linear;
 }
-
-.score {
-  white-space: nowrap;
-  font-size: 40px;
-  position: absolute;
-  top: 165px;
-  left: 0px;
-}
+/*
+document.getElementById("orangediv").classList.add("richtigfalschsichtbar");
+*/
 
 .richtigfalschtext {
+  /*white-space: nowrap;*/
+  font-size: 38px;
+  color: rgb(15, 7, 119);
+  text-shadow: 1px 2px rgb(132, 248, 46);
+  left: 10px;
+  top: 15px;
+  background-color: rgb(253, 177, 35);
+  opacity: 75%;
+  border-radius: 10px;
+  box-shadow: 2px 2px 40px black;
+  height: 110px;
+  width: 400px;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+}
+.richtigfalschicon {
+  position: absolute;
+  top: 132px;
+  left: 125px;
+  opacity: 75%;
+}
+.score {
   white-space: nowrap;
-  font-size: 40px;
+  font-size: 38px;
+  position: absolute;
+  top: 240px;
+  left: 10px;
+  color: rgb(15, 7, 119);
+  text-shadow: 1px 2px rgb(132, 248, 46);
+  opacity: 75%;
+  border-radius: 10px;
+  box-shadow: 2px 2px 40px black;
+  height: 90px;
+  width: 300px;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
 }
 
 @keyframes schulbus {
@@ -350,7 +412,7 @@ div {
     left: 410px;
   }
   100% {
-    left: 10px;
+    left: 115px;
   }
 }
 .animation2 {
@@ -358,14 +420,13 @@ div {
   animation-duration: 5s;
   animation-iteration-count: 1;
   animation-delay: 1s;
-  animation-fill-mode: forwards;
 }
 @keyframes schulbusmiddle {
   0% {
     left: 410px;
   }
   100% {
-    left: 335px;
+    left: 115px;
   }
 }
 .pause {
