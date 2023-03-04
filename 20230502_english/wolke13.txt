@@ -1,6 +1,6 @@
 museum:Museum 
 capital:Hauptstadt 
-city:Stadt; GroBstadt 
+city:Stadt; Großstadt 
 fact:Fakt; Tatsache 
 most famous:berühmteste/-r/s
 famous:berühmt 

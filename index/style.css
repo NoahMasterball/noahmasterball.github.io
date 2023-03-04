@@ -147,6 +147,10 @@ span {
 .forbidden2 {
   cursor: not-allowed;
 }
+.none {
+  text-decoration: none;
+  color: black;
+}
 
 .button-25 {
   font-family: "myfont2";

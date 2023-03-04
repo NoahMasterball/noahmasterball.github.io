@@ -30,8 +30,16 @@
   transition-timing-function: linear;
 }
 
+.sichtbar1:hover .wolke1text {
+  /* display: flex;*/
+  opacity: 0%;
+  transition-property: opacity;
+  transition-duration: 1.5s;
+  transition-timing-function: linear;
+}
+
 .sichtbar1:hover .wolke2text1 {
-  color: rgb(18, 8, 148);
+  color: rgb(15, 7, 119);
 }
 
 .sichtbar2 {
@@ -62,16 +70,16 @@
   transition-timing-function: linear;
 }
 .sichtbar2:hover .wolke2text2 {
-  color: rgb(18, 8, 148);
+  color: rgb(15, 7, 119);
 }
 
 .aktiviert {
-  color: rgb(13, 6, 113);
+  color: rgb(15, 7, 119);
   text-shadow: 1px 1px rgb(132, 248, 46);
 }
 
 .aktiviert2 {
-  color: rgb(13, 6, 113);
+  color: rgb(15, 7, 119);
   text-shadow: 2px 2px rgb(132, 248, 46);
 }
 
@@ -98,15 +106,15 @@
 }
 
 .inputtext {
-  left: 2px;
-  top: 2px;
-  width: 260px;
-  height: 98px;
+  left: 0px;
+  top: 5px;
+  width: 243px;
+  height: 94px;
   border: none;
   opacity: 50;
   border-radius: 25% 15px 25%;
   background: none;
-  border: 2px solid green;
+  border: 2px solid black;
 }
 
 .ebeneinput1 {
@@ -115,10 +123,10 @@
   justify-content: center;
   align-items: center;
   font-size: 35px;
-  top: 63px;
-  left: 110px;
-  height: 105px;
-  width: 270px;
+  top: 36px;
+  left: 142px;
+  height: 100px;
+  width: 245px;
   z-index: 10;
 }
 
@@ -149,10 +157,11 @@
   justify-content: center;
   align-items: center;
   font-size: 35px;
-  top: 55px;
-  left: 110px;
-  height: 105px;
-  width: 270px;
+  top: 35px;
+  left: 142px;
+  height: 100px;
+  width: 250px;
+  z-index: 15;
 }
 
 .word3 {
