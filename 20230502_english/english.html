@@ -13,19 +13,19 @@
   <body>
     <!-- prettier-ignore -->
     <div class="master masterposition">
-      <img class="wolke1" src="wolke1.gif" />
+      <img class="wolke1" src="wolke11.png" />
       <a class="wolke1text text" href="../index.html"
         >Noah's Vocabulary<br />&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
         &nbsp&nbspTrainer: English</a>
-      <img class="wolke2" src="wolke2.gif" />
+      <img class="wolke2" src="wolke14.png" />
       <div class="sichtbar1">
         <span class="wolke2text1 text">Setup</span>
         <div class="unsichtbar1 mwtext text">
-          <img class="mw1 mwsize1" src="wolke1.gif" />
-          <img class="mw2 mwsize1" src="wolke1.gif" />
-          <img class="mw3 mwsize1" src="wolke1.gif" />
-          <img class="mw4 mwsize1" src="wolke1.gif" />
-          <img class="mw5 mwsize1" src="wolke1.gif" />
+          <img class="mw1 mwsize1" src="wolke11cut.png" />
+          <img class="mw2 mwsize1" src="wolke11.png" />
+          <img class="mw3 mwsize1" src="wolke11.png" />
+          <img class="mw4 mwsize1" src="wolke11.png" />
+          <img class="mw5 mwsize1" src="wolke11cut.png" />
           <span id="speed1" class="speedtext mwtext text"
             onmouseover="javascript:changespeed([1,1000])">Speed</span>
           <span id="speed2" class="mws3text mwtext text" 
@@ -45,17 +45,17 @@
           <span class="mw4arton mwtext text" id="on" onmouseover="javascript:artonoff(['on',2])">On</span>
           <span class="mw4artoff mwtext text"id="off" onmouseover="javascript:artonoff(['off',2])">Off</span>
           <span class="mw5layout mwtext text">Layout</span>
-          <a class="mw5realistic text" href="./english2.html">Realistic</a>
-          <a class="mw5cartoon text aktiviert2" href="./english.html">Cartoon</a>
+          <a class="mw5realistic text aktiviert2" href="">Realistic</a>
+          <a class="mw5cartoon text" href="./englishcartoon.html">Cartoon</a>
         </div>
       </div>  
       <div class="sichtbar2">
           <span class="wolke2text2 text">Select Vocabulary here</span>
           <div class="unsichtbar2">
-            <img class="mw11 mwsize2" src="wolke1.gif" />
-            <img class="mw12 mwsize2" src="wolke1.gif" />
-            <img class="mw13 mwsize2" src="wolke1.gif" />
-            <img class="mw14 mwsize2" src="wolke1.gif" />
+            <img class="mw11 mwsize2" src="wolke11.png" />
+            <img class="mw12 mwsize2" src="wolke11.png" />
+            <img class="mw13 mwsize2" src="wolke11.png" />
+            <img class="mw14 mwsize2" src="wolke11.png" />
             <span onmouseover="javascript:changevoc('11')" class="mw11text mwtext text" id="wolke11">Import Text <br />or File</span>
             <span onmouseover="javascript:changevoc('12')" class="mw12text mwtext text" id="wolke12">5th Class Book<br />Page 220-221</span>
             <span onmouseover="javascript:changevoc('13')" class="mw13text mwtext text" id="wolke13">5th Class Book<br />Page 222-223</span>
@@ -65,19 +65,20 @@
       <div id="artdiv" class="artdiv">
         <img id="art" class="art" src=""/>
       </div>
-      <img class="baum" onclick="javascript:fastcontinue()" src="baum1.gif" />
-      <img class="wiese" src="wiese1.gif" />
-      <div class="richtigfalsch">
-        <span id="richtigfalsch" class="text richtigfalschtext"></span>
-        <img id="richtigfalschicon" class="richtigfalschicon" src="" />
-        <span id="score" class="text score"></span>
+      <img class="baum" onclick="javascript:fastcontinue()" src="baum1.png" />
+      <img class="wiese" src="wiese1.png" />
+      <div id="orangediv" class="richtigfalsch">
+        <span id="richtigfalsch" class="text richtigfalschtext aktivert2"></span>
+        <img id="richtigfalschicon" class="richtigfalschicon aktivert2" src="" />
+        <span id="score" class="text score aktivert2"></span>
       </div>
       <div id="ebenebus" class="ebenebus animation1">
-        <img id="busfeuer" class="busfeuer invisible" src="feuer3.gif" />
-        <img id="busimg" class="bus" onmouseover="javascript:buspause(['add','pause','clearTimeout(interval);'])" onmouseleave="javascript:buspause(['remove','weiter','interval = setTimeout(showwords, 2000)'])" src="bus.gif" />
-        <span class="word2 text" id="word2">Welcome to the Vocabulary Trainer!</span>
+        <img id="busfeuer" class="busfeuer invisible" src="feuer3.png" />
+        <img id="busfeuer2" class="busfeuer2 invisible" src="feuer2.png" />
+        <img id="busimg" class="bus" onmouseover="javascript:buspause(['add','pause','clearTimeout(interval);'])" onmouseleave="javascript:buspause(['remove','weiter','interval = setTimeout(showwords, 2000)'])" src="bus11.png" />
+        <span class="word2 text aktiviert" id="word2">Welcome to the Vocabulary Trainer!</span>
         <div id="ebeneinput" class="ebeneinput2">
-          <input id="worteingetippt" type="text" size="15" onchange="worteingetippt()" placeholder="   Please type here" class="inputtext text">
+          <input id="worteingetippt" type="text" size="12" onchange="worteingetippt()" placeholder="   Please type here" class="inputtext text">
         </div>
       </div>
       <div class="solutiontext">
