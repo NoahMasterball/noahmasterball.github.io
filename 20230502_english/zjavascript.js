@@ -120,12 +120,14 @@ function flowortype(fort) {
   flowtype = fort;
 }
 
-// prettier-ignore
+// prettier-ignore       [3,5000]
 function changespeed(welcherspeed) {
   for (let i = 1; i <= 5; i++) {
     document.getElementById("speed" + i).classList.remove("aktiviert2");
   }
-  document.getElementById("speed" + welcherspeed[0]).classList.add("aktiviert2");
+  document
+    .getElementById("speed" + welcherspeed[0])
+    .classList.add("aktiviert2");
   intervalauswahl = welcherspeed[1];
 }
 
