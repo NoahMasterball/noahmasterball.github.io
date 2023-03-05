@@ -1,58 +1,61 @@
-smile:Lächeln
-Excuse me…:Entschuldigung!; Entschuldigen Sie!
-of course:natürlich; Selbstverständlich
-to have (a sweet):(ein Bonbon) nehmen; (ein Bonobon) essen
-You're welcome.:Bitte schön.; Nichts zu danken.; Gern geschehen
-way:Weg; Art und weise
-lemonade:Limonade
-timetable:Stundenplan; Fahrplan
-to be in the way:im Weg sein/stehen
-bus station:Busbahnhof
-person; people:Person; Mensch
-box:Box; Kasten; Schachtel; Kiste
-to open:öffnen; aufmachen
-train:Zug
-window:Fenster
-at home:zu Hause
-at school:in der Schule
-at the (bus/train) station:am (Bus-)Bahnhof
-in Britain:in Großbritannien
-in Greenwich:in Greenwich
-in the house:im Haus
-in the park:im Park
-in the shop:im Laden
-in the street:auf der Straße
-on the bus:im Bus
-on the train:im Zug
-in the car:im Auto
-We're at the table:Wir sind an dem Tisch
-And our Breakfast is on the table:Und unser Frühstück ist an auf dem Tisch
-to hold:halten;festhalten
-to jump the queue:sich vordrängeln
-British:britisch; Brite/Britin
-escalator:Rolltreppe
-to stand:stehen 
-to walk:gehen;laufen
-castle:Schloss; Burg
-flag:Flagge; Fahne
-beach:Strand
-sea:Meer
-cold:kalt
-rock:Fels; Stein
-special:besonders; speziell
-shape:Form
-a lot of:viel/-e; eine Menge
-high:hoch; groß
-mountain:Berg
-forest:Wald
-island:Insel
-map:Stadtplan; Landkarte
-north:nördlich; im Norden
-north:Norden, Nord-, nördlich
-east:Osten, Ost-, östlich
-south:Süden, Süd-, südlich
-west:Westen, West-, westlich
-rock:Fels; Stein
-moutain:Berg
-forest:Wald
-river:Fluss
+to get fit:in Form kommen; fit werden
+rhythm:Rhythmus
+to stand up:aufstehen (von einer Sitzgelegenheit)
+Clap your hands.:Klatsch/Klatscht in die Hände.
+loud:laut
+very much:sehr
+to speak:sprechen
+clear:klar; deutlich
+acting a scene:eine Theaterszene spielen
+too:zu
+scene:Szene
+typical:typisch
+country, couiltries:Land
+interesting:interessant
+to describe:beschreiben
+to look:schauen;sehen;aussehen
+in the mornings:morgens; vormittags
+to act:spielen (Theater)
+help:Hilfe
+to be good at:gut sein in
+to wash:waschen; sich waschen
+face:Gesicht
+to make:machen; tun; bilden
+early:früh
+goodbye:auf Wiedersehen
+to bark:bellen
+to be scared (of):Angst haben (vor) 
+to run away:wegrennen 
+to have fun:Spaß haben; sich amüsieren
+to listen for:horchen auf 
+Sit!:Sitz! (Befehl für Hunde)
+around:um ... herum; umher
+to chase:jagen; nachjagen 
+tail:Schwanz; Schweif 
+a lot to learn:viel zu lernen 
+to put:setzen; stellen; legen
+drink:Getränk 
+to fall over:hinfallen; umkippen
+to throw (at):werfen (nach) 
+shoe:Schuh 
+to fall asleep:einschlafen 
+face:Gesicht
+mouth:Mund
+eye:Auge
+ear:Ohr
+nose:Nase
+head:Kopf
+hair:Haar(e)
+hand:Hand
+arm:Arm
+shoulder:Schulter
+foot, feet:Fuß
+leg:Bein
+knee:Knie
+toe:Zeh
+How to …:Wie man…
+to visit:besichtigen; besuchen
+important:wichtig
+page:Seite
+what to …:was man …
+English-speaking:englischsprachig

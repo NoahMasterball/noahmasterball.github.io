@@ -110,7 +110,6 @@ div {
   height: 200px;
 }
 .mw11 {
-  display: none;
   top: 80px;
   left: 570px;
   z-index: 1;
@@ -126,7 +125,6 @@ div {
   z-index: 3;
 }
 .mw14 {
-  display: none;
   top: 70px;
   left: 25px;
   z-index: 4;
@@ -167,7 +165,6 @@ div {
 }
 
 .mw11text {
-  display: none;
   top: 164px;
   left: 635px;
 }
@@ -180,7 +177,6 @@ div {
   left: 268px;
 }
 .mw14text {
-  display: none;
   top: 150px;
   left: 78px;
 }

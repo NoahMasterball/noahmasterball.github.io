@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=-1" />
     <link rel="stylesheet" href="./styleobjektecartoon.css" />
     <link rel="stylesheet" href="./stylemenucartoon.css" />
-    <script language="javascript" type="text/javascript" src="javascript.js"></script>
+    <script language="javascript" type="text/javascript" src="javascriptcartoon.js"></script>
     <!-- <script language="javascript" type="text/javascript" src="javascript2.js"></script>-->
   </head>
   <body>
@@ -56,10 +56,10 @@
             <img class="mw12 mwsize2" src="wolke1.gif" />
             <img class="mw13 mwsize2" src="wolke1.gif" />
             <img class="mw14 mwsize2" src="wolke1.gif" />
-            <span onmouseover="javascript:changevoc('11')" class="mw11text mwtext text" id="wolke11">Import Text <br />or File</span>
-            <span onmouseover="javascript:changevoc('12')" class="mw12text mwtext text" id="wolke12">5th Class Book<br />Page 220-221</span>
-            <span onmouseover="javascript:changevoc('13')" class="mw13text mwtext text" id="wolke13">5th Class Book<br />Page 222-223</span>
-            <span onmouseover="javascript:changevoc('14')" class="mw14text mwtext text" id="wolke14">5th Class Book<br />Page 224-225</span>
+            <span onmouseover="javascript:changevoc('11')" class="mw11text mwtext text" id="wolke11">Homework till<br />06.06.2023</span>
+            <span onmouseover="javascript:changevoc('12')" class="mw12text mwtext text" id="wolke12">5th Class Book<br />Page 218-219</span>
+            <span onmouseover="javascript:changevoc('13')" class="mw13text mwtext text" id="wolke13">5th Class Book<br />Page 220-221</span>
+            <span onmouseover="javascript:changevoc('14')" class="mw14text mwtext text" id="wolke14">5th Class Book<br />Page 222-223</span>
         </div>
       </div>
       <div id="artdiv" class="artdiv">
@@ -67,13 +67,14 @@
       </div>
       <img class="baum" onclick="javascript:fastcontinue()" src="baum1.gif" />
       <img class="wiese" src="wiese1.gif" />
-      <div class="richtigfalsch">
+      <div id="orangediv" class="richtigfalsch">
         <span id="richtigfalsch" class="text richtigfalschtext"></span>
         <img id="richtigfalschicon" class="richtigfalschicon" src="" />
         <span id="score" class="text score"></span>
       </div>
       <div id="ebenebus" class="ebenebus animation1">
         <img id="busfeuer" class="busfeuer invisible" src="feuer3.gif" />
+        <img id="busfeuer2" class="busfeuer2 invisible" src="" />
         <img id="busimg" class="bus" onmouseover="javascript:buspause(['add','pause','clearTimeout(interval);'])" onmouseleave="javascript:buspause(['remove','weiter','interval = setTimeout(showwords, 2000)'])" src="bus.gif" />
         <span class="word2 text" id="word2">Welcome to the Vocabulary Trainer!</span>
         <div id="ebeneinput" class="ebeneinput2">
