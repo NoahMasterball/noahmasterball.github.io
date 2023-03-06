@@ -1,0 +1,715 @@
+@font-face {
+  font-family: "myfont";
+  src: url("myfont-Light.ttf");
+}
+
+@font-face {
+  font-family: "myfont2";
+  src: url("myfont-Regular.ttf");
+}
+
+/*
+div {
+  border: 2px solid green;
+}
+*/
+
+.master {
+  position: relative;
+  margin: auto;
+  width: 829px;
+  height: 1380px;
+  margin-top: 3%;
+  background-image: url("himmel.gif");
+  left: -3px;
+  top: -5px;
+  background-repeat: no-repeat;
+}
+
+.mastercartoon {
+  position: relative;
+  margin: auto;
+  width: 825px;
+  height: 1380px;
+  margin-top: 3%;
+}
+
+.artdiv {
+  position: absolute;
+  margin: auto;
+  justify-content: center;
+  align-items: center;
+  display: flex;
+  left: 150px;
+  top: 280px;
+  width: 525px;
+  height: 525px;
+}
+.art {
+  opacity: 0%;
+  position: absolute;
+  width: 80%;
+  height: auto;
+  z-index: 0;
+  transition-property: opacity;
+  transition-duration: 5s;
+  transition-timing-function: linear;
+}
+.artfadein {
+  opacity: 100%;
+  transition-property: opacity;
+  transition-duration: 5s;
+  transition-timing-function: linear;
+}
+
+.text {
+  position: absolute;
+  display: flex;
+  font-family: "myfont2";
+  font-size: 42px;
+  color: black;
+  text-decoration-line: none;
+}
+
+.wolke1 {
+  position: absolute;
+  width: 358px;
+  height: 292px;
+  width: 348x;
+  height: 273px;
+  top: 15px;
+  left: 15px;
+  z-index: 1;
+}
+.wolke1text {
+  position: absolute;
+  width: 414x;
+  height: 238px;
+  top: 120px;
+  left: 70px;
+  z-index: 1;
+}
+
+.wolke1text:hover {
+  color: rgb(15, 7, 119);
+}
+
+.wolke2 {
+  position: absolute;
+  width: 425px;
+  height: 238px;
+  top: 120px;
+  left: 400px;
+  opacity: 90;
+  z-index: 1;
+}
+
+.wolke2text1 {
+  position: absolute;
+  justify-content: center;
+  align-items: center;
+  z-index: 2;
+  top: 160px;
+  left: 215px;
+}
+.wolke2text2 {
+  position: absolute;
+  top: 27px;
+  left: 453px;
+  z-index: 1;
+}
+.mwsize2 {
+  width: 250px;
+  height: 200px;
+}
+.mw11 {
+  top: 90px;
+  left: 560px;
+  z-index: 1;
+}
+.mw12 {
+  top: 80px;
+  left: 373px;
+  z-index: 2;
+}
+.mw13 {
+  top: -5px;
+  left: 215px;
+  z-index: 3;
+}
+.mw14 {
+  top: 75px;
+  left: 30px;
+  z-index: 4;
+}
+
+.mwsize1 {
+  position: absolute;
+  width: 210px;
+  height: 160px;
+}
+.mw1 {
+  top: 100px;
+  left: 287px;
+  z-index: 3;
+}
+.mw2 {
+  left: 155px;
+  top: 10px;
+  z-index: 2;
+}
+.mw3 {
+  left: -100px;
+  top: 0px;
+  z-index: 1;
+}
+.mw4 {
+  left: 15px;
+  top: 50px;
+  z-index: 1;
+}
+.mw5 {
+  left: 287px;
+  z-index: 4;
+}
+.mwtext {
+  font-size: 36px;
+  z-index: 4;
+}
+
+.mw11text {
+  top: 164px;
+  left: 625px;
+}
+.mw11text:hover {
+  color: rgb(15, 7, 119);
+  text-shadow: 1px 1px rgb(132, 248, 46);
+}
+.mw12text {
+  top: 152px;
+  left: 427px;
+}
+.mw12text:hover {
+  color: rgb(15, 7, 119);
+  text-shadow: 1px 1px rgb(132, 248, 46);
+}
+.mw13text {
+  top: 70px;
+  left: 268px;
+}
+.mw13text:hover {
+  color: rgb(15, 7, 119);
+  text-shadow: 1px 1px rgb(132, 248, 46);
+}
+.mw14text {
+  top: 150px;
+  left: 78px;
+}
+.mw14text:hover {
+  color: rgb(15, 7, 119);
+  text-shadow: 1px 1px rgb(132, 248, 46);
+}
+
+.speedtext {
+  font-size: 28px;
+  top: 25px;
+  left: 268px;
+}
+.speedtext:hover {
+  color: rgb(15, 7, 119);
+  text-shadow: 2px 2px rgb(132, 248, 46);
+}
+.mws3text {
+  top: 45px;
+  left: 230px;
+}
+.mws3text:hover {
+  color: rgb(15, 7, 119);
+  text-shadow: 2px 2px rgb(132, 248, 46);
+}
+.mws5text {
+  top: 95px;
+  left: 210px;
+}
+.mws5text:hover {
+  color: rgb(15, 7, 119);
+  text-shadow: 2px 2px rgb(132, 248, 46);
+}
+.mws10text {
+  top: 85px;
+  left: 252px;
+}
+.mws10text:hover {
+  color: rgb(15, 7, 119);
+  text-shadow: 2px 2px rgb(132, 248, 46);
+}
+.mws15text {
+  top: 62px;
+  left: 305px;
+}
+.mws15text:hover {
+  color: rgb(15, 7, 119);
+  text-shadow: 2px 2px rgb(132, 248, 46);
+}
+.mw3style {
+  font-size: 28px;
+  top: 70px;
+  left: 116px;
+  z-index: 5;
+}
+
+.mw3flow {
+  top: 100px;
+  left: 75px;
+  z-index: 5;
+}
+.mw3flow:hover {
+  color: rgb(15, 7, 119);
+  text-shadow: 2px 2px rgb(132, 248, 46);
+}
+.mw3type {
+  top: 120px;
+  left: 135px;
+  z-index: 5;
+}
+.mw3type:hover {
+  color: rgb(15, 7, 119);
+  text-shadow: 2px 2px rgb(132, 248, 46);
+}
+.mw4art {
+  font-size: 28px;
+  top: 25px;
+  left: 15px;
+  z-index: 5;
+}
+
+.mw4arton {
+  top: 50px;
+  left: -25px;
+  z-index: 5;
+}
+.mw4arton:hover {
+  color: rgb(15, 7, 119);
+  text-shadow: 2px 2px rgb(132, 248, 46);
+}
+.mw4artoff {
+  top: 75px;
+  left: 25px;
+  z-index: 5;
+}
+.mw4artoff:hover {
+  color: rgb(15, 7, 119);
+  text-shadow: 2px 2px rgb(132, 248, 46);
+}
+.mw5layout {
+  font-size: 28px;
+  top: 15px;
+  left: 400px;
+  z-index: 5;
+}
+.mw5layout:hover {
+  color: rgb(15, 7, 119);
+  text-shadow: 2px 2px rgb(132, 248, 46);
+}
+.mw5cartoonbtn {
+  font-size: 34px;
+  position: absolute;
+  top: 55px;
+  left: 375px;
+  z-index: 5;
+}
+.mw5cartoonbtn:hover {
+  color: rgb(15, 7, 119);
+  text-shadow: 2px 2px rgb(132, 248, 46);
+}
+.mw5realistic {
+  font-size: 34px;
+  position: absolute;
+  top: 95px;
+  left: 400px;
+  z-index: 5;
+}
+.mw5realistic:hover {
+  color: rgb(15, 7, 119);
+  text-shadow: 2px 2px rgb(132, 248, 46);
+}
+.flagge {
+  position: absolute;
+  width: 49px;
+  height: 32px;
+  z-index: 4;
+}
+.de {
+  top: 167px;
+  left: 355px;
+}
+.eng {
+  top: 167px;
+  left: 415px;
+}
+
+.baum {
+  position: absolute;
+  top: 680px;
+  left: 520px;
+  width: 304px;
+  height: 345px;
+  z-index: 1;
+}
+.wiese {
+  position: absolute;
+  width: 825px;
+  height: 420px;
+  top: 952px;
+}
+
+.ebenebus {
+  position: absolute;
+  height: 300px;
+  width: 400px;
+  top: 1070px;
+  left: 410px;
+}
+.bus {
+  position: absolute;
+  width: 515px;
+  height: 278px;
+  z-index: 10;
+  left: -110px;
+}
+.busfeuer {
+  position: absolute;
+  width: 391px;
+  height: 215px;
+  left: 25px;
+  top: -30px;
+  z-index: 11;
+  opacity: 70%;
+}
+.busfeuer2 {
+  position: absolute;
+  width: 340px;
+  height: 243px;
+  left: 55px;
+  top: -202px;
+  z-index: 11;
+  opacity: 70%;
+}
+
+.richtigfalsch {
+  position: absolute;
+  top: 1000px;
+  left: 20px;
+  width: 490px;
+  height: 355px;
+  align-items: center;
+  justify-content: center;
+  background-color: rgb(253, 177, 35);
+  opacity: 0%;
+  border-radius: 30px;
+  box-shadow: 2px 2px 30px black inset;
+  z-index: 0;
+  transition-property: opacity;
+  transition-duration: 1s;
+  transition-timing-function: linear;
+}
+
+.richtigfalschsichtbar {
+  opacity: 85%;
+  z-index: 0;
+  transition-property: opacity;
+  transition-duration: 2s;
+  transition-timing-function: linear;
+}
+/*
+document.getElementById("orangediv").classList.add("richtigfalschsichtbar");
+*/
+
+.richtigfalschtext {
+  /*white-space: nowrap;*/
+  font-size: 38px;
+  color: rgb(15, 7, 119);
+  text-shadow: 1px 2px rgb(132, 248, 46);
+  left: 10px;
+  top: 15px;
+  background-color: rgb(253, 177, 35);
+  opacity: 75%;
+  border-radius: 10px;
+  box-shadow: 2px 2px 40px black;
+  height: 110px;
+  width: 400px;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+}
+.richtigfalschicon {
+  position: absolute;
+  top: 132px;
+  left: 125px;
+  opacity: 75%;
+}
+.score {
+  white-space: nowrap;
+  font-size: 38px;
+  position: absolute;
+  top: 240px;
+  left: 10px;
+  color: rgb(15, 7, 119);
+  text-shadow: 1px 2px rgb(132, 248, 46);
+  opacity: 75%;
+  border-radius: 10px;
+  box-shadow: 2px 2px 40px black;
+  height: 90px;
+  width: 300px;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+}
+
+.animation1realistic {
+  animation-name: schulbus;
+  animation-duration: 5s;
+  animation-iteration-count: infinite;
+  animation-delay: 1s;
+  animation-fill-mode: forwards;
+}
+
+@keyframes schulbus {
+  0% {
+    left: 410px;
+  }
+  100% {
+    left: 115px;
+  }
+}
+.animation2realistic {
+  animation-name: schulbusmiddle;
+  animation-duration: 5s;
+  animation-iteration-count: 1;
+  animation-delay: 1s;
+}
+@keyframes schulbusmiddle {
+  0% {
+    left: 410px;
+  }
+  100% {
+    left: 115px;
+  }
+}
+.pause {
+  animation-play-state: paused;
+  /* prettier-ignore */
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 512 512'><path d='M464 256A208 208 0 1 0 48 256a208 208 0 1 0 416 0zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zm224-72V328c0 13.3-10.7 24-24 24s-24-10.7-24-24V184c0-13.3 10.7-24 24-24s24 10.7 24 24zm112 0V328c0 13.3-10.7 24-24 24s-24-10.7-24-24V184c0-13.3 10.7-24 24-24s24 10.7 24 24z'/></svg>") 16 0, auto;
+}
+
+.wolke1textcartoon:hover-unused {
+  color: rgb(18, 8, 148);
+}
+
+.wolke1cartoon {
+  position: absolute;
+  width: 358px;
+  height: 292px;
+  z-index: 1;
+}
+
+.wolke2cartoon {
+  position: absolute;
+  width: 414x;
+  height: 238px;
+  top: 120px;
+  left: 400px;
+  z-index: 1;
+}
+
+.mwsize2cartoon {
+  width: 220px;
+  height: 179px;
+}
+.mw11cartoon {
+  top: 90px;
+  left: 580px;
+  z-index: 1;
+}
+.mw12cartoon {
+  top: 83px;
+  left: 383px;
+  z-index: 2;
+}
+.mw13cartoon {
+  left: 225px;
+  z-index: 3;
+}
+.mw14cartoon {
+  top: 80px;
+  left: 35px;
+  z-index: 4;
+}
+
+.mwsize1cartoon {
+  position: absolute;
+  width: 181px;
+  height: 147px;
+}
+.mw1cartoon {
+  left: 150px;
+  top: 100px;
+  left: 316px;
+  z-index: 3;
+}
+.mw2cartoon {
+  left: 190px;
+  top: 0px;
+  z-index: 4;
+}
+.mw3cartoon {
+  left: -70px;
+  top: 0px;
+  z-index: 1;
+}
+.mw4cartoon {
+  left: 35px;
+  top: 50px;
+  z-index: 1;
+}
+
+.mw5cartoon {
+  left: 315px;
+  z-index: 3;
+}
+
+.mw4artcartoon-unused {
+  top: 25px;
+  left: 15px;
+  z-index: 5;
+}
+
+.mw5layoutcartoon {
+  font-size: 28px;
+  top: 20px;
+  left: 390px;
+  z-index: 5;
+}
+
+.mw5cartoonbtncartoon {
+  font-size: 34px;
+  position: absolute;
+  top: 52px;
+  left: 372px;
+  z-index: 5;
+}
+
+.mw5realisticcartoon {
+  font-size: 34px;
+  position: absolute;
+  top: 85px;
+  left: 390px;
+  z-index: 5;
+}
+
+.decartoon {
+  top: 167px;
+  left: 365px;
+}
+.engcartoon {
+  top: 167px;
+  left: 425px;
+}
+
+.baumcartoon {
+  position: absolute;
+  top: 680px;
+  left: 450px;
+  width: 304px;
+  height: 345px;
+  z-index: 1;
+}
+
+.wiesecartoon {
+  position: absolute;
+  width: 818px;
+  height: 420px;
+  top: 952px;
+}
+
+.ebenebuscartoon {
+  position: absolute;
+  height: 300px;
+  width: 400px;
+  top: 1050px;
+  left: 410px;
+}
+
+.buscartoon {
+  position: absolute;
+  width: 398px;
+  height: 278px;
+  z-index: 10;
+}
+
+.busfeuercartoon {
+  position: absolute;
+  width: 318px;
+  height: 65px;
+  left: 72px;
+  top: -30px;
+  z-index: 9;
+}
+
+.richtigfalschcartoon-unused {
+  position: absolute;
+  top: 1035px;
+  left: 20px;
+}
+
+.richtigfalschiconcartoon-unused {
+  position: absolute;
+  top: 55px;
+  left: 10px;
+}
+
+.scorecartoon-unused {
+  white-space: nowrap;
+  font-size: 40px;
+  position: absolute;
+  top: 165px;
+  left: 0px;
+}
+
+.richtigfalschtextcartoon-unused {
+  white-space: nowrap;
+  font-size: 40px;
+}
+
+.animation1cartoon {
+  animation-name: schulbuscartoon;
+  animation-duration: 5s;
+  animation-iteration-count: infinite;
+  animation-delay: 1s;
+  animation-fill-mode: forwards;
+}
+
+@keyframes schulbuscartoon {
+  0% {
+    left: 410px;
+  }
+  100% {
+    left: 10px;
+  }
+}
+
+.animation2cartoon {
+  animation-name: schulbusmiddlecartoon;
+  animation-duration: 5s;
+  animation-iteration-count: 1;
+  animation-delay: 1s;
+  animation-fill-mode: forwards;
+}
+@keyframes schulbusmiddlecartoon {
+  0% {
+    left: 410px;
+  }
+  100% {
+    left: 335px;
+  }
+}
