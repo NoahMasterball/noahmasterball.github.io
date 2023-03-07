@@ -1,91 +1,85 @@
 <!DOCTYPE html>
 <html lang="en">
-  <!-- prettier-ignore -->
   <head>
     <title>Noah's English Vocabulary Trainer</title>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=-1" />
     <link rel="stylesheet" href="./styleobjekte.css" />
     <link rel="stylesheet" href="./stylemenu.css" />
-    <script language="javascript" type="text/javascript" src="javascript.js"></script>
-    <!-- <script language="javascript" type="text/javascript" src="javascript2.js"></script>-->
+    <script defer language="javascript" type="text/javascript" src="javascript.js"></script>
   </head>
   <body>
-    <!-- prettier-ignore -->
-    <div class="master masterposition">
-      <img class="wolke1" src="wolke11.png" />
-      <a class="wolke1text text" href="../index.html"
-        >Noah's Vocabulary<br />&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
-        &nbsp&nbspTrainer: English</a>
-      <img class="wolke2" src="wolke14.png" />
+    <div id="master" class="master">
+      <img id="wolke1" class="wolke1" src="wolke1.png" />
+      <a class="wolke1text text" href="../index.html">Noah's Vocabulary<br />&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp &nbsp&nbspTrainer: English</a>
+      <img id="wolke2" class="wolke2" src="wolke2.png" />
       <div class="sichtbar1">
         <span class="wolke2text1 text">Setup</span>
         <div class="unsichtbar1 mwtext text">
-          <img class="mw1 mwsize1" src="wolke11cut.png" />
-          <img class="mw2 mwsize1" src="wolke11.png" />
-          <img class="mw3 mwsize1" src="wolke11.png" />
-          <img class="mw4 mwsize1" src="wolke11.png" />
-          <img class="mw5 mwsize1" src="wolke11cut.png" />
-          <span id="speed1" class="speedtext mwtext text"
-            onmouseover="javascript:changespeed([1,1000])">Speed</span>
-          <span id="speed2" class="mws3text mwtext text" 
-              onmouseover="javascript:changespeed([2,3000])">3s</span>
-          <span id="speed3" class="mws5text mwtext text"
-              onmouseover="javascript:changespeed([3,5000])">5s</span>
-          <span id="speed4" class="mws10text mwtext text"
-              onmouseover="javascript:changespeed([4,10000])">10s</span>
-          <span id="speed5" class="mws15text mwtext text"
-              onmouseover="javascript:changespeed([5,15000])">15s</span>
-          <img class="flagge de" id="lang1" onmouseover="javascript:changelang([1,'ger','eng'])" src="flagge_ger1.gif">
-          <img class="flagge eng" id="lang2" onmouseover="javascript:changelang([2,'eng','ger'])" src="flagge_eng1.gif">
+          <img id="mw1" class="mw1 mwsize1" src="wolke1.png" />
+          <img id="mw2" class="mw2 mwsize1" src="wolke1.png" />
+          <img id="mw3" class="mw3 mwsize1" src="wolke1.png" />
+          <img id="mw4" class="mw4 mwsize1" src="wolke1.png" />
+          <img id="mw5" class="mw5 mwsize1" src="wolke1.png" />
+          <span id="speed1" class="speedtext mwtext text" onclick="changespeed([1,1000])">Speed</span>
+          <span id="speed2" class="mws3text mwtext text" onclick="changespeed([2,3000])">3s</span>
+          <span id="speed3" class="mws5text mwtext text" onclick="changespeed([3,5000])">5s</span>
+          <span id="speed4" class="mws10text mwtext text" onclick="changespeed([4,10000])">10s</span>
+          <span id="speed5" class="mws15text mwtext text" onclick="changespeed([5,15000])">15s</span>
+          <img class="flagge de" id="lang1" onclick="changelang([1,'ger','eng'])" src="flagge_ger1.gif" />
+          <img class="flagge eng" id="lang2" onclick="changelang([2,'eng','ger'])" src="flagge_eng1.gif" />
           <span class="mw3style text">Style</span>
-          <span class="mw3flow mwtext text" id="flow1" onmouseover="javascript:flowortype([1, 'flow', 2, 'type']),typeword()">Flow</span>
-          <span class="mw3type mwtext text" id="flow2" onmouseover="javascript:flowortype([2, 'type', 1, 'flow']),typeword()">Type</span>
+          <span class="mw3flow mwtext text" id="flow1" onclick="flowortype([1, 'flow', 2, 'type']),typeword()">Flow</span>
+          <span class="mw3type mwtext text" id="flow2" onclick="flowortype([2, 'type', 1, 'flow']),typeword()">Type</span>
           <span class="mw4art mwtext text">Art</span>
-          <span class="mw4arton mwtext text" id="on" onmouseover="javascript:artonoff(['on',2])">On</span>
-          <span class="mw4artoff mwtext text"id="off" onmouseover="javascript:artonoff(['off',2])">Off</span>
-          <span class="mw5layout mwtext text">Layout</span>
-          <a class="mw5realistic text aktiviert2" href="">Realistic</a>
-          <a class="mw5cartoon text" href="./englishcartoon.html">Cartoon</a>
+          <span class="mw4arton mwtext text" id="on" onclick="artonoff(['on',2])">On</span>
+          <span class="mw4artoff mwtext text" id="off" onclick="artonoff(['off',2])">Off</span>
+          <span id="mw5layout" class="mw5layout mwtext text">Layout</span>
+          <span id="mw5realistic" class="mw5realistic text aktiviert2" onmousedown="realistic()">Realistic</span>
+          <span id="mw5cartoonbtn" class="mw5cartoonbtn text" onmousedown="cartoon()">Cartoon</span>
         </div>
-      </div>  
+      </div>
       <div class="sichtbar2">
-          <span class="wolke2text2 text">Select Vocabulary here</span>
-          <div class="unsichtbar2">
-            <img class="mw11 mwsize2" src="wolke11.png" />
-            <img class="mw12 mwsize2" src="wolke11.png" />
-            <img class="mw13 mwsize2" src="wolke11.png" />
-            <img class="mw14 mwsize2" src="wolke11.png" />
-            <span onmouseover="javascript:changevoc('11')" class="mw11text mwtext text" id="wolke11">Homework till<br />06.03.2023</span>
-            <span onmouseover="javascript:changevoc('12')" class="mw12text mwtext text" id="wolke12">5th Class Book<br />Page 218-219</span>
-            <span onmouseover="javascript:changevoc('13')" class="mw13text mwtext text" id="wolke13">5th Class Book<br />Page 220-221</span>
-            <span onmouseover="javascript:changevoc('14')" class="mw14text mwtext text" id="wolke14">5th Class Book<br />Page 222-223</span>
+        <span class="wolke2text2 text">Select Vocabulary here</span>
+        <div class="unsichtbar2">
+          <img id="mw11" class="mw11 mwsize2" src="wolke1.png" />
+          <img id="mw12" class="mw12 mwsize2" src="wolke1.png" />
+          <img id="mw13" class="mw13 mwsize2" src="wolke1.png" />
+          <img id="mw14" class="mw14 mwsize2" src="wolke1.png" />
+          <span onclick="changevoc('11')" class="mw11text mwtext text" id="wolke11">Homework till<br />06.03.2023</span>
+          <span onclick="changevoc('12')" class="mw12text mwtext text" id="wolke12">5th Class Book<br />Page 218-219</span>
+          <span onclick="changevoc('13')" class="mw13text mwtext text" id="wolke13">5th Class Book<br />Page 220-221</span>
+          <span onclick="changevoc('14')" class="mw14text mwtext text" id="wolke14">5th Class Book<br />Page 222-223</span>
         </div>
       </div>
       <div id="artdiv" class="artdiv">
-        <img id="art" class="art" src=""/>
+        <img id="art" class="art" src="" />
       </div>
-      <img class="baum" onclick="javascript:fastcontinue()" src="baum1.png" />
-      <img class="wiese" src="wiese1.png" />
-      <div id="orangediv" class="richtigfalsch">
-        <span id="richtigfalsch" class="text richtigfalschtext aktivert2"></span>
+      <img id="baum" class="baum" onclick="fastcontinue()" src="baum1.png" />
+      <img id="wiese" class="wiese" src="wiese2.gif" />
+      <div id="richtigfalsch" class="richtigfalsch">
+        <span id="richtigfalschtext" class="text richtigfalschtext aktivert2"></span>
         <img id="richtigfalschicon" class="richtigfalschicon aktivert2" src="" />
         <span id="score" class="text score aktivert2"></span>
       </div>
-      <div id="ebenebus" class="ebenebus animation1">
-        <img id="busfeuer" class="busfeuer invisible" src="feuer3.png" />
-        <img id="busfeuer2" class="busfeuer2 invisible" src="feuer2.png" />
-        <img id="busimg" class="bus" onmouseover="javascript:buspause(['add','pause','clearTimeout(interval);'])" onmouseleave="javascript:buspause(['remove','weiter','interval = setTimeout(showwords, 2000)'])" src="bus11.png" />
-        <span class="word2 text aktiviert" id="word2">Welcome to the Vocabulary Trainer!</span>
-        <div id="ebeneinput" class="ebeneinput2">
-          <input id="worteingetippt" type="text" size="12" onchange="worteingetippt()" placeholder="   Please type here" class="inputtext text">
+      <div id="ebenebus" class="ebenebus animation1realistic">
+        <img id="busfeuer" class="busfeuer invisible" src="feuer1.png" />
+        <img id="busfeuer2" class="busfeuer2 invisible" src="feuer1.png" />
+        <!--prettier-ignore-->
+        <img id="busimg" class="bus" onclick="buspause(['add','pause','clearTimeout(interval);'])" onmouseleave="buspause(['remove','weiter','interval = setTimeout(showwords, 2000)'])" src="bus1.png"/>
+        <span id="word2" class="word2 text aktiviert">Welcome to the Vocabulary Trainer!</span>
+        <div id="ebeneinput" class="ebeneinput1realistic">
+          <input id="worteingetippt" type="text" size="12" onchange="worteingetippt()" placeholder="   Please type here" class="inputtext text" />
         </div>
       </div>
       <div class="solutiontext">
-        <span id="seetext1" class="text">See/hide solution here <br>(Click on tree for fast continue)</span>
-        <span id="seetext2" class="text invisible">Type the correct translation (a word) <br> into the bus and press Return/Enter.</span>
+        <span id="seetext1" class="text">See/hide solution here <br />(Click on tree for fast continue)</span>
+        <span id="seetext2" class="text invisible"
+          >Type the correct translation (a word) <br />
+          into the bus and press Return/Enter.</span
+        >
       </div>
-      <div class="solution" onmouseover="javascript:seeword()" onclick="javascript:seeword()">
+      <div class="solution" onmouseover="seeword()" onclick="javascript:seeword()">
         <span class="word1 aktiviert2 text invisible" id="word1">Welcome</span>
         <span class="word3 text invisible" id="word3"></span>
       </div>

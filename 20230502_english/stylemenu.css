@@ -110,16 +110,16 @@
   top: 5px;
   width: 243px;
   height: 94px;
-  border: none;
   opacity: 50;
   border-radius: 25% 15px 25%;
   background: none;
   border: 2px solid black;
 }
-
-.ebeneinput1 {
+.ebeneinput1realistic {
+  display: none;
+}
+.ebeneinput2realistic {
   position: absolute;
-  display: flex;
   justify-content: center;
   align-items: center;
   font-size: 35px;
@@ -130,13 +130,15 @@
   z-index: 12;
 }
 
-.ebeneinput2 {
-  position: absolute;
+.ebeneinput1cartoon {
   display: none;
+}
+.ebeneinput2cartoon {
+  position: absolute;
   justify-content: center;
   align-items: center;
   font-size: 35px;
-  top: 63px;
+  top: 61px;
   left: 110px;
   height: 105px;
   width: 270px;
@@ -174,4 +176,36 @@
 
 .invisible {
   display: none;
+}
+
+.sichtbar1:hover .wolke2text1cartoon {
+  color: rgb(18, 8, 148);
+}
+
+.sichtbar2:hover .wolke2text2cartoon {
+  color: rgb(18, 8, 148);
+}
+
+.inputtextcartoon {
+  left: 2px;
+  top: 2px;
+  width: 260px;
+  height: 98px;
+  border: none;
+  opacity: 50;
+  border-radius: 25% 15px 25%;
+  background: rgb(132, 248, 46);
+  border: 2px solid green;
+}
+
+.word2cartoon {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 35px;
+  top: 55px;
+  left: 110px;
+  height: 105px;
+  width: 270px;
 }
