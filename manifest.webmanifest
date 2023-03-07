@@ -3,7 +3,7 @@
   "background_color": "#ffffff",
   "display": "fullscreen",
   "scope": "/20230502_english/",
-  "start_url": "20230502_english/english.html",
+  "start_url": "english.html",
   "name": "Noah's English Vocabulary Trainer",
   "short_name": "Vocabulary Trainer",
   "description": "Noah's Vocabulary Trainer English German Type and Flow",
