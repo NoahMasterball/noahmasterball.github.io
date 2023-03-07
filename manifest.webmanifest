@@ -2,7 +2,7 @@
   "theme_color": "#ffffff",
   "background_color": "#ffffff",
   "display": "fullscreen",
-  "scope": "/20230502_english/",
+  "scope": "/",
   "start_url": "english.html",
   "name": "Noah's English Vocabulary Trainer",
   "short_name": "Vocabulary Trainer",
