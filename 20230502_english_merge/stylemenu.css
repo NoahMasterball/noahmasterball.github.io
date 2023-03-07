@@ -110,16 +110,16 @@
   top: 5px;
   width: 243px;
   height: 94px;
-  border: none;
   opacity: 50;
   border-radius: 25% 15px 25%;
   background: none;
   border: 2px solid black;
 }
-
-.ebeneinput1-unused {
+.ebeneinput1realistic {
+  display: none;
+}
+.ebeneinput2realistic {
   position: absolute;
-  display: flex;
   justify-content: center;
   align-items: center;
   font-size: 35px;
@@ -130,13 +130,15 @@
   z-index: 12;
 }
 
-.ebeneinput {
-  position: absolute;
+.ebeneinput1cartoon {
   display: none;
+}
+.ebeneinput2cartoon {
+  position: absolute;
   justify-content: center;
   align-items: center;
   font-size: 35px;
-  top: 63px;
+  top: 61px;
   left: 110px;
   height: 105px;
   width: 270px;
@@ -184,16 +186,6 @@
   color: rgb(18, 8, 148);
 }
 
-.aktiviertcartoon-unused {
-  color: rgb(13, 6, 113);
-  text-shadow: 1px 1px rgb(132, 248, 46);
-}
-
-.aktiviert2cartoon-unused {
-  color: rgb(13, 6, 113);
-  text-shadow: 2px 2px rgb(132, 248, 46);
-}
-
 .inputtextcartoon {
   left: 2px;
   top: 2px;
@@ -202,24 +194,11 @@
   border: none;
   opacity: 50;
   border-radius: 25% 15px 25%;
-  background: none;
+  background: rgb(132, 248, 46);
   border: 2px solid green;
 }
 
-.ebeneinput1cartoon-unused {
-  position: absolute;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 35px;
-  top: 63px;
-  left: 110px;
-  height: 105px;
-  width: 270px;
-  z-index: 12;
-}
-
-.word2cartoon-unused {
+.word2cartoon {
   position: absolute;
   display: flex;
   justify-content: center;

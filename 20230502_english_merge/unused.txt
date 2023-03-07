@@ -1,0 +1,13 @@
+.wolke1textcartoon:hover-unused {
+  color: rgb(18, 8, 148);
+}
+
+.aktiviertcartoon-unused {
+  color: rgb(13, 6, 113);
+  text-shadow: 1px 1px rgb(132, 248, 46);
+}
+
+.aktiviert2cartoon-unused {
+  color: rgb(13, 6, 113);
+  text-shadow: 2px 2px rgb(132, 248, 46);
+}

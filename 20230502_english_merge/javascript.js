@@ -229,8 +229,12 @@ function typeword() {
   document.getElementById("ebenebus").classList.remove('animation' + flowtype[2] + style [0]);
   document.getElementById('seetext' + flowtype[0]).classList.remove("invisible");
   document.getElementById('seetext' + flowtype[2]).classList.add("invisible");
+  document.getElementById("ebeneinput").classList.remove('ebeneinput' + flowtype[2] + style [0]);
+  document.getElementById("ebeneinput").classList.add('ebeneinput' + flowtype[0] + style [0]);
+  /*
   document.getElementById("ebeneinput").classList.remove('ebeneinput' + flowtype[0]);
   document.getElementById("ebeneinput").classList.add('ebeneinput' + flowtype[2]);
+  */
   document.getElementById("word3").innerHTML = "";
   if (flowtype[1] == "type") {
     console.log(vocabularyarray[zaehler2][myLanguage[1]]);
@@ -364,18 +368,6 @@ function fastcontinue() {
   }
 }
 
-function light(wertlight) {
-  console.log(wertlight);
-  /*
-  if (wertlight[1] == "on") {
-    document.getElementById(wertlight[0]).classList.add("aktiviert2");
-  }
-  if (wertlight[1] == "off") {
-    document.getElementById(wertlight[0]).classList.remove("aktiviert2");
-  }
-  */
-}
-
 function cartoon() {
   style = ["cartoon", 1];
 
@@ -421,9 +413,14 @@ function cartoon() {
   document.getElementById("wiese").classList.replace("wiese", "wiesecartoon");
   document.getElementById("busfeuer").classList.replace("busfeuer", "busfeuercartoon");
   document.getElementById("busfeuer2").classList.replace("busfeuer2", "busfeuer2cartoon");
-  document.getElementById("ebenebus").className = "ebenebuscartoon animation1cartoon";
+  document.getElementById("ebenebus").classList.replace("ebenebus", "ebenebuscartoon");
   document.getElementById("busimg").classList.replace("bus", "buscartoon");
   document.getElementById("worteingetippt").classList.replace("inputtext", "inputtextcartoon");
+  document.getElementById("word2").classList.replace("word2", "word2cartoon");
+  document.getElementById("ebeneinput").classList.remove("ebeneinput" + flowtype[0] + "realistic");
+  document.getElementById("ebeneinput").classList.add("ebeneinput" + flowtype[0] + style[0]);
+  document.getElementById("ebenebus").classList.remove("animation" + flowtype[0] + "realistic");
+  document.getElementById("ebenebus").classList.add("animation" + flowtype[0] + style[0]);
 }
 
 function realistic() {
@@ -470,7 +467,12 @@ function realistic() {
   document.getElementById("wiese").classList.replace("wiesecartoon", "wiese");
   document.getElementById("busfeuer").classList.replace("busfeuercartoon", "busfeuer");
   document.getElementById("busfeuer2").classList.replace("busfeuer2cartoon", "busfeuer2");
-  document.getElementById("ebenebus").className = "ebenebus animation1";
+  document.getElementById("ebenebus").classList.replace("ebenebuscartoon", "ebenebus");
   document.getElementById("busimg").classList.replace("buscartoon", "bus");
   document.getElementById("worteingetippt").classList.replace("inputtextcartoon", "inputtext");
+  document.getElementById("word2").classList.replace("word2cartoon", "word2");
+  document.getElementById("ebeneinput").classList.remove("ebeneinput" + flowtype[0] + "cartoon");
+  document.getElementById("ebeneinput").classList.add("ebeneinput" + flowtype[0] + style[0]);
+  document.getElementById("ebenebus").classList.remove("animation" + flowtype[0] + "cartoon");
+  document.getElementById("ebenebus").classList.add("animation" + flowtype[0] + style[0]);
 }

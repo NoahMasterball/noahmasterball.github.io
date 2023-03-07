@@ -73,12 +73,10 @@ div {
 
 .wolke1 {
   position: absolute;
-  width: 358px;
-  height: 292px;
-  width: 348x;
-  height: 273px;
-  top: 15px;
-  left: 15px;
+  width: 322px;
+  height: 280px;
+  top: 12px;
+  left: 12px;
   z-index: 1;
 }
 .wolke1text {
@@ -307,10 +305,7 @@ div {
   left: 400px;
   z-index: 5;
 }
-.mw5layout:hover {
-  color: rgb(15, 7, 119);
-  text-shadow: 2px 2px rgb(132, 248, 46);
-}
+
 .mw5cartoonbtn {
   font-size: 34px;
   position: absolute;
@@ -500,10 +495,6 @@ document.getElementById("orangediv").classList.add("richtigfalschsichtbar");
   animation-play-state: paused;
   /* prettier-ignore */
   cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 512 512'><path d='M464 256A208 208 0 1 0 48 256a208 208 0 1 0 416 0zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zm224-72V328c0 13.3-10.7 24-24 24s-24-10.7-24-24V184c0-13.3 10.7-24 24-24s24 10.7 24 24zm112 0V328c0 13.3-10.7 24-24 24s-24-10.7-24-24V184c0-13.3 10.7-24 24-24s24 10.7 24 24z'/></svg>") 16 0, auto;
-}
-
-.wolke1textcartoon:hover-unused {
-  color: rgb(18, 8, 148);
 }
 
 .wolke1cartoon {
