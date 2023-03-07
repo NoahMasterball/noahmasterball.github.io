@@ -27,7 +27,9 @@
           <span id="speed4" class="mws10text mwtext text" onclick="changespeed([4,10000])">10s</span>
           <span id="speed5" class="mws15text mwtext text" onclick="changespeed([5,15000])">15s</span>
           <img class="flagge de" id="lang1" onclick="changelang([1,'ger','eng'])" src="flagge_ger1.gif" />
+          <img class="flagge de top" id="lang1top" src="flagge_ger2.gif" />
           <img class="flagge eng" id="lang2" onclick="changelang([2,'eng','ger'])" src="flagge_eng1.gif" />
+          <img class="flagge eng top" id="lang2top" src="flagge_eng2.gif" />
           <span class="mw3style text">Style</span>
           <span class="mw3flow mwtext text" id="flow1" onclick="flowortype([1, 'flow', 2, 'type']),typeword()">Flow</span>
           <span class="mw3type mwtext text" id="flow2" onclick="flowortype([2, 'type', 1, 'flow']),typeword()">Type</span>
@@ -56,17 +58,17 @@
         <img id="art" class="art" src="" />
       </div>
       <img id="baum" class="baum" onclick="fastcontinue()" src="baum1.png" />
-      <img id="wiese" class="wiese" src="wiese1.png" />
-      <div id="orangediv" class="richtigfalsch">
-        <span id="richtigfalsch" class="text richtigfalschtext aktivert2"></span>
+      <img id="wiese" class="wiese" src="wiese2.gif" />
+      <div id="richtigfalsch" class="richtigfalsch">
+        <span id="richtigfalschtext" class="text richtigfalschtext aktivert2"></span>
         <img id="richtigfalschicon" class="richtigfalschicon aktivert2" src="" />
         <span id="score" class="text score aktivert2"></span>
       </div>
       <div id="ebenebus" class="ebenebus animation1realistic">
-        <img id="busfeuer" class="busfeuer invisible" src="feuer3.png" />
-        <img id="busfeuer2" class="busfeuer2 invisible" src="feuer2.png" />
+        <img id="busfeuer" class="busfeuer invisible" src="feuer1.png" />
+        <img id="busfeuer2" class="busfeuer2 invisible" src="feuer1.png" />
         <!--prettier-ignore-->
-        <img id="busimg" class="bus" onclick="buspause(['add','pause','clearTimeout(interval);'])" onmouseleave="buspause(['remove','weiter','interval = setTimeout(showwords, 2000)'])" src="bus11.png"/>
+        <img id="busimg" class="bus" onclick="buspause(['add','pause','clearTimeout(interval);'])" onmouseleave="buspause(['remove','weiter','interval = setTimeout(showwords, 2000)'])" src="bus1.png"/>
         <span id="word2" class="word2 text aktiviert">Welcome to the Vocabulary Trainer!</span>
         <div id="ebeneinput" class="ebeneinput1realistic">
           <input id="worteingetippt" type="text" size="12" onchange="worteingetippt()" placeholder="   Please type here" class="inputtext text" />

@@ -296,24 +296,24 @@ function compareword () {
     if (wordlower.includes(wordtypelower)) {
       console.log("Richtig! If " + wordlower + 'enthält' + wordtypelower + "==" + vocabularyarray[zaehler2][myLanguage[1]]);
       // word = vocabularyarray[zaehler2];
-      document.getElementById("richtigfalsch").innerHTML = "Correct: " + vocabularyarray[zaehler2][myLanguage[1]];
+      document.getElementById("richtigfalschtext").innerHTML = "Correct: " + vocabularyarray[zaehler2][myLanguage[1]];
       document.getElementById("richtigfalschicon").src = "icons/happy" + zaehler4 + ".gif";
       score1++;
       document.getElementById("score").innerHTML = "Your score: <br> Correct: " + score1 + " / Wrong: " + score2;
-      document.getElementById("orangediv").classList.add("richtigfalschsichtbar");
+      document.getElementById("richtigfalsch").classList.add("richtigfalschsichtbar");
       clearTimeout(deletingTimeout);
       deletingTimeout = setTimeout(deletesolution, 10000);
        if (zaehler4 == 11) {zaehler4 = 0};
       zaehler2++;
       zaehler4++;
     } else {
-      document.getElementById("richtigfalsch").innerHTML = "Wrong: " + vocabularyarray[zaehler2][myLanguage[1]];
+      document.getElementById("richtigfalschtext").innerHTML = "Wrong: " + vocabularyarray[zaehler2][myLanguage[1]];
       document.getElementById("richtigfalschicon").src = "icons/unhappy" + zaehler5 + ".gif";
       document.getElementById("busfeuer").classList.remove("invisible");
       document.getElementById("busfeuer2").classList.remove("invisible");
       score2++;
       document.getElementById("score").innerHTML = "Your score: <br> Correct: " + score1 + " / Wrong: " + score2;
-      document.getElementById("orangediv").classList.add("richtigfalschsichtbar");
+      document.getElementById("richtigfalsch").classList.add("richtigfalschsichtbar");
       clearTimeout(deletingTimeout);
       deletingTimeout = setTimeout(deletesolution, 10000);
       if (zaehler5 == 10) {zaehler5 = 0};
@@ -353,12 +353,12 @@ function deletelastword() {
   document.getElementById("word3").innerHTML = "";
 }
 function deletesolution() {
-  document.getElementById("richtigfalsch").innerHTML = "";
+  document.getElementById("richtigfalschtext").innerHTML = "";
   document.getElementById("busfeuer").classList.add("invisible");
   document.getElementById("busfeuer2").classList.add("invisible");
   document.getElementById("richtigfalschicon").src = "";
   document.getElementById("score").innerHTML = "";
-  document.getElementById("orangediv").classList.remove("richtigfalschsichtbar");
+  document.getElementById("richtigfalsch").classList.remove("richtigfalschsichtbar");
 }
 
 function fastcontinue() {
@@ -406,9 +406,9 @@ function cartoon() {
 
   document.getElementById("baum").src = "baum1.gif";
   document.getElementById("wiese").src = "wiese1.gif";
-  document.getElementById("busfeuer").src = "feuer3.gif";
+  document.getElementById("busfeuer").src = "feuer1.gif";
   document.getElementById("busfeuer2").src = "";
-  document.getElementById("busimg").src = "bus.gif";
+  document.getElementById("busimg").src = "bus1.gif";
   document.getElementById("baum").classList.replace("baum", "baumcartoon");
   document.getElementById("wiese").classList.replace("wiese", "wiesecartoon");
   document.getElementById("busfeuer").classList.replace("busfeuer", "busfeuercartoon");
@@ -459,10 +459,10 @@ function realistic() {
   document.getElementById("mw14").className = "mw14 mwsize2";
 
   document.getElementById("baum").src = "baum1.png";
-  document.getElementById("wiese").src = "wiese1.png";
-  document.getElementById("busfeuer").src = "feuer3.png";
-  document.getElementById("busfeuer2").src = "feuer2.png";
-  document.getElementById("busimg").src = "bus11.png";
+  document.getElementById("wiese").src = "wiese2.gif";
+  document.getElementById("busfeuer").src = "feuer1.png";
+  document.getElementById("busfeuer2").src = "feuer1.png";
+  document.getElementById("busimg").src = "bus1.png";
   document.getElementById("baum").classList.replace("baumcartoon", "baum");
   document.getElementById("wiese").classList.replace("wiesecartoon", "wiese");
   document.getElementById("busfeuer").classList.replace("busfeuercartoon", "busfeuer");

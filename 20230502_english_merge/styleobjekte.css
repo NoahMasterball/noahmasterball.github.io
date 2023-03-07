@@ -334,6 +334,10 @@ div {
   height: 32px;
   z-index: 4;
 }
+.top {
+  display: none;
+  z-index: 55;
+}
 .de {
   top: 167px;
   left: 355px;
@@ -342,19 +346,28 @@ div {
   top: 167px;
   left: 415px;
 }
+.flagge:hover .top {
+  display: flex;
+}
+.de:hover .top {
+  display: flex;
+}
+.eng:hover .top {
+  display: flex;
+}
 
 .baum {
   position: absolute;
   top: 680px;
   left: 520px;
   width: 304px;
-  height: 345px;
+  height: 368px;
   z-index: 1;
 }
 .wiese {
   position: absolute;
   width: 825px;
-  height: 420px;
+  height: 431px;
   top: 952px;
 }
 
@@ -569,12 +582,6 @@ document.getElementById("orangediv").classList.add("richtigfalschsichtbar");
   z-index: 3;
 }
 
-.mw4artcartoon-unused {
-  top: 25px;
-  left: 15px;
-  z-index: 5;
-}
-
 .mw5layoutcartoon {
   font-size: 28px;
   top: 20px;
@@ -645,31 +652,6 @@ document.getElementById("orangediv").classList.add("richtigfalschsichtbar");
   left: 72px;
   top: -30px;
   z-index: 9;
-}
-
-.richtigfalschcartoon-unused {
-  position: absolute;
-  top: 1035px;
-  left: 20px;
-}
-
-.richtigfalschiconcartoon-unused {
-  position: absolute;
-  top: 55px;
-  left: 10px;
-}
-
-.scorecartoon-unused {
-  white-space: nowrap;
-  font-size: 40px;
-  position: absolute;
-  top: 165px;
-  left: 0px;
-}
-
-.richtigfalschtextcartoon-unused {
-  white-space: nowrap;
-  font-size: 40px;
 }
 
 .animation1cartoon {
