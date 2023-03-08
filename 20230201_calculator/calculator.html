@@ -3,34 +3,19 @@
   <head>
     <title>Average Human Size Calculator</title>
     <link rel="stylesheet" href="./style.css" />
-    <script
-      defer
-      language="javascript"
-      type="text/javascript"
-      src="javascript.js"
-    ></script>
+    <script defer language="javascript" type="text/javascript" src="javascript.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   </head>
   <body>
     <div class="master">
       <div class="masterbackground"><img src="sunnyforest.gif" /></div>
       <div class="ebenegreen">
-        <a class="uberschrift" href="../index.html"
-          >Average Human Size Calculator</a
-        >
+        <a class="uberschrift" href="../index.html">Average Human Size Calculator</a>
         <p></p>
         <form onSubmit="return false;">
           <label class="text1" for="age">Enter your age:&nbsp;</label>
-          <input
-            type="number"
-            id="ageinput"
-            name="ageinput"
-            max="120"
-            onchange="calculateSize()"
-          />&nbsp;&nbsp;
-          <button class="text2" type="button" onclick="calculateSize()">
-            Calculate
-          </button>
+          <input type="number" id="ageinput" name="ageinput" max="120" onchange="calculateSize()" />&nbsp;&nbsp;
+          <button class="text2" type="button" onclick="calculateSize()">Calculate</button>
         </form>
         <p class="text3" id="result"></p>
       </div>

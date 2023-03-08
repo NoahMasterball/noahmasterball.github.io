@@ -4,105 +4,89 @@
     <title>Noah´s Project List</title>
     <meta charset="UTF-8" />
     <link rel="stylesheet" href="./index/style.css" />
-    <script type="text/javascript" language="javascript" defer>
-      // prettier-ignore
-      window.addEventListener("load", function () {
-        if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)){
-          document.getElementById("rocket1t").addEventListener("mousedown", function() {mouseOver1("rocket1.jpg")});
-          document.getElementById("rocket2t").addEventListener("mousedown", function() {mouseOver1("rocket2.jpg")});
-          document.getElementById("rocket3t").addEventListener("mousedown", function() {mouseOver1("rocket3.jpg")});
-          document.getElementById("rocket4t").addEventListener("mousedown", function() {mouseOver1("rocket4.jpg")});
-          document.getElementById("rocket5t").addEventListener("mousedown", function() {mouseOver1("rocket5.jpg")});
-          document.getElementById("rocketseepictext").addEventListener("mouseover", function() {mouseOver2()});
-          document.getElementById("linktextspace").addEventListener("mouseover", function() {mouseOver3()});
-          document.getElementById("englishvoclink").addEventListener("mouseover", function() {mouseOver3()});
-        }else{
-          document.getElementById("rocket1").addEventListener("mousedown", function() {mouseOver1("rocket1.jpg")});
-          document.getElementById("rocket2").addEventListener("mousedown", function() {mouseOver1("rocket2.jpg")});
-          document.getElementById("rocket3").addEventListener("mousedown", function() {mouseOver1("rocket3.jpg")});
-          document.getElementById("rocket4").addEventListener("mousedown", function() {mouseOver1("rocket4.jpg")});
-          document.getElementById("rocket5").addEventListener("mousedown", function() {mouseOver1("rocket5.jpg")});
-          document.getElementById("rocket1t").addEventListener("mousedown", function() {mouseOver1("rocket1.jpg")});
-          document.getElementById("rocket2t").addEventListener("mousedown", function() {mouseOver1("rocket2.jpg")});
-          document.getElementById("rocket3t").addEventListener("mousedown", function() {mouseOver1("rocket3.jpg")});
-          document.getElementById("rocket4t").addEventListener("mousedown", function() {mouseOver1("rocket4.jpg")});
-          document.getElementById("rocket5t").addEventListener("mousedown", function() {mouseOver1("rocket5.jpg")});
-          document.getElementById("rocketseepictext").addEventListener("mouseover", function() {mouseOver2()});
-          document.getElementById("linktextspace").addEventListener("mouseover", function() {mouseOver3()});
-          document.getElementById("englishvoclink").addEventListener("mouseover", function() {mouseOver3()});
-        }
-      });
-
-      function mouseOver1(filename) {
-        window.open("./index/" + encodeURI(filename));
-      }
-      function mouseOver2() {
-        document.getElementById("rocketpicunsichtbar").classList.add("rocketpicsichtbar");
-      }
-      function mouseOver3() {
-        document.getElementById("rocketpicunsichtbar").classList.remove("rocketpicsichtbar");
-      }
-    </script>
+    <script defer language="javascript" type="text/javascript" src="./index/javascript.js"></script>
   </head>
   <body>
-    <div class="fontuberschrift"><span>NOAH'S PROJECT LIST</span></div>
-
-    <br /><br />
-    <a id="englishvoclink" class="button-22" href="20230502_english/english.html">English vocabulary trainer 5th grade gymnasium</a><br />
-    <span id="linktextenglish" class="linktext"
-      >03/2023, 10Yrs, 5th Grade, English vocuabulary trainer for 5th grade gymnasium. Language, speed, style "flow & type", realistic and cartoon mode are configurable.
-      <!-- You can save this Webpage/APP
-      via your browser options as a link to your mobile homescreen, this will result in a fullscreen progressive Web APP on your mobile.-->
-    </span>
-    <br />
-    <br /><br />
-    <a class="button-22" href="20230220_rakete/game.html">Noah Rocket Game "Space Invader"</a>
-    <br />
-    <span id="linktextspace" class="linktextspace"
-      >02/2023, 10Yrs, 5th Grade, First game project in HTML (Canvas), CSS, and Java Script. Complex calulations (collision coordinates) where needed.
-    </span>
-    <div class="rocketseepic">
-      <a id="rocketseepictext" class="rocketseepictext">See pictures here (On a mobile click the text under the picture for zoom in)</a>
-      <div id="rocketpicunsichtbar" class="rocketpicunsichtbar">
-        <div id="container" class="container">
-          <div class="box">
-            <!-- prettier-ignore -->
-            <img id="rocket1" src="./index/rocket1.jpg" />
-            <span id="rocket1t">Noah´s</span>
-          </div>
-          <div class="box">
-            <img id="rocket2" src="./index/rocket2.jpg" />
-            <span id="rocket2t">Rocket</span>
-          </div>
-          <div class="box">
-            <img id="rocket3" src="./index/rocket3.jpg" />
-            <span id="rocket3t">Space</span>
-          </div>
-          <div class="box">
-            <img id="rocket4" src="./index/rocket4.jpg" />
-            <span id="rocket4t">Project</span>
-          </div>
-          <div class="box">
-            <img id="rocket5" src="./index/rocket5.jpg" />
-            <span id="rocket5t">Java Script</span>
+    <div id="master" class="master">
+      <div class="fontuberschrift"><span>NOAH'S PROJECT LIST</span></div>
+      <br /><br />
+      <a id="englishvoclink" class="button-22" href="20230502_english/english.html">English vocabulary trainer 5th grade gymnasium</a><br />
+      <span id="linktextenglish" class="linktextenglish"
+        >03/2023, 10Yrs, 5th Grade, English vocabulary trainer for 5th grade gymnasium. Language, speed, style "flow & type", realistic and cartoon mode are configurable. You can install this APP on
+        your mobile device.</span
+      >
+      <div id="mdiv" class="mdiv">
+        <a id="mtext" class="mtext">See pictures of how to install the APP here</a>
+        <div id="hidden" class="hidden">
+          <div id="mcontainer" class="mcontainer">
+            <div class="box2">
+              <img id="mobile1" src="./index/mobile1.jpg" />
+              <span id="mobile1t">Android menue</span>
+            </div>
+            <div class="box2 mobile2">
+              <img id="mobile2" src="./index/mobile2.jpg" />
+              <span id="mobile2t">Android install</span>
+            </div>
+            <div class="box2">
+              <img id="mobile3" src="./index/mobile3.jpg" />
+              <span id="mobile3t">iPhone menue</span>
+            </div>
+            <div class="box2">
+              <img id="mobile4" src="./index/mobile4.jpg" />
+              <span id="mobile4t">iPhone install</span>
+            </div>
           </div>
         </div>
       </div>
+      <br />
+      <br />
+      <a class="button-22" href="20230220_rakete/game.html">Noah Rocket Game "Space Invader"</a>
+      <br />
+      <span id="linktextspace" class="linktextspace"
+        >02/2023, 10Yrs, 5th Grade, first game project in HTML (Canvas), CSS, and Java Script. Complex calculations (collision coordinates) where needed.
+      </span>
+      <div class="rocketseepic">
+        <a id="rocketseepictext" class="rocketseepictext">See pictures here (On a mobile click the text under the picture for zoom in)</a>
+        <div id="rocketpicunsichtbar" class="hidden">
+          <div id="container" class="container">
+            <div class="box">
+              <!-- prettier-ignore -->
+              <img id="rocket1" src="./index/rocket1.jpg" />
+              <span id="rocket1t">Noah´s</span>
+            </div>
+            <div class="box">
+              <img id="rocket2" src="./index/rocket2.jpg" />
+              <span id="rocket2t">Rocket</span>
+            </div>
+            <div class="box">
+              <img id="rocket3" src="./index/rocket3.jpg" />
+              <span id="rocket3t">Space</span>
+            </div>
+            <div class="box">
+              <img id="rocket4" src="./index/rocket4.jpg" />
+              <span id="rocket4t">Project</span>
+            </div>
+            <div class="box">
+              <img id="rocket5" src="./index/rocket5.jpg" />
+              <span id="rocket5t">Java Script</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <br />
+      <br />
+      <a class="button-22" href="20230201_calculator/calculator.html">Noah's Human Average Size Calculator</a>
+      <br />
+      <span class="linktext">01/2023, 10Yrs, 5th Grade, this page got originally created by ChatGPT and got enhanced by Noah</span>
+      <a class="button-22" href="https://www.youtube.com/watch?v=Pafb_UtISkA&list=PLLWRzvPF53ODWn8aa-UWXi80ZNUo7_HI8">(see video here)</a>
+      <br /><br /><br />
+      <a id="schulprojekte" class="button-22" href="20230226_schulprojekte/index.html">School projects in 5th Grade</a>
+      <br />
+      <span id="schulprojekte" class="linktext"
+        >03/2023, 10Yrs, 5th Grade, here is a sperate link list from smaller projects, e.g.: from school instructions or homework or Noah's addons to subjects.</span
+      >
+      <br /><br />
+      <br /><br />
     </div>
-    <br />
-    <br />
-
-    <a class="button-22" href="20230201_calculator/calculator.html">Noah's Human Average Size Calculator</a>
-    <br />
-    <span class="linktext">01/2023, 10Yrs, 5th Grade, This page got originally created by ChatGTP and got enhanced by Noah</span>
-    <a class="button-22" href="https://www.youtube.com/watch?v=Pafb_UtISkA&list=PLLWRzvPF53ODWn8aa-UWXi80ZNUo7_HI8">(see video here)</a>
-    <br /><br /><br />
-    <a id="schulprojekte" class="button-22" href="20230226_schulprojekte/index.html">School projects in 5th Grade</a>
-    <br />
-    <span id="schulprojekte" class="linktext"
-      >03/2023, 10Yrs, 5th Grade, Here is a sperate linklist from smaller projects, e.g.: from school instructions or homework or Noah's addons to subjects.</span
-    >
-    <br /><br />
-    <br /><br />
   </body>
 </html>
