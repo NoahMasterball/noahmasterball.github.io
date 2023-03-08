@@ -234,10 +234,7 @@ body {
 }
 
 .hidden {
-  /* 
   display: none;
-  */
-  display: flex;
 }
 
 .visibile {
