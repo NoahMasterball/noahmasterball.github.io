@@ -7,6 +7,7 @@ let zaehler2 = 0;
 let flowtype = [];
 let artshow = "on";
 let isRunning = false;
+let showWordsIsRunning = false;
 let anaus = "aus";
 style = ["realistic", 2];
 
@@ -142,6 +143,8 @@ function changespeed(welcherspeed) {
   }
   document.getElementById("speed" + welcherspeed[0]).classList.add("aktiviert2");
   intervalauswahl = welcherspeed[1];
+  clearTimeout(interval); // new soll doppelt aufrufen verhindern
+  interval = setTimeout(showwords, intervalauswahl);
 }
 
 function changevoc(welchewolke) {
@@ -158,7 +161,9 @@ function buspause(wert) {
   if (flowtype[1] == "flow") {
     document.getElementById("ebenebus").classList[wert[0]]("pause");
     pause = wert[1];
+    clearTimeout(interval);
     eval(wert[2]);
+    console.log('busstart-stop wurde aufgerufen mit: ' + wert[0] + ' ' + wert[1] + ' ' + wert[2]);
   }
 }
 
@@ -199,6 +204,16 @@ function pickvoc() {
 let deleteTimeout;
 // prettier-ignore
 function showwords() {
+  if (showWordsIsRunning) {
+    console.log('funktion showwords wurde versucht auszuführen obwhol sie schon läuft!!!')
+    if (showwords.caller) {
+      console.log("Function was called by: " + showwords.caller.name);
+    } else {
+      console.log("Function was called from the global scope");
+    }
+    return; // die Funktion ist bereits gestartet
+  }
+  showWordsIsRunning = true;
     myFunction();
     if (zaehler2 < vocabularyarray.length) {
         if (flowtype[1] == "flow") {
@@ -208,15 +223,13 @@ function showwords() {
             document.getElementById("word3").innerHTML = "(Last word: " + vocabularyarray[zaehler2 - 1][myLanguage[1]] + ")" 
             clearTimeout(deleteTimeout);
             deleteTimeout = setTimeout(deletelastword, 5000);
-
           } else {
             document.getElementById("word1").innerHTML = vocabularyarray[zaehler2][myLanguage[1]];
             document.getElementById("word2").innerHTML = vocabularyarray[zaehler2][myLanguage[0]];
             document.getElementById("word3").innerHTML = "";
           }
-          
-          
           zaehler2++;
+          clearTimeout(interval); // soll doppelt aufrufen verhindern
           interval = setTimeout(showwords, intervalauswahl);
         } else {
           document.getElementById("word1").innerHTML = vocabularyarray[zaehler2][myLanguage[0]];
@@ -228,8 +241,10 @@ function showwords() {
         document.getElementById('word' + flowtype[2]).innerHTML = "Alles Fertig! -> Neustart!";
         document.getElementById('word' + flowtype[0]).innerHTML = "All finished! -> restart!";
         zaehler2 = 0;
+        clearTimeout(interval); // new soll doppelt aufrufen verhindern
         interval = setTimeout(showwords, 10000);
     }
+  showWordsIsRunning = false;
 }
 
 let lastCallTime = null;
@@ -368,7 +383,7 @@ function compareword () {
     */
     }
     clearTimeout(interval);
-    interval = setTimeout(showwords, 1500)
+    interval = setTimeout(showwords, 100)
     //console.log('cleared+restart by end')
 }
 
@@ -387,7 +402,8 @@ function deletesolution() {
 function fastcontinue() {
   if (flowtype[1] == "flow") {
     clearTimeout(interval);
-    showwords();
+    console.log("fastcontinue rufte showwords auf");
+    interval = setTimeout(showwords, 100);
   }
 }
 

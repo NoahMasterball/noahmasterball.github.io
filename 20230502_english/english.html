@@ -63,18 +63,20 @@
         <img id="richtigfalschicon" class="richtigfalschicon aktivert2" src="" />
         <span id="score" class="text score aktivert2"></span>
       </div>
-      <div id="ebenebus" class="ebenebus animation1realistic">
+      <!--prettier-ignore-->
+      <div id="ebenebus" class="ebenebus animation1realistic"
+        onmouseover="buspause(['add','pause','clearTimeout(interval);'])"
+        onmouseleave="buspause(['remove','weiter','interval = setTimeout(showwords, 2000)'])">
         <img id="busfeuer" class="busfeuer invisible" src="feuer1.png" />
         <img id="busfeuer2" class="busfeuer2 invisible" src="feuer1.png" />
-        <!--prettier-ignore-->
-        <img id="busimg" class="bus" onclick="buspause(['add','pause','clearTimeout(interval);'])" onmouseleave="buspause(['remove','weiter','interval = setTimeout(showwords, 2000)'])" src="bus1.png"/>
+        <img id="busimg" class="bus" src="bus1.png"/>
         <span id="word2" class="word2 text aktiviert">Welcome to the Vocabulary Trainer!</span>
         <div id="ebeneinput" class="ebeneinput1realistic">
           <input id="worteingetippt" type="text" size="12" onchange="worteingetippt()" placeholder="   Please type here" class="inputtext text" />
         </div>
       </div>
       <div class="solutiontext">
-        <span id="seetext1" class="text">See/hide solution here <br />(Click on tree for fast continue)</span>
+        <span id="seetext1" class="text">See/hide solution here <br />(Click tree for continue, bus for pause )</span>
         <span id="seetext2" class="text invisible"
           >Type the correct translation (a word) <br />
           into the bus and press Return/Enter.</span
