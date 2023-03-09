@@ -77,7 +77,7 @@ body {
 
 .box2 > img {
   width: 100%;
-  height: calc(100% - 10vh);
+
   object-fit: cover;
   transition: 1s;
 }
