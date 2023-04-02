@@ -1,0 +1,307 @@
+@font-face {
+  font-family: "myfont";
+  src: url("myfont-Light.ttf");
+}
+
+@font-face {
+  font-family: "myfont2";
+  src: url("myfont-Regular.ttf");
+}
+
+body {
+  position: relative;
+}
+
+.container {
+  display: flex;
+  width: 95%;
+  padding: 4% 2%;
+  box-sizing: border-box;
+  height: 65vh;
+}
+
+.box {
+  flex: 1;
+  overflow: hidden;
+  transition: 0.5s;
+  margin: 0 2%;
+  box-shadow: 0 20px 30px rgba(0, 0, 0, 0.3);
+  line-height: 0;
+  border-radius: 7px;
+}
+
+.box > img {
+  width: 200%;
+  height: calc(100% - 10vh);
+  object-fit: cover;
+  transition: 0.5s;
+}
+
+.box > span {
+  font-size: 3.8vh;
+  color: #000000;
+  display: block;
+  text-align: center;
+  height: 10vh;
+  line-height: 2.6;
+}
+
+.box:hover {
+  flex: 1 1 50%;
+}
+.box:hover > img {
+  width: 100%;
+  cursor: zoom-in;
+}
+.box:hover > span {
+  color: rgb(18, 8, 148);
+}
+
+.mcontainer {
+  display: flex;
+  width: 95%;
+  padding: 4% 2%;
+  box-sizing: border-box;
+  height: 60vh;
+  max-height: calc(60vw);
+}
+
+.box2 {
+  flex: 1;
+  transition: 1s;
+  overflow: hidden;
+
+  margin: 0 2%;
+  box-shadow: 0 20px 30px rgba(0, 0, 0, 0.3);
+  border-radius: 7px;
+}
+
+.box2 > img {
+  width: 100%;
+  object-fit: cover;
+  transition: 1s;
+}
+
+.box2:hover {
+  flex: 1 1 auto;
+}
+
+.box2:hover > img {
+  height: 80%;
+  width: 100%;
+  object-fit: cover;
+  object-position: 100% 100%;
+  transform-origin: right top;
+  object-position: right top;
+  cursor: zoom-in;
+}
+
+.box2:hover > #mobile2 {
+  transform-origin: right bottom;
+  transform: scale(1.3);
+  object-position: right bottom;
+  cursor: zoom-in;
+}
+
+.box2:hover > #mobile3 {
+  transform: scale(1.3);
+  transform-origin: bottom;
+  object-position: bottom;
+  cursor: zoom-in;
+}
+
+.box2:hover > #mobile4 {
+  transform: scale(1);
+  transform-origin: left bottom;
+  object-position: left bottom;
+  cursor: zoom-in;
+}
+
+.box2 > span {
+  font-size: 2.5vh;
+  color: #000000;
+  display: block;
+  text-align: center;
+  height: 100px;
+  line-height: 2.5;
+  white-space: nowrap;
+}
+
+.box2 #mobile3t,
+.box2 #mobile4t {
+  padding-top: 11px;
+}
+
+.box2:hover #mobile3t,
+.box2:hover #mobile4t {
+  padding-top: 0px;
+}
+
+.box2:hover > span {
+  color: rgb(18, 8, 148);
+}
+
+.fontuberschrift {
+  font-family: "myfont2";
+  font-size: 90px;
+  text-align: center;
+  margin-top: 40px;
+  margin-bottom: 30px;
+}
+
+.linktext {
+  font-family: "myfont";
+  font-size: 30px;
+  left: 0px;
+}
+
+.linktextenglish {
+  margin-right: calc(-1 * (100vw - 100%));
+  margin-right: 50px;
+  font-family: "myfont";
+  font-size: 30px;
+  left: 0px;
+}
+
+.linktextspace {
+  font-family: "myfont";
+  font-size: 30px;
+  left: 0px;
+}
+.button-21 {
+  font-family: "myfont2";
+  font-size: 30px;
+  text-decoration: none;
+  color: #000000;
+}
+
+.button-22 {
+  font-family: "myfont2";
+  font-size: 30px;
+  text-decoration: none;
+  color: #000000;
+}
+
+.button-22:hover {
+  font-family: "myfont2";
+  font-size: 30px;
+  text-decoration: none;
+  color: rgb(18, 8, 148);
+}
+
+.rocketseepic {
+  font-family: "myfont2";
+  font-size: 30px;
+  text-decoration: none;
+  color: #000000;
+}
+
+.rocketseepictext {
+  font-family: "myfont2";
+  font-size: 30px;
+  text-decoration: none;
+  color: #000000;
+  width: 250px;
+  height: 150px;
+}
+
+.rocketseepictext:hover {
+  font-family: "myfont2";
+  font-size: 30px;
+  text-decoration: none;
+  color: rgb(18, 8, 148);
+}
+
+.mdiv {
+  font-family: "myfont2";
+  font-size: 30px;
+  text-decoration: none;
+  color: #000000;
+}
+
+.mtext {
+  font-family: "myfont2";
+  font-size: 30px;
+  text-decoration: none;
+  color: #000000;
+  width: 250px;
+  height: 150px;
+}
+
+.mtext:hover {
+  font-family: "myfont2";
+  font-size: 30px;
+  text-decoration: none;
+  color: rgb(18, 8, 148);
+}
+
+.hidden {
+  display: none;
+}
+
+.visibile {
+  display: flex;
+}
+
+.forbidden {
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.forbidden2 {
+  cursor: not-allowed;
+}
+.none {
+  text-decoration: none;
+  color: black;
+}
+
+.button-25 {
+  font-family: "myfont2";
+  font-size: 30px;
+  text-decoration: none;
+  color: #ffffff;
+}
+
+.button-23 {
+  background-color: #ffffff;
+  border: 1px solid #222222;
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: #222222;
+  cursor: pointer;
+  display: inline-block;
+  font-family: "myfont2";
+  font-size: 30px;
+  line-height: 20px;
+  margin: 0;
+  outline: none;
+  padding: 13px 23px;
+  position: relative;
+  text-align: center;
+  text-decoration: none;
+  touch-action: manipulation;
+  transition: box-shadow 0.2s, -ms-transform 0.1s, -webkit-transform 0.1s, transform 0.1s;
+  user-select: none;
+  -webkit-user-select: none;
+  width: auto;
+  margin-bottom: 5px;
+}
+
+.button-23:focus-visible {
+  box-shadow: #222222 0 0 0 2px, rgba(255, 255, 255, 0.8) 0 0 0 4px;
+  transition: box-shadow 0.2s;
+}
+
+.button-23:active {
+  background-color: #f7f7f7;
+  border-color: #000000;
+  transform: scale(0.96);
+}
+
+.button-23:disabled {
+  border-color: #dddddd;
+  color: #dddddd;
+  cursor: not-allowed;
+  opacity: 1;
+}
