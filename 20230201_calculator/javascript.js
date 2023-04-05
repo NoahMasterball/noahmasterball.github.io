@@ -3,7 +3,7 @@ function calculateSize() {
   var size;
   if (age != "") {
     if (age < 0) {
-      size = "Your age is not possible, you must be at least 1 year old!";
+      size = "Your age is not possible, you must be at least 1 day old!";
     } else if (age < 1) {
       size = "The human average size of this age is 65cm!";
     } else if (age < 2) {
