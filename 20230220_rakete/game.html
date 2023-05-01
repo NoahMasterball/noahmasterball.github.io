@@ -126,7 +126,7 @@
         ctx = canvas.getContext("2d");
         loadImages();
         setInterval(update, 1000 / 50);
-        setInterval(createUfos, 1);
+        setInterval(createUfos, 300);
         setInterval(checkforshots, 1000 / 10); //extra gestartet als via upadate da langsamer
         setInterval(checkforcollision, 1000 / 25);
         draw();
@@ -148,6 +148,7 @@
               ufo.getroffen = true;
               setTimeout(() => {
                 ufos = ufos.filter((u) => u != ufo);
+                shots = shots.filter((u) => u != shot);
               }, 2000);
             }
           });
@@ -197,7 +198,7 @@
 
         //Brauchen wir um die Schüsse zu bewegen
         shots.forEach(function (shot) {
-          shot.x += 0;
+          shot.x += 20;
         });
 
         ufos.forEach(function (ufo) {
