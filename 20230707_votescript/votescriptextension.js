@@ -58,7 +58,7 @@ setInterval(startabstimmen, 120000);
 startzeitinfo();
 startabstimmen(); 
 console.log(""); console.log("Automatisches Abstimmungsprogramm wurde gestartet...erster vote started gleich"); console.log("");
- //
+//
 
 
 
