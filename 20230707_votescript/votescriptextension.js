@@ -9,42 +9,92 @@
 // Drücke einmal Return/Enter
 // Lass die Seite so stehen (mit Konsole) und tue nichts mehr - sofort und danach alle 110 Sekunden stimmt dass Program automatisch ab.
 function voteAgain() {
-    console.clear(); console.log(""); console.log("1a. Versuche den Erneut Abstimmen Button zu drücken!"); console.log("");
+  console.clear(); console.log(""); console.log("1a. Versuche den Erneut Abstimmen Button zu drücken!"); console.log("");
+  var elementExists = document.getElementById("voteIntendButton");
+  if (elementExists !== null) {
+    /* Do this if variable is not null */
+    document.getElementById("voteIntendButton").click();
+  } else {
     document.getElementById("voteAgainButton").click();
-    console.log(""); console.log("1b. Geschafft, erneut Abstimmen Button wurde erfolgreich gedrückt!"); console.log("");
-  }
+  }  
+  console.log(""); console.log("1b. Geschafft, erneut Abstimmen Button wurde erfolgreich gedrückt!"); console.log("");
+}
 function voteCaptcha() {
-    document.getElementsByClassName("frc-button")[0].click(); 
-    console.clear(); console.log(""); console.log("2a. Versuche CaptchaButton zu drücken!");
-    console.log("2b. CaptchaButton wurde erfolgreich gedrückt, Captchaüberprüfung abwarten...danach nochmal kurz warten"); console.log("");
-  }
+  document.getElementsByClassName("frc-button")[0].click(); 
+  console.clear(); console.log(""); console.log("2a. Versuche CaptchaButton zu drücken!");
+  console.log("2b. CaptchaButton wurde erfolgreich gedrückt, Captchaüberprüfung abwarten...danach nochmal kurz warten"); console.log("");
+}
 function vote() {
-    console.clear(); console.log(""); console.log("3a. Versuche den Abstimmungsbutton zu drücken!"); console.log("");
-    document.getElementById("votingButton").click();
-    console.log(""); console.log("3b. Geschafft, Abstimmungsbutton wurde erfolgreich gedrückt!!"); console.log("");
-  }
+  console.clear(); console.log(""); console.log("3a. Versuche den Abstimmungsbutton zu drücken!"); console.log("");
+  document.getElementById("votingButton").click();
+  console.log(""); console.log("3b. Geschafft, Abstimmungsbutton wurde erfolgreich gedrückt!!"); console.log("");
+}
 function zeitinfo(zeit) {
-  console.log(""); console.log("Noch " + zeit + " Sekunden bis zur nächsten automatischen Abstimmung."); console.log("");}
+console.log(""); console.log("Noch " + zeit + " Sekunden bis zur nächsten automatischen Abstimmung."); console.log("");}
 let i = 1;
 function counter() {
-  console.clear(); console.log(""); console.log("Bisher wurde schon " + i + " mal automatisch abgestimmt!"); console.log("");
-  i++;}
+console.clear(); console.log(""); console.log("Bisher wurde schon " + i + " mal automatisch abgestimmt!"); console.log("");
+i++;}
 function startzeitinfo() {
-    setTimeout(function() { zeitinfo(80); }, 50000); setTimeout(function() { zeitinfo(60); }, 60000);
-    setTimeout(function() { zeitinfo(40); }, 80000); setTimeout(function() { zeitinfo(20); }, 100000);
-    setTimeout(function() { zeitinfo(9); }, 111000); setTimeout(function() { zeitinfo(6); }, 114000);
-    setTimeout(function() { zeitinfo(3); }, 117000); setTimeout(function() { zeitinfo(2); }, 118000);
-    setTimeout(function() { zeitinfo(1); }, 119000); 
+  setTimeout(function() { zeitinfo(70); }, 40000); setTimeout(function() { zeitinfo(50); }, 60000);
+  setTimeout(function() { zeitinfo(30); }, 80000); setTimeout(function() { zeitinfo(10); }, 100000);
+  setTimeout(function() { zeitinfo(9); }, 101000); setTimeout(function() { zeitinfo(6); }, 104000);
+  setTimeout(function() { zeitinfo(3); }, 107000); setTimeout(function() { zeitinfo(2); }, 108000);
+  setTimeout(function() { zeitinfo(1); }, 109000); 
 }
 function startabstimmen() {
-  startzeitinfo();
-  setTimeout(voteAgain, 2000);
-  setTimeout(voteCaptcha, 5000);
-  setTimeout(vote, 49000);
-  setTimeout(counter, 100000);
-}
-setInterval(startabstimmen, 120000);
 startzeitinfo();
+setTimeout(voteAgain, 2000);
+setTimeout(voteCaptcha, 5000);
+setTimeout(vote, 39000);
+setTimeout(counter, 100000);
+}
+setInterval(startabstimmen, 110000);
+startzeitinfo();
+voteAgain(); 
 console.log(""); console.log("Automatisches Abstimmungsprogramm wurde gestartet...nächster Start in 110 Sekunden...nur die Wartzeit der ersten automatischen Abstimmung dauert etwas lang...danach geht es schneller..."); console.log("");
 //
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
