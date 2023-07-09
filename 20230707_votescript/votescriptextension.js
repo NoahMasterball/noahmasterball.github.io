@@ -9,7 +9,7 @@
 // Drücke einmal Return/Enter
 // Lass die Seite so stehen (mit Konsole) und tue nichts mehr - sofort und danach alle 110 Sekunden stimmt dass Program automatisch ab.
 function voteAgain() {
-  console.clear(); console.log(""); console.log("1a. Versuche den Erneut Abstimmen Button zu drücken!"); console.log("");
+  console.log(""); console.log("1a. Versuche den Erneut Abstimmen Button zu drücken!"); console.log("");
   var elementExists = document.getElementById("voteIntendButton");
   if (elementExists !== null) {
     /* Do this if variable is not null */
@@ -51,7 +51,7 @@ setTimeout(counter, 100000);
 }
 setInterval(startabstimmen, 110000);
 startzeitinfo();
-voteAgain(); 
+startabstimmen(); 
 console.log(""); console.log("Automatisches Abstimmungsprogramm wurde gestartet...nächster Start in 110 Sekunden...nur die Wartzeit der ersten automatischen Abstimmung dauert etwas lang...danach geht es schneller..."); console.log("");
 //
 
