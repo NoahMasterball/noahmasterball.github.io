@@ -13,6 +13,7 @@
 // Lass die Seite so stehen (mit Konsole) und tue nichts mehr - ab jetzt funtkioniert alles automatisch
 // Nach ein paar Stunden das browserfenster schliessen und neu starten!
 //
+i=0
 function start () {
 
         var output ="";
@@ -52,6 +53,7 @@ function start () {
             } else { 
                 output = output + "\nJa: Abstimmungs-Button gefunden und gedrückt!"
                 abstimmung = "ja";
+                i++
                 elementExists2.click();
             }
         } else {
@@ -109,9 +111,11 @@ function start () {
             }
     
             var roundedDelay = randomDelay.toFixed(3);
-            output = output + "\nDer nächste Startzeitpunkt ist in " + roundedDelay + " Sekunden.";
+            output = output + "\nAnzahl stattgefundener Abstimmungen: " + i;
+            output = output + "\nDer nächste Startzeitpunkt in Sekunden ist: " + roundedDelay;
             setTimeout(start, randomDelay * 1000);
         
+            
         console.log("\n\n\n\n\n" + output + "\n\n\n\n\n")   
 }
 start();
