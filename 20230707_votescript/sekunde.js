@@ -16,3 +16,17 @@ function jedesekunde(){
     return
   }
 }
+
+
+
+var elementExists = document.getElementById("voteIntendButton");
+if (elementExists !== null) {
+  /* Do this if variable is not null */
+  document.getElementById("voteIntendButton").click();
+} else {
+  document.getElementById("voteAgainButton").click();
+}
+
+
+
+
