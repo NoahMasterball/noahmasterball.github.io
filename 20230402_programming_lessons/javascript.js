@@ -18,3 +18,10 @@ balance -= 300;
 balance /= 300;
 balance %= 2;
 console.log(balance);
+
+
+var userlang = navigator.language || navigator.userLanguage; 
+var useragent = navigator.userAgent ; 
+//alert ("The language is: " + userlang + useragent);
+document.getElementById("lang").innerHTML = userlang;
+document.getElementById("dev").innerHTML = useragent;

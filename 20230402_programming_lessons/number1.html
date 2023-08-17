@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="stylesheet" href="./style.css" />
-   <!--<script defer language="javascript" type="text/javascript" src="./javascript.js"></script>
+   <script defer language="javascript" type="text/javascript" src="./javascript.js"></script>
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>JavaScript lessons</title>
@@ -117,7 +117,33 @@
            So number, strings and boolean all have a build in counterparts such as strings have the string object that they can access, numbers have the number object that they can access, booleans have the boolean object that they can access</span>
         <br /> <span class="linktext">Also, when I say "let num = 3" and "num = num.toUpperCase" it will cause and error , since num is a number so it only has access to number methods not string methods.   </span>
         <br />
-      <br />
-    </div>
+        <br /><br />  
+        <a class="button-22">nr.11 Number Methods</a><br />
+        <span class="linktext">As soon a variable has a number as the value, it automaticly has access
+          to the number methods.</span>
+          <br />
+          <span class="linktext">So first we will write const PI = 3.141597.
+                                  If we now say const Num = PI.toFixed(3) and then console.log this we will get
+                                3.142 </span>       <br />
+        <span class="linktext">Why? That´s because toFixed is rounding the last Number.</span>
+        <br />
+        <span class="linktext">Next is toPrecision. It´s pretty much the same with the difference to toFixed that
+          it counts all numbers, not only the numbers after the ,.
+        </span>
+        <br />
+        <span class="linktext">And when we say let mill=1000000 and after that const newill = mill.toExponecial we will get 1e6.  .</span>
+        <br />  <br />  <br />
+      <a class="button-22">Extra Lesson</a><br />
+        <span class="linktext">Today we will be looking at how to find which browserlanguage and which device you are using.</span>
+        <br />
+        <span class="linktext">Right now you are using the language:</span>
+        <span id="lang" class="button-22">lang</span>
+        <span class="linktext">and the device: </span>
+        <span id="dev" class="button-22">dev</span>
+        <br /><br />
+        <span class="linktext">Here you can see my JavaScript code needed to get the output above:</span><br />
+        <img src="useragent.png">
+        <br /><br /><br />
+      </div>
   </body>
 </html>
