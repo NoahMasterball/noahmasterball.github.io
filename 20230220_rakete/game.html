@@ -187,18 +187,18 @@
       function update() {
         if (rocket.y != -25) {
           if (KEY_UP) {
-            rocket.y -= 5;
+            rocket.y -= 500;
           }
         }
         if (rocket.y != 445) {
           if (KEY_DOWN) {
-            rocket.y += 5;
+            rocket.y += 500;
           }
         }
 
         //Brauchen wir um die Schüsse zu bewegen
         shots.forEach(function (shot) {
-          shot.x += 20;
+          shot.x += 1000;
         });
 
         ufos.forEach(function (ufo) {
