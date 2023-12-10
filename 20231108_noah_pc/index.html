@@ -24,6 +24,10 @@
           <td><a class="button-22" href="https://www.bequiet.com/de/case/4483">be quiet! Shadow Base 800 FX</a><br></td>
         </tr>
         <tr>
+          <td><a class="button-22">Netzteil&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></td>
+          <td><a class="button-22" href="https://www.amazon.de/dp/B0C65T6F8N?th=1">ASUS ROG Strix 1200 W Gold Aura</a><br></td>
+        </tr>
+        <tr>
           <td><a class="button-22">CPU:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></td>
           <td><a class="button-22" href="https://www.intel.de/content/www/de/de/products/sku/236773/intel-core-i9-processor-14900k-36m-cache-up-to-6-00-ghz/specifications.html">Intel i9 14900K</a><br></td>
         </tr>
@@ -55,7 +59,18 @@
       </table>
       </span>
       <br/>
+      <a class="button-22">Fotos:</a><br/>
+      <span id="linktextenglish" class="linktextenglish">
+      Anbei ein paar Fotos vom zusammenbauen, und dem vorherigen BIOS Flashback (ohne CPU) upgrade.<br/>
+      </span>
       <br/>
+      <a class="button-22">Einstellungen der Lüfterkurve:</a><br/>
+      <span id="linktextenglish" class="linktextenglish">
+      Fotos Zeigen aller Lüfterkurven und erklären warum diese so eingestellt sind. (Jede einzelen!)<br/>
+      </span>
+      <br/>
+      <a class="button-22">Hardware Auswahl und Erklärungen:</a><br/>
+      
       <a class="button-22">Gehäuse (Chassis)</a> <br/>
       <span id="linktextenglish" class="linktextenglish">
         Es gibt viele Gehäuse Hersteller, davon besonders erwähnenswert sind: Fractal Design, be quiet!, Corsair, MSI, Asus.<br/>
@@ -70,6 +85,48 @@
       <a class="button-22" href="https://www.amazon.de/dp/B0C592W24R">Amazon (be quiet! Shadow Base 800 FX)</a>
       <br/>
       <a class="button-22" href="https://www.bequiet.com/de/case/4483">Hersteller Webseite</a>
+      <br/>
+      <br/>
+      <a class="button-22">Netzteil</a> <br/>
+      <span id="linktextenglish" class="linktextenglish">
+        Da man das Netzteil in dem unserem Gehäuse nicht sehen wird spielt die Optik (+RGB), erstmal keine grosse Rolle. <br/>
+        Doch muss man ersteinmal herausfinden wieviel Watt man benötigen wird. Hierfür gibt es Rechner mit denen man berechnen kann,<br/>
+        wieviel Watt es mindestens sein müssen. Finde hier ein Beispiel von Be quiet!:<br/> 
+        <div style="position: relative; left:160px;">
+          <a class="button-22" href="https://www.bequiet.com/de/psucalculator">Be quiet! Netzeil Berechung</a><br/>
+          In meinem Beispiel muss man folgende Werte eingeben/einstellen:<br/>
+          Prozessor: Hersteller: Intel / Sockel: 1700 / Core i9-14900K (oder i9-13900KS) / Übertakten: OC Version (für kleinere Overclockings) <br/>
+          System: M2.SSD = 3<br/>
+          Grafikkarte: Geforce GTX 4090 / Übertakten: OC Version (Obwohl ich eine kleinere nehme, möchte ich das Netzteil bereit für eine 4090 haben.)<br/>
+          Kühlung: Lüfter 4x / Pumpe 1x 3X Lüfter für die geplante Asus AIO<br/>
+          USB 3.2 Gen.2 wird zur Stromübertragung verwendet = JA  (Unser geplantes Gehäuse und auch das Mainboard haben dies, wenn du es nicht weiss = JA)<br/>
+          <br/>
+        </div>
+        Das Ergebnis hierbei ist dass ein 1200W Netzteil empfholen wird. <br/>
+        Realistisch betrachtet reicht jedoch ein 1000W Netzteil, zumal wir ja erstmal eine kleinere Grafikkarte einsetzen. <br/>
+        Sofern möglich sollte man 20% zur Sicherheit obern drauf geben, reicht also ein 850W Netzeill sollte man ein ~1000er nehmen.<br/>
+        Nehmen wir mal nun an, wir benötigen im absoluten Endausbau wirklich nur ein 1000w Netzteil, nehmen wir also wenn möglich ein 1200W Netzteil.<br/>
+        Klar sind 1200 Watt erstmal zu viel muss man also sparen nimmt man natürlich ein 1000W Netzteil oder sogar nur 850W, hat dann aber keine Reserven.<br/>
+        Übrigens, wenn eine zweite Grafikkarte eingebaut werden soll benötigt man überlicherweise ein 1600 Watt Netzteil.<br/>
+        <br/>
+        Nachdem die Wattanzahl nun geklärt ist, sollte man prüfen ob man ein ATX 3.0 Netzteil benötigt, da dieses mindestens einen 12VHPWR Anschluss besitzt.<br/>
+        Dieser Anschluss wird von allen modernen Grafikkarten verwendet. Hat man keinen (nativen) 12VHPWR Anschluss am Netzteil muss man mit Adaptern arbeiten.<br/>
+        Dieser Adapter hat dann bei grösseren Grafikkarten einen 12VHPWR Anschluss und auf der anderen Seite 3 x PCI-E Anschlüsse für das Netzteil. <br/>
+        Da jeder moderene PCI-E Anschluss an NEtzeilen üblicherweise 150Watt liefert, wäre dies 450 Watt insgesamt. <br/>
+        <br/>
+        In unserem speziellen Fall würde dadurch ein ATX 2.0 Netzteil mit z.B.: 5 x PCI-E Anschlüssen nicht ausreichen. Warum, wenn es für 90% der PC's reicht?<br/>
+        Wir haben einen i9 müssen also 2 x PCIE für die CPU Anstecken, zusätzlich hat das unser Mainboard einen PD_12V_PWR Anschluss um die PCI Express Anschlüsse mit mehr Strom zu versorgen, und um den externen USB 3.2 Anschluss mit 60 Watt zu versorgen.<br/>
+        Bleiben also nur noch 2 PCI-E Anschlüsse, für einen Grafikartenadapter der 3 Anschlsse (450 Watt) benötigt - dies wäre zu wenig.<br/>
+        <br/>
+        Um all dem aus dem Weg zu gehen - ist es recht einfach: Kaufe ein ATX 3.0 Netzteil, welches immer einen nativen 12VHPWR Anschluss hat, 
+        und du bist eigentlich auf der sicheren Seite...Nicht abschrecken lassen einfach PC bauen, im Regelfall geht alles gut!!!
+        <br/><br/>
+        Also kaufen wir ein 1200 Watt ATX 3.0 Netzei, natürlich mit einem 12VHPWR Anschluss für die Grafikkarte:<br/>
+        (Günstiger wäre das BeQuiet Straight Power 12 1200W)<br/>
+      </span>
+      <a class="button-22" href="https://www.amazon.de/dp/B0C65T6F8N?th=1">Amazon (Asus ROG Strix 1200W Gold Aura)</a>
+      <br/>
+      <a class="button-22" href="https://webshop.asus.com/de/90YE00P0-B0NA00/ASUS-ROG-STRIX-1200W-Gold-Aura-Edition-RGB-Netzteil">Hersteller Webseite</a>
       <br/>
       <br/>
       <a class="button-22">CPU Processor</a> <br/>
