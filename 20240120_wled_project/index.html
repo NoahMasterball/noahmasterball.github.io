@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Noah's PC Überlegungen</title>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="../index/style.css" />
+    <script defer language="javascript" type="text/javascript" src="../index/javascript.js"></script>
+    <style>
+      div.gallery {
+        margin: 15px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        float: left;
+        width: 500px;
+        height: 280px;
+      }
+      
+      div.gallery:hover {
+        border: 1px solid #777;
+      }
+      
+      div.gallery img {
+        width: 500px;
+        height: auto;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+ 
+      }
+      div.gallery img:hover {
+        transform: scale(3);
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      }
+
+      div.desc {
+        padding: 15px;
+        text-align: center;
+      }
+      </style>
+  </head>
+  <body>
+    <div id="master" class="master">
+      <div class="fontuberschrift2"><span>NOAH'S LED BOARD</span>
+      </div>
+      <br/><br/>
+      <a class="button-22">Build a custom led board</a><br/>
+      <span id="linktextenglish" class="linktextenglish">Here i build a custom led (fully programmable IC LED'S) board.
+        There are many LED'S on the market, however if you want to control each sinlge LED with a specific color, ending up in showing multiple colors (one per LED) through a effect, the LED's which are used 
+        must be adressable / IC leds. The well known addressable led's are the Ws2812b (RGB) led's, the more modern version are the so called Sk6812 (RGBW) which have an additional white led.
+        See which addressable LED's are supported by WLED Controller/Software:</br>
+        <a class="button-22" href="https://github.com/Aircoookie/WLED/wiki/FAQ/e88bff3d839135ad0d3be9986642c1f1db4c8ce4#what-led-strip-hardware-is-supported-by-wled">Link Wled Supported LED's</a></br>
+        <a class="button-22" href="https://kno.wled.ge/">Link to Wled</a>
+        </br></br>
+        We have bought a ESP32 Chip / Controller to Control the LED's, and 2x a LED Matrix from BTF Lightning as well as custom LED Rings:</br>
+        <a class="button-22" href="https://wled.shop/produkt/wladis-wled-controller-v40-esp32/">ESP32 Controller / Chip (Link)</a></br>
+        <a class="button-22" href="https://www.amazon.de/gp/product/B088W62171">BTF Lightning 8x8 Led Matrix (Link)</a></br>
+        <a class="button-22" href="https://treedix.com/products/treedix-ws2812b-5050-rgb-led-ring-light-109-leds-7-rings-matrix-individually-addressable-full-dream-color-dc-5v-for-arduino-and-raspberry-pi-1">Treedix LED Rings (Link)</a></br>
+      </span>
+      <br/><br/>
+      <a class="button-22">Pictures:</a><br/>
+      <span id="linktextenglish" class="linktextenglish">
+      Here you can find some pictures of the project, where the soldering was done, as well as the result - which is beautiful.<br/>
+      The 2D Matrix can show any custom text (see videos at the bottom of the page)<br/>
+      </span>
+      <div class="gallery">
+        <a target="_blank" href="pictures/001.jpg">
+          <img src="pictures/001.jpg" width="800">
+        </a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/002.jpg"> <img src="pictures/002.jpg" alt="LED Pic" width="900" height="600"></a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/003.jpg">
+          <img src="pictures/003.jpg" alt="LED Pic" width="900" height="600">
+        </a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/004.jpg">
+          <img src="pictures/004.jpg" alt="LED Pic" width="900" height="600">
+        </a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/005.jpg">
+          <img src="pictures/005.jpg" alt="LED Pic" width="900" height="600">
+        </a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/006.jpg">
+          <img src="pictures/006.jpg" alt="LED Pic" width="900" height="600">
+        </a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/007.jpg">
+          <img src="pictures/007.jpg" alt="LED Pic" width="900" height="600">
+        </a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/008.jpg">
+          <img src="pictures/008.jpg" alt="LED Pic" width="900" height="600">
+        </a>
+      </div>     
+      <div class="gallery">
+        <a target="_blank" href="pictures/009.jpg">
+          <img src="pictures/009.jpg" alt="LED Pic" width="900" height="600">
+        </a>
+      </div>  
+      <div class="gallery">
+        <video muted width="500px" height="auto" controls="controls">
+          <source src="pictures/100.mp4" type="video/mp4" />
+         </video>
+      </div>  
+      <div class="gallery">
+        <video muted width="500px" height=auto controls="controls">
+          <source src="pictures/101.mp4" type="video/mp4" />
+         </video>
+      </div>  
+      <div class="gallery">
+        <video autoplay loop muted width="500px" height="auto" controls="controls">
+          <source src="pictures/102.mp4" type="video/mp4" />
+         </video>
+      </div>
+      <div class="gallery">
+        <video muted width="500px" height="auto" controls="controls">
+          <source src="pictures/103.mp4" type="video/mp4" />
+         </video>
+      </div>  
+      <br/><br/><br/><br/><br/>
+      <span> </span>
+    </div>
+  </body>
+</html>
+
