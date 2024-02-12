@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+      }
+
+      .master {
+        position: relative;
+        height: 900px;
+        width: 900px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .kreis {
+        position: absolute;
+        margin: auto;
+        height: 200px;
+        width: 200px;
+        border: 2px solid rgb(0, 0, 0);
+        border-radius: 100%;
+        opacity: 10%;
+      }
+
+      .kreis1 {
+        transform: translateX(50%);
+        background-color: rgb(8, 0, 255);
+      }
+      .kreis2 {
+        transform: translateX(-50%);
+        background-color: rgb(188, 83, 83);
+      }
+      .kreis3 {
+        transform: translateY(-50%);
+        background-color: rgb(255, 0, 0);
+      }
+      .kreis4 {
+        transform: translateY(50%);
+        background-color: rgb(0, 255, 208);
+      }
+      .kreis5 {
+        transform-origin: bottom;
+        transform: rotate(60deg);
+        background-color: rgb(0, 255, 145);
+      }
+      .kreis6 {
+        transform-origin: bottom;
+        transform: rotate(-60deg);
+        background-color: rgb(246, 206, 10);
+      }
+      .kreis7 {
+        transform-origin: top;
+        transform: rotate(-60deg);
+        background-color: rgb(106, 255, 0);
+      }
+      .kreis8 {
+        transform-origin: top;
+        transform: rotate(60deg);
+        background-color: rgb(20, 58, 6);
+      }
+      /*
+      .kreis1 {
+        transform: translateX(50%);
+        background-color: red;
+      }
+      .kreis2 {
+        transform: translateX(-50%);
+        background-color: rgb(66, 96, 103);
+      }
+      .kreis3 {
+        transform: translateY(50%);
+        background-color: rgb(0, 255, 102);
+      }
+      .kreis4 {
+        transform: translateY(-50%);
+        background-color: rgb(255, 0, 183);
+      }
+      .kreis5 {
+        background-color: rgb(0, 128, 75);
+        transform: rotate(60deg);
+      }
+      .kreis6 {
+        transform: rotate(-60deg);
+        background-color: rgb(28, 0, 128);
+      }
+      .kreis7 {
+        transform-origin: top;
+        transform: rotate(60deg);
+        background-color: rgb(236, 225, 18);
+      }
+      .kreis8 {
+        transform-origin: top;
+        transform: rotate(-60deg);
+        background-color: rgb(27, 161, 201);
+      }
+      */
+    </style>
+  </head>
+  <body>
+    <div class="master" id="master">
+      <div class="kreis kreis0" id="kreis0"></div>
+      <div class="kreis kreis1" id="kreis1"></div>
+      <div class="kreis kreis2" id="kreis2"></div>
+      <div class="kreis kreis3" id="kreis3"></div>
+      <div class="kreis kreis4" id="kreis4"></div>
+      <div class="kreis kreis5" id="kreis5"></div>
+      <div class="kreis kreis6" id="kreis6"></div>
+      <div class="kreis kreis7" id="kreis7"></div>
+      <div class="kreis kreis8" id="kreis8"></div>
+    </div>
+  </body>
+</html>
