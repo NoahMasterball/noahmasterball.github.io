@@ -126,7 +126,7 @@
         ctx = canvas.getContext("2d");
         loadImages();
         setInterval(update, 1000 / 50);
-        setInterval(createUfos, 300);
+        setInterval(createUfos, 1000);
         setInterval(checkforshots, 1000 / 10); //extra gestartet als via upadate da langsamer
         setInterval(checkforcollision, 1000 / 25);
         draw();
@@ -134,7 +134,12 @@
 
       function checkforcollision() {
         ufos.forEach(function (ufo) {
-          if (ufo.x < rocket.x + rocket.width && ufo.y < rocket.y + rocket.height && ufo.x + ufo.width > rocket.x && ufo.y + ufo.height > rocket.y) {
+          if (
+            ufo.x < rocket.x + rocket.width &&
+            ufo.y < rocket.y + rocket.height &&
+            ufo.x + ufo.width > rocket.x &&
+            ufo.y + ufo.height > rocket.y
+          ) {
             rocket.img.src = "img/boom.png";
             ufos = ufos.filter((u) => u != ufo);
             setTimeout(() => {
@@ -143,7 +148,12 @@
           }
           shots.forEach(function (shot) {
             // wichtig MUSS in ufos.forEach eingefügt werden!!!
-            if (ufo.x < shot.x + shot.width && ufo.y < shot.y + shot.height && ufo.x + ufo.width > shot.x && ufo.y + ufo.height > shot.y) {
+            if (
+              ufo.x < shot.x + shot.width &&
+              ufo.y < shot.y + shot.height &&
+              ufo.x + ufo.width > shot.x &&
+              ufo.y + ufo.height > shot.y
+            ) {
               ufo.img.src = "img/boom.png";
               ufo.getroffen = true;
               setTimeout(() => {
@@ -185,20 +195,20 @@
       }
 
       function update() {
-        if (rocket.y != -25) {
+        if (rocket.y !== -25) {
           if (KEY_UP) {
-            rocket.y -= 500;
-          }
-        }
-        if (rocket.y != 445) {
-          if (KEY_DOWN) {
-            rocket.y += 500;
+            rocket.y -= 5;
           }
         }
 
+        if (rocket.y !== 445) {
+          if (KEY_DOWN) {
+            rocket.y += 5;
+          }
+        }
         //Brauchen wir um die Schüsse zu bewegen
         shots.forEach(function (shot) {
-          shot.x += 1000;
+          shot.x += 2.5;
         });
 
         ufos.forEach(function (ufo) {
@@ -207,7 +217,6 @@
           }
         });
       }
-
       function loadImages() {
         backgroundImage.src = "img/background.png";
         rocket.img = new Image();
@@ -215,7 +224,13 @@
       }
       function draw() {
         ctx.drawImage(backgroundImage, 0, 0);
-        ctx.drawImage(rocket.img, rocket.x, rocket.y, rocket.width, rocket.height);
+        ctx.drawImage(
+          rocket.img,
+          rocket.x,
+          rocket.y,
+          rocket.width,
+          rocket.height
+        );
         ufos.forEach(function (ufo) {
           ctx.drawImage(ufo.img, ufo.x, ufo.y, ufo.width, ufo.height);
         });
