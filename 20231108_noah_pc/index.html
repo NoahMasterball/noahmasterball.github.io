@@ -10,25 +10,24 @@
         margin: 5px;
         border: 1px solid #ccc;
         float: left;
-        width: 180px;
+        width: 500px;
+        height: 280px;
       }
-      
       div.gallery:hover {
         border: 1px solid #777;
-      }
-      
+      }     
       div.gallery img {
         width: 100%;
         height: auto;
       }
       div.gallery img:hover {
-        transform: scale(5);
+        transition:0.5s ease-in-out;
+        transform-origin: top left;
+        transform: scale(2);
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
       }
-
-      div.desc {
-        padding: 15px;
-        text-align: center;
+      div.normal {
+        clear: left;
       }
       </style>
   </head>
@@ -149,8 +148,9 @@
           <img src="pictures/012.jpg" alt="PC Picture" width="600" height="400">
         </a>
       </div>  
-
-      <br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>
+      
+      <div class="normal">
+      <span></span><br/><br/>
       <span id="linktextenglish" class="linktextenglish">
       <a class="button-22">Einstellungen der Lüfterkurve:</a><br/>
        </span>
@@ -174,7 +174,7 @@
       Ab 70 Grad sollen sie die CPU schnellstmöglich kühlen, damit sie nicht das Thermaltrottling erreicht und sich ein Leistungsverlust einstellt.<br/>
       Wir haben vorrübergehend eine Asus GTX 960 eingebaut und einen Arktic Gehaüse Lüfter eingebaut, da der originale Kühler sehr laut war. Nachdem er selbst auf 100% superleise ist laüft dieser durchgehend auf 100%.
       </span><br/>
-
+    </div>
       <br/>
       <a class="button-22">Hardware Auswahl und Erklärungen:</a><br/>
       
