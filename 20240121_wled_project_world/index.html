@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Noah's PC Überlegungen</title>
+    <title>Noah's Projects</title>
     <meta charset="UTF-8" />
     <link rel="stylesheet" href="../index/style.css" />
-    <script defer language="javascript" type="text/javascript" src="../index/javascript.js"></script>
+    <script defer language="javascript" type="text/javascript" src="javascript.js"></script>
     <style>
       div.gallery {
         margin: 15px;
@@ -13,11 +13,9 @@
         width: 500px;
         height: 280px;
       }
-      
       div.gallery:hover {
         border: 1px solid #777;
       }
-      
       div.gallery img {
         width: 500px;
         height: auto;
@@ -31,37 +29,46 @@
         transform: scale(2);
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
       }
-
-      div.desc {
-        padding: 15px;
-        text-align: center;
-      }
       </style>
   </head>
   <body>
     <div id="master" class="master">
-      <div class="fontuberschrift2"><span>NOAH'S LED BOARD</span>
+      <div class="fontuberschrift2"><span>NOAH'S WORLD MAP PROJECT</span>
       </div>
       <br/><br/>
-      <a class="button-22">Build a custom led board</a><br/>
-      <span id="linktextenglish" class="linktextenglish">Here i build a custom led (fully programmable IC LED'S) board.
-        There are many LED'S on the market, however if you want to control each sinlge LED with a specific color, ending up in showing multiple colors (one per LED) through a effect, the LED's which are used 
-        must be adressable / IC leds. The well known addressable led's are the Ws2812b (RGB) led's, the more modern version are the so called Sk6812 (RGBW) which have an additional white led.
-        See which addressable LED's are supported by WLED Controller/Software:</br>
-        <a class="button-22" href="https://github.com/Aircoookie/WLED/wiki/FAQ/e88bff3d839135ad0d3be9986642c1f1db4c8ce4#what-led-strip-hardware-is-supported-by-wled">Link Wled Supported LED's</a></br>
-        <a class="button-22" href="https://kno.wled.ge/">Link to Wled</a>
+      <a class="button-22">Build a custom led world map. Solder it. Program it. Use the Rest API via Javascipt to change the world map into a daylight map</a><br/>
+      <span id="linktextenglish" class="linktextenglish">Here we go one step further we don't want just using the WLED Application or Webserver to Control the lights,
+        we want to learn and use the API to control / program it.</br>
+        <a class="button-22" href="https://tynick.com/blog/01-28-2020/controlling-wled-with-raspberry-pi-using-the-wled-api/">Link to a nice explanation how an API (URL based command / HTTP Request API) is working</a></br>
+        <a class="button-22" href="https://kno.wled.ge/interfaces/json-api/">Link to Wled API (JSON based commands) </a>
+        <a class="button-22" href="https://kno.wled.ge/interfaces/http-api/">Link to Wled HTTP Request API</a>
         </br></br>
-        We have bought a ESP32 Chip / Controller to Control the LED's, and 2x a LED Matrix from BTF Lightning as well as custom LED Rings:</br>
-        <a class="button-22" href="https://wled.shop/produkt/wladis-wled-controller-v40-esp32/">ESP32 Controller / Chip (Link)</a></br>
-        <a class="button-22" href="https://www.amazon.de/gp/product/B088W62171">BTF Lightning 8x8 Led Matrix (Link)</a></br>
-        <a class="button-22" href="https://treedix.com/products/treedix-ws2812b-5050-rgb-led-ring-light-109-leds-7-rings-matrix-individually-addressable-full-dream-color-dc-5v-for-arduino-and-raspberry-pi-1">Treedix LED Rings (Link)</a></br>
+      </span>
+      <a class="button-22">Use the Rest API (via Javascipt) to change the world map into a daylight map</a><br/>
+      <span id="linktextenglish" class="linktextenglish">Before we use JavaScript we have to use the first API Commands to our WLED. Additional this Webpage contains the correct JavaScript Code to to send an API Command to the World Map (192.168.179.27) sending the correct 
+        settings via API for showing the correct world's daylight, based on the time when this page was loaded in our home network.
+        <br/>
+        We can use a simple CLI Command named curl which retrieves the webpage (while retrieving the commands are hidden into the URL):<br/>
+        curl "http://192.168.179.27/win&T=1&A=128&FX=0&SX=0&R=255&G=0&B=0"<br/>
+        <br/>
+        Or we use the browser which retrives the Webpage (while retrieving the commands are hidden into the URL):<br/>
+        http://192.168.179.27/win&T=1&A=128&FX=0&SX=0&R=255&G=0&B=0<br/>
+        <br/>
+        E.g.: Following command got sent here: T=1 which means "Led Power on!"<br/>
+        http://192.168.179.27/win&T=1<br/>
+        <br/>
+        E.g.: Following command got sent here: T=1 which means "Led Power on!, and A=128 means brightness to 128"<br/>
+        http://192.168.179.27/win&T=1&A=128<br/>
+        <br/>
+        E.g.: Following command got sent here: T=1 which means "Led Power on!, and PL=1 means to turn on the Preset with the Quick Load Number 1"<br/>
+        http://192.168.179.27/win&T=1&PL=1<br/>
+        </br>
       </span>
       <br/><br/>
       <a class="button-22">Pictures:</a><br/>
       <span id="linktextenglish" class="linktextenglish">
-      Here you can find some pictures of the project, where the soldering was done, as well as the result - which is beautiful.<br/>
-      The 2D Matrix can show any custom text (see videos at the bottom of the page)<br/>
-      </span>
+      Here you can find some pictures of the project itself.<br/>
+       </span>
       <div class="gallery">
         <a target="_blank" href="pictures/001.jpg">
           <img src="pictures/001.jpg" width="800">
