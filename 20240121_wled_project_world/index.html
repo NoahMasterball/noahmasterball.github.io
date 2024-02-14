@@ -62,6 +62,11 @@
         <br/>
         E.g.: Following command got sent here: T=1 which means "Led Power on!, and PL=1 means to turn on the Preset with the Quick Load Number 1"<br/>
         http://192.168.179.27/win&T=1&PL=1<br/>
+        <br/>
+        curl -X POST "http://192.168.179.27/json/state" -H "Content-Type: application/json" -d {"on":true,"bri":128,"transition":7,"mainseg":0,"seg":[{"id":0,"start":0,"stop":133,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"col":[[255,136,0,0],[0,0,255,0],[0,21,255,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0}]}
+        <br/><br/>
+        Ergebnis:
+        {"success":true}
         </br>
       </span>
       <br/><br/>
