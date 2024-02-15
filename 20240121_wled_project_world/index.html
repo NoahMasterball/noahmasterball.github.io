@@ -49,24 +49,24 @@
         settings via API for showing the correct world's daylight, based on the time when this page was loaded in our home network.
         <br/>
         We can use a simple CLI Command named curl which retrieves the webpage (while retrieving the commands are hidden into the URL):<br/>
-        curl "http://192.168.179.27/win&T=1&A=128&FX=0&SX=0&R=255&G=0&B=0"<br/>
+        curl "http://192.168.179.29/win&T=1&A=5&FX=0&SX=0&R=0&G=255&B=238"<br/>
         <br/>
         Or we use the browser which retrives the Webpage (while retrieving the commands are hidden into the URL):<br/>
-        http://192.168.179.27/win&T=1&A=128&FX=0&SX=0&R=255&G=0&B=0<br/>
+        http://192.168.179.29/win&T=1&A=5&FX=0&SX=0&R=0&G=255&B=238<br/>
         <br/>
         E.g.: Following command got sent here: T=1 which means "Led Power on!"<br/>
-        http://192.168.179.27/win&T=1<br/>
+        http://192.168.179.29/win&T=1&A=5&FX=0&SX=0&R=180&G=215&B=230<br/>
         <br/>
-        E.g.: Following command got sent here: T=1 which means "Led Power on!, and A=128 means brightness to 128"<br/>
-        http://192.168.179.27/win&T=1&A=128<br/>
+        E.g.: Following command got sent here: A=128 means brightness to 128"<br/>
+        http://192.168.179.27/win&A=128<br/>
         <br/>
-        E.g.: Following command got sent here: T=1 which means "Led Power on!, and PL=1 means to turn on the Preset with the Quick Load Number 1"<br/>
-        http://192.168.179.27/win&T=1&PL=1<br/>
+        E.g.: Following command got sent here: PL=1 means to turn on the Preset with the Quick Load Number 1"<br/>
+        http://192.168.179.27/win&PL=1<br/>
         <br/>
+        Example from the JSON API where the URL is never changing:</br>
         curl -X POST "http://192.168.179.27/json/state" -H "Content-Type: application/json" -d {"on":true,"bri":128,"transition":7,"mainseg":0,"seg":[{"id":0,"start":0,"stop":133,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"col":[[255,136,0,0],[0,0,255,0],[0,21,255,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0}]}
+        <br/><br/>For JSON (Javascript Object Notation) we usually use Postman to send the JSON command to the API.
         <br/><br/>
-        Ergebnis:
-        {"success":true}
         </br>
       </span>
       <br/><br/>
