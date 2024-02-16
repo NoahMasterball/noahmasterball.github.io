@@ -66,7 +66,7 @@ const options = {
   body: JSON.stringify(data) // Der JSON-String der Daten
 };
 // Die URL der API
-const url2 = "http://192.168.179.29/json/state";
+const url2 = "http://192.168.179.27/json/state";
 // Die fetch-Anfrage mit den Optionen ausführen
 function fetchData2() {
     // Ein fetch-Aufruf, der die Antwort in ein Objekt umwandelt und in console.log ausgibt
