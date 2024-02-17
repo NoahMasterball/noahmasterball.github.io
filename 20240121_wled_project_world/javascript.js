@@ -4,7 +4,7 @@ console.log(datum)
 let stunde = datum.getHours()
 console.log(stunde)
 //Testzeile um Uhrzeiten durchzutesten
-stunde = 1
+//stunde = 22
 
 if (stunde == 1 || stunde == 2) {
   console.log("es ist " + stunde +" uhr")
