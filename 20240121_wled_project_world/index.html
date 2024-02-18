@@ -29,6 +29,9 @@
         transform: scale(2);
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
       }
+      .img {
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      }
       </style>
   </head>
   <body>
@@ -39,9 +42,11 @@
       <a class="button-22">Build a custom led world map. Solder it. Program it. Use the Rest API via Javascipt to change the world map into a daylight map</a><br/>
       <span id="linktextenglish" class="linktextenglish">Here we go one step further we don't want just using the WLED Application or Webserver to Control the lights,
         we want to learn and use the API to control / program it.</br>
+        <a class="button-22" href="https://www.youtube.com/watch?v=F4SCfhG_V3o">My Project's Youtube Video - explaining what we are doing here</a></span><br>
         <a class="button-22" href="https://tynick.com/blog/01-28-2020/controlling-wled-with-raspberry-pi-using-the-wled-api/">Link to a nice explanation how an API (URL based command / HTTP Request API) is working</a></br>
         <a class="button-22" href="https://kno.wled.ge/interfaces/json-api/">Link to Wled API (JSON based commands) </a></br>
         <a class="button-22" href="https://kno.wled.ge/interfaces/http-api/">Link to Wled HTTP Request API</a></br>
+        <a class="button-22" href="https://www.timeanddate.com/worldclock/sunearth.html">Link to the Day and Night World Map</a></br>
         </br>
       </span>
       <a class="button-22">Use the Rest API (via Javascipt) to change the world map into a daylight map</a><br/>
@@ -66,16 +71,54 @@
         Example from the JSON API where the URL is never changing:</br>
         curl -X POST "http://192.168.179.27/json/state" -H "Content-Type: application/json" -d {"on":true,"bri":128,"transition":7,"mainseg":0,"seg":[{"id":0,"start":0,"stop":133,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"col":[[255,136,0,0],[0,0,255,0],[0,21,255,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0}]}
         <br/><br/>For JSON (Javascript Object Notation) we usually use Postman to send the JSON command to the API.
-        <br/><br/>
+        <br/>In case you start programming with an API sending JSON Data to the API i highly recommmend using the software Postman, where you can test and train your API Commands.
+        <br/>Instead of continue exlpaining here the JSON API Commands use the Javascript Code in this page here, to see how i used JAvascript sending the JSON Commands to the Wled API.
         </br>
       </span>
-      <br/><br/>
-      <a class="button-22">Pictures:</a><br/>
+      <br/><br/>      <a class="button-22">Video:</a><br/>
       <span id="linktextenglish" class="linktextenglish">
-      Here you can find some pictures of the project itself.<br/>
+        Please see <a class="button-22" href="https://www.youtube.com/watch?v=F4SCfhG_V3o"> my Youtube Video here</a> explaining in detail how this world maps works now and which JSON Data got sent to the WLED Controller.</br>
+        Basically we sent the correct JSON Data from this Webpage with the following Code, to led the world map light to the actual time on your computer / timezone.<br/>
+        <br/><br/>
+        <span class="button-22">
+        The result is a beatiful worldmap showing the correct daylight on the world map:<br/><br/>
+        <div class="shadow">
+          <img class="img" src="pictures/100.jpg" alt="Code"><br/>
+          <img class="img" src="pictures/101.jpg" alt="Code">
+        </div>
+        </span>
+        </div>
+        <br/><br/>
        </span>
-       <div class="gallery">
-       <iframe width="500" src="https://www.youtube.com/watch?v=F4SCfhG_V3o&autoplay=1&embed_domain=noahmasterball.github.io"frameborder="0" allowfullscreen></iframe>
+      <span >
+      </span>
+      <br/>
+      <div style="clear:left">
+      <a class="button-22" style="clear:left">Pictures:</a><br/>
+      <span id="linktextenglish" class="linktextenglish">
+      Here you can find some pictures of the project itself.<br/> 
+      First is 20:00 P.M., Second is 01:00 A.M., Third is 22:00 P.M., Fourth is 12:00 P.M. <br/>
+       </span>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/010.jpg">
+          <img src="pictures/010.jpg" width="800">
+        </a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/011.jpg">
+          <img src="pictures/011.jpg" width="800">
+        </a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/012.jpg">
+          <img src="pictures/012.jpg" width="800">
+        </a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/013.jpg">
+          <img src="pictures/013.jpg" width="800">
+        </a>
       </div>
       <div class="gallery">
         <a target="_blank" href="pictures/001.jpg">
