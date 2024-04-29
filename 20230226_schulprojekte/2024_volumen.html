@@ -13,14 +13,15 @@
       <br />
     </div>
     <div>
-      <a class="button-22" href="2024_volumen.html">Volumenberechnung</a>
+      <a class="button-22" href="https://de.wikipedia.org/wiki/Meter">Volumenberechnung</a>
       <br />
-      <span class="linktext">Hier kannst du das Volumen eines Rechtecks berechnen. Alle Formlen hierzu wurden von mir in JavaScript selbst entwickelt.</span>
+      <span class="linktext">Hier kannst du das Volumen eines Rechtecks berechnen. Alle Formlen hierzu wurden in JavaScript, von mir selbst entwickelt.</span>
       <br /><br /><br />
-      <span class="linktext">Wähle die Einheit in der du die Berechnung durchführen möchtest:</span>
+      <span class="linktext">Wähle die Einheit in der du die Berechnung durchführen möchtest:</span><br />
+      <span class="linktext">(Für Zusatzinformationen halte die Maus über den Button)</span>
       <br /><br /><br />
-      <a href="#" class="button-100" id="b1">Nanometer</a>
-      <a href="#" class="button-100" id="b2">Xmeter</a>
+      <a href="#" class="button-100" id="b1" title=" 1 nm &#10 0,001 μm &#10 0,000001 mm &#10 m &#10  ">Nanometer</a>
+      <a href="#" class="button-100" id="b2">Xmeter </a>
       <a href="#" class="button-100" id="b3">Xmeter</a>
       <a href="#" class="button-100" id="b4">Xmeter</a>
       <a href="#" class="button-100" id="b5">Xmeter</a>
@@ -29,9 +30,15 @@
       <a href="#" class="button-100" id="b8">Xmeter</a>
       <a href="#" class="button-100" id="b9">Xmeter</a>
       <br><br>
-      <span class="linktext">Seitenlänge des Rechtecks:</span>
+      <span class="linktext">Länge:</span>
       <input id="field1" name="field1" type="number" class="field-100" inputmode="numeric" pattern="[0-9\s]{13,19}" autocomplete="cc-number" placeholder="0">
-
+      <span class="linktext">Breite:</span>
+      <input id="field2" name="field2" type="number" class="field-100" inputmode="numeric" pattern="[0-9\s]{13,19}" autocomplete="cc-number" placeholder="0">
+      <span class="linktext">Höhe:</span>
+      <input id="field3" name="field3" type="number" class="field-100" inputmode="numeric" pattern="[0-9\s]{13,19}" autocomplete="cc-number" placeholder="0">
+      <br><br>
+      <a href="#" class="button-100" id="calc">Berechnen!</a><br><br>
+      <span id="ergebnis" class="linktext"></span>
 
 
 

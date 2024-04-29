@@ -1,4 +1,29 @@
 
+
+var einheit = " m"
+
+
+document.getElementById("calc").addEventListener("click", function() {
+  var lengthInput = document.getElementById('field1');
+  console.log(parseInt(field1.value)+parseInt(field2.value));
+  document.getElementById("ergebnis").innerHTML = "Ergebnis:  " + field1.value + " " + einheit + "<sup>3</sup>";
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 document.getElementById("b1").addEventListener("click", function() {
   for (var i = 1; i <= 9; i++) {
     document.getElementById("b" + i).style.color = "black";
@@ -61,3 +86,5 @@ document.getElementById("b9").addEventListener("click", function() {
   }
   document.getElementById("b9").style.color = "#fff";
 });
+
+
