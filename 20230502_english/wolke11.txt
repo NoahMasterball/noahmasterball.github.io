@@ -1,21 +1,123 @@
-to wash:waschen; sich waschen
-face:Gesicht
-to make:machen; tun; bilden
-early:früh
-goodbye:auf Wiedersehen
-to bark:bellen
-to be scared (of):Angst haben (vor) 
-to run away:wegrennen 
-to have fun:Spaß haben; sich amüsieren
-to listen for:horchen auf 
-Sit!:Sitz! (Befehl für Hunde)
-around:um ... herum; umher
-to chase:jagen; nachjagen 
-tail:Schwanz; Schweif 
-a lot to learn:viel zu lernen 
-to put:setzen; stellen; legen
-drink:Getränk 
-to fall over:hinfallen; umkippen
-to throw (at):werfen (nach) 
-shoe:Schuh 
-to fall asleep:einschlafen 
+une journée:ein Tag (im Verlauf)
+le matin:ein Morgen; morgens
+ce matin:heute morgen
+six heures moins cinq:fünf vor sieben
+être prêt/prête:bereit sein
+la faim:der Hunger
+un bruit:ein Geräusch; ein Lärm
+long/longue:lang
+mettre qc:etw. stellen; legen
+être en retard:verspätet sein
+un vêtement:ein Kleidungsstück
+mettre qc:etw. anziehen
+parfois:manchmal
+un pays:ein Land
+pauvre/pauvre:arm
+une course:ein Lauf; ein Rennen
+participer à qc:an etw. teilnehmen; bei etw. mitmachen
+se réveiller:aufwachen
+s'énerver:sich aufregen
+se disputer avec qn:sich mit jdm. streiten
+une habitude:eine Gewohnheit
+d'habitude:gewöhnlich; normalerweise
+s'entendre:sich verstehen
+se laver:sich waschen
+se lever:aufstehen; sich erheben
+ensuite:dann;danach
+s'habiller:sich anziehen
+se retrouver:sich treffen
+se coucher:sich schlafen legen; sich hinlegen
+tout de suite:sofort
+sortir:ausgehen; hinausgehen
+se doucher:duschen
+pendant:während
+une note:eine Note
+plusieurs:mehrere
+se sentir:sich fühlen
+dormir:schlafen
+hein?:..., oder?
+ben,...:nun,...; nun ja
+J'y crois pas!:Ich glaub's nicht! (ugs.)
+un jean:eine Jeans
+une chaise:ein Stuhl
+quand même:trotzdem; doch
+sûr/sûre:sicher
+l'Action contre la faim:die „Aktion gegen den Hunger“ (Name einer gemeinnützigen Organisation)
+le départ:die Abfahrt; der Aufbruch; der Start
+sportif/sportive:sportlich
+longtemps:lange
+se passer:geschehen; sich ereignen; sich abspielen
+l'applaudissement:der Beifall; der Applaus
+il n'y a plus que:es gibt nur noch; es sind nur noch
+une piste:eine Piste; ein Pfad; eine Bahn
+arrêter qc:etw. beenden; etw. anhalten
+retourner:zurückkehren
+crier:schreien
+pareil/pareille:gleich
+un mot-clé:ein Schlüsselwort
+remarquer jdn/qc:jdn./etw. bemerken
+un son:ein Klang; ein Ton
+se réveiller:aufwachen
+se lever:aufstehen
+se laver:sich waschen
+prendre une douche:duschen
+s'habiller:sich anziehen
+prendre le petit-déjeuner:frühstücken
+partir à l'école:in die Schule gehen
+retrouver ses amis:seine Freunde treffen
+avoir cours:Unterricht haben
+aller à la cantine:in die Kantine gehen
+rentrer:nach Hause gehen
+faire ses devoirs:seine Hausaufgaben machen
+sortir:ausgehen
+faire du sport:Sport machen
+faire de la musique:Musik machen
+faire des jeux:Spiele machen
+aller au lit:ins Bett gehen
+se coucher:sich hinlegen
+lire:lesen
+dormir:schlafen
+court/courte:kurz
+un t-shirt court:ein kurzes T-Shirt
+une veste courte:eine kurze Jacke
+ça craint (fam.):das ist riskant; das ist nicht ok (ugs.)
+s'intéresser à qc:sich für etw. interessieren
+le look:das Aussehen; der Look; die Aufmachung
+la tenue:die Kleidung
+un legging:eine Legging
+moche (fam.):hässlich
+se dépêcher (de faire qc):sich beeilen (etw. zu tun)
+se changer:sich umziehen
+prendre son petit-déjeuner:frühstücken
+partir:weggehen; abfahren
+un short:Shorts
+se rappeler qn/qc:sich an jdn./etw. erinnern
+le contraire (de):das Gegenteil (von)
+une jupe:ein Rock
+un pantalon:eine Hose
+une basket:ein Turnschuh
+une chemise:ein Hemd
+un chemisier:eine Bluse
+un pull-over; un pull (fam.):ein Pullover
+un sweat-shirt:ein Sweatshirt
+une chaussure:ein Schuh
+une veste:eine Jacke
+un chapeau:ein Hut
+un anorak:ein Anorak
+ça me va?:Steht mir das?
+ça va avec...?:Passt das zu...?
+ça dépend:Das kommt darauf an; je nachdem
+ça te va bien:Das steht dir gut.
+ça me plaît:Das gefällt mir.
+chic:schick
+assez:ziemlich; genug
+bien joué:gut gemacht
+chaque:jeder; jede; jedes
+un message:eine Mitteilung; eine Nachricht
+ne... que:nur
+il n'y a pas que...:es gibt nicht nur...
+la vie:das Leben
+Bonne chance!:Viel Glück!
+venir:kommen
+plus tard:später
+être en forme (fam.):gut drauf sein (ugs.); (gut) in Form sein (ugs.)
