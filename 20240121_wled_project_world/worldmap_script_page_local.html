@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Noah's Projects</title>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="../index/style.css" />
+    <script>
+      let data;
+let datum = new Date()
+console.log(datum)
+let stunde = datum.getHours()
+console.log(stunde)
+
+//Testzeile um Uhrzeiten durchzutesten
+//stunde = 12
+
+if (stunde == 0 || stunde == 1 || stunde == 2) {
+  console.log("es ist " + stunde +" uhr")
+  // Ein Objekt mit den Daten, die gesendet werden sollen
+  data = {"on":true,"bri":126,"transition":7,"mainseg":0,"seg":[{"id":0,"start":0,"stop":10,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Südamerika revhts","col":[[255,205,159,0],[0,0,255,0],[0,21,255,0]],"fx":0,"sx":0,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":1,"start":10,"stop":17,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Südamerika links","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":2,"start":17,"stop":35,"grp":1,"spc":0,"of":0,"on":true,"bri":30,"n":"Usa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":3,"start":40,"stop":44,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Alaska","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":4,"start":44,"stop":48,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Usa 2.0","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":5,"start":48,"stop":53,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Grönland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":6,"start":53,"stop":59,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Mitteleuropa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":7,"start":59,"stop":81,"grp":1,"spc":0,"of":0,"on":true,"bri":28,"n":"Russland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":8,"start":81,"stop":98,"grp":1,"spc":0,"of":0,"on":true,"bri":164,"n":"Asien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":9,"start":98,"stop":127,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Afrika","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":10,"start":127,"stop":133,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Australien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0}]};
+}
+if (stunde == 3 || stunde == 4) {
+  console.log("es ist " + stunde +" uhr")
+  data = {"on":true,"bri":126,"transition":7,"mainseg":0,"seg":[{"id":0,"start":0,"stop":10,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Südamerika revhts","col":[[255,205,159,0],[0,0,255,0],[0,21,255,0]],"fx":0,"sx":0,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":1,"start":10,"stop":17,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Südamerika links","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":2,"start":17,"stop":35,"grp":1,"spc":0,"of":0,"on":true,"bri":30,"n":"Usa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":3,"start":40,"stop":44,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Alaska","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":4,"start":44,"stop":48,"grp":1,"spc":0,"of":0,"on":true,"bri":46,"n":"Usa 2.0","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":5,"start":48,"stop":53,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Grönland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":6,"start":53,"stop":59,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Mitteleuropa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":7,"start":59,"stop":81,"grp":1,"spc":0,"of":0,"on":true,"bri":125,"n":"Russland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":8,"start":81,"stop":98,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Asien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":9,"start":98,"stop":127,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Afrika","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":10,"start":127,"stop":133,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Australien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0}]} 
+}
+if (stunde == 5 || stunde == 6) {
+  console.log("es ist " + stunde +" uhr")
+  data = {"on":true,"bri":126,"transition":7,"mainseg":0,"seg":[{"id":0,"start":0,"stop":10,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Südamerika revhts","col":[[255,205,159,0],[0,0,255,0],[0,21,255,0]],"fx":0,"sx":0,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":1,"start":10,"stop":17,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Südamerika links","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":2,"start":17,"stop":35,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Usa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":3,"start":40,"stop":44,"grp":1,"spc":0,"of":0,"on":true,"bri":41,"n":"Alaska","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":4,"start":44,"stop":48,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Usa 2.0","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":5,"start":48,"stop":53,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Grönland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":6,"start":53,"stop":61,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Mitteleuropa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":7,"start":61,"stop":81,"grp":1,"spc":0,"of":0,"on":true,"bri":176,"n":"Russland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":8,"start":81,"stop":98,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Asien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":9,"start":98,"stop":127,"grp":1,"spc":0,"of":0,"on":true,"bri":48,"n":"Afrika","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":10,"start":127,"stop":133,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Australien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0}]}
+}
+if (stunde == 7 || stunde == 8) {
+  console.log("es ist " + stunde +" uhr")
+  data = {"on":true,"bri":126,"transition":7,"mainseg":0,"seg":[{"id":0,"start":0,"stop":10,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Südamerika revhts","col":[[255,205,159,0],[0,0,255,0],[0,21,255,0]],"fx":0,"sx":0,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":1,"start":10,"stop":17,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Südamerika links","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":2,"start":17,"stop":35,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Usa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":3,"start":40,"stop":44,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Alaska","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":4,"start":44,"stop":48,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Usa 2.0","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":5,"start":48,"stop":53,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Grönland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":6,"start":53,"stop":59,"grp":1,"spc":0,"of":0,"on":true,"bri":82,"n":"Mitteleuropa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":7,"start":59,"stop":81,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Russland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":8,"start":81,"stop":98,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Asien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":9,"start":98,"stop":127,"grp":1,"spc":0,"of":0,"on":true,"bri":143,"n":"Afrika","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":10,"start":127,"stop":133,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Australien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0}]}
+}
+if (stunde == 9 || stunde == 10) {
+  console.log("es ist " + stunde +" uhr")
+  data = {"on":true,"bri":126,"transition":7,"mainseg":0,"seg":[{"id":0,"start":0,"stop":10,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Südamerika revhts","col":[[255,205,159,0],[0,0,255,0],[0,21,255,0]],"fx":0,"sx":0,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":1,"start":10,"stop":17,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Südamerika links","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":2,"start":17,"stop":35,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Usa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":3,"start":40,"stop":44,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Alaska","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":4,"start":44,"stop":48,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Usa 2.0","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":5,"start":48,"stop":53,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Grönland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":6,"start":53,"stop":59,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Mitteleuropa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":7,"start":59,"stop":81,"grp":1,"spc":0,"of":0,"on":true,"bri":26,"n":"Russland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":8,"start":81,"stop":98,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Asien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":9,"start":98,"stop":127,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Afrika","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":10,"start":127,"stop":133,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Australien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0}]}
+}
+if (stunde == 11 || stunde == 12) {
+  console.log("es ist " + stunde +" uhr")
+  data = {"on":true,"bri":126,"transition":7,"mainseg":0,"seg":[{"id":0,"start":0,"stop":10,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Südamerika revhts","col":[[255,205,159,0],[0,0,255,0],[0,21,255,0]],"fx":0,"sx":0,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":1,"start":10,"stop":17,"grp":1,"spc":0,"of":0,"on":true,"bri":131,"n":"Südamerika links","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":2,"start":17,"stop":35,"grp":1,"spc":0,"of":0,"on":true,"bri":51,"n":"Usa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":3,"start":40,"stop":44,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Alaska","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":4,"start":44,"stop":48,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Usa 2.0","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":5,"start":48,"stop":53,"grp":1,"spc":0,"of":0,"on":true,"bri":78,"n":"Grönland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":6,"start":53,"stop":59,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Mitteleuropa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":7,"start":59,"stop":81,"grp":1,"spc":0,"of":0,"on":true,"bri":8,"n":"Russland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":8,"start":81,"stop":98,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Asien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":9,"start":98,"stop":127,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Afrika","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":10,"start":127,"stop":133,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Australien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":11,"start":81,"stop":90,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Asien rechts","col":[[255,221,190,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":12,"start":59,"stop":70,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Russland links","col":[[255,221,190,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"stop":0},{"stop":0},{"stop":0}]}
+}
+if (stunde == 13 || stunde == 14) {
+  console.log("es ist " + stunde +" uhr")
+  data = {"on":true,"bri":126,"transition":7,"mainseg":0,"seg":[{"id":0,"start":0,"stop":10,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Südamerika revhts","col":[[255,205,159,0],[0,0,255,0],[0,21,255,0]],"fx":0,"sx":0,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":1,"start":10,"stop":17,"grp":1,"spc":0,"of":0,"on":true,"bri":131,"n":"Südamerika links","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":2,"start":17,"stop":35,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Usa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":3,"start":40,"stop":44,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Alaska","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":4,"start":44,"stop":48,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Usa 2.0","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":5,"start":48,"stop":53,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Grönland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":6,"start":53,"stop":59,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Mitteleuropa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":7,"start":59,"stop":81,"grp":1,"spc":0,"of":0,"on":true,"bri":8,"n":"Russland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":8,"start":81,"stop":98,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Asien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":9,"start":98,"stop":127,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Afrika","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":10,"start":127,"stop":133,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Australien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":11,"start":81,"stop":90,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Asien rechts","col":[[255,221,190,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":12,"start":59,"stop":70,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Russland links","col":[[255,221,190,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"stop":0},{"stop":0},{"stop":0}]}
+}
+if (stunde == 15 || stunde == 16) {
+  console.log("es ist " + stunde +" uhr")
+  nnndata = {"on":true,"bri":126,"transition":7,"mainseg":0,"seg":[{"id":0,"start":0,"stop":10,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Südamerika revhts","col":[[255,205,159,0],[0,0,255,0],[0,21,255,0]],"fx":0,"sx":0,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":1,"start":10,"stop":17,"grp":1,"spc":0,"of":0,"on":true,"bri":131,"n":"Südamerika links","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":2,"start":17,"stop":35,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Usa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":3,"start":40,"stop":44,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Alaska","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":4,"start":44,"stop":48,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Usa 2.0","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":5,"start":48,"stop":53,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Grönland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":6,"start":53,"stop":59,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Mitteleuropa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":7,"start":59,"stop":81,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Russland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":8,"start":81,"stop":98,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Asien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":9,"start":98,"stop":127,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Afrika","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":10,"start":127,"stop":133,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Australien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":11,"start":81,"stop":90,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Asien rechts","col":[[255,221,190,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":12,"start":59,"stop":65,"grp":1,"spc":0,"of":0,"on":true,"bri":132,"n":"Russland links","col":[[255,221,190,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"stop":0},{"stop":0},{"stop":0}]}
+}
+if (stunde == 17 || stunde == 18) {
+  console.log("es ist " + stunde +" uhr")
+  data = {"on":true,"bri":126,"transition":7,"mainseg":0,"seg":[{"id":0,"start":0,"stop":10,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Südamerika revhts","col":[[255,205,159,0],[0,0,255,0],[0,21,255,0]],"fx":0,"sx":0,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":1,"start":10,"stop":17,"grp":1,"spc":0,"of":0,"on":true,"bri":131,"n":"Südamerika links","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":2,"start":17,"stop":35,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Usa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":3,"start":40,"stop":44,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Alaska","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":4,"start":44,"stop":48,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Usa 2.0","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":5,"start":48,"stop":53,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Grönland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":6,"start":53,"stop":59,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Mitteleuropa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":7,"start":59,"stop":81,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Russland","col":[[255,202,151,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":8,"start":81,"stop":98,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Asien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":9,"start":98,"stop":127,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Afrika","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":10,"start":127,"stop":133,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Australien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":11,"start":81,"stop":90,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Asien rechts","col":[[255,221,190,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":12,"start":59,"stop":65,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Russland links","col":[[255,221,190,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":13,"start":98,"stop":120,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Afrika links","col":[[255,204,155,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":14,"start":98,"stop":103,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Arabien","col":[[255,202,151,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"stop":0}]}
+}
+if (stunde == 19 || stunde == 20) {
+  console.log("es ist " + stunde +" uhr")
+  data = {"on":true,"bri":126,"transition":7,"mainseg":0,"seg":[{"id":0,"start":0,"stop":10,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Südamerika revhts","col":[[255,205,159,0],[0,0,255,0],[0,21,255,0]],"fx":0,"sx":0,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":1,"start":10,"stop":17,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Südamerika links","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":2,"start":17,"stop":35,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Usa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":3,"start":40,"stop":44,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Alaska","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":4,"start":44,"stop":48,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Usa 2.0","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":5,"start":48,"stop":53,"grp":1,"spc":0,"of":0,"on":true,"bri":147,"n":"Grönland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":6,"start":53,"stop":59,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Mitteleuropa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":7,"start":59,"stop":81,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Russland","col":[[255,202,151,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":8,"start":81,"stop":98,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Asien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":9,"start":98,"stop":127,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Afrika","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":10,"start":127,"stop":133,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Australien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":11,"start":81,"stop":90,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Asien rechts","col":[[255,221,190,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":12,"start":59,"stop":65,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Russland links","col":[[255,221,190,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":13,"start":98,"stop":120,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Afrika links","col":[[255,204,155,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":14,"start":98,"stop":103,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Arabien","col":[[255,202,151,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":15,"start":106,"stop":107,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"linkste spitze afrikas","col":[[255,202,151,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false}]}
+}
+if (stunde == 21 || stunde == 22) {
+  console.log("es ist " + stunde +" uhr")
+  data = {"on":true,"bri":126,"transition":7,"mainseg":0,"seg":[{"id":0,"start":0,"stop":10,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Südamerika revhts","col":[[255,205,159,0],[0,0,255,0],[0,21,255,0]],"fx":0,"sx":0,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":1,"start":10,"stop":17,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Südamerika links","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":2,"start":17,"stop":35,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Usa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":3,"start":40,"stop":44,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Alaska","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":4,"start":44,"stop":48,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Usa 2.0","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":5,"start":48,"stop":53,"grp":1,"spc":0,"of":0,"on":true,"bri":86,"n":"Grönland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":6,"start":53,"stop":59,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Mitteleuropa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":7,"start":59,"stop":81,"grp":1,"spc":0,"of":0,"on":true,"bri":113,"n":"Russland","col":[[255,202,151,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":8,"start":81,"stop":98,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Asien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":9,"start":98,"stop":127,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Afrika","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":10,"start":127,"stop":133,"grp":1,"spc":0,"of":0,"on":true,"bri":234,"n":"Australien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":11,"start":81,"stop":90,"grp":1,"spc":0,"of":0,"on":true,"bri":84,"n":"Asien rechts","col":[[255,221,190,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":12,"start":59,"stop":65,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Russland links","col":[[255,221,190,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":13,"start":98,"stop":120,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Afrika links","col":[[255,204,155,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":14,"start":98,"stop":103,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Arabien","col":[[255,202,151,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":15,"start":106,"stop":107,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"linkste spitze afrikas","col":[[255,202,151,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false}]}
+}
+if (stunde == 24 || stunde == 23) {
+  console.log("es ist " + stunde +" uhr")
+  data = {"on":true,"bri":126,"transition":7,"mainseg":0,"seg":[{"id":0,"start":0,"stop":6,"grp":1,"spc":0,"of":0,"on":true,"bri":34,"n":"Südamerika revhts","col":[[255,205,159,0],[0,0,255,0],[0,21,255,0]],"fx":0,"sx":0,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":1,"start":10,"stop":17,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Südamerika links","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":2,"start":17,"stop":35,"grp":1,"spc":0,"of":0,"on":true,"bri":208,"n":"Usa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":3,"start":40,"stop":44,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Alaska","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":4,"start":44,"stop":48,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Usa 2.0","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":5,"start":48,"stop":53,"grp":1,"spc":0,"of":0,"on":true,"bri":59,"n":"Grönland","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":6,"start":53,"stop":59,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Mitteleuropa","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":7,"start":59,"stop":81,"grp":1,"spc":0,"of":0,"on":true,"bri":194,"n":"Russland","col":[[255,202,151,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"id":8,"start":81,"stop":98,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Asien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":9,"start":98,"stop":127,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Afrika","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":10,"start":127,"stop":133,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Australien","col":[[255,205,159,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":11,"start":81,"stop":90,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"n":"Asien rechts","col":[[255,221,190,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":12,"start":59,"stop":65,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Russland links","col":[[255,221,190,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":13,"start":98,"stop":120,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Afrika links","col":[[255,204,155,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":14,"start":98,"stop":103,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"Arabien","col":[[255,202,151,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":false,"rev":false,"mi":false},{"id":15,"start":106,"stop":107,"grp":1,"spc":0,"of":0,"on":true,"bri":1,"n":"linkste spitze afrikas","col":[[255,202,151,0],[0,0,0,0],[0,0,0,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false}]}
+}
+console.log(data)
+
+// Ein Objekt mit den Optionen für die fetch-Anfrage
+const options = {
+  method: "POST", // Die Methode zum Senden der Daten
+  headers: {
+    "Content-Type": "application/json" // Der Content-Type der Daten
+  },
+  body: JSON.stringify(data) // Der JSON-String der Daten
+};
+// Die URL der API
+const url2 = "http://10.80.23.21/json/state";
+// Die fetch-Anfrage mit den Optionen ausführen
+function fetchData2() {
+    // Ein fetch-Aufruf, der die Antwort in ein Objekt umwandelt und in console.log ausgibt
+    fetch(url2, options)
+      .then(response => response.json()) // Die Antwort in ein Objekt umwandeln
+      .then(data => console.log(data)) // Das Objekt in der Konsole ausgeben
+      .catch(error => console.error(error)); // Den Fehler abfangen und ausgeben
+    }
+// Die Funktion als Callback an das Ereignis window.onload übergeben
+window.onload = fetchData2;
+
+
+
+
+// Eine Funktion, die den fetch-Aufruf ausführt
+function fetchData() {
+  // Ein fetch-Aufruf, der die Antwort in ein Objekt umwandelt und in console.log ausgibt
+  fetch('http://10.80.23.21/json/effects')
+    .then(response => response.json()) // Die Antwort in ein Objekt umwandeln
+    .then(data => console.log(data)) // Das Objekt in console.log ausgeben
+    .catch(error => console.error(error)); // Fehlerbehandlung
+}
+// Die Funktion als Callback an das Ereignis window.onload übergeben
+// window.onload = fetchData;
+setTimeout(fetchData, 2000);
+
+    </script>
+    <style>
+      div.gallery {
+        margin: 15px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        float: left;
+        width: 500px;
+        height: 280px;
+      }
+      div.gallery:hover {
+        border: 1px solid #777;
+      }
+      div.gallery img {
+        width: 500px;
+        height: auto;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      }
+      div.gallery img:hover {
+        transition:0.5s ease-in-out;
+        transform-origin: top left;
+        margin: 0;
+        position: absolute;
+        transform: scale(2);
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      }
+      .img {
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      }
+      </style>
+  </head>
+  <body>
+    <div id="master" class="master">
+      <div class="fontuberschrift2"><span>NOAH'S WORLD MAP PROJECT</span>
+      </div>
+      <br/><br/>
+      <a class="button-22">Build a custom led world map. Solder it. Program it. Use the Rest API via Javascipt to change the world map into a daylight map</a><br/>
+      <span id="linktextenglish" class="linktextenglish">Here we go one step further we don't want just using the WLED Application or Webserver to Control the lights,
+        we want to learn and use the API to control / program it.</br>
+        <a class="button-22" href="https://www.youtube.com/watch?v=F4SCfhG_V3o">My Project's Youtube Video - explaining what we are doing here</a></span><br>
+        <a class="button-22" href="https://tynick.com/blog/01-28-2020/controlling-wled-with-raspberry-pi-using-the-wled-api/">Link to a nice explanation how an API (URL based command / HTTP Request API) is working</a></br>
+        <a class="button-22" href="https://kno.wled.ge/interfaces/json-api/">Link to Wled API (JSON based commands) </a></br>
+        <a class="button-22" href="https://kno.wled.ge/interfaces/http-api/">Link to Wled HTTP Request API</a></br>
+        <a class="button-22" href="https://www.timeanddate.com/worldclock/sunearth.html">Link to the Day and Night World Map</a></br>
+        </br>
+      </span>
+      <a class="button-22">Use the Rest API (via Javascipt) to change the world map into a daylight map</a><br/>
+      <span id="linktextenglish" class="linktextenglish">Before we use JavaScript we have to use the first API Commands to our WLED. Additional this Webpage contains the correct JavaScript Code to to send an API Command to the World Map (192.168.179.27) sending the correct 
+        settings via API for showing the correct world's daylight, based on the time when this page was loaded in our home network.
+        <br/>
+        We can use a simple CLI Command named curl which retrieves the webpage (while retrieving the commands are hidden into the URL):<br/>
+        curl "http://192.168.179.29/win&T=1&A=5&FX=0&SX=0&R=0&G=255&B=238"<br/>
+        <br/>
+        Or we use the browser which retrives the Webpage (while retrieving the commands are hidden into the URL):<br/>
+        http://192.168.179.29/win&T=1&A=5&FX=0&SX=0&R=0&G=255&B=238<br/>
+        <br/>
+        E.g.: Following command got sent here: T=1 which means "Led Power on!"<br/>
+        http://192.168.179.29/win&T=1&A=5&FX=0&SX=0&R=180&G=215&B=230<br/>
+        <br/>
+        E.g.: Following command got sent here: A=128 means brightness to 128"<br/>
+        http://192.168.179.27/win&A=128<br/>
+        <br/>
+        E.g.: Following command got sent here: PL=1 means to turn on the Preset with the Quick Load Number 1"<br/>
+        http://192.168.179.27/win&PL=1<br/>
+        <br/>
+        Example from the JSON API where the URL is never changing:</br>
+        curl -X POST "http://192.168.179.27/json/state" -H "Content-Type: application/json" -d {"on":true,"bri":128,"transition":7,"mainseg":0,"seg":[{"id":0,"start":0,"stop":133,"grp":1,"spc":0,"of":0,"on":true,"bri":255,"col":[[255,136,0,0],[0,0,255,0],[0,21,255,0]],"fx":0,"sx":128,"ix":128,"pal":0,"sel":true,"rev":false,"mi":false},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0},{"stop":0}]}
+        <br/><br/>For JSON (Javascript Object Notation) we usually use Postman to send the JSON command to the API.
+        <br/>In case you start programming with an API sending JSON Data to the API i highly recommmend using the software Postman, where you can test and train your API Commands.
+        <br/>Instead of continue exlpaining here the JSON API Commands use the Javascript Code in this page here, to see how i used JAvascript sending the JSON Commands to the Wled API.
+        </br>
+      </span>
+      <br/><br/>      <a class="button-22">Video:</a><br/>
+      <span id="linktextenglish" class="linktextenglish">
+        Please see <a class="button-22" href="https://www.youtube.com/watch?v=F4SCfhG_V3o"> my Youtube Video here</a> explaining in detail how this world maps works now and which JSON Data got sent to the WLED Controller.</br>
+        Basically we sent the correct JSON Data from this Webpage with the following Code, to led the world map light to the actual time on your computer / timezone.<br/>
+        <br/><br/>
+        <span class="button-22">
+        The result is a beatiful worldmap showing the correct daylight on the world map:<br/><br/>
+        <div class="shadow">
+          <img class="img" src="pictures/100.jpg" alt="Code"><br/>
+          <img class="img" src="pictures/101.jpg" alt="Code">
+        </div>
+        </span>
+        </div>
+        <br/><br/>
+       </span>
+      <span >
+      </span>
+      <br/>
+      <div style="clear:left">
+      <a class="button-22" style="clear:left">Pictures:</a><br/>
+      <span id="linktextenglish" class="linktextenglish">
+      Here you can find some pictures of the project itself.<br/> 
+      First is 20:00 P.M., Second is 01:00 A.M., Third is 22:00 P.M., Fourth is 12:00 P.M. <br/>
+       </span>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/010.jpg">
+          <img src="pictures/010.jpg" width="800">
+        </a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/011.jpg">
+          <img src="pictures/011.jpg" width="800">
+        </a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/012.jpg">
+          <img src="pictures/012.jpg" width="800">
+        </a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/013.jpg">
+          <img src="pictures/013.jpg" width="800">
+        </a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/001.jpg">
+          <img src="pictures/001.jpg" width="800">
+        </a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/002.jpg"> <img src="pictures/002.jpg" alt="LED Pic" width="900" height="600"></a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/003.jpg">
+          <img src="pictures/003.jpg" alt="LED Pic" width="900" height="600">
+        </a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/004.jpg">
+          <img src="pictures/004.jpg" alt="LED Pic" width="900" height="600">
+        </a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/005.jpg">
+          <img src="pictures/005.jpg" alt="LED Pic" width="900" height="600">
+        </a>
+      </div>
+      <div class="gallery">
+        <a target="_blank" href="pictures/006.jpg">
+          <img src="pictures/006.jpg" alt="LED Pic" width="900" height="600">
+        </a>
+      </div>
+      <div class="gallery">
+        <video muted width="500px" height="auto" controls="controls">
+          <source src="pictures/001.mp4" type="video/mp4" />
+         </video>
+      </div>  
+      <div class="gallery">
+        <video muted width="500px" height=auto controls="controls">
+          <source src="pictures/002.mp4" type="video/mp4" />
+         </video>
+      </div>  
+      <br/><br/><br/><br/><br/>
+      <span> </span>
+    </div>
+  </body>
+</html>
+
