@@ -1,0 +1,98 @@
+import socket
+import time
+import machine
+from machine import Pin
+
+# 🏠 Nanoleaf API Einstellungen
+NANOLEAF_IP = "10.80.23.56"
+API_KEY = "kK2AbyyhXXNncr0Pw77RTy61pk3OrZnC"
+BASE_URL = "/api/v1/{}/state".format(API_KEY)
+PORT = 16021
+
+# 🎛 Button-Einstellungen
+BUTTON_PIN = 41  # M5Stack Atom S3 Lite
+button = Pin(BUTTON_PIN, Pin.IN, Pin.PULL_UP)
+
+# 🏁 Anfangszustand
+power_state = False  # Standardmäßig "Aus"
+
+def send_put_request(state):
+    """Sendet einen PUT-Request an die Nanoleaf-API, um die Panels an oder auszuschalten."""
+    s = socket.socket()
+    s.settimeout(3.0)  # Timeout auf 3 Sekunden (Float notwendig für MicroPython)
+    try:
+        print(f"🔄 Verbinde zu Nanoleaf ({NANOLEAF_IP})...")
+        s.connect((NANOLEAF_IP, PORT))
+
+        # JSON-Payload für An/Aus
+        payload = '{"on":{"value":' + ('true' if state else 'false') + '}}'
+        request = (
+            "PUT {} HTTP/1.1\r\n"
+            "Host: {}\r\n"
+            "Content-Type: application/json\r\n"
+            "Content-Length: {}\r\n"
+            "Connection: close\r\n\r\n"
+            "{}"
+        ).format(BASE_URL, NANOLEAF_IP, len(payload), payload)
+
+        print(f"📡 Sende Request:\n{request}")
+        s.send(request.encode())
+
+        # Antwort empfangen mit Timeout
+        response = b""
+        start_time = time.time()
+        print("⏳ Warte auf Antwort von Nanoleaf...")
+        while time.time() - start_time < 5:  # Maximal 5s warten
+            try:
+                chunk = s.recv(1024)
+                if chunk:
+                    print(f"📩 Empfangenes Datenpaket: {chunk}")
+                    response += chunk
+                    if b'\r\n0\r\n\r\n' in response:  # Ende der Übertragung erkannt
+                        break
+                else:
+                    break
+            except Exception as e:
+                print(f"❌ Fehler beim Empfang: {e}")
+                break
+
+        response_decoded = response.decode(errors="ignore")
+
+        # 204 No Content erkennen
+        if "204 No Content" in response_decoded:
+            print("✅ Nanoleaf hat die Anfrage akzeptiert! (204 No Content)")
+            return True  # Erfolg
+        else:
+            print(f"⚠️ Unerwartete Antwort: {response_decoded}")
+            return False  # Fehler
+
+    except Exception as e:
+        print(f"❌ Fehler: {e}")
+        return False  # Fehlerstatus zurückgeben
+    finally:
+        s.close()
+        print("🔌 Verbindung geschlossen.")
+
+
+# 🎬 Start: Warte auf Knopfdruck
+print("🔴 Bereit! Drücke den Knopf zum Umschalten!")
+
+letzter_status = button.value()
+
+while True:
+    aktueller_status = button.value()
+
+    if letzter_status == 1 and aktueller_status == 0:  # Knopf gedrückt
+        print("🔘 Knopf gedrückt! Schalte Nanoleaf um...")
+        
+        power_state = not power_state  # Zustand umkehren
+
+        if send_put_request(power_state):  # Nanoleaf umschalten
+            print(f"✅ Nanoleaf ist jetzt {'AN' if power_state else 'AUS'}")
+        else:
+            print("❌ Fehler beim Senden. Versuch es später erneut.")
+
+        time.sleep(0.5)  # Entprellen, damit nicht mehrfach ausgelöst wird
+
+    letzter_status = aktueller_status  # Status aktualisieren
+    time.sleep(0.05)  # Schnelles Polling für den Button
