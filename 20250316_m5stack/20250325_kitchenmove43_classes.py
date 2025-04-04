@@ -1,61 +1,15 @@
-import time
-import machine
-import uasyncio
-import ntptime
-import ujson
-import sys
-import socket
+import M5
+from M5 import BtnA
+import usocket as socket
+import ujson, time
+from hardware import RGB
+# Falls ein PIR-Sensor verwendet werden soll, importiere diesen hier:
+# from unit import PIRUnit
 
-# -------------------------------
-# Globale Debug-Flags und Parameter
-# -------------------------------
 DEBUG = True
-DEBUG_VERBOSE = True
 
-TIME_SERVER = "ntp1.lrz.de"
-
-SHELLY_IP = "10.80.23.51"
-SHELLY_PORT = 80
-
-NANOLEAF_IP = "10.80.23.56"
-NANOLEAF_PORT = 16021
-NANOLEAF_API_KEY = "kK2AbyyhXXNncr0Pw77RTy61pk3OrZnC"
-
-WLED_IP = "10.80.23.22"
-
-NTP_SYNC_INTERVAL = 12 * 3600      # alle 12 Stunden
-NTP_MAX_ATTEMPTS = 10
-NTP_RETRY_INTERVAL = 30
-
-PIR_WINDOW = 300                   # 300 Sekunden
-PIR_THRESHOLD = 15                 # mindestens 15 Events im Fenster
-MIN_LIGHT_ON_DURATION = 15 * 60    # 15 Minuten Mindestbetriebsdauer nach Aktivierung
-WLED_AUTO_OFF = 120                # 120 Sekunden Auto-Off für WLED
-MANUAL_OVERRIDE_DURATION = 30 * 60 # 30 Minuten manueller Override
-BUTTON_DEBOUNCE_TIME = 1500        # in ms
-
-# Monatsabhängige Schaltzeiten (Beispielwerte)
-MONTHLY_SWITCH_TIMES = {
-    1: {"start": "17:00", "end": "23:00"},
-    2: {"start": "17:00", "end": "23:00"},
-    3: {"start": "17:00", "end": "23:00"},
-    4: {"start": "17:00", "end": "23:00"},
-    5: {"start": "17:00", "end": "23:00"},
-    6: {"start": "17:00", "end": "23:00"},
-    7: {"start": "17:00", "end": "23:00"},
-    8: {"start": "17:00", "end": "23:00"},
-    9: {"start": "17:00", "end": "23:00"},
-    10: {"start": "17:00", "end": "23:00"},
-    11: {"start": "17:00", "end": "23:00"},
-    12: {"start": "17:00", "end": "23:00"}
-}
-
-# RGB-LED-Konfiguration (bekannte hardware.RGB-Bibliothek)
-RGB_LED_PIN = 5
-NUM_LEDS = 1
-
-# WLED Payloads
-wled_json_on = {
+# --- Konfiguration für WLED ---
+WLED_JSON_ON = {
     "on": True,
     "bri": 151,
     "transition": 7,
@@ -68,451 +22,337 @@ wled_json_on = {
         "fx": 122, "sx": 128, "ix": 128, "pal": 8
     }]
 }
-wled_json_off = {"on": False}
+WLED_JSON_OFF = {"on": False}
 
-# -------------------------------
-# Socket-Funktionen für Shelly, Nanoleaf und WLED
-# -------------------------------
-def lese_shelly_status():
-    anfrage = "GET /rpc/Switch.GetStatus?id=0 HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n".format(SHELLY_IP)
-    try:
-        addr = socket.getaddrinfo(SHELLY_IP, SHELLY_PORT)[0][-1]
-        s = socket.socket()
-        s.connect(addr)
-        s.send(anfrage.encode())
-        antwort = b""
-        while True:
-            teil = s.recv(2048)
-            if not teil:
-                break
-            antwort += teil
-        s.close()
-        start = antwort.find(b"{")
-        if start != -1:
-            return ujson.loads(antwort[start:].decode("utf-8")).get("output", False)
-    except Exception as e:
-        if DEBUG:
-            print("DEBUG: Fehler beim Lesen des Shelly-Status:", e)
-    return None
 
-def setze_shelly(zustand):
-    body = '{"id":0,"on":' + ('true' if zustand == "ein" else 'false') + '}'
-    anfrage = ("POST /rpc/Switch.Set HTTP/1.1\r\n"
-               "Host: {}\r\n"
-               "Content-Type: application/json\r\n"
-               "Content-Length: {}\r\n"
-               "Connection: close\r\n\r\n{}").format(SHELLY_IP, len(body), body)
-    try:
-        addr = socket.getaddrinfo(SHELLY_IP, SHELLY_PORT)[0][-1]
-        s = socket.socket()
-        s.connect(addr)
-        s.send(anfrage.encode())
-        s.recv(2048)
-        s.close()
-        if DEBUG:
-            print("DEBUG: Shelly =>", zustand.upper())
-    except Exception as e:
-        if DEBUG:
-            print("DEBUG: Fehler bei Shelly:", e)
+# ------------------------------------------------------------------------------
+# Shelly-Steuerungsklasse
+# ------------------------------------------------------------------------------
+class ShellyController:
+    def __init__(self, ip, port=80):
+        self.ip = ip
+        self.port = port
 
-def lese_nanoleaf_status():
-    anfrage = "GET /api/v1/{}/state HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n".format(NANOLEAF_API_KEY, NANOLEAF_IP)
-    try:
-        addr = socket.getaddrinfo(NANOLEAF_IP, NANOLEAF_PORT)[0][-1]
-        s = socket.socket()
-        s.connect(addr)
-        s.send(anfrage.encode())
-        antwort = b""
-        while True:
-            teil = s.recv(2048)
-            if not teil:
-                break
-            antwort += teil
-        s.close()
-        start = antwort.find(b"{")
-        if start != -1:
-            return ujson.loads(antwort[start:].decode("utf-8")).get("on", {}).get("value", False)
-    except Exception as e:
+    def get_state(self):
+        # Beispielimplementierung; hier sollte der tatsächliche API-Aufruf erfolgen.
         if DEBUG:
-            print("DEBUG: Fehler beim Lesen des Nanoleaf-Status:", e)
-    return None
+            print("DEBUG: Shelly get_state stub")
+        return False
 
-def setze_nanoleaf(zustand):
-    body = ujson.dumps({"on": {"value": zustand}})
-    anfrage = ("PUT /api/v1/{}/state HTTP/1.1\r\n"
-               "Host: {}\r\n"
-               "Content-Type: application/json\r\n"
-               "Content-Length: {}\r\n"
-               "Connection: close\r\n\r\n{}").format(NANOLEAF_API_KEY, NANOLEAF_IP, len(body), body)
-    try:
-        addr = socket.getaddrinfo(NANOLEAF_IP, NANOLEAF_PORT)[0][-1]
-        s = socket.socket()
-        s.connect(addr)
-        s.send(anfrage.encode())
-        s.recv(2048)
-        s.close()
+    def set_state(self, state: bool):
         if DEBUG:
-            print("DEBUG: Nanoleaf =>", "AN" if zustand else "AUS")
-    except Exception as e:
-        if DEBUG:
-            print("DEBUG: Fehler bei Nanoleaf:", e)
-
-def wled_anfrage(methode="GET", daten=None, versuche=5):
-    for _ in range(versuche):
+            print("DEBUG: Shelly set_state auf", "ON" if state else "OFF")
+        # Hier wird die API-Ansteuerung implementiert
+        body = '{"id":0,"on":' + ('true' if state else 'false') + '}'
+        request = (
+            "POST /rpc/Switch.Set HTTP/1.1\r\n"
+            "Host: {}\r\n"
+            "Content-Type: application/json\r\n"
+            "Content-Length: {}\r\n"
+            "Connection: close\r\n\r\n"
+            "{}"
+        ).format(self.ip, len(body), body)
         try:
-            addr = socket.getaddrinfo(WLED_IP, 80)[0][-1]
+            addr = socket.getaddrinfo(self.ip, self.port)[0][-1]
             s = socket.socket()
             s.connect(addr)
-            if methode == "GET" and daten is None:
-                req = "GET /json/state HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n".format(WLED_IP)
-                s.send(req.encode())
-            elif methode == "POST" and daten is not None:
-                body = ujson.dumps(daten)
-                header = ("POST /json/state HTTP/1.1\r\n"
-                          "Host: {}\r\n"
-                          "Content-Type: application/json\r\n"
-                          "Content-Length: {}\r\n"
-                          "Connection: close\r\n\r\n").format(WLED_IP, len(body))
-                s.send(header.encode())
-                s.send(body.encode())
-            else:
-                raise ValueError("Parameterfehler.")
-            antwort = s.recv(2048)
+            s.send(request.encode())
+            s.recv(2048)
             s.close()
-            if antwort:
-                return antwort
         except Exception as e:
             if DEBUG:
-                print("DEBUG: WLED-Anfrage Fehler:", e)
-            time.sleep(1)
-    return b""
+                print("DEBUG: Shelly set_state error:", e)
 
-def setze_wled(daten):
-    # Hier wird nur der Status geändert – keine LED-Farbe gesetzt.
-    antwort = wled_anfrage("POST", daten)
-    if antwort:
-        if DEBUG:
-            print("DEBUG: WLED =>", "EIN" if daten.get("on", False) else "AUS")
-            print("DEBUG: WLED Status geändert, LED bleibt aus")
 
-# -------------------------------
-# Klassen: Zeit, RGB-LED, Sensoren, Taster und Geräte-Controller
-# -------------------------------
-class TimeManager:
-    def __init__(self):
-        self.last_sync = 0
+# ------------------------------------------------------------------------------
+# Nanoleaf-Steuerungsklasse (mit verbessertem HTTP-Parsing)
+# ------------------------------------------------------------------------------
+class NanoleafController:
+    def __init__(self, ip, port=16021, api_key=""):
+        self.ip = ip
+        self.port = port
+        self.api_key = api_key
+        self.url = f"/api/v1/{self.api_key}/state"
 
-    async def sync_time(self):
-        attempts = 0
-        while attempts < NTP_MAX_ATTEMPTS:
-            try:
-                ntptime.host = TIME_SERVER
-                ntptime.settime()
-                self.last_sync = time.time()
-                print("Zeit synchronisiert:", time.localtime())
-                return True
-            except Exception as e:
-                print("NTP Sync Fehler:", e)
-                attempts += 1
-                await uasyncio.sleep(NTP_RETRY_INTERVAL)
-        print("NTP Sync fehlgeschlagen!")
-        return False
+    def get_state(self):
+        # Setze die globalen Variablen, die von den API-Funktionen verwendet werden
+        global nanoleaf_ip, nanoleaf_port, base_url
+        nanoleaf_ip = self.ip
+        nanoleaf_port = self.port
+        base_url = self.url
+        return get_nanoleaf_power_status()
 
-    def is_dark(self):
-        t = time.localtime()
-        month = t[1]
-        hour = t[3]
-        minute = t[4]
-        config = MONTHLY_SWITCH_TIMES.get(month, {"start": "17:00", "end": "23:00"})
-        start_hour, start_minute = map(int, config["start"].split(":"))
-        end_hour, end_minute = map(int, config["end"].split(":"))
-        current_minutes = hour * 60 + minute
-        start_minutes = start_hour * 60 + start_minute
-        end_minutes = end_hour * 60 + end_minute
-        if DEBUG_VERBOSE:
-            print(f"DEBUG: current_minutes={current_minutes}, start_minutes={start_minutes}, end_minutes={end_minutes}")
-        return start_minutes <= current_minutes < end_minutes
+    def set_state(self, state):
+        # Setze die globalen Variablen, die von den API-Funktionen verwendet werden
+        global nanoleaf_ip, nanoleaf_port, base_url
+        nanoleaf_ip = self.ip
+        nanoleaf_port = self.port
+        base_url = self.url
+        set_nanoleaf_power_status(state)
 
-# RGB-LED Statusanzeige
-from hardware import RGB
 
-class RGBLEDIndicator:
-    def __init__(self):
-        self.rgb = RGB(io=RGB_LED_PIN, n=NUM_LEDS, type="SK6812")
-        self.blinking = False
+def recv_all(sock, content_length):
+    data = b""
+    while len(data) < content_length:
+        chunk = sock.recv(1024)
+        if not chunk:
+            break
+        data += chunk
+    return data.decode()
 
-    def set_color(self, color):
-        self.rgb.fill_color(color)
-        if DEBUG_VERBOSE:
-            print(f"DEBUG: RGB set_color: {hex(color)}")
+def extract_json(response):
+    json_start = response.find("{")
+    json_end = response.rfind("}") + 1
+    if json_start != -1 and json_end > json_start:
+        return response[json_start:json_end]
+    return ""
 
-    async def blink(self, color, interval=0.5, duration=5):
-        if self.blinking:
-            return
-        self.blinking = True
-        end_time = time.time() + duration
-        while time.time() < end_time:
-            self.set_color(color)
-            await uasyncio.sleep(interval)
-            self.set_color(0x000000)
-            await uasyncio.sleep(interval)
-        self.blinking = False
-
-# PIR-Sensor
-class PIRSensor:
-    def __init__(self, pin_no):
-        self.pin = machine.Pin(pin_no, machine.Pin.IN)
-        self.events = []
-
-    def check_motion(self):
-        if self.pin.value():
-            self.events.append(time.time())
-            print("PIR Event hinzugefügt")
-            return True
-        return False
-
-    def get_event_count(self):
-        current = time.time()
-        self.events = [t for t in self.events if current - t <= PIR_WINDOW]
-        return len(self.events)
-
-    def reset_events(self):
-        self.events = []
-        print("PIR Ereignisse zurückgesetzt")
-
-# Taster für manuelle Steuerung
-class ButtonController:
-    def __init__(self, pin_no):
-        self.pin = machine.Pin(pin_no, machine.Pin.IN, machine.Pin.PULL_UP)
-        self.last_state = self.pin.value()
-        self.press_start = None
-
-    def read(self):
-        current_state = self.pin.value()
-        if self.last_state == 1 and current_state == 0:
-            self.press_start = time.ticks_ms()
-        elif self.last_state == 0 and current_state == 1:
-            if self.press_start is not None:
-                press_duration = time.ticks_diff(time.ticks_ms(), self.press_start)
-                self.press_start = None
-                return press_duration
-        self.last_state = current_state
+def get_nanoleaf_power_status():
+    s = socket.socket()
+    try:
+        s.connect((nanoleaf_ip, nanoleaf_port))
+        request = (
+            f"GET {base_url} HTTP/1.1\r\n"
+            f"Host: {nanoleaf_ip}\r\n"
+            "Connection: close\r\n\r\n"
+        )
+        s.send(request.encode())
+        response = s.recv(1024).decode()
+        content_length = 0
+        for line in response.split("\r\n"):
+            if line.lower().startswith("content-length:"):
+                content_length = int(line.split(":")[1].strip())
+        if content_length > 0:
+            json_data = recv_all(s, content_length)
+        else:
+            json_data = ""
+        s.close()
+        json_data = extract_json(json_data)
+        if json_data:
+            parsed = ujson.loads(json_data)
+            return parsed.get("on", {}).get("value", False)
+        return None
+    except:
         return None
 
-# Geräte-Controller mittels Sockets (mit eingebautem weiß blinkenden LED-Status beim Statusabruf)
-class ShellyController:
-    def __init__(self, rgb_led):
-        self.rgb_led = rgb_led
-
-    async def get_state(self):
-        blink_task = uasyncio.create_task(self.rgb_led.blink(0xFFFFFF, interval=0.2, duration=0.5))
-        state = lese_shelly_status()
-        try:
-            await blink_task
-        except uasyncio.CancelledError:
-            pass
-        if DEBUG_VERBOSE:
-            print("Shelly state:", "AN" if state else "AUS")
-        return state
-
-    async def set_state(self, state: bool):
-        if state:
-            setze_shelly("ein")
-        else:
-            setze_shelly("aus")
-        if DEBUG_VERBOSE:
-            print("Shelly set_state =>", "AN" if state else "AUS")
-        return state
-
-class NanoleafController:
-    def __init__(self, rgb_led):
-        self.rgb_led = rgb_led
-
-    async def get_state(self, force_refresh=False):
-        blink_task = uasyncio.create_task(self.rgb_led.blink(0xFFFFFF, interval=0.2, duration=0.5))
-        state = lese_nanoleaf_status()
-        try:
-            await blink_task
-        except uasyncio.CancelledError:
-            pass
-        if DEBUG_VERBOSE:
-            print("Nanoleaf state:", "AN" if state else "AUS")
-        return state
-
-    async def set_state(self, state: bool):
-        setze_nanoleaf(state)
-        if DEBUG_VERBOSE:
-            print("Nanoleaf set_state =>", "AN" if state else "AUS")
-        return state
-
-class WLEDController:
-    def __init__(self, rgb_led):
-        self.rgb_led = rgb_led
-
-    async def get_state(self):
-        blink_task = uasyncio.create_task(self.rgb_led.blink(0xFFFFFF, interval=0.2, duration=0.5))
-        antwort = wled_anfrage("GET")
-        try:
-            await blink_task
-        except uasyncio.CancelledError:
-            pass
-        if antwort:
-            teile = antwort.decode("utf-8").split("\r\n\r\n", 1)
-            try:
-                state = ujson.loads(teile[1]).get("on", False) if len(teile) > 1 else False
-            except Exception as e:
-                if DEBUG_VERBOSE:
-                    print("DEBUG: Fehler beim Verarbeiten von WLED GET:", e)
-                state = False
-        else:
-            state = None
-        if DEBUG_VERBOSE:
-            print("WLED state:", "AN" if state else "AUS")
-        return state
-
-    async def set_state(self, state: bool):
-        payload = wled_json_on if state else wled_json_off
-        setze_wled(payload)
-        if DEBUG_VERBOSE:
-            print("WLED set_state =>", "AN" if state else "AUS")
-        return state
-
-    async def start_auto_off(self):
-        await uasyncio.sleep(WLED_AUTO_OFF)
-        await self.set_state(False)
-        if DEBUG_VERBOSE:
-            print("WLED Auto-Off aktiviert")
-
-# -------------------------------
-# Hauptsteuerung
-# -------------------------------
-class MainController:
-    def __init__(self):
-        self.time_manager = TimeManager()
-        self.rgb_led = RGBLEDIndicator()
-        self.shelly = ShellyController(self.rgb_led)
-        self.nanoleaf = NanoleafController(self.rgb_led)
-        self.wled = WLEDController(self.rgb_led)
-        self.pir_sensor = PIRSensor(pin_no=12)      # Beispiel-Pin für PIR
-        self.button = ButtonController(pin_no=0)      # Beispiel-Pin für Taster
-        self.manual_override = False
-        self.manual_override_expiry = 0
-        self.last_light_activation = 0
-
-    async def initial_status_query(self):
-        # Direkt beim Booten: LED blinkt weiß, dann wird der aktuelle Geräte-Status abgefragt.
-        await self.rgb_led.blink(0xFFFFFF, interval=0.2, duration=1)
-        s_state = await self.shelly.get_state()
-        n_state = await self.nanoleaf.get_state()
-        w_state = await self.wled.get_state()
-        print("DEBUG: Initialer Geräte-Status: Shelly:", "AN" if s_state else "AUS",
-              ", Nanoleaf:", "AN" if n_state else "AUS",
-              ", WLED:", "AN" if w_state else "AUS")
-
-    async def sensor_task(self):
-        while True:
-            self.pir_sensor.check_motion()
-            press_duration = self.button.read()
-            if press_duration is not None:
-                print("Taster gedrückt, Dauer:", press_duration, "ms")
-                if press_duration < BUTTON_DEBOUNCE_TIME:
-                    # Kurzdruck: WLED umschalten
-                    w_state = await self.wled.get_state()
-                    new_state = not w_state
-                    await self.wled.set_state(new_state)
-                    if new_state:
-                        uasyncio.create_task(self.wled.start_auto_off())
-                else:
-                    # Langdruck: Shelly & Nanoleaf umschalten
-                    s_state = await self.shelly.get_state()
-                    new_state = not s_state
-                    await self.shelly.set_state(new_state)
-                    await self.nanoleaf.set_state(new_state)
-                    self.manual_override = True
-                    self.manual_override_expiry = time.time() + MANUAL_OVERRIDE_DURATION
-                    self.pir_sensor.reset_events()
-            await uasyncio.sleep(0.1)
-
-    async def light_control_task(self):
-        while True:
-            if self.manual_override and time.time() > self.manual_override_expiry:
-                self.manual_override = False
-                print("Manueller Override beendet")
-            event_count = self.pir_sensor.get_event_count()
-            if event_count >= PIR_THRESHOLD and not self.manual_override:
-                if time.time() - self.last_light_activation > MIN_LIGHT_ON_DURATION:
-                    if self.time_manager.is_dark():
-                        s_state = await self.shelly.get_state()
-                        n_state = await self.nanoleaf.get_state()
-                        if s_state != n_state:
-                            await self.shelly.set_state(False)
-                            await self.nanoleaf.set_state(False)
-                            print("DEBUG: Zustandsabweichung: Beide Systeme ausgeschaltet")
-                        else:
-                            await self.shelly.set_state(True)
-                            await self.nanoleaf.set_state(True)
-                            self.last_light_activation = time.time()
-                            print("DEBUG: Deckenbeleuchtung aktiviert")
-            if self.pir_sensor.get_event_count() == 0:
-                s_state = await self.shelly.get_state()
-                n_state = await self.nanoleaf.get_state()
-                if s_state or n_state:
-                    await self.shelly.set_state(False)
-                    await self.nanoleaf.set_state(False)
-                    print("DEBUG: Keine Bewegung: Beleuchtung ausgeschaltet")
-            await uasyncio.sleep(1)
-
-    async def rgb_led_task(self):
-        while True:
-            # Anzeige des aktuellen Status:
-            event_count = self.pir_sensor.get_event_count()
-            s_state = await self.shelly.get_state()
-            n_state = await self.nanoleaf.get_state()
-            if event_count >= PIR_THRESHOLD and s_state:
-                self.rgb_led.set_color(0x00FF00)  # Grün
-            elif not s_state and not n_state:
-                self.rgb_led.set_color(0xFF0000)  # Rot
-            else:
-                await self.rgb_led.blink(0xFFFFFF, interval=0.5, duration=1)  # Weiß blinkend
-            await uasyncio.sleep(1)
-
-    async def ntp_sync_task(self):
-        while True:
-            await self.time_manager.sync_time()
-            await uasyncio.sleep(NTP_SYNC_INTERVAL)
-
-    async def main_loop(self):
-        uasyncio.create_task(self.ntp_sync_task())
-        uasyncio.create_task(self.sensor_task())
-        uasyncio.create_task(self.light_control_task())
-        uasyncio.create_task(self.rgb_led_task())
-        while True:
-            await uasyncio.sleep(1)
-
-    async def query_device_states(self):
-        # Wird bei Bedarf aufgerufen – Statusabfrage mit weiß blinkender LED
-        await self.rgb_led.blink(0xFFFFFF, interval=0.2, duration=1)
-        s_state = await self.shelly.get_state()
-        n_state = await self.nanoleaf.get_state()
-        w_state = await self.wled.get_state()
-        print("DEBUG: Geräte-Status: Shelly:", "AN" if s_state else "AUS",
-              ", Nanoleaf:", "AN" if n_state else "AUS",
-              ", WLED:", "AN" if w_state else "AUS")
-        return s_state, n_state, w_state
-
-# -------------------------------
-# Programmstart
-# -------------------------------
-def main():
-    controller = MainController()
-    async def main_wrapper():
-        await controller.initial_status_query()
-        await controller.main_loop()
+def set_nanoleaf_power_status(state):
+    s = socket.socket()
     try:
-        uasyncio.run(main_wrapper())
-    except Exception as e:
-        print("Hauptprogramm Fehler:", e)
-        sys.exit()
+        s.connect((nanoleaf_ip, nanoleaf_port))
+        payload = '{"on":{"value":' + ('true' if state else 'false') + '}}'
+        request = (
+            f"PUT {base_url} HTTP/1.1\r\n"
+            f"Host: {nanoleaf_ip}\r\n"
+            "Content-Type: application/json\r\n"
+            f"Content-Length: {len(payload)}\r\n"
+            "Connection: close\r\n\r\n"
+            f"{payload}"
+        )
+        s.send(request.encode())
+        _ = s.recv(1024)
+        s.close()
+        print(f"DEBUG: Nanoleaf => {'ON' if state else 'OFF'}")
+    except:
+        pass
+
+
+# ------------------------------------------------------------------------------
+# WLED-Steuerungsklasse
+# ------------------------------------------------------------------------------
+class WLEDController:
+    def __init__(self, ip, port=80):
+        self.ip = ip
+        self.port = port
+
+    def get_state(self):
+        # Beispielimplementierung; hier sollte der tatsächliche API-Aufruf erfolgen.
+        if DEBUG:
+            print("DEBUG: WLED get_state stub")
+        return False
+
+    def set_state(self, state_data):
+        if DEBUG:
+            print("DEBUG: WLED set_state auf", state_data.get("on", False))
+        # Hier wird die API-Ansteuerung implementiert
+        try:
+            addr = socket.getaddrinfo(self.ip, self.port)[0][-1]
+            s = socket.socket()
+            s.connect(addr)
+            if state_data is not None:
+                body = ujson.dumps(state_data)
+                request = (
+                    "POST /json/state HTTP/1.1\r\n"
+                    "Host: {}\r\n"
+                    "Content-Type: application/json\r\n"
+                    "Content-Length: {}\r\n"
+                    "Connection: close\r\n\r\n"
+                    "{}"
+                ).format(self.ip, len(body), body)
+                s.send(request.encode())
+            s.recv(2048)
+            s.close()
+        except Exception as e:
+            if DEBUG:
+                print("DEBUG: WLED set_state error:", e)
+
+
+# ------------------------------------------------------------------------------
+# RGB-LED-Steuerungsklasse
+# ------------------------------------------------------------------------------
+class RGBController:
+    def __init__(self, io_pin=35, num_leds=1, led_type="SK6812"):
+        self.led = RGB(io=io_pin, n=num_leds, type=led_type)
+
+    def set_color(self, color: int):
+        """Setzt die LED auf eine feste Farbe (0xRRGGBB)."""
+        self.led.fill_color(color)
+        if DEBUG:
+            print("DEBUG: LED setze_farbe: #{:06X}".format(color))
+
+    def blink_white(self, duration=5, interval=0.5):
+        """Blinkt die LED weiß für die angegebene Dauer."""
+        end_time = time.time() + duration
+        while time.time() < end_time:
+            self.set_color(0xFFFFFF)
+            time.sleep(interval)
+            self.set_color(0x000000)
+            time.sleep(interval)
+
+    def show_green(self):
+        """Zeigt die LED in grün an."""
+        self.set_color(0x00FF00)
+
+    def show_red(self):
+        """Zeigt die LED in rot an."""
+        self.set_color(0xFF0000)
+
+    def gradient_red_to_green(self, duration=5, steps=50):
+        """Läuft einen Farbverlauf von rot nach grün ab."""
+        step_delay = duration / steps
+        for i in range(steps + 1):
+            t = i / steps
+            r = int(255 * (1 - t))
+            g = int(255 * t)
+            b = 0
+            color = (r << 16) | (g << 8) | b
+            self.set_color(color)
+            time.sleep(step_delay)
+
+
+# ------------------------------------------------------------------------------
+# Lichtsteuerungsklasse (Knopfaktionen)
+# ------------------------------------------------------------------------------
+class Lichtsteuerung:
+    """
+    Führt Aktionen basierend auf dem Knopfdruck aus:
+      - Einfacher Druck: WLED-Zustand abrufen und toggeln.
+      - Doppelklick oder langer Druck (≥1,5 s):
+          • Währenddessen blinkt die LED weiß (max. 5 s).
+          • Shelly- und Nanoleaf-Status abfragen.
+          • Falls beide an sind → ausschalten.
+          • Falls beide aus sind → anschalten.
+          • Bei gemischtem Zustand → ausschalten (zur Synchronisation).
+    """
+    def __init__(self, wled_ctrl: WLEDController, shelly_ctrl: ShellyController,
+                 nanoleaf_ctrl: NanoleafController, rgb_ctrl: RGBController):
+        self.wled = wled_ctrl
+        self.shelly = shelly_ctrl
+        self.nanoleaf = nanoleaf_ctrl
+        self.rgb = rgb_ctrl
+
+        self.press_start = None
+        self.last_release = 0
+        self.pending_single = False
+        self.double_press_threshold = 0.5  # Sekunden für Doppelklick
+
+    def update(self):
+        """Wird regelmäßig in der Hauptschleife aufgerufen, um den Knopfdruck zu verarbeiten."""
+        M5.update()
+        now = time.time()
+        if BtnA.isPressed():
+            if self.press_start is None:
+                self.press_start = now
+        else:
+            if self.press_start is not None:
+                press_duration = now - self.press_start
+                self.press_start = None
+                if press_duration >= 1.5:
+                    if DEBUG:
+                        print("DEBUG: Langer Tastendruck erkannt ({} s)".format(press_duration))
+                    self.handle_double_press()
+                else:
+                    if self.pending_single:
+                        if now - self.last_release <= self.double_press_threshold:
+                            if DEBUG:
+                                print("DEBUG: Doppeltastendruck erkannt")
+                            self.handle_double_press()
+                            self.pending_single = False
+                    else:
+                        self.pending_single = True
+                        self.last_release = now
+            if self.pending_single and (now - self.last_release) > self.double_press_threshold:
+                if DEBUG:
+                    print("DEBUG: Einfacher Tastendruck erkannt")
+                self.handle_single_press()
+                self.pending_single = False
+
+    def handle_single_press(self):
+        """Bei einfachem Tastendruck: WLED-Zustand toggeln."""
+        current_state = self.wled.get_state()
+        if DEBUG:
+            print("DEBUG: WLED aktueller Zustand:", current_state)
+        if current_state:
+            self.wled.set_state(WLED_JSON_OFF)
+        else:
+            self.wled.set_state(WLED_JSON_ON)
+
+    def handle_double_press(self):
+        """
+        Bei Doppeltastendruck oder langem Druck:
+          - LED blinkt weiß (max. 5 s).
+          - Shelly- und Nanoleaf-Status werden abgefragt.
+          - Falls beide an sind → ausschalten.
+          - Falls beide aus sind → anschalten.
+          - Bei gemischtem Zustand → ausschalten.
+        """
+        if DEBUG:
+            print("DEBUG: Doppeltastendruck / langer Druck Aktion gestartet")
+        self.rgb.blink_white(duration=5, interval=0.3)
+        shelly_state = self.shelly.get_state()
+        nanoleaf_state = self.nanoleaf.get_state()
+        if DEBUG:
+            print("DEBUG: Shelly-Status:", shelly_state, "Nanoleaf-Status:", nanoleaf_state)
+        if shelly_state and nanoleaf_state:
+            new_state = False
+        elif (not shelly_state) and (not nanoleaf_state):
+            new_state = True
+        else:
+            new_state = False
+        self.shelly.set_state(new_state)
+        self.nanoleaf.set_state(new_state)
+        if DEBUG:
+            print("DEBUG: Shelly und Nanoleaf auf", "ON" if new_state else "OFF", "gesetzt")
+
+
+# ------------------------------------------------------------------------------
+# Hauptprogramm
+# ------------------------------------------------------------------------------
+def main():
+    M5.begin()
+    # Instanziiere die Controller (bitte IP-Adressen und API-Key anpassen)
+    wled_ctrl = WLEDController("10.80.23.22", 80)
+    shelly_ctrl = ShellyController("10.80.23.51", 80)
+    nanoleaf_ctrl = NanoleafController("10.80.23.56", 16021, "kK2AbyyhXXNncr0Pw77RTy61pk3OrZnC")
+    rgb_ctrl = RGBController(io_pin=35, num_leds=1, led_type="SK6812")
+
+    lichtsteuerung = Lichtsteuerung(wled_ctrl, shelly_ctrl, nanoleaf_ctrl, rgb_ctrl)
+
+    while True:
+        lichtsteuerung.update()
+        time.sleep(0.05)  # Kleine Pause zur Entlastung
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print("ERROR:", e)
