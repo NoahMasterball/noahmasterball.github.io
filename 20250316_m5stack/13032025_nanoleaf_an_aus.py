@@ -2,7 +2,7 @@ import requests
 
 # IP-Adresse deines Nanoleaf-Geräts und dein API-Schlüssel
 nanoleaf_ip = '10.80.23.56'
-api_key = 'kK2AbyyhXXNncr0Pw77RTy61pk3OrZnC'
+api_key = ''
 base_url = f'http://{nanoleaf_ip}:16021/api/v1/{api_key}'
 
 def get_power_status():

@@ -12,10 +12,10 @@ from unit import PIRUnit
 # ------------------------------------------------------------------------------
 #Shelly und Nanoleafs manuell Ausschalten:
 #curl -X POST "http://10.80.23.51/rpc/Switch.Set" -H "Content-Type: application/json" -d "{\"id\":0,\"on\":false}"
-#curl -X PUT "http://10.80.23.56:16021/api/v1/kK2AbyyhXXNncr0Pw77RTy61pk3OrZnC/state" -H "Content-Type: application/json" -d "{\"on\":{\"value\": false}}"
+#curl -X PUT "http://10.80.23.56:16021/api/v1/xxxxxxxxxapikeyxxxxxxxxxxxxxx/state" -H "Content-Type: application/json" -d "{\"on\":{\"value\": false}}"
 #Shelly und Nanoleafs manuell Einschalten:
 #curl -X POST "http://10.80.23.51/rpc/Switch.Set" -H "Content-Type: application/json" -d "{\"id\":0,\"on\":true}"
-#curl -X PUT "http://10.80.23.56:16021/api/v1/kK2AbyyhXXNncr0Pw77RTy61pk3OrZnC/state" -H "Content-Type: application/json" -d "{\"on\":{\"value\": true}}"
+#curl -X PUT "http://10.80.23.56:16021/api/v1/xxxxxxxxxapikeyxxxxxxxxxxxxxx/state" -H "Content-Type: application/json" -d "{\"on\":{\"value\": true}}"
 
 UNOCCUPIED_TIMEOUT = 300      # 5 Minuten Inaktivität => unbesetzt (war 15 Minuten)
 MIN_SESSION_DURATION = 120    # 2 Minuten ununterbrochene Bewegung => Licht an
@@ -27,7 +27,7 @@ SHELLY_HOST = "10.80.23.51"
 SHELLY_PORT = 80
 
 nanoleaf_ip = "10.80.23.56"
-api_key = "kK2AbyyhXXNncr0Pw77RTy61pk3OrZnC"
+api_key = ""
 base_url = f"/api/v1/{api_key}/state"
 nanoleaf_port = 16021
 

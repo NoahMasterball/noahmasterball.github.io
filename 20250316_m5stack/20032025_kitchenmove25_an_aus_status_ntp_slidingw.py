@@ -18,7 +18,7 @@ SHELLY_HOST = "10.80.23.51"
 SHELLY_PORT = 80
 
 nanoleaf_ip = "10.80.23.56"
-api_key = "kK2AbyyhXXNncr0Pw77RTy61pk3OrZnC"
+api_key = ""
 base_url = f"/api/v1/{api_key}/state"
 nanoleaf_port = 16021
 

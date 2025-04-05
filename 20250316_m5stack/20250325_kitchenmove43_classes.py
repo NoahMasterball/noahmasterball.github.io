@@ -342,7 +342,7 @@ def main():
     # Instanziiere die Controller (bitte IP-Adressen und API-Key anpassen)
     wled_ctrl = WLEDController("10.80.23.22", 80)
     shelly_ctrl = ShellyController("10.80.23.51", 80)
-    nanoleaf_ctrl = NanoleafController("10.80.23.56", 16021, "kK2AbyyhXXNncr0Pw77RTy61pk3OrZnC")
+    nanoleaf_ctrl = NanoleafController("10.80.23.56", 16021, "")
     rgb_ctrl = RGBController(io_pin=35, num_leds=1, led_type="SK6812")
 
     lichtsteuerung = Lichtsteuerung(wled_ctrl, shelly_ctrl, nanoleaf_ctrl, rgb_ctrl)

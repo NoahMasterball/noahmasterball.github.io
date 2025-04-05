@@ -4,7 +4,7 @@ from machine import Pin
 
 # 🏠 Nanoleaf API Einstellungen
 NANOLEAF_IP = "10.80.23.56"
-API_KEY = "kK2AbyyhXXNncr0Pw77RTy61pk3OrZnC"
+API_KEY = ""
 BASE_URL = "/api/v1/{}/state".format(API_KEY)
 PORT = 16021
 
