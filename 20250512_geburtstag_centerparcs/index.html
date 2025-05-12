@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Einladung zu meinem 12. Geburtstag</title>
+  <style>
+    /* Globale Schriftgröße um 50% erhöhen */
+    html { font-size: 150%; }
+    /* Eigene Schriftarten einbinden */
+    @font-face {
+      font-family: 'MyFont';
+      font-weight: 300;
+      src: url('https://noahmasterball.github.io/index/myfont-Light.ttf') format('truetype');
+    }
+    @font-face {
+      font-family: 'MyFont';
+      font-weight: 400;
+      src: url('https://noahmasterball.github.io/index/myfont-Regular.ttf') format('truetype');
+    }
+    :root {
+      --primary: #6f42c1;
+      --accent: #9c27b0;
+      --text: #333;
+      --bg: #fafafa;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'MyFont', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    header {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      height: 300px; /* Erhöht, damit der Container weiter unten beginnt */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    header::after {
+      content: '';
+      position: absolute;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: rgba(255,255,255,0.1);
+      transform: rotate(45deg);
+      animation: slide 10s linear infinite;
+    }
+    @keyframes slide {
+      from { transform: rotate(45deg) translate(0,0); }
+      to   { transform: rotate(45deg) translate(-50%, -50%); }
+    }
+    header h1 {
+      text-align: center;
+      font-weight: 400;
+      color: #fff;
+      padding: 0 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 20px auto 40px; /* Angepasst: kein Überlappen mehr */
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    .section {
+      padding: 40px;
+      border-bottom: 1px solid #eee;
+    }
+    .section:last-child { border-bottom: none; }
+    .section h2 {
+      font-weight: 400;
+      color: var(--primary);
+      margin-bottom: 15px;
+      position: relative;
+      line-height: 1.2;
+    }
+    .section h2::after {
+      content: '';
+      display: block;
+      width: 50px;
+      height: 4px;
+      background: var(--accent);
+      margin-top: 6px;
+      border-radius: 2px;
+    }
+    .section p, .section ul {
+      margin-top: 10px;
+    }
+    ul { list-style: none; }
+    ul li {
+      position: relative;
+      padding-left: 30px;
+      margin-bottom: 8px;
+    }
+    ul li::before {
+      content: "🎉";
+      position: absolute;
+      left: 0;
+      top: 0;
+    }
+    .buttons { margin-top: 20px; }
+    a.button {
+      display: inline-block;
+      margin-right: 15px;
+      padding: 12px 24px;
+      font-weight: 300;
+      text-decoration: none;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    a.button:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+      background: linear-gradient(135deg, var(--accent), var(--primary));
+    }
+    footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 0.9rem;
+      color: #777;
+      font-weight: 300;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Einladung zum 12. Geburtstag mit Weekend-Overnight-Stay im Center Parcs Exklusivhaus!</h1>
+  </header>
+  <div class="container">
+    <!-- Treffpunkt -->
+    <div class="section">
+      <h2>📍 Treffpunkt</h2>
+      <ul>
+        <li><strong>Ort:</strong> Parkplatz Korbinian Aigner Gymnasium</li>
+        <li><strong>Uhrzeit:</strong> 13:20</li>
+      </ul>
+      <p><strong>Verabschiedung von Eltern:</strong> Hier verabschieden sich eure Eltern von euch.</p>
+      <p>Dann fahren wir gemeinsam zur Geburtstagsunterkunft mit zwei Autos.</p>
+    </div>
+    <!-- Ablauf & Anreise -->
+    <div class="section">
+      <h2>🏫 Ablauf &amp; Anreise</h2>
+      <p>Alle Kinder treffen sich am 26. September direkt nach der Schule. Gemeinsam fahren wir dann zum Center Parcs Allgäu.</p>
+      <p>Da wir dort bis Montag sein werden, denkt bitte daran, eure Schulsachen für Montag schon am Freitag mitzubringen.</p>
+      <p>Sollten Hausaufgaben anstehen, erledigen wir diese gemeinsam am Freitag oder Samstag im Ferienhaus in Gruppenarbeit.</p>
+      <p>Ihr benötigt nur (evtl. extra) ausreichend Kleidung, Hygieneartikel (z.B. Zahnbürste) und Schwimmsachen – sonst nichts.</p>
+      <p>Schaut euch gerne unten den Parkplan und das Haus an.</p>
+    </div>
+    <!-- Abreise -->
+    <div class="section">
+      <h2>🚗 Abreise</h2>
+      <ul>
+        <li>Am Montagmorgen fahren wir direkt von der Unterkunft zur Schule und gehen normal zum Unterricht.</li>
+        <li>Nach der Schule geht ihr dann ganz normal nach Hause.</li>
+      </ul>
+    </div>
+    <!-- Unterkunft: Datum & Ort + Details -->
+    <div class="section">
+      <h2>🏡 Unterkunft: Datum &amp; Ort</h2>
+      <ul>
+        <li><strong>Park:</strong> Center Parcs Park Allgäu, Allgäuallee 40, 88299 Leutkirch</li>
+        <li><strong>Dauer:</strong> 3 Nächte (26.–29. September 2025)</li>
+        <li>Exklusives Ferienhaus für 8 Personen (Haus Nr. 860)</li>
+        <li>Unteres Stockwerk mit 3 Doppelzimmern reserviert nur für Kinder</li>
+      
+    </ul>
+      <div class="buttons">
+        <a class="button" href="https://photos.centerparcs.com/user/plan/DE/AG.pdf" target="_blank">Lageplan Haus 860</a>
+        <a class="button" href="https://www.centerparcs.de/de-de/deutschland/fp_AG_ferienpark-park-allgaeu" target="_blank">Park-Info</a>
+      </div>
+    </div>
+    <!-- Programm -->
+    <div class="section">
+      <h2>🎯 Programm</h2>
+      <p>Nachdem die Aktivitäten erst Mitte August gebucht werden können, können wir das finale Programm noch nicht bekanntgeben. Hier einige Aktivitäten, die generell möglich wären:</p>
+      <ul>
+        <li>Aqua Mundo: Wellenbad, Rutschen, Wildwasserbahn, Whirlpool</li>
+        <li>Laser Battle</li>
+        <li>Kletterparadies (drinnen)</li>
+        <li>Bowling</li>
+        <li>Minigolf (drinnen &amp; draußen)</li>
+        <li>Bogenschießen (draußen)</li>
+        <li>Geocaching</li>
+        <li>Kids Workshop: Eigenes Stofftier basteln</li>
+        <li>BALUBA Indoor-Spielwelt</li>
+        <li>Kinderbauernhof mit Streichelzoo</li>
+        <li>Ponyreiten</li>
+        <li>MTB Fahrtechnikkurs Kids</li>
+        <li>Bungee Trampolin</li>
+        <li>Virtual Reality Experience</li>
+        <li>Kids Klub</li>
+        <li>Live-Musik und DJ Night</li>
+      </ul>
+    </div>
+    <!-- Unterlagen -->
+    <div class="section">
+      <h2>📋 Unterlagen</h2>
+      <p>Für manche Aktivitäten, wie z.B. Laser Battle, gibt es eine einzelfallspezifische Einverständniserklärung, die unterschrieben werden muss. Der Ablauf hierfür muss noch geklärt werden – eure Eltern müssen diese jedoch unterschreiben, sonst dürft ihr zumindest an der jeweiligen Aktivität nicht teilnehmen (das liegt am Betreiber, nicht an uns). Evtl. ist eine Vollmachtslösung zu diesem Thema am besten – mal sehen.</p>
+    </div>
+    <!-- Rückmeldung -->
+    <div class="section">
+      <h2>🎁 Rückmeldung</h2>
+      <p>Uns ist klar, dass eure Eltern euch ein ganzes Wochenende nicht haben und eventuell viele Fragen haben. Diese können meine Eltern gerne ausführlich beantworten. Bitte gib mir bis zum <strong>1. Juli 2025</strong> Bescheid, ob du dabei bist!</p>
+    </div>
+  </div>
+  <footer>
+    Ich freue mich auf dich! 🎂
+  </footer>
+</body>
+</html>
