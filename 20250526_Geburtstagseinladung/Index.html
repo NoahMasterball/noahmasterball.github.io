@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Einladung zu meinem 13. Geburtstag</title>
+  <style>
+    /* Eingebettetes CSS für Vorschau im Canvas */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Open Sans', sans-serif; line-height: 1.6; color: #333; background: #f8f9fa; padding: 20px; }
+    header { text-align: center; margin-bottom: 2rem; }
+    header h1 { font-size: 2.5rem; color: #007bff; }
+    .details ul { list-style: disc inside; margin: 1rem 0; }
+    .activities .grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 1rem; }
+    .activities div { background: #fff; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .rsvp { background: #fff; padding: 2rem; margin-top: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); max-width: 400px; margin: 0 auto; }
+    .rsvp label { display: block; margin: 0.5rem 0; font-weight: 600; }
+    .rsvp input[type="text"] { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; }
+    .radios { display: flex; gap: 1rem; margin: 0.5rem 0; }
+    .rsvp button { background: #28a745; color: #fff; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; cursor: pointer; font-size: 1rem; }
+    .rsvp button:hover { background: #218838; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎉 Einladung zu meinem 12. Geburtstag 🎂</h1>
+    <p>Liebe(r) Freund(in), ich lade dich herzlich ein, mit mir von <strong>Freitag, 26.09.2025</strong> bis <strong>Montag, 29.09.2025</strong> das Center Parcs Park Allgäu unsicher zu machen!</p>
+  </header>
+
+  <section class="details">
+    <h2>Wichtige Infos</h2>
+    <ul>
+      <li><strong>Treffpunkt:</strong> 26.09.2025, direkt nach der Schule</li>
+      <li>Fahrt gemeinsam zum Center Parcs Allgäu (Allgäuallee 40, 88299 Leutkirch)</li>
+      <li>Schulsachen für Montag bitte schon am Freitag mitnehmen und im Schließfach bei Noah deponieren</li>
+      <li>Unterkunft: Exklusiv-Haus Nr. 860 für 8 Personen (2 Erw.; 6 Kinder)<br> Kinder haben das untere Stockwerk mit 3 Doppelzimmern, je eigenem TV</li>
+      <li>Abreise: 29.09.2025, Haus bitte bis 10:00 Uhr verlassen</li>
+      <li>Ein Haustier ist erlaubt (unser kleiner Begleiter 😊)</li>
+    </ul>
+  </section>
+
+  <section class="activities">
+    <h2>Aktivitäten (buchbar ab Mitte August)</h2>
+    <div class="grid">
+      <div>Aqua Mundo: Wellenbad, Rutschen, Wildwasserbahn, Whirlpool</div>
+      <div>Laser Battle</div>
+      <div>Kletterparadies (drinnen)</div>
+      <div>Bowling</div>
+      <div>Minigolf (drinnen & draußen)</div>
+      <div>Bogenschießen (draußen)</div>
+      <div>Geocaching</div>
+      <div>Kids Workshop: Bastele dein eigenes Stofftier</div>
+      <div>BALUBA Indoor-Spielwelt</div>
+      <div>Kinderbauernhof mit Streichelzoo</div>
+      <div>Ponyreiten</div>
+      <div>MTB Fahrtechnikkurs KIDS</div>
+      <div>Bungee Trampolin</div>
+      <div>Virtual Reality Experience</div>
+      <div>Kids Klub</div>
+      <div>Live-Musik und DJ Night</div>
+    </div>
+  </section>
+
+  <section class="rsvp">
+    <h2>Bestätigung deiner Teilnahme</h2>
+    <form action="submit_rsvp.php" method="POST">
+      <label for="name">Dein Name:</label>
+      <input type="text" id="name" name="name" placeholder="z.B. Max" required>
+
+      <label>Machst du mit?</label>
+      <div class="radios">
+        <label><input type="radio" name="going" value="Ja" required> Ja, ich bin dabei!</label>
+        <label><input type="radio" name="going" value="Nein"> Leider nicht</label>
+      </div>
+
+      <button type="submit">Absenden</button>
+    </form>
+  </section>
+</body>
+</html>
