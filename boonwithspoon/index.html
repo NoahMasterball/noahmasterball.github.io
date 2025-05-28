@@ -869,6 +869,12 @@
         startButton.addEventListener('click', () => {
             startScreen.style.opacity = '0';
             startScreen.style.transition = 'opacity 1s';
+
+            // Video stoppen falls es läuft
+            const videoContainer = document.getElementById('video-container');
+            const iframe = videoContainer.querySelector('iframe');
+            iframe.src = iframe.src.replace('&autoplay=1', '&autoplay=0');
+            
             setTimeout(() => {
                 startScreen.style.display = 'none';
                 gameContainer.style.display = 'block';
@@ -905,8 +911,11 @@
                 startScreen.style.display = 'none';
                 optionsScreen.style.display = 'flex';
                 
-                // Video einblenden
+                // Video einblenden und mit Sound starten
                 const videoContainer = document.getElementById('video-container');
+                const iframe = videoContainer.querySelector('iframe');
+                iframe.src = "https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=0";
+                
                 setTimeout(() => {
                     videoContainer.style.opacity = '1';
                     videoContainer.style.transform = 'scale(1)';
@@ -928,9 +937,9 @@
                 startScreen.style.display = 'flex';
                 startScreen.style.opacity = '1';
                 
-                // Video-Iframe neu laden um es zu stoppen
+                // Video komplett stoppen
                 const iframe = videoContainer.querySelector('iframe');
-                iframe.src = iframe.src;
+                iframe.src = iframe.src.replace('&autoplay=1', '&autoplay=0');
             }, 500);
         });
 
