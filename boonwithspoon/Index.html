@@ -39,22 +39,29 @@
         #player {
             width: 20px;
             height: 20px;
-            background-color: red;
+            background: radial-gradient(circle at 60% 40%, #ff9999, #ff0000);
             border-radius: 50%;
             position: absolute;
             transition: all 0.2s;
             z-index: 2;
+            box-shadow: 0 0 10px #ff0000;
+            border: 2px solid #cc0000;
         }
         .enemy {
             width: 20px;
             height: 20px;
-            background-color: #ff00ff;
+            background: radial-gradient(circle at 60% 40%, #ff99ff, #ff00ff);
             border-radius: 50%;
             position: absolute;
-            transition: all 2s;
+            transition: none;
             z-index: 2;
             opacity: 0;
-            box-shadow: 0 0 30px #ff00ff;
+            box-shadow: 0 0 15px #ff00ff;
+            border: 2px solid #cc00cc;
+        }
+        .enemy.chasing {
+            background: radial-gradient(circle at 60% 40%, #ffff99, #ff0000);
+            box-shadow: 0 0 20px #ff0000;
         }
         .enemy::after {
             content: '';
@@ -94,21 +101,92 @@
         }
         #game-over {
             position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0);
+            display: none;
+            z-index: 1000;
+            transition: background-color 1s;
+        }
+        #skull {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 150px;
+            color: white;
+            opacity: 0;
+            transition: transform 0.5s cubic-bezier(.36,.07,.19,.97), opacity 0.5s;
+        }
+        .game-over-content {
+            position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background-color: rgba(0, 0, 0, 0.9);
-            color: red;
-            padding: 20px;
-            border-radius: 10px;
             text-align: center;
-            display: none;
-            z-index: 3;
+            opacity: 0;
+            transition: opacity 1s;
         }
-        #game-over button {
-            margin-top: 10px;
-            padding: 5px 10px;
+        .game-over-text {
+            font-family: 'Arial Black', sans-serif;
+            font-size: 72px;
+            color: #ff0000;
+            text-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+            margin-bottom: 40px;
+            letter-spacing: 5px;
+        }
+        .game-over-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+        }
+        .game-over-button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #ff0000;
+            color: #ff0000;
+            padding: 15px 40px;
+            font-size: 24px;
             cursor: pointer;
+            transition: all 0.3s;
+            min-width: 200px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-radius: 5px;
+        }
+        .game-over-button:hover {
+            background: rgba(255, 0, 0, 0.2);
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
+        }
+        #chase-timer {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 0, 0, 0.2);
+            padding: 10px 20px;
+            border-radius: 5px;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            display: none;
+            z-index: 100;
+        }
+        #chase-timer .bar {
+            width: 200px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        #chase-timer .progress {
+            width: 100%;
+            height: 100%;
+            background: #ff3333;
+            transition: width 0.1s linear;
         }
     </style>
 </head>
@@ -118,9 +196,21 @@
         <div id="player"></div>
         <div id="darkness-overlay"></div>
     </div>
+    <div id="chase-timer">
+        <div class="bar">
+            <div class="progress"></div>
+        </div>
+    </div>
     <div id="game-over">
-        <h2>Game Over!</h2>
-        <button onclick="restartGame()">Neu starten</button>
+        <div id="skull">💀</div>
+        <div class="game-over-content">
+            <div class="game-over-text">GAME OVER</div>
+            <div class="game-over-buttons">
+                <button class="game-over-button" onclick="restartGame()">Retry</button>
+                <button class="game-over-button" onclick="showMainMenu()">Main Menu</button>
+                <button class="game-over-button" onclick="toggleSound()">Sound: ON</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -163,18 +253,208 @@
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
         ];
 
-        // Gegner erstellen
         function createEnemy(startX, startY) {
             const enemy = document.createElement('div');
             enemy.className = 'enemy';
-            enemy.style.left = `${startX * 30 + 15}px`;
-            enemy.style.top = `${startY * 30 + 15}px`;
             document.getElementById('game-container').appendChild(enemy);
             return {
                 element: enemy,
-                position: { x: startX, y: startY },
-                direction: { x: 1, y: 0 }
+                gridX: startX,
+                gridY: startY,
+                isChasing: false,
+                isMoving: false,
+                chaseStartTime: 0
             };
+        }
+
+        function updateEnemyPosition(enemy) {
+            const pixelX = enemy.gridX * 30 + 15;
+            const pixelY = enemy.gridY * 30 + 15;
+            enemy.element.style.left = `${pixelX}px`;
+            enemy.element.style.top = `${pixelY}px`;
+        }
+
+        const chaseTimer = document.getElementById('chase-timer');
+        const chaseProgress = chaseTimer.querySelector('.progress');
+        let anyEnemyChasing = false;
+        const CHASE_DURATION = 3000; // 3 Sekunden
+
+        function updateChaseTimer(currentTime) {
+            if (anyEnemyChasing) {
+                const oldestChaseTime = Math.min(...enemies
+                    .filter(e => e.isChasing)
+                    .map(e => e.chaseStartTime));
+                
+                const elapsed = currentTime - oldestChaseTime;
+                const remaining = Math.max(0, CHASE_DURATION - elapsed);
+                const progress = (remaining / CHASE_DURATION) * 100;
+                
+                chaseTimer.style.display = 'block';
+                chaseProgress.style.width = `${progress}%`;
+                
+                if (remaining === 0) {
+                    // Beende die Verfolgung für alle Gegner
+                    enemies.forEach(enemy => {
+                        if (enemy.isChasing) {
+                            enemy.isChasing = false;
+                            enemy.element.classList.remove('chasing');
+                        }
+                    });
+                    anyEnemyChasing = false;
+                    chaseTimer.style.display = 'none';
+                }
+            } else {
+                chaseTimer.style.display = 'none';
+            }
+        }
+
+        function moveEnemy(enemy) {
+            if (!gameActive || enemy.isMoving) return;
+
+            const currentTime = performance.now();
+            const dx = playerPosition.x - enemy.gridX;
+            const dy = playerPosition.y - enemy.gridY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // Sichtlinie zum Spieler prüfen
+            const canSeePlayer = distance < 6 && !hasWallBetween(
+                playerPosition.x,
+                playerPosition.y,
+                enemy.gridX,
+                enemy.gridY
+            );
+
+            // Verfolgungsstatus aktualisieren
+            if (canSeePlayer) {
+                if (!enemy.isChasing) {
+                    enemy.isChasing = true;
+                    enemy.chaseStartTime = currentTime;
+                    enemy.element.classList.add('chasing');
+                    anyEnemyChasing = true;
+                }
+            }
+
+            // Bewegungsentscheidung mit reduzierter Wahrscheinlichkeit
+            let moveX = 0;
+            let moveY = 0;
+
+            if (enemy.isChasing) {
+                // Verfolgungsbewegung mit reduzierter Häufigkeit
+                if (Math.random() > 0.85) {
+                    // Bewegung in die Hauptrichtung mit Zufallskomponente
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        moveX = Math.sign(dx);
+                        if (Math.random() > 0.7) moveY = Math.sign(dy);
+                    } else {
+                        moveY = Math.sign(dy);
+                        if (Math.random() > 0.7) moveX = Math.sign(dx);
+                    }
+                }
+            } else if (Math.random() > 0.92) {
+                // Zufällige Bewegung
+                const directions = [
+                    { x: 1, y: 0 },
+                    { x: -1, y: 0 },
+                    { x: 0, y: 1 },
+                    { x: 0, y: -1 }
+                ];
+                const dir = directions[Math.floor(Math.random() * directions.length)];
+                moveX = dir.x;
+                moveY = dir.y;
+            }
+
+            // Bewegung ausführen wenn möglich
+            if (moveX !== 0 || moveY !== 0) {
+                const newX = enemy.gridX + moveX;
+                const newY = enemy.gridY + moveY;
+
+                if (isValidMove(newX, newY)) {
+                    enemy.isMoving = true;
+
+                    const startX = enemy.gridX * 30 + 15;
+                    const startY = enemy.gridY * 30 + 15;
+                    const targetX = newX * 30 + 15;
+                    const targetY = newY * 30 + 15;
+
+                    // Längere, gleichmäßigere Animation
+                    let startTime = null;
+                    const duration = 450; // Einheitliche Dauer für alle Bewegungen
+
+                    function animate(currentTime) {
+                        if (!startTime) startTime = currentTime;
+                        const elapsed = currentTime - startTime;
+                        const progress = Math.min(elapsed / duration, 1);
+
+                        // Sanftere Bewegung durch Easing
+                        const easeProgress = 0.5 - Math.cos(progress * Math.PI) / 2;
+                        
+                        const currentX = startX + (targetX - startX) * easeProgress;
+                        const currentY = startY + (targetY - startY) * easeProgress;
+
+                        enemy.element.style.left = `${currentX}px`;
+                        enemy.element.style.top = `${currentY}px`;
+
+                        if (progress < 1) {
+                            requestAnimationFrame(animate);
+                        } else {
+                            enemy.gridX = newX;
+                            enemy.gridY = newY;
+                            enemy.isMoving = false;
+                        }
+                    }
+
+                    requestAnimationFrame(animate);
+                }
+            }
+
+            updateEnemyVisibility(enemy);
+        }
+
+        function isValidMove(x, y) {
+            return x >= 0 && x < mazeLayout[0].length &&
+                   y >= 0 && y < mazeLayout.length &&
+                   mazeLayout[y][x] === 0;
+        }
+
+        // Kollisionserkennung anpassen
+        function checkCollision(enemy) {
+            // Berechne die exakten Pixel-Positionen
+            const playerPixelX = playerPosition.x * 30 + 15;
+            const playerPixelY = playerPosition.y * 30 + 15;
+            const enemyPixelX = enemy.gridX * 30 + 15;
+            const enemyPixelY = enemy.gridY * 30 + 15;
+
+            // Berechne die Distanz zwischen Spieler und Gegner in Pixeln
+            const dx = enemyPixelX - playerPixelX;
+            const dy = enemyPixelY - playerPixelY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Kollision nur wenn:
+            // 1. Die Distanz kleiner als 25 Pixel ist (etwas mehr als die Summe der Radien: 10px + 10px)
+            // 2. Keine Wand dazwischen ist
+            // 3. Die Gegner sichtbar sind (nicht durch Wände)
+            const isVisible = enemy.element.style.opacity !== '0';
+            return distance < 25 && 
+                   !hasWallBetween(playerPosition.x, playerPosition.y, enemy.gridX, enemy.gridY) &&
+                   isVisible;
+        }
+
+        // Sichtbarkeit aktualisieren
+        function updateEnemyVisibility(enemy) {
+            const dx = enemy.gridX - playerPosition.x;
+            const dy = enemy.gridY - playerPosition.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < 6) {
+                enemy.element.style.opacity = hasWallBetween(
+                    playerPosition.x,
+                    playerPosition.y,
+                    enemy.gridX,
+                    enemy.gridY
+                ) ? '0.4' : '1';
+            } else {
+                enemy.element.style.opacity = '0';
+            }
         }
 
         // Labyrinth erstellen
@@ -246,162 +526,94 @@
             return false; // Keine Wand gefunden
         }
 
-        // Gegner bewegen
-        function moveEnemy(enemy) {
-            if (Math.random() > 0.12) return; // Angepasste Bewegungswahrscheinlichkeit
-
-            // Wenn der Gegner gerade steht, mit 25% Wahrscheinlichkeit neue Richtung wählen
-            if (enemy.direction.x === 0 && enemy.direction.y === 0) {
-                if (Math.random() < 0.25) {
-                    const directions = [
-                        { x: 1, y: 0 },
-                        { x: -1, y: 0 },
-                        { x: 0, y: 1 },
-                        { x: 0, y: -1 }
-                    ];
-                    
-                    // Filtere gültige Richtungen
-                    const validDirections = directions.filter(dir => {
-                        const checkX = enemy.position.x + dir.x;
-                        const checkY = enemy.position.y + dir.y;
-                        return checkX >= 0 && checkX < mazeLayout[0].length &&
-                               checkY >= 0 && checkY < mazeLayout.length &&
-                               mazeLayout[checkY][checkX] === 0;
-                    });
-
-                    if (validDirections.length > 0) {
-                        const newDir = validDirections[Math.floor(Math.random() * validDirections.length)];
-                        enemy.direction = newDir;
-                    }
-                }
-                return;
-            }
-
-            // Aktuelle Position speichern
-            const oldX = enemy.position.x;
-            const oldY = enemy.position.y;
-            
-            const newX = oldX + enemy.direction.x;
-            const newY = oldY + enemy.direction.y;
-
-            // Prüfe Kollision mit Wänden
-            if (newX < 0 || newX >= mazeLayout[0].length || 
-                newY < 0 || newY >= mazeLayout.length || 
-                mazeLayout[newY][newX] === 1) {
-                
-                // Zufällige neue Richtung wählen
-                const directions = [
-                    { x: 1, y: 0 },
-                    { x: -1, y: 0 },
-                    { x: 0, y: 1 },
-                    { x: 0, y: -1 }
-                ];
-                
-                // Filtere gültige Richtungen
-                const validDirections = directions.filter(dir => {
-                    const checkX = oldX + dir.x;
-                    const checkY = oldY + dir.y;
-                    return checkX >= 0 && checkX < mazeLayout[0].length &&
-                           checkY >= 0 && checkY < mazeLayout.length &&
-                           mazeLayout[checkY][checkX] === 0;
-                });
-
-                if (validDirections.length > 0) {
-                    // 30% Chance stehen zu bleiben, sonst neue Richtung
-                    if (Math.random() < 0.3) {
-                        enemy.direction = { x: 0, y: 0 };
-                    } else {
-                        const newDir = validDirections[Math.floor(Math.random() * validDirections.length)];
-                        enemy.direction = newDir;
-                    }
-                } else {
-                    enemy.direction = { x: 0, y: 0 };
-                }
-            } else {
-                // Bewege den Gegner zur neuen Position
-                enemy.position.x = newX;
-                enemy.position.y = newY;
-                enemy.element.style.left = `${newX * 30 + 15}px`;
-                enemy.element.style.top = `${newY * 30 + 15}px`;
-            }
-
-            updateEnemyVisibility(enemy);
-        }
-
-        // Neue Funktion: Überprüfe Sichtbarkeit der Gegner
-        function updateEnemyVisibility(enemy) {
-            const dx = enemy.position.x - playerPosition.x;
-            const dy = enemy.position.y - playerPosition.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            // Sichtbarkeitsradius auf 6 Felder erhöht (180px / 30px pro Feld = 6 Felder)
-            if (distance < 6) {
-                enemy.element.style.opacity = '1';
-                // Gegner durch Wände sichtbar, aber etwas transparenter wenn Wand dazwischen
-                if (hasWallBetween(
-                    playerPosition.x,
-                    playerPosition.y,
-                    enemy.position.x,
-                    enemy.position.y
-                )) {
-                    enemy.element.style.opacity = '0.4';
-                }
-            } else {
-                enemy.element.style.opacity = '0';
-            }
-        }
-
-        // Überprüfe Kollision mit vergrößerter Hitbox
-        function checkCollision(enemy) {
-            const dx = enemy.position.x - playerPosition.x;
-            const dy = enemy.position.y - playerPosition.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            // Kollisionsradius bleibt bei 2 Feldern
-            if (distance < 2) {
-                // Kollision nur wenn keine Wand dazwischen ist
-                const hasWall = hasWallBetween(
-                    playerPosition.x, 
-                    playerPosition.y,
-                    enemy.position.x,
-                    enemy.position.y
-                );
-                return !hasWall;
-            }
-            return false;
-        }
-
         // Spiel beenden
         function endGame() {
-            if (!gameActive) return; // Verhindere mehrfaches Aufrufen
+            if (!gameActive) return;
             
             gameActive = false;
-            gameOver.style.display = 'block';
+            const gameOverScreen = document.getElementById('game-over');
+            const skull = document.getElementById('skull');
+            const content = gameOverScreen.querySelector('.game-over-content');
             
+            // Game Over Screen anzeigen
+            gameOverScreen.style.display = 'block';
+            
+            // Verzögerung für Animation
+            setTimeout(() => {
+                gameOverScreen.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+                
+                // Schädel-Animation
+                skull.style.opacity = '1';
+                skull.style.transform = 'translate(-50%, -50%) scale(5)';
+                
+                // Nach der Schädel-Animation
+                setTimeout(() => {
+                    skull.style.opacity = '0';
+                    content.style.opacity = '1';
+                }, 500);
+            }, 50);
+
             // Stoppe alle Gegnerbewegungen
             enemies.forEach(enemy => {
-                enemy.element.style.transition = 'none';
+                enemy.isMoving = false;
             });
         }
 
         // Spiel neu starten
         function restartGame() {
-            gameActive = true;
-            playerPosition = { x: 1, y: 1 };
-            gameOver.style.display = 'none';
+            const gameOverScreen = document.getElementById('game-over');
+            const skull = document.getElementById('skull');
+            const content = gameOverScreen.querySelector('.game-over-content');
+            const chaseTimer = document.getElementById('chase-timer');
             
-            // Entferne alte Gegner
-            enemies.forEach(enemy => enemy.element.remove());
-            enemies = [];
+            // Reset Animationen
+            content.style.opacity = '0';
+            skull.style.opacity = '0';
+            skull.style.transform = 'translate(-50%, -50%) scale(0)';
+            gameOverScreen.style.backgroundColor = 'rgba(0, 0, 0, 0)';
             
-            // Erstelle neue Gegner
-            enemyStartPositions.forEach(pos => {
-                const enemy = createEnemy(pos.x, pos.y);
-                enemy.element.style.transition = 'all 2s'; // Längere Übergangszeit
-                enemies.push(enemy);
-            });
+            // Timer zurücksetzen
+            chaseTimer.style.display = 'none';
+            anyEnemyChasing = false;
             
-            updatePlayerPosition();
+            setTimeout(() => {
+                gameOverScreen.style.display = 'none';
+                
+                // Spiel neu starten
+                gameActive = true;
+                playerPosition = { x: 1, y: 1 };
+                
+                // Entferne alte Gegner
+                enemies.forEach(enemy => {
+                    enemy.element.remove();
+                    enemy.isChasing = false;
+                    enemy.chaseStartTime = 0;
+                });
+                enemies = [];
+                
+                // Erstelle neue Gegner
+                enemyStartPositions.forEach(pos => {
+                    const enemy = createEnemy(pos.x, pos.y);
+                    enemies.push(enemy);
+                });
+                
+                updatePlayerPosition();
+            }, 500);
+        }
+
+        function showMainMenu() {
+            // Platzhalter für Hauptmenü-Funktion
+            restartGame();
+        }
+
+        function toggleSound() {
+            // Platzhalter für Sound-Toggle-Funktion
+            const button = event.target;
+            if (button.textContent === 'Sound: ON') {
+                button.textContent = 'Sound: OFF';
+            } else {
+                button.textContent = 'Sound: ON';
+            }
         }
 
         // Bewegungslogik
@@ -440,14 +652,25 @@
 
         // Gegner-Bewegung-Loop
         function gameLoop() {
+            const currentTime = performance.now();
+            
             if (gameActive) {
                 enemies.forEach(enemy => {
                     moveEnemy(enemy);
-                    // Prüfe Kollision nach jeder Bewegung
-                    if (checkCollision(enemy)) {
-                        endGame();
+                    
+                    const dx = enemy.gridX - playerPosition.x;
+                    const dy = enemy.gridY - playerPosition.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 2) {
+                        if (checkCollision(enemy)) {
+                            endGame();
+                        }
                     }
                 });
+
+                // Timer aktualisieren
+                updateChaseTimer(currentTime);
             }
             requestAnimationFrame(gameLoop);
         }
