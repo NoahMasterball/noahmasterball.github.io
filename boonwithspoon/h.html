@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labyrinth Spiel</title>
+    <!-- YouTube API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #000;
+        }
+        #game-container {
+            position: relative;
+            transform: scale(0.9);
+            display: none;
+        }
+        #maze {
+            display: grid;
+            grid-template-columns: repeat(20, 30px);
+            grid-template-rows: repeat(20, 30px);
+            gap: 1px;
+            background-color: #333;
+            padding: 10px;
+            border-radius: 5px;
+            position: relative;
+        }
+        .cell {
+            width: 30px;
+            height: 30px;
+            background-color: white;
+            transition: opacity 0.3s;
+        }
+        .wall {
+            background-color: #333;
+        }
+        #player {
+            width: 20px;
+            height: 20px;
+            background: radial-gradient(circle at 60% 40%, #ff9999, #ff0000);
+            border-radius: 50%;
+            position: absolute;
+            z-index: 2;
+            box-shadow: 0 0 10px #ff0000;
+            border: 2px solid #cc0000;
+            transition: left 0.15s linear, top 0.15s linear;
+            will-change: left, top;
+        }
+        .enemy {
+            width: 20px;
+            height: 20px;
+            background: radial-gradient(circle at 60% 40%, #ff99ff, #ff00ff);
+            border-radius: 50%;
+            position: absolute;
+            transition: none;
+            z-index: 2;
+            opacity: 0;
+            box-shadow: 0 0 15px #ff00ff;
+            border: 2px solid #cc00cc;
+        }
+        .enemy.chasing {
+            background: radial-gradient(circle at 60% 40%, #ffff99, #ff0000);
+            box-shadow: 0 0 20px #ff0000;
+        }
+        .enemy::after {
+            content: '';
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(
+                circle,
+                rgba(255, 0, 255, 0.2) 0%,
+                rgba(255, 0, 255, 0.1) 50%,
+                rgba(255, 0, 255, 0) 100%
+            );
+            border: 2px solid rgba(255, 0, 255, 0.3);
+            border-radius: 50%;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .goal {
+            background-color: #4CAF50 !important;
+        }
+        #darkness-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(
+                circle 180px at var(--mouse-x) var(--mouse-y),
+                transparent 0%,
+                rgba(0, 0, 0, 0.95) 100%
+            );
+            pointer-events: none;
+            z-index: 1;
+            will-change: transform;
+        }
+        #game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0);
+            display: none;
+            z-index: 1000;
+            transition: background-color 1s;
+        }
+        #skull {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 150px;
+            color: white;
+            opacity: 0;
+            transition: transform 0.5s cubic-bezier(.36,.07,.19,.97), opacity 0.5s;
+        }
+        .game-over-content {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            opacity: 0;
+            transition: opacity 1s;
+        }
+        .game-over-text {
+            font-family: 'Arial Black', sans-serif;
+            font-size: 72px;
+            color: #ff0000;
+            text-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+            margin-bottom: 40px;
+            letter-spacing: 5px;
+        }
+        .game-over-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+        }
+        .game-over-button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #ff0000;
+            color: #ff0000;
+            padding: 15px 40px;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 200px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-radius: 5px;
+        }
+        .game-over-button:hover {
+            background: rgba(255, 0, 0, 0.2);
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
+        }
+        #chase-timer {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 0, 0, 0.2);
+            padding: 10px 20px;
+            border-radius: 5px;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            display: none;
+            z-index: 100;
+        }
+        #chase-timer .bar {
+            width: 200px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        #chase-timer .progress {
+            width: 100%;
+            height: 100%;
+            background: #ff3333;
+            transition: width 0.1s linear;
+        }
+        #start-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        #start-title {
+            font-family: 'Arial Black', sans-serif;
+            font-size: 120px;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+            margin-bottom: 40px;
+            letter-spacing: 15px;
+            animation: textFlicker 3s infinite;
+        }
+        #start-light {
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, #fff 0%, rgba(255,255,255,0) 70%);
+            border-radius: 50%;
+            margin-bottom: 60px;
+            animation: lightFlicker 0.1s infinite;
+            opacity: 0.8;
+        }
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin-top: 30px;
+        }
+        #start-button, #options-button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #fff;
+            color: #fff;
+            padding: 15px 40px;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            width: 250px;
+        }
+        #start-button:hover, #options-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+        #options-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1001;
+            flex-direction: column;
+        }
+        #video-container {
+            width: 800px;
+            height: 450px;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 1s ease-out;
+            position: relative;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+        }
+        #video-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .privacy-notice {
+            color: #fff;
+            font-size: 12px;
+            margin-top: 20px;
+            opacity: 0.7;
+            text-align: center;
+            max-width: 600px;
+        }
+        @keyframes lightFlicker {
+            0% { opacity: 0.8; }
+            50% { opacity: 0.95; }
+            51% { opacity: 0.3; }
+            60% { opacity: 0.8; }
+            100% { opacity: 0.8; }
+        }
+        @keyframes textFlicker {
+            0% { opacity: 1; }
+            52% { opacity: 1; }
+            55% { opacity: 0.2; }
+            57% { opacity: 1; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="start-screen">
+        <div id="start-light"></div>
+        <div id="start-title">BWS</div>
+        <div class="button-container">
+            <button id="start-button">Start Game</button>
+            <button id="options-button">Options</button>
+        </div>
+    </div>
+
+    <div id="options-screen">
+        <div id="video-container">
+            <iframe 
+                src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=0"
+                title="YouTube video player"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen>
+            </iframe>
+        </div>
+        <div class="privacy-notice">
+            This content is embedded from YouTube and follows their privacy policy and terms of service.
+        </div>
+    </div>
+
+    <div id="game-container">
+        <div id="maze"></div>
+        <div id="player"></div>
+        <div id="darkness-overlay"></div>
+    </div>
+    <div id="chase-timer">
+        <div class="bar">
+            <div class="progress"></div>
+        </div>
+    </div>
+    <div id="game-over">
+        <div id="skull">💀</div>
+        <div class="game-over-content">
+            <div class="game-over-text">GAME OVER</div>
+            <div class="game-over-buttons">
+                <button class="game-over-button" onclick="restartGame()">Retry</button>
+                <button class="game-over-button" onclick="showMainMenu()">Main Menu</button>
+                <button class="game-over-button" onclick="toggleSound()">Sound: ON</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const maze = document.getElementById('maze');
+        const player = document.getElementById('player');
+        const darkness = document.getElementById('darkness-overlay');
+        const gameOver = document.getElementById('game-over');
+        let playerPosition = { x: 1, y: 1 }; // Startposition
+        let enemies = [];
+        let gameActive = true;
+
+        // Gegner-Startpositionen
+        const enemyStartPositions = [
+            { x: 18, y: 1 },
+            { x: 1, y: 18 },
+            { x: 18, y: 18 }
+        ];
+
+        // Erweitertes Labyrinth-Layout (0 = Weg, 1 = Wand)
+        const mazeLayout = [
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1],
+            [1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1],
+            [1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        ];
+
+        function createEnemy(startX, startY) {
+            const enemy = document.createElement('div');
+            enemy.className = 'enemy';
+            document.getElementById('game-container').appendChild(enemy);
+            return {
+                element: enemy,
+                gridX: startX,
+                gridY: startY,
+                isChasing: false,
+                isMoving: false,
+                chaseStartTime: 0
+            };
+        }
+
+        function updateEnemyPosition(enemy) {
+            const pixelX = enemy.gridX * 30 + 15;
+            const pixelY = enemy.gridY * 30 + 15;
+            enemy.element.style.left = `${pixelX}px`;
+            enemy.element.style.top = `${pixelY}px`;
+        }
+
+        const chaseTimer = document.getElementById('chase-timer');
+        const chaseProgress = chaseTimer.querySelector('.progress');
+        let anyEnemyChasing = false;
+        const CHASE_DURATION = 3000; // 3 Sekunden
+
+        function updateChaseTimer(currentTime) {
+            if (anyEnemyChasing) {
+                const oldestChaseTime = Math.min(...enemies
+                    .filter(e => e.isChasing)
+                    .map(e => e.chaseStartTime));
+                
+                const elapsed = currentTime - oldestChaseTime;
+                const remaining = Math.max(0, CHASE_DURATION - elapsed);
+                const progress = (remaining / CHASE_DURATION) * 100;
+                
+                chaseTimer.style.display = 'block';
+                chaseProgress.style.width = `${progress}%`;
+                
+                if (remaining === 0) {
+                    // Beende die Verfolgung für alle Gegner
+                    enemies.forEach(enemy => {
+                        if (enemy.isChasing) {
+                            enemy.isChasing = false;
+                            enemy.element.classList.remove('chasing');
+                        }
+                    });
+                    anyEnemyChasing = false;
+                    chaseTimer.style.display = 'none';
+                }
+            } else {
+                chaseTimer.style.display = 'none';
+            }
+        }
+
+        function moveEnemy(enemy) {
+            if (!gameActive || enemy.isMoving) return;
+
+            const dx = playerPosition.x - enemy.gridX;
+            const dy = playerPosition.y - enemy.gridY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // Sichtlinie zum Spieler prüfen
+            const canSeePlayer = distance < 6 && !hasWallBetween(
+                playerPosition.x,
+                playerPosition.y,
+                enemy.gridX,
+                enemy.gridY
+            );
+
+            if (canSeePlayer) {
+                if (!enemy.isChasing) {
+                    enemy.isChasing = true;
+                    enemy.chaseStartTime = performance.now();
+                    enemy.element.classList.add('chasing');
+                    anyEnemyChasing = true;
+                }
+            }
+
+            // Bewegungsentscheidung
+            let moveX = 0;
+            let moveY = 0;
+
+            if (enemy.isChasing) {
+                // Reduzierte Wahrscheinlichkeit für Bewegung im Chase-Modus
+                if (Math.random() > 0.95) {
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        moveX = Math.sign(dx);
+                    } else {
+                        moveY = Math.sign(dy);
+                    }
+                }
+            } else if (Math.random() > 0.97) { // Noch seltenere zufällige Bewegung
+                const directions = [
+                    { x: 1, y: 0 },
+                    { x: -1, y: 0 },
+                    { x: 0, y: 1 },
+                    { x: 0, y: -1 }
+                ];
+                const dir = directions[Math.floor(Math.random() * directions.length)];
+                moveX = dir.x;
+                moveY = dir.y;
+            }
+
+            if (moveX !== 0 || moveY !== 0) {
+                const newX = enemy.gridX + moveX;
+                const newY = enemy.gridY + moveY;
+
+                if (isValidMove(newX, newY)) {
+                    enemy.isMoving = true;
+
+                    const startX = enemy.gridX * 30 + 15;
+                    const startY = enemy.gridY * 30 + 15;
+                    const targetX = newX * 30 + 15;
+                    const targetY = newY * 30 + 15;
+
+                    const MOVE_DURATION = 300; // Doppelt so lange für die Bewegung
+                    let startTime = null;
+
+                    function animate(currentTime) {
+                        if (!startTime) startTime = currentTime;
+                        const elapsed = currentTime - startTime;
+                        const progress = Math.min(elapsed / MOVE_DURATION, 1);
+
+                        const currentX = startX + (targetX - startX) * progress;
+                        const currentY = startY + (targetY - startY) * progress;
+
+                        enemy.element.style.left = `${currentX}px`;
+                        enemy.element.style.top = `${currentY}px`;
+
+                        if (progress < 1 && gameActive) {
+                            requestAnimationFrame(animate);
+                        } else {
+                            enemy.gridX = newX;
+                            enemy.gridY = newY;
+                            enemy.isMoving = false;
+                        }
+                    }
+
+                    requestAnimationFrame(animate);
+                }
+            }
+
+            updateEnemyVisibility(enemy);
+        }
+
+        function isValidMove(x, y) {
+            return x >= 0 && x < mazeLayout[0].length &&
+                   y >= 0 && y < mazeLayout.length &&
+                   mazeLayout[y][x] === 0;
+        }
+
+        // Kollisionserkennung anpassen
+        function checkCollision(enemy) {
+            // Berechne die exakten Pixel-Positionen
+            const playerPixelX = playerPosition.x * 30 + 15;
+            const playerPixelY = playerPosition.y * 30 + 15;
+            const enemyPixelX = enemy.gridX * 30 + 15;
+            const enemyPixelY = enemy.gridY * 30 + 15;
+
+            // Berechne die Distanz zwischen Spieler und Gegner in Pixeln
+            const dx = enemyPixelX - playerPixelX;
+            const dy = enemyPixelY - playerPixelY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Kollision nur wenn:
+            // 1. Die Distanz kleiner als 25 Pixel ist (etwas mehr als die Summe der Radien: 10px + 10px)
+            // 2. Keine Wand dazwischen ist
+            // 3. Die Gegner sichtbar sind (nicht durch Wände)
+            const isVisible = enemy.element.style.opacity !== '0';
+            return distance < 25 && 
+                   !hasWallBetween(playerPosition.x, playerPosition.y, enemy.gridX, enemy.gridY) &&
+                   isVisible;
+        }
+
+        // Sichtbarkeit aktualisieren
+        function updateEnemyVisibility(enemy) {
+            const dx = enemy.gridX - playerPosition.x;
+            const dy = enemy.gridY - playerPosition.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < 6) {
+                enemy.element.style.opacity = hasWallBetween(
+                    playerPosition.x,
+                    playerPosition.y,
+                    enemy.gridX,
+                    enemy.gridY
+                ) ? '0.4' : '1';
+            } else {
+                enemy.element.style.opacity = '0';
+            }
+        }
+
+        // Labyrinth erstellen
+        function createMaze() {
+            maze.innerHTML = '';
+            for (let y = 0; y < mazeLayout.length; y++) {
+                for (let x = 0; x < mazeLayout[y].length; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell' + (mazeLayout[y][x] ? ' wall' : '');
+                    maze.appendChild(cell);
+                }
+            }
+            updatePlayerPosition();
+        }
+
+        // Spieler-Position aktualisieren
+        function updatePlayerPosition() {
+            const playerX = playerPosition.x * 30 + 15;
+            const playerY = playerPosition.y * 30 + 15;
+            player.style.left = `${playerX}px`;
+            player.style.top = `${playerY}px`;
+            
+            darkness.style.setProperty('--mouse-x', `${playerX + 10}px`);
+            darkness.style.setProperty('--mouse-y', `${playerY + 10}px`);
+
+            // Überprüfe Kollision mit allen Gegnern
+            if (gameActive) {
+                for (const enemy of enemies) {
+                    updateEnemyVisibility(enemy);
+                    if (checkCollision(enemy)) {
+                        endGame();
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Hilfsfunktion: Prüft, ob eine direkte Linie zwischen zwei Punkten durch eine Wand geht
+        function hasWallBetween(x1, y1, x2, y2) {
+            // Bresenham-Algorithmus für Linienzeichnung
+            let dx = Math.abs(x2 - x1);
+            let dy = Math.abs(y2 - y1);
+            let x = x1;
+            let y = y1;
+            let n = 1 + dx + dy;
+            let x_inc = (x2 > x1) ? 1 : -1;
+            let y_inc = (y2 > y1) ? 1 : -1;
+            let error = dx - dy;
+            dx *= 2;
+            dy *= 2;
+
+            for (; n > 0; --n) {
+                // Prüfe, ob aktuelle Position eine Wand ist
+                if (Math.floor(x) >= 0 && Math.floor(x) < mazeLayout[0].length &&
+                    Math.floor(y) >= 0 && Math.floor(y) < mazeLayout.length) {
+                    if (mazeLayout[Math.floor(y)][Math.floor(x)] === 1) {
+                        return true; // Wand gefunden
+                    }
+                }
+
+                if (error > 0) {
+                    x += x_inc;
+                    error -= dy;
+                } else {
+                    y += y_inc;
+                    error += dx;
+                }
+            }
+            return false; // Keine Wand gefunden
+        }
+
+        // Spiel beenden
+        function endGame() {
+            if (!gameActive) return;
+            
+            gameActive = false;
+            const gameOverScreen = document.getElementById('game-over');
+            const skull = document.getElementById('skull');
+            const content = gameOverScreen.querySelector('.game-over-content');
+            
+            // Game Over Screen anzeigen
+            gameOverScreen.style.display = 'block';
+            
+            // Verzögerung für Animation
+            setTimeout(() => {
+                gameOverScreen.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+                
+                // Schädel-Animation
+                skull.style.opacity = '1';
+                skull.style.transform = 'translate(-50%, -50%) scale(5)';
+                
+                // Nach der Schädel-Animation
+                setTimeout(() => {
+                    skull.style.opacity = '0';
+                    content.style.opacity = '1';
+                }, 500);
+            }, 50);
+
+            // Stoppe alle Gegnerbewegungen
+            enemies.forEach(enemy => {
+                enemy.isMoving = false;
+            });
+        }
+
+        // Spiel neu starten
+        function restartGame() {
+            const gameOverScreen = document.getElementById('game-over');
+            const skull = document.getElementById('skull');
+            const content = gameOverScreen.querySelector('.game-over-content');
+            const chaseTimer = document.getElementById('chase-timer');
+            
+            // Reset Animationen
+            content.style.opacity = '0';
+            skull.style.opacity = '0';
+            skull.style.transform = 'translate(-50%, -50%) scale(0)';
+            gameOverScreen.style.backgroundColor = 'rgba(0, 0, 0, 0)';
+            gameOverScreen.style.display = 'none';
+            
+            // Timer zurücksetzen
+            chaseTimer.style.display = 'none';
+            anyEnemyChasing = false;
+            
+            // Spiel neu starten
+            gameActive = true;
+            playerPosition = { x: 1, y: 1 };
+            
+            // Entferne alte Gegner
+            enemies.forEach(enemy => {
+                enemy.element.remove();
+                enemy.isChasing = false;
+                enemy.chaseStartTime = 0;
+            });
+            enemies = [];
+            
+            // Erstelle neue Gegner
+            enemyStartPositions.forEach(pos => {
+                const enemy = createEnemy(pos.x, pos.y);
+                enemies.push(enemy);
+            });
+            
+            updatePlayerPosition();
+        }
+
+        function showMainMenu() {
+            const gameOverScreen = document.getElementById('game-over');
+            const startScreen = document.getElementById('start-screen');
+            const gameContainer = document.getElementById('game-container');
+            
+            // Game Over Screen ausblenden
+            gameOverScreen.style.opacity = '0';
+            gameOverScreen.style.transition = 'opacity 0.5s';
+            
+            setTimeout(() => {
+                gameOverScreen.style.display = 'none';
+                
+                // Spiel zurücksetzen
+                gameActive = false;
+                playerPosition = { x: 1, y: 1 };
+                
+                // Entferne Gegner
+                enemies.forEach(enemy => {
+                    enemy.element.remove();
+                });
+                enemies = [];
+                
+                // Timer zurücksetzen
+                chaseTimer.style.display = 'none';
+                anyEnemyChasing = false;
+                
+                // Zeige Startbildschirm
+                startScreen.style.display = 'flex';
+                startScreen.style.opacity = '1';
+                gameContainer.style.display = 'none';
+            }, 500);
+        }
+
+        function toggleSound() {
+            // Platzhalter für Sound-Toggle-Funktion
+            const button = event.target;
+            if (button.textContent === 'Sound: ON') {
+                button.textContent = 'Sound: OFF';
+            } else {
+                button.textContent = 'Sound: ON';
+            }
+        }
+
+        function movePlayer(dx, dy) {
+            if (!gameActive) return;
+            
+            const newX = playerPosition.x + dx;
+            const newY = playerPosition.y + dy;
+
+            if (newX >= 0 && newX < mazeLayout[0].length &&
+                newY >= 0 && newY < mazeLayout.length &&
+                !mazeLayout[newY][newX]) {
+
+                const targetX = newX * 30 + 15;
+                const targetY = newY * 30 + 15;
+
+                // Absolute Positionierung für präzise Bewegung
+                player.style.left = `${targetX}px`;
+                player.style.top = `${targetY}px`;
+                
+                // Lichtkreis synchron bewegen
+                darkness.style.setProperty('--mouse-x', `${targetX}px`);
+                darkness.style.setProperty('--mouse-y', `${targetY}px`);
+
+                playerPosition.x = newX;
+                playerPosition.y = newY;
+            }
+        }
+
+        // Spieler-Style anpassen
+        function initializeGame() {
+            // Spieler-Position initial setzen
+            player.style.position = 'absolute';
+            player.style.left = '45px';
+            player.style.top = '45px';
+            darkness.style.setProperty('--mouse-x', '45px');
+            darkness.style.setProperty('--mouse-y', '45px');
+            
+            // ... Rest des existierenden Codes ...
+        }
+
+        // Tastatur-Events optimieren
+        let lastKeyPressTime = 0;
+        const KEY_DELAY = 160; // Leicht erhöhter Delay für stabilere Bewegung
+
+        document.addEventListener('keydown', (e) => {
+            const currentTime = performance.now();
+            if (currentTime - lastKeyPressTime < KEY_DELAY) return;
+            lastKeyPressTime = currentTime;
+
+            switch(e.key) {
+                case 'ArrowUp':
+                    movePlayer(0, -1);
+                    break;
+                case 'ArrowDown':
+                    movePlayer(0, 1);
+                    break;
+                case 'ArrowLeft':
+                    movePlayer(-1, 0);
+                    break;
+                case 'ArrowRight':
+                    movePlayer(1, 0);
+                    break;
+            }
+        });
+
+        // Gegner-Bewegung-Loop
+        function gameLoop() {
+            const currentTime = performance.now();
+            
+            if (gameActive) {
+                enemies.forEach(enemy => {
+                    moveEnemy(enemy);
+                    
+                    const dx = enemy.gridX - playerPosition.x;
+                    const dy = enemy.gridY - playerPosition.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 2) {
+                        if (checkCollision(enemy)) {
+                            endGame();
+                        }
+                    }
+                });
+
+                // Timer aktualisieren
+                updateChaseTimer(currentTime);
+            }
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Globale Variablen
+        const startScreen = document.getElementById('start-screen');
+        const gameContainer = document.getElementById('game-container');
+        const startButton = document.getElementById('start-button');
+        const optionsButton = document.getElementById('options-button');
+        const optionsScreen = document.getElementById('options-screen');
+        let youtubePlayer;
+        let isPlayerReady = false;
+
+        // Start-Button Event Listener
+        startButton.addEventListener('click', () => {
+            startScreen.style.opacity = '0';
+            startScreen.style.transition = 'opacity 1s';
+            setTimeout(() => {
+                startScreen.style.display = 'none';
+                gameContainer.style.display = 'block';
+                // Spiel starten
+                restartGame();
+            }, 1000);
+        });
+
+        // YouTube Player API Code
+        function onYouTubeIframeAPIReady() {
+            youtubePlayer = new YT.Player('youtube-player', {
+                videoId: 'dQw4w9WgXcQ',
+                playerVars: {
+                    'autoplay': 0,
+                    'controls': 1,
+                    'rel': 0,
+                    'modestbranding': 1,
+                    'playsinline': 1
+                },
+                events: {
+                    'onReady': onPlayerReady
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            isPlayerReady = true;
+        }
+
+        // Options-Button Event Listener
+        optionsButton.addEventListener('click', () => {
+            startScreen.style.opacity = '0';
+            setTimeout(() => {
+                startScreen.style.display = 'none';
+                optionsScreen.style.display = 'flex';
+                
+                // Video einblenden
+                const videoContainer = document.getElementById('video-container');
+                setTimeout(() => {
+                    videoContainer.style.opacity = '1';
+                    videoContainer.style.transform = 'scale(1)';
+                }, 500);
+            }, 500);
+        });
+
+        // Klick auf Options Screen kehrt zum Hauptmenü zurück
+        optionsScreen.addEventListener('click', (e) => {
+            // Nicht zurückkehren wenn das Video geklickt wurde
+            if (e.target.closest('#video-container')) return;
+            
+            const videoContainer = document.getElementById('video-container');
+            videoContainer.style.opacity = '0';
+            videoContainer.style.transform = 'scale(0.5)';
+            
+            setTimeout(() => {
+                optionsScreen.style.display = 'none';
+                startScreen.style.display = 'flex';
+                startScreen.style.opacity = '1';
+                
+                // Video-Iframe neu laden um es zu stoppen
+                const iframe = videoContainer.querySelector('iframe');
+                iframe.src = iframe.src;
+            }, 500);
+        });
+
+        // Spiel initialisieren kp test
+        createMaze();
+        restartGame();
+        gameLoop();
+    </script>
+</body>
+</html>
