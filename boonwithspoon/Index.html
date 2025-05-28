@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labyrinth Spiel</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #000;
+        }
+        #game-container {
+            position: relative;
+            transform: scale(0.9);
+        }
+        #maze {
+            display: grid;
+            grid-template-columns: repeat(20, 30px);
+            grid-template-rows: repeat(20, 30px);
+            gap: 1px;
+            background-color: #333;
+            padding: 10px;
+            border-radius: 5px;
+            position: relative;
+        }
+        .cell {
+            width: 30px;
+            height: 30px;
+            background-color: white;
+            transition: opacity 0.3s;
+        }
+        .wall {
+            background-color: #333;
+        }
+        #player {
+            width: 20px;
+            height: 20px;
+            background-color: red;
+            border-radius: 50%;
+            position: absolute;
+            transition: all 0.2s;
+            z-index: 2;
+        }
+        .enemy {
+            width: 20px;
+            height: 20px;
+            background-color: #ff00ff;
+            border-radius: 50%;
+            position: absolute;
+            transition: all 2s;
+            z-index: 2;
+            opacity: 0;
+            box-shadow: 0 0 30px #ff00ff;
+        }
+        .enemy::after {
+            content: '';
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(
+                circle,
+                rgba(255, 0, 255, 0.2) 0%,
+                rgba(255, 0, 255, 0.1) 50%,
+                rgba(255, 0, 255, 0) 100%
+            );
+            border: 2px solid rgba(255, 0, 255, 0.3);
+            border-radius: 50%;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .goal {
+            background-color: #4CAF50 !important;
+        }
+        #darkness-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(
+                circle 180px at var(--mouse-x) var(--mouse-y),
+                transparent 0%,
+                rgba(0, 0, 0, 0.95) 100%
+            );
+            pointer-events: none;
+            z-index: 1;
+        }
+        #game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            color: red;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+            z-index: 3;
+        }
+        #game-over button {
+            margin-top: 10px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="maze"></div>
+        <div id="player"></div>
+        <div id="darkness-overlay"></div>
+    </div>
+    <div id="game-over">
+        <h2>Game Over!</h2>
+        <button onclick="restartGame()">Neu starten</button>
+    </div>
+
+    <script>
+        const maze = document.getElementById('maze');
+        const player = document.getElementById('player');
+        const darkness = document.getElementById('darkness-overlay');
+        const gameOver = document.getElementById('game-over');
+        let playerPosition = { x: 1, y: 1 }; // Startposition
+        let enemies = [];
+        let gameActive = true;
+
+        // Gegner-Startpositionen
+        const enemyStartPositions = [
+            { x: 18, y: 1 },
+            { x: 1, y: 18 },
+            { x: 18, y: 18 }
+        ];
+
+        // Erweitertes Labyrinth-Layout (0 = Weg, 1 = Wand)
+        const mazeLayout = [
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1],
+            [1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1],
+            [1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        ];
+
+        // Gegner erstellen
+        function createEnemy(startX, startY) {
+            const enemy = document.createElement('div');
+            enemy.className = 'enemy';
+            enemy.style.left = `${startX * 30 + 15}px`;
+            enemy.style.top = `${startY * 30 + 15}px`;
+            document.getElementById('game-container').appendChild(enemy);
+            return {
+                element: enemy,
+                position: { x: startX, y: startY },
+                direction: { x: 1, y: 0 }
+            };
+        }
+
+        // Labyrinth erstellen
+        function createMaze() {
+            maze.innerHTML = '';
+            for (let y = 0; y < mazeLayout.length; y++) {
+                for (let x = 0; x < mazeLayout[y].length; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell' + (mazeLayout[y][x] ? ' wall' : '');
+                    maze.appendChild(cell);
+                }
+            }
+            updatePlayerPosition();
+        }
+
+        // Spieler-Position aktualisieren
+        function updatePlayerPosition() {
+            const playerX = playerPosition.x * 30 + 15;
+            const playerY = playerPosition.y * 30 + 15;
+            player.style.left = `${playerX}px`;
+            player.style.top = `${playerY}px`;
+            
+            darkness.style.setProperty('--mouse-x', `${playerX + 10}px`);
+            darkness.style.setProperty('--mouse-y', `${playerY + 10}px`);
+
+            // Überprüfe Kollision mit allen Gegnern
+            if (gameActive) {
+                for (const enemy of enemies) {
+                    updateEnemyVisibility(enemy);
+                    if (checkCollision(enemy)) {
+                        endGame();
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Hilfsfunktion: Prüft, ob eine direkte Linie zwischen zwei Punkten durch eine Wand geht
+        function hasWallBetween(x1, y1, x2, y2) {
+            // Bresenham-Algorithmus für Linienzeichnung
+            let dx = Math.abs(x2 - x1);
+            let dy = Math.abs(y2 - y1);
+            let x = x1;
+            let y = y1;
+            let n = 1 + dx + dy;
+            let x_inc = (x2 > x1) ? 1 : -1;
+            let y_inc = (y2 > y1) ? 1 : -1;
+            let error = dx - dy;
+            dx *= 2;
+            dy *= 2;
+
+            for (; n > 0; --n) {
+                // Prüfe, ob aktuelle Position eine Wand ist
+                if (Math.floor(x) >= 0 && Math.floor(x) < mazeLayout[0].length &&
+                    Math.floor(y) >= 0 && Math.floor(y) < mazeLayout.length) {
+                    if (mazeLayout[Math.floor(y)][Math.floor(x)] === 1) {
+                        return true; // Wand gefunden
+                    }
+                }
+
+                if (error > 0) {
+                    x += x_inc;
+                    error -= dy;
+                } else {
+                    y += y_inc;
+                    error += dx;
+                }
+            }
+            return false; // Keine Wand gefunden
+        }
+
+        // Gegner bewegen
+        function moveEnemy(enemy) {
+            if (Math.random() > 0.12) return; // Angepasste Bewegungswahrscheinlichkeit
+
+            // Wenn der Gegner gerade steht, mit 25% Wahrscheinlichkeit neue Richtung wählen
+            if (enemy.direction.x === 0 && enemy.direction.y === 0) {
+                if (Math.random() < 0.25) {
+                    const directions = [
+                        { x: 1, y: 0 },
+                        { x: -1, y: 0 },
+                        { x: 0, y: 1 },
+                        { x: 0, y: -1 }
+                    ];
+                    
+                    // Filtere gültige Richtungen
+                    const validDirections = directions.filter(dir => {
+                        const checkX = enemy.position.x + dir.x;
+                        const checkY = enemy.position.y + dir.y;
+                        return checkX >= 0 && checkX < mazeLayout[0].length &&
+                               checkY >= 0 && checkY < mazeLayout.length &&
+                               mazeLayout[checkY][checkX] === 0;
+                    });
+
+                    if (validDirections.length > 0) {
+                        const newDir = validDirections[Math.floor(Math.random() * validDirections.length)];
+                        enemy.direction = newDir;
+                    }
+                }
+                return;
+            }
+
+            // Aktuelle Position speichern
+            const oldX = enemy.position.x;
+            const oldY = enemy.position.y;
+            
+            const newX = oldX + enemy.direction.x;
+            const newY = oldY + enemy.direction.y;
+
+            // Prüfe Kollision mit Wänden
+            if (newX < 0 || newX >= mazeLayout[0].length || 
+                newY < 0 || newY >= mazeLayout.length || 
+                mazeLayout[newY][newX] === 1) {
+                
+                // Zufällige neue Richtung wählen
+                const directions = [
+                    { x: 1, y: 0 },
+                    { x: -1, y: 0 },
+                    { x: 0, y: 1 },
+                    { x: 0, y: -1 }
+                ];
+                
+                // Filtere gültige Richtungen
+                const validDirections = directions.filter(dir => {
+                    const checkX = oldX + dir.x;
+                    const checkY = oldY + dir.y;
+                    return checkX >= 0 && checkX < mazeLayout[0].length &&
+                           checkY >= 0 && checkY < mazeLayout.length &&
+                           mazeLayout[checkY][checkX] === 0;
+                });
+
+                if (validDirections.length > 0) {
+                    // 30% Chance stehen zu bleiben, sonst neue Richtung
+                    if (Math.random() < 0.3) {
+                        enemy.direction = { x: 0, y: 0 };
+                    } else {
+                        const newDir = validDirections[Math.floor(Math.random() * validDirections.length)];
+                        enemy.direction = newDir;
+                    }
+                } else {
+                    enemy.direction = { x: 0, y: 0 };
+                }
+            } else {
+                // Bewege den Gegner zur neuen Position
+                enemy.position.x = newX;
+                enemy.position.y = newY;
+                enemy.element.style.left = `${newX * 30 + 15}px`;
+                enemy.element.style.top = `${newY * 30 + 15}px`;
+            }
+
+            updateEnemyVisibility(enemy);
+        }
+
+        // Neue Funktion: Überprüfe Sichtbarkeit der Gegner
+        function updateEnemyVisibility(enemy) {
+            const dx = enemy.position.x - playerPosition.x;
+            const dy = enemy.position.y - playerPosition.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Sichtbarkeitsradius auf 6 Felder erhöht (180px / 30px pro Feld = 6 Felder)
+            if (distance < 6) {
+                enemy.element.style.opacity = '1';
+                // Gegner durch Wände sichtbar, aber etwas transparenter wenn Wand dazwischen
+                if (hasWallBetween(
+                    playerPosition.x,
+                    playerPosition.y,
+                    enemy.position.x,
+                    enemy.position.y
+                )) {
+                    enemy.element.style.opacity = '0.4';
+                }
+            } else {
+                enemy.element.style.opacity = '0';
+            }
+        }
+
+        // Überprüfe Kollision mit vergrößerter Hitbox
+        function checkCollision(enemy) {
+            const dx = enemy.position.x - playerPosition.x;
+            const dy = enemy.position.y - playerPosition.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Kollisionsradius bleibt bei 2 Feldern
+            if (distance < 2) {
+                // Kollision nur wenn keine Wand dazwischen ist
+                const hasWall = hasWallBetween(
+                    playerPosition.x, 
+                    playerPosition.y,
+                    enemy.position.x,
+                    enemy.position.y
+                );
+                return !hasWall;
+            }
+            return false;
+        }
+
+        // Spiel beenden
+        function endGame() {
+            if (!gameActive) return; // Verhindere mehrfaches Aufrufen
+            
+            gameActive = false;
+            gameOver.style.display = 'block';
+            
+            // Stoppe alle Gegnerbewegungen
+            enemies.forEach(enemy => {
+                enemy.element.style.transition = 'none';
+            });
+        }
+
+        // Spiel neu starten
+        function restartGame() {
+            gameActive = true;
+            playerPosition = { x: 1, y: 1 };
+            gameOver.style.display = 'none';
+            
+            // Entferne alte Gegner
+            enemies.forEach(enemy => enemy.element.remove());
+            enemies = [];
+            
+            // Erstelle neue Gegner
+            enemyStartPositions.forEach(pos => {
+                const enemy = createEnemy(pos.x, pos.y);
+                enemy.element.style.transition = 'all 2s'; // Längere Übergangszeit
+                enemies.push(enemy);
+            });
+            
+            updatePlayerPosition();
+        }
+
+        // Bewegungslogik
+        function movePlayer(dx, dy) {
+            if (!gameActive) return;
+            
+            const newX = playerPosition.x + dx;
+            const newY = playerPosition.y + dy;
+
+            if (newX >= 0 && newX < mazeLayout[0].length &&
+                newY >= 0 && newY < mazeLayout.length &&
+                !mazeLayout[newY][newX]) {
+                playerPosition.x = newX;
+                playerPosition.y = newY;
+                updatePlayerPosition();
+            }
+        }
+
+        // Tastatur-Events
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowUp':
+                    movePlayer(0, -1);
+                    break;
+                case 'ArrowDown':
+                    movePlayer(0, 1);
+                    break;
+                case 'ArrowLeft':
+                    movePlayer(-1, 0);
+                    break;
+                case 'ArrowRight':
+                    movePlayer(1, 0);
+                    break;
+            }
+        });
+
+        // Gegner-Bewegung-Loop
+        function gameLoop() {
+            if (gameActive) {
+                enemies.forEach(enemy => {
+                    moveEnemy(enemy);
+                    // Prüfe Kollision nach jeder Bewegung
+                    if (checkCollision(enemy)) {
+                        endGame();
+                    }
+                });
+            }
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Spiel initialisieren
+        createMaze();
+        restartGame();
+        gameLoop();
+    </script>
+</body>
+</html>
