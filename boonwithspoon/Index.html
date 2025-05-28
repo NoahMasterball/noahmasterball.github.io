@@ -42,10 +42,11 @@
             background: radial-gradient(circle at 60% 40%, #ff9999, #ff0000);
             border-radius: 50%;
             position: absolute;
-            transition: all 0.2s;
             z-index: 2;
             box-shadow: 0 0 10px #ff0000;
             border: 2px solid #cc0000;
+            transition: left 0.15s linear, top 0.15s linear;
+            will-change: left, top;
         }
         .enemy {
             width: 20px;
@@ -98,6 +99,7 @@
             );
             pointer-events: none;
             z-index: 1;
+            will-change: transform;
         }
         #game-over {
             position: fixed;
@@ -311,7 +313,6 @@
         function moveEnemy(enemy) {
             if (!gameActive || enemy.isMoving) return;
 
-            const currentTime = performance.now();
             const dx = playerPosition.x - enemy.gridX;
             const dy = playerPosition.y - enemy.gridY;
             const distance = Math.sqrt(dx * dx + dy * dy);
@@ -324,34 +325,29 @@
                 enemy.gridY
             );
 
-            // Verfolgungsstatus aktualisieren
             if (canSeePlayer) {
                 if (!enemy.isChasing) {
                     enemy.isChasing = true;
-                    enemy.chaseStartTime = currentTime;
+                    enemy.chaseStartTime = performance.now();
                     enemy.element.classList.add('chasing');
                     anyEnemyChasing = true;
                 }
             }
 
-            // Bewegungsentscheidung mit reduzierter Wahrscheinlichkeit
+            // Bewegungsentscheidung
             let moveX = 0;
             let moveY = 0;
 
             if (enemy.isChasing) {
-                // Verfolgungsbewegung mit reduzierter Häufigkeit
-                if (Math.random() > 0.85) {
-                    // Bewegung in die Hauptrichtung mit Zufallskomponente
+                // Reduzierte Wahrscheinlichkeit für Bewegung im Chase-Modus
+                if (Math.random() > 0.95) {
                     if (Math.abs(dx) > Math.abs(dy)) {
                         moveX = Math.sign(dx);
-                        if (Math.random() > 0.7) moveY = Math.sign(dy);
                     } else {
                         moveY = Math.sign(dy);
-                        if (Math.random() > 0.7) moveX = Math.sign(dx);
                     }
                 }
-            } else if (Math.random() > 0.92) {
-                // Zufällige Bewegung
+            } else if (Math.random() > 0.97) { // Noch seltenere zufällige Bewegung
                 const directions = [
                     { x: 1, y: 0 },
                     { x: -1, y: 0 },
@@ -363,7 +359,6 @@
                 moveY = dir.y;
             }
 
-            // Bewegung ausführen wenn möglich
             if (moveX !== 0 || moveY !== 0) {
                 const newX = enemy.gridX + moveX;
                 const newY = enemy.gridY + moveY;
@@ -376,25 +371,21 @@
                     const targetX = newX * 30 + 15;
                     const targetY = newY * 30 + 15;
 
-                    // Längere, gleichmäßigere Animation
+                    const MOVE_DURATION = 300; // Doppelt so lange für die Bewegung
                     let startTime = null;
-                    const duration = 450; // Einheitliche Dauer für alle Bewegungen
 
                     function animate(currentTime) {
                         if (!startTime) startTime = currentTime;
                         const elapsed = currentTime - startTime;
-                        const progress = Math.min(elapsed / duration, 1);
+                        const progress = Math.min(elapsed / MOVE_DURATION, 1);
 
-                        // Sanftere Bewegung durch Easing
-                        const easeProgress = 0.5 - Math.cos(progress * Math.PI) / 2;
-                        
-                        const currentX = startX + (targetX - startX) * easeProgress;
-                        const currentY = startY + (targetY - startY) * easeProgress;
+                        const currentX = startX + (targetX - startX) * progress;
+                        const currentY = startY + (targetY - startY) * progress;
 
                         enemy.element.style.left = `${currentX}px`;
                         enemy.element.style.top = `${currentY}px`;
 
-                        if (progress < 1) {
+                        if (progress < 1 && gameActive) {
                             requestAnimationFrame(animate);
                         } else {
                             enemy.gridX = newX;
@@ -616,7 +607,6 @@
             }
         }
 
-        // Bewegungslogik
         function movePlayer(dx, dy) {
             if (!gameActive) return;
             
@@ -626,14 +616,44 @@
             if (newX >= 0 && newX < mazeLayout[0].length &&
                 newY >= 0 && newY < mazeLayout.length &&
                 !mazeLayout[newY][newX]) {
+
+                const targetX = newX * 30 + 15;
+                const targetY = newY * 30 + 15;
+
+                // Absolute Positionierung für präzise Bewegung
+                player.style.left = `${targetX}px`;
+                player.style.top = `${targetY}px`;
+                
+                // Lichtkreis synchron bewegen
+                darkness.style.setProperty('--mouse-x', `${targetX}px`);
+                darkness.style.setProperty('--mouse-y', `${targetY}px`);
+
                 playerPosition.x = newX;
                 playerPosition.y = newY;
-                updatePlayerPosition();
             }
         }
 
-        // Tastatur-Events
+        // Spieler-Style anpassen
+        function initializeGame() {
+            // Spieler-Position initial setzen
+            player.style.position = 'absolute';
+            player.style.left = '45px';
+            player.style.top = '45px';
+            darkness.style.setProperty('--mouse-x', '45px');
+            darkness.style.setProperty('--mouse-y', '45px');
+            
+            // ... Rest des existierenden Codes ...
+        }
+
+        // Tastatur-Events optimieren
+        let lastKeyPressTime = 0;
+        const KEY_DELAY = 160; // Leicht erhöhter Delay für stabilere Bewegung
+
         document.addEventListener('keydown', (e) => {
+            const currentTime = performance.now();
+            if (currentTime - lastKeyPressTime < KEY_DELAY) return;
+            lastKeyPressTime = currentTime;
+
             switch(e.key) {
                 case 'ArrowUp':
                     movePlayer(0, -1);
