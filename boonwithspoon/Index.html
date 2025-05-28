@@ -224,6 +224,13 @@
             animation: lightFlicker 0.1s infinite;
             opacity: 0.8;
         }
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin-top: 30px;
+        }
         #start-button, #options-button {
             background: rgba(255, 255, 255, 0.1);
             border: 2px solid #fff;
@@ -234,7 +241,7 @@
             transition: all 0.3s;
             text-transform: uppercase;
             letter-spacing: 3px;
-            margin: 10px;
+            width: 250px;
         }
         #start-button:hover, #options-button:hover {
             background: rgba(255, 255, 255, 0.2);
@@ -848,6 +855,18 @@
         const optionsScreen = document.getElementById('options-screen');
         let youtubePlayer;
         let isPlayerReady = false;
+
+        // Start-Button Event Listener
+        startButton.addEventListener('click', () => {
+            startScreen.style.opacity = '0';
+            startScreen.style.transition = 'opacity 1s';
+            setTimeout(() => {
+                startScreen.style.display = 'none';
+                gameContainer.style.display = 'block';
+                // Spiel starten
+                restartGame();
+            }, 1000);
+        });
 
         // YouTube Player API Code
         function onYouTubeIframeAPIReady() {
