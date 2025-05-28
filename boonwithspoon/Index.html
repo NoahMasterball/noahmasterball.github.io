@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Labyrinth Spiel</title>
+    <!-- YouTube API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
     <style>
         body {
             display: flex;
@@ -16,6 +18,7 @@
         #game-container {
             position: relative;
             transform: scale(0.9);
+            display: none;
         }
         #maze {
             display: grid;
@@ -190,9 +193,126 @@
             background: #ff3333;
             transition: width 0.1s linear;
         }
+        #start-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        #start-title {
+            font-family: 'Arial Black', sans-serif;
+            font-size: 120px;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+            margin-bottom: 40px;
+            letter-spacing: 15px;
+            animation: textFlicker 3s infinite;
+        }
+        #start-light {
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, #fff 0%, rgba(255,255,255,0) 70%);
+            border-radius: 50%;
+            margin-bottom: 60px;
+            animation: lightFlicker 0.1s infinite;
+            opacity: 0.8;
+        }
+        #start-button, #options-button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #fff;
+            color: #fff;
+            padding: 15px 40px;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin: 10px;
+        }
+        #start-button:hover, #options-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+        #options-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1001;
+            flex-direction: column;
+        }
+        #video-container {
+            width: 800px;
+            height: 450px;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 1s ease-out;
+            position: relative;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+        }
+        #youtube-player {
+            width: 100%;
+            height: 100%;
+        }
+        .privacy-notice {
+            color: #fff;
+            font-size: 12px;
+            margin-top: 20px;
+            opacity: 0.7;
+            text-align: center;
+            max-width: 600px;
+        }
+        @keyframes lightFlicker {
+            0% { opacity: 0.8; }
+            50% { opacity: 0.95; }
+            51% { opacity: 0.3; }
+            60% { opacity: 0.8; }
+            100% { opacity: 0.8; }
+        }
+        @keyframes textFlicker {
+            0% { opacity: 1; }
+            52% { opacity: 1; }
+            55% { opacity: 0.2; }
+            57% { opacity: 1; }
+            100% { opacity: 1; }
+        }
     </style>
 </head>
 <body>
+    <div id="start-screen">
+        <div id="start-light"></div>
+        <div id="start-title">BWS</div>
+        <div class="button-container">
+            <button id="start-button">Start Game</button>
+            <button id="options-button">Options</button>
+        </div>
+    </div>
+
+    <div id="options-screen">
+        <div id="video-container">
+            <div id="youtube-player"></div>
+        </div>
+        <div class="privacy-notice">
+            This content is embedded from YouTube and follows their privacy policy and terms of service.
+        </div>
+    </div>
+
     <div id="game-container">
         <div id="maze"></div>
         <div id="player"></div>
@@ -562,39 +682,64 @@
             skull.style.opacity = '0';
             skull.style.transform = 'translate(-50%, -50%) scale(0)';
             gameOverScreen.style.backgroundColor = 'rgba(0, 0, 0, 0)';
+            gameOverScreen.style.display = 'none';
             
             // Timer zurücksetzen
             chaseTimer.style.display = 'none';
             anyEnemyChasing = false;
             
-            setTimeout(() => {
-                gameOverScreen.style.display = 'none';
-                
-                // Spiel neu starten
-                gameActive = true;
-                playerPosition = { x: 1, y: 1 };
-                
-                // Entferne alte Gegner
-                enemies.forEach(enemy => {
-                    enemy.element.remove();
-                    enemy.isChasing = false;
-                    enemy.chaseStartTime = 0;
-                });
-                enemies = [];
-                
-                // Erstelle neue Gegner
-                enemyStartPositions.forEach(pos => {
-                    const enemy = createEnemy(pos.x, pos.y);
-                    enemies.push(enemy);
-                });
-                
-                updatePlayerPosition();
-            }, 500);
+            // Spiel neu starten
+            gameActive = true;
+            playerPosition = { x: 1, y: 1 };
+            
+            // Entferne alte Gegner
+            enemies.forEach(enemy => {
+                enemy.element.remove();
+                enemy.isChasing = false;
+                enemy.chaseStartTime = 0;
+            });
+            enemies = [];
+            
+            // Erstelle neue Gegner
+            enemyStartPositions.forEach(pos => {
+                const enemy = createEnemy(pos.x, pos.y);
+                enemies.push(enemy);
+            });
+            
+            updatePlayerPosition();
         }
 
         function showMainMenu() {
-            // Platzhalter für Hauptmenü-Funktion
-            restartGame();
+            const gameOverScreen = document.getElementById('game-over');
+            const startScreen = document.getElementById('start-screen');
+            const gameContainer = document.getElementById('game-container');
+            
+            // Game Over Screen ausblenden
+            gameOverScreen.style.opacity = '0';
+            gameOverScreen.style.transition = 'opacity 0.5s';
+            
+            setTimeout(() => {
+                gameOverScreen.style.display = 'none';
+                
+                // Spiel zurücksetzen
+                gameActive = false;
+                playerPosition = { x: 1, y: 1 };
+                
+                // Entferne Gegner
+                enemies.forEach(enemy => {
+                    enemy.element.remove();
+                });
+                enemies = [];
+                
+                // Timer zurücksetzen
+                chaseTimer.style.display = 'none';
+                anyEnemyChasing = false;
+                
+                // Zeige Startbildschirm
+                startScreen.style.display = 'flex';
+                startScreen.style.opacity = '1';
+                gameContainer.style.display = 'none';
+            }, 500);
         }
 
         function toggleSound() {
@@ -694,6 +839,76 @@
             }
             requestAnimationFrame(gameLoop);
         }
+
+        // Globale Variablen
+        const startScreen = document.getElementById('start-screen');
+        const gameContainer = document.getElementById('game-container');
+        const startButton = document.getElementById('start-button');
+        const optionsButton = document.getElementById('options-button');
+        const optionsScreen = document.getElementById('options-screen');
+        let youtubePlayer;
+        let isPlayerReady = false;
+
+        // YouTube Player API Code
+        function onYouTubeIframeAPIReady() {
+            youtubePlayer = new YT.Player('youtube-player', {
+                videoId: 'dQw4w9WgXcQ',
+                playerVars: {
+                    'autoplay': 0,
+                    'controls': 1,
+                    'rel': 0,
+                    'modestbranding': 1,
+                    'playsinline': 1
+                },
+                events: {
+                    'onReady': onPlayerReady
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            isPlayerReady = true;
+        }
+
+        // Options-Button Event Listener
+        optionsButton.addEventListener('click', () => {
+            startScreen.style.opacity = '0';
+            setTimeout(() => {
+                startScreen.style.display = 'none';
+                optionsScreen.style.display = 'flex';
+                
+                // Video einblenden und abspielen
+                const videoContainer = document.getElementById('video-container');
+                setTimeout(() => {
+                    videoContainer.style.opacity = '1';
+                    videoContainer.style.transform = 'scale(1)';
+                    if (isPlayerReady && youtubePlayer) {
+                        youtubePlayer.playVideo();
+                    }
+                }, 500);
+            }, 500);
+        });
+
+        // Klick auf Options Screen kehrt zum Hauptmenü zurück
+        optionsScreen.addEventListener('click', (e) => {
+            // Nicht zurückkehren wenn das Video geklickt wurde
+            if (e.target.closest('#video-container')) return;
+            
+            const videoContainer = document.getElementById('video-container');
+            videoContainer.style.opacity = '0';
+            videoContainer.style.transform = 'scale(0.5)';
+            
+            // Video stoppen
+            if (isPlayerReady && youtubePlayer) {
+                youtubePlayer.stopVideo();
+            }
+            
+            setTimeout(() => {
+                optionsScreen.style.display = 'none';
+                startScreen.style.display = 'flex';
+                startScreen.style.opacity = '1';
+            }, 500);
+        });
 
         // Spiel initialisieren
         createMaze();
