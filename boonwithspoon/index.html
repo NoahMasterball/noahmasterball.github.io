@@ -326,14 +326,65 @@
         .forest-cell {
             width: 30px;
             height: 30px;
-            background: #1a3300;
+            background: #3d3223; /* Dunklerer braun-grauer Boden */
             transition: opacity 0.3s;
         }
         .forest-wall {
-            background: #0d1a00;
+            background: #1a1a1a; /* Dunklerer Rand */
         }
         .tree {
-            background: #264d00;
+            background: #3d3223;
+            position: relative;
+            z-index: 2;
+            opacity: 0.9; /* Leicht durchsichtig für bessere Sichtbarkeit */
+        }
+        .tree::after {
+            content: '';
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 25px solid transparent;
+            border-right: 25px solid transparent;
+            border-bottom: 55px solid #0d3300;
+        }
+        .tree::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 8px;
+            height: 15px;
+            background: #4d3319;
+        }
+        .moon {
+            position: absolute;
+            top: 20px;
+            right: 100px;
+            width: 40px;
+            height: 40px;
+            background: #ffff00;
+            border-radius: 50%;
+            box-shadow: 0 0 20px #ffff00;
+            z-index: 1;
+        }
+        .lake {
+            background: #1a4d66;
+            border-radius: 50%;
+            position: relative;
+        }
+        .lake::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(255,255,255,0.1), transparent);
+            border-radius: 50%;
         }
         .forest-monster {
             width: 40px;
@@ -358,8 +409,9 @@
             transform: scaleX(-1);
         }
         #forest-level {
-            display: none;
+            background: #1a1a1a; /* Dunkler Nachthimmel */
             position: relative;
+            overflow: hidden;
         }
         .level-transition {
             position: fixed;
@@ -465,22 +517,22 @@
         const mazeLayout = [
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1],
-            [1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1],
-            [1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1],
-            [1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-            [1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1],
-            [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
             [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
             [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
             [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
         ];
@@ -908,22 +960,34 @@
 
             const currentLayout = currentLevel === 'maze' ? mazeLayout : forestLayout;
             
-            if (newX >= 0 && newX < currentLayout[0].length &&
-                newY >= 0 && newY < currentLayout.length &&
-                currentLayout[newY][newX] !== 1 && 
-                currentLayout[newY][newX] !== 2) {
+            // Im Forest-Level: Erlaube Bewegung durch Bäume
+            if (currentLevel === 'forest') {
+                if (newX >= 0 && newX < currentLayout[0].length &&
+                    newY >= 0 && newY < currentLayout.length &&
+                    currentLayout[newY][newX] !== 1) { // Nur die äußeren Wände blockieren
 
-                playerPosition.x = newX;
-                playerPosition.y = newY;
-                updatePlayerPosition();
+                    playerPosition.x = newX;
+                    playerPosition.y = newY;
+                    updatePlayerPosition();
 
-                // Prüfe, ob Spieler das Ziel im Maze erreicht hat
-                if (currentLevel === 'maze' && newX === 18 && newY === 18) {
-                    transitionToForest();
+                    // Prüfe, ob Spieler das Ziel erreicht hat
+                    if (currentLayout[newY][newX] === 3) {
+                        winGame();
+                    }
                 }
-                // Prüfe, ob Spieler das Ziel im Forest erreicht hat
-                else if (currentLevel === 'forest' && newX === 23 && newY === 9) {
-                    winGame();
+            } else {
+                // Ursprüngliche Bewegungslogik für das Maze-Level
+                if (newX >= 0 && newX < currentLayout[0].length &&
+                    newY >= 0 && newY < currentLayout.length &&
+                    currentLayout[newY][newX] !== 1) {
+
+                    playerPosition.x = newX;
+                    playerPosition.y = newY;
+                    updatePlayerPosition();
+
+                    if (currentLevel === 'maze' && newX === 18 && newY === 18) {
+                        transitionToForest();
+                    }
                 }
             }
         }
@@ -1165,17 +1229,13 @@
 
         // Füge das Forest-Level Layout hinzu
         const forestLayout = [
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 2, 2, 0, 2, 0, 0, 0, 2, 2, 0, 2, 2, 0, 2, 2, 0, 2, 2, 0, 2, 2, 0, 2, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 2, 0, 2, 2, 0, 2, 2, 0, 2, 2, 0, 2, 2, 0, 2, 2, 0, 2, 2, 0, 2, 2, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 0, 2, 2, 0, 2, 2, 0, 2, 2, 0, 2, 2, 0, 2, 2, 0, 2, 2, 0, 2, 2, 0, 2, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 2, 2, 0, 2, 2, 0, 2, 2, 0, 2, 2, 0, 2, 2, 0, 2, 2, 0, 2, 2, 0, 2, 2, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 2, 0, 0, 0, 2, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 0, 1],
+            [1, 0, 2, 0, 2, 0, 2, 0, 2, 0, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 0, 0, 1],
+            [1, 2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
         ];
 
         function createForestLevel() {
@@ -1186,6 +1246,12 @@
             forestMaze.style.gap = '1px';
             forestMaze.style.padding = '10px';
             forestMaze.style.position = 'relative';
+            forestMaze.style.transition = 'transform 0.05s linear';
+
+            // Füge Mond hinzu
+            const moon = document.createElement('div');
+            moon.className = 'moon';
+            document.getElementById('forest-level').appendChild(moon);
 
             forestMaze.innerHTML = '';
             for (let y = 0; y < forestLayout.length; y++) {
@@ -1195,13 +1261,51 @@
                     if (forestLayout[y][x] === 1) cell.classList.add('forest-wall');
                     if (forestLayout[y][x] === 2) cell.classList.add('tree');
                     if (forestLayout[y][x] === 3) cell.classList.add('forest-exit');
+                    if (forestLayout[y][x] === 4) cell.classList.add('lake');
                     forestMaze.appendChild(cell);
                 }
             }
 
-            // Erstelle die Monster
             createForestMonsters();
+            startForestScrolling();
         }
+
+        let scrollPosition = 0;
+        let scrollSpeed = 0.3; // Reduzierte Geschwindigkeit für bessere Kontrolle
+
+        function startForestScrolling() {
+            function scroll() {
+                if (currentLevel !== 'forest' || !gameActive) return;
+                
+                const forestMaze = document.getElementById('forest-maze');
+                scrollPosition += scrollSpeed;
+                
+                // Begrenze die Scrollposition
+                const maxScroll = (forestLayout[0].length * 30) - window.innerWidth + 20;
+                if (scrollPosition > maxScroll) {
+                    scrollPosition = maxScroll;
+                }
+                
+                forestMaze.style.transform = `translateX(-${scrollPosition}px)`;
+                
+                // Passe die Spielerposition an
+                const player = document.getElementById('player');
+                const currentLeft = parseFloat(player.style.left);
+                if (currentLeft < scrollPosition) {
+                    playerPosition.x = Math.floor(scrollPosition / 30);
+                    updatePlayerPosition();
+                }
+                
+                requestAnimationFrame(scroll);
+            }
+            
+            requestAnimationFrame(scroll);
+        }
+
+        // Aktualisiere die Monster-Routen für den freien Bereich
+        const monsterRoutes = [
+            { start: { x: 2, y: 4 }, end: { x: 32, y: 4 } }
+        ];
 
         function createForestMonsters() {
             // Entferne alte Monster
@@ -1213,11 +1317,6 @@
             forestMonsters = [];
 
             // Erstelle neue Monster mit Patrol-Routen
-            const monsterRoutes = [
-                { start: { x: 5, y: 3 }, end: { x: 20, y: 3 } },
-                { start: { x: 5, y: 7 }, end: { x: 20, y: 7 } }
-            ];
-
             monsterRoutes.forEach(route => {
                 const monster = document.createElement('div');
                 monster.className = 'forest-monster';
@@ -1246,20 +1345,28 @@
             updateForestMonsters();
         }
 
+        function isPlayerBehindTree() {
+            const playerX = Math.floor(playerPosition.x);
+            const playerY = Math.floor(playerPosition.y);
+            
+            // Prüfe, ob der Spieler auf einem Baumfeld steht
+            return forestLayout[playerY][playerX] === 2;
+        }
+
         function updateForestMonsters() {
             if (currentLevel !== 'forest' || !gameActive) return;
 
             const now = performance.now();
             forestMonsters.forEach(monster => {
                 if (monster.isWaiting) {
-                    if (now - monster.waitStartTime >= 2000) { // 2 Sekunden warten
+                    if (now - monster.waitStartTime >= 2000) {
                         monster.isWaiting = false;
                         monster.movingRight = !monster.movingRight;
                         monster.element.classList.toggle('turned');
                     }
                 } else {
                     // Bewegung
-                    const speed = 0.05; // Geschwindigkeit anpassen
+                    const speed = 0.05;
                     if (monster.movingRight) {
                         monster.x += speed;
                         if (monster.x >= monster.endX) {
@@ -1290,12 +1397,8 @@
                     const dy = monsterCenterY - playerCenterY;
                     const distance = Math.sqrt(dx * dx + dy * dy);
 
-                    // Debug-Ausgabe für Kollisionserkennung
-                    console.log('Monster Position:', {x: monster.x, y: monster.y});
-                    console.log('Player Position:', playerPosition);
-                    console.log('Distance:', distance);
-
-                    if (distance < 45) { // Erhöhter Kollisionsradius für bessere Erkennung
+                    // Nur Game Over wenn der Spieler nicht hinter einem Baum ist
+                    if (distance < 45 && !isPlayerBehindTree()) {
                         console.log('Collision detected!');
                         endGame();
                         return;
