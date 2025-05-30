@@ -9,6 +9,68 @@
     <link rel="stylesheet" href="assets/css/main.css">
     <link rel="stylesheet" href="assets/css/ui.css">
     <link rel="stylesheet" href="assets/css/levels.css">
+    
+    <style>
+        /* Game styling for image-based game */
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        .game-map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+        
+        .game-character {
+            position: absolute;
+            z-index: 10;
+            transition: none;
+        }
+        
+        .game-obstacle {
+            position: absolute;
+            z-index: 5;
+        }
+        
+        .controls-overlay {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 100;
+            font-family: Arial, sans-serif;
+        }
+        
+        .controls-overlay button {
+            margin-top: 15px;
+            padding: 10px 15px;
+            background: #ff4757;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .controls-overlay button:hover {
+            background: #ff3742;
+        }
+    </style>
 </head>
 <body>
     <!-- Game Container -->
@@ -19,7 +81,7 @@
         </div>
     </div>
 
-    <!-- Simplified approach - only load essential classes -->
+    <!-- Load essential classes -->
     <script src="src/utils/EventManager.js"></script>
     <script src="src/ui/Menu.js"></script>
     
@@ -27,58 +89,66 @@
     <script>
         console.log('BWS Game loading...');
         
-        // Simple game state management
+        // Game state management
         let gameState = 'menu'; // 'menu', 'playing', 'credits'
-        let currentScreen = null;
         let player = null;
         let obstacles = [];
+        let gameMap = null;
         let gameLoop = null;
         
-        // Player object
-        class SimplePlayer {
+        // Player class using real images
+        class ImagePlayer {
             constructor() {
                 this.x = 100;
-                this.y = 350;
-                this.width = 40;
-                this.height = 60;
+                this.y = 0;
+                this.width = 150;  // Much larger for better visibility
+                this.height = 200; // Much larger for better visibility
                 this.velocityX = 0;
                 this.velocityY = 0;
-                this.speed = 200;
-                this.jumpPower = 300;
-                this.gravity = 600;
-                this.isOnGround = true;
+                this.baseSpeed = 250;
+                this.speed = 250;
+                this.sprintMultiplier = 2.0;
+                this.jumpPower = 450;
+                this.gravity = 800;
+                this.isOnGround = false;
                 this.isDucking = false;
-                this.groundY = 350;
+                this.isSprinting = false;
+                this.groundY = 0;
                 this.element = null;
-                this.keys = { left: false, right: false, up: false, down: false };
+                this.state = 'standing'; // 'standing', 'jumping', 'ducking'
+                this.keys = { 
+                    left: false, 
+                    right: false, 
+                    up: false, 
+                    down: false, 
+                    space: false, 
+                    ctrl: false, 
+                    shift: false 
+                };
                 
+                this.calculateGroundLevel();
                 this.createElement();
                 this.setupControls();
             }
             
+            calculateGroundLevel() {
+                // Based on the map image, ground appears to be roughly at the bottom
+                // We'll position relative to window height with some margin
+                this.groundY = window.innerHeight - 300; // Adjust based on actual ground in image
+                this.y = this.groundY;
+                this.isOnGround = true;
+            }
+            
             createElement() {
-                this.element = document.createElement('div');
-                this.element.className = 'game-player';
+                this.element = document.createElement('img');
+                this.element.className = 'game-character';
                 this.element.style.position = 'absolute';
                 this.element.style.width = this.width + 'px';
                 this.element.style.height = this.height + 'px';
                 this.element.style.zIndex = '10';
-                this.element.style.transition = 'height 0.1s ease';
                 
-                // Player design like in screenshot
-                this.element.innerHTML = `
-                    <div style="width: 100%; height: 30%; background: #ffdbac; border-radius: 50%; position: relative; border: 2px solid #333;">
-                        <div style="position: absolute; top: 8px; left: 8px; width: 4px; height: 4px; background: #000; border-radius: 50%;"></div>
-                        <div style="position: absolute; top: 8px; right: 8px; width: 4px; height: 4px; background: #000; border-radius: 50%;"></div>
-                        <div style="position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 12px; height: 2px; background: #333; border-radius: 2px;"></div>
-                    </div>
-                    <div style="width: 100%; height: 70%; background: #2c5aa0; border: 2px solid #1a4480; margin-top: -2px; position: relative;">
-                        <div style="position: absolute; top: 10%; left: -20%; width: 40%; height: 8px; background: #2c5aa0; border: 2px solid #1a4480;"></div>
-                        <div style="position: absolute; top: 10%; right: -20%; width: 40%; height: 8px; background: #2c5aa0; border: 2px solid #1a4480;"></div>
-                        <div style="position: absolute; bottom: 0; left: 20%; width: 20%; height: 40%; background: #2c5aa0; border: 2px solid #1a4480;"></div>
-                        <div style="position: absolute; bottom: 0; right: 20%; width: 20%; height: 40%; background: #2c5aa0; border: 2px solid #1a4480;"></div>
-                    </div>
-                `;
+                // Start with standing character
+                this.element.src = 'Pictures/charakterstehend-removebg-preview.png';
                 
                 document.getElementById('gameContainer').appendChild(this.element);
                 this.updatePosition();
@@ -90,34 +160,50 @@
                     
                     switch(e.code) {
                         case 'KeyW':
-                        case 'ArrowUp':
-                            if (this.isOnGround && !this.isDucking) {
-                                this.velocityY = -this.jumpPower;
-                                this.isOnGround = false;
-                            }
+                            this.keys.up = true;
                             break;
                         case 'KeyS':
-                        case 'ArrowDown':
                             this.keys.down = true;
-                            this.duck(true);
                             break;
                         case 'KeyA':
                         case 'ArrowLeft':
                             this.keys.left = true;
+                            this.element.style.transform = 'scaleX(-1)';
                             break;
                         case 'KeyD':
                         case 'ArrowRight':
                             this.keys.right = true;
+                            this.element.style.transform = 'scaleX(1)';
+                            break;
+                        case 'Space':
+                            e.preventDefault(); // Prevent page scrolling
+                            if (this.isOnGround && !this.isDucking) {
+                                this.velocityY = -this.jumpPower;
+                                this.isOnGround = false;
+                                this.state = 'jumping';
+                                this.element.src = 'Pictures/charakterspringend-removebg-preview.png';
+                            }
+                            break;
+                        case 'ControlLeft':
+                        case 'ControlRight':
+                            this.keys.ctrl = true;
+                            this.duck(true);
+                            break;
+                        case 'ShiftLeft':
+                            this.keys.shift = true;
+                            this.isSprinting = true;
+                            this.speed = this.baseSpeed * this.sprintMultiplier;
                             break;
                     }
                 });
                 
                 document.addEventListener('keyup', (e) => {
                     switch(e.code) {
+                        case 'KeyW':
+                            this.keys.up = false;
+                            break;
                         case 'KeyS':
-                        case 'ArrowDown':
                             this.keys.down = false;
-                            this.duck(false);
                             break;
                         case 'KeyA':
                         case 'ArrowLeft':
@@ -127,6 +213,16 @@
                         case 'ArrowRight':
                             this.keys.right = false;
                             break;
+                        case 'ControlLeft':
+                        case 'ControlRight':
+                            this.keys.ctrl = false;
+                            this.duck(false);
+                            break;
+                        case 'ShiftLeft':
+                            this.keys.shift = false;
+                            this.isSprinting = false;
+                            this.speed = this.baseSpeed;
+                            break;
                     }
                 });
             }
@@ -134,13 +230,15 @@
             duck(isDucking) {
                 this.isDucking = isDucking;
                 if (isDucking) {
-                    this.height = 35;
+                    this.state = 'ducking';
+                    this.element.src = 'Pictures/charakterduckend-removebg-preview.png';
+                    this.height = 130; // Proportional to larger size
                     this.element.style.height = this.height + 'px';
-                    this.element.style.transform = 'scaleY(0.6)';
-                } else {
-                    this.height = 60;
+                } else if (this.isOnGround) {
+                    this.state = 'standing';
+                    this.element.src = 'Pictures/charakterstehend-removebg-preview.png';
+                    this.height = 200; // Back to full size
                     this.element.style.height = this.height + 'px';
-                    this.element.style.transform = 'scaleY(1)';
                 }
             }
             
@@ -150,30 +248,65 @@
                 if (this.keys.left) this.velocityX = -this.speed;
                 if (this.keys.right) this.velocityX = this.speed;
                 
-                // Apply gravity
+                // Free vertical movement with W/S
+                let verticalMovement = 0;
+                if (this.keys.up && !this.isDucking) verticalMovement = -this.speed;
+                if (this.keys.down && !this.isDucking) verticalMovement = this.speed;
+                
+                // Apply gravity only when jumping
                 if (!this.isOnGround) {
                     this.velocityY += this.gravity * deltaTime;
+                } else {
+                    // Free vertical movement when on ground
+                    if (verticalMovement !== 0) {
+                        this.y += verticalMovement * deltaTime;
+                        // Don't apply gravity during free movement
+                    }
                 }
                 
                 // Update position
                 this.x += this.velocityX * deltaTime;
-                this.y += this.velocityY * deltaTime;
                 
-                // Ground collision
-                if (this.y >= this.groundY) {
+                // Only apply velocityY when jumping/falling
+                if (!this.isOnGround) {
+                    this.y += this.velocityY * deltaTime;
+                }
+                
+                // Ground collision (only when falling)
+                if (this.velocityY > 0 && this.y >= this.groundY) {
                     this.y = this.groundY;
                     this.velocityY = 0;
                     this.isOnGround = true;
+                    
+                    // Change sprite back to standing/ducking when landing
+                    if (this.state === 'jumping') {
+                        if (this.isDucking) {
+                            this.state = 'ducking';
+                            this.element.src = 'Pictures/charakterduckend-removebg-preview.png';
+                        } else {
+                            this.state = 'standing';
+                            this.element.src = 'Pictures/charakterstehend-removebg-preview.png';
+                        }
+                    }
                 }
                 
                 // Keep in bounds
                 const maxX = window.innerWidth - this.width;
+                const maxY = window.innerHeight - this.height;
                 this.x = Math.max(0, Math.min(maxX, this.x));
+                this.y = Math.max(0, Math.min(maxY, this.y));
                 
                 // Check obstacle collisions
                 this.checkObstacleCollisions();
                 
                 this.updatePosition();
+                
+                // Visual feedback for sprinting
+                if (this.isSprinting && this.velocityX !== 0) {
+                    this.element.style.filter = 'brightness(1.2) drop-shadow(0 0 10px rgba(255,255,0,0.5))';
+                } else {
+                    this.element.style.filter = 'none';
+                }
             }
             
             checkObstacleCollisions() {
@@ -183,11 +316,27 @@
                         this.y < obstacle.y + obstacle.height &&
                         this.y + this.height > obstacle.y) {
                         
-                        // Push player back
-                        if (this.x < obstacle.x) {
-                            this.x = obstacle.x - this.width - 2;
-                        } else {
-                            this.x = obstacle.x + obstacle.width + 2;
+                        // Only block horizontal movement if player is close to ground level
+                        if (this.y + this.height > obstacle.y - 20) {
+                            // Horizontal collision
+                            if (this.velocityX > 0) {
+                                this.x = obstacle.x - this.width - 5;
+                            } else if (this.velocityX < 0) {
+                                this.x = obstacle.x + obstacle.width + 5;
+                            }
+                        }
+                        
+                        // Landing on top of obstacle
+                        if (this.velocityY > 0 && this.y < obstacle.y + 20) {
+                            this.y = obstacle.y - this.height;
+                            this.velocityY = 0;
+                            this.isOnGround = true;
+                            this.groundY = obstacle.y - this.height;
+                        }
+                    } else {
+                        // Reset to normal ground when not near obstacle
+                        if (this.groundY !== window.innerHeight - 200) {
+                            this.groundY = window.innerHeight - 200;
                         }
                     }
                 });
@@ -230,176 +379,80 @@
             const menuEl = document.getElementById('startScreen');
             if (menuEl) menuEl.style.display = 'none';
             
-            // Create game environment
-            createGameEnvironment();
+            // Create game environment using image
+            createImageBasedGame();
             
             // Create player
-            player = new SimplePlayer();
+            player = new ImagePlayer();
             
-            // Create obstacles
-            createObstacles();
+            // Create obstacles using image
+            createImageObstacles();
             
             // Start game loop
             startGameLoop();
         }
         
-        function createGameEnvironment() {
-            // Create environment container
-            const environment = document.createElement('div');
-            environment.id = 'gameEnvironment';
-            environment.style.position = 'fixed';
-            environment.style.top = '0';
-            environment.style.left = '0';
-            environment.style.width = '100%';
-            environment.style.height = '100%';
-            environment.style.background = 'linear-gradient(to bottom, #1a1a2e 0%, #16213e 50%, #8b4513 100%)';
-            environment.style.zIndex = '1';
+        function createImageBasedGame() {
+            // Create map using the screenshot image
+            gameMap = document.createElement('img');
+            gameMap.src = 'Pictures/Screenshot 2025-05-30 170528.png';
+            gameMap.className = 'game-map';
+            gameMap.style.position = 'fixed';
+            gameMap.style.top = '0';
+            gameMap.style.left = '0';
+            gameMap.style.width = '100%';
+            gameMap.style.height = '100%';
+            gameMap.style.objectFit = 'cover';
+            gameMap.style.zIndex = '1';
             
-            // Add trees
-            createTrees(environment);
-            
-            // Add moon
-            createMoon(environment);
-            
-            // Add ground
-            createGround(environment);
+            document.getElementById('gameContainer').appendChild(gameMap);
             
             // Add controls overlay
-            createControlsOverlay(environment);
-            
-            document.getElementById('gameContainer').appendChild(environment);
+            createControlsOverlay();
         }
         
-        function createTrees(container) {
-            for (let i = 0; i < 8; i++) {
-                const tree = document.createElement('div');
-                tree.style.position = 'absolute';
-                tree.style.bottom = '150px';
-                tree.style.left = (i * 180 + Math.random() * 60) + 'px';
-                tree.style.width = '0';
-                tree.style.height = '0';
-                tree.style.borderLeft = '30px solid transparent';
-                tree.style.borderRight = '30px solid transparent';
-                tree.style.borderBottom = '100px solid #2d5016';
-                tree.style.zIndex = '2';
-                
-                // Tree trunk
-                const trunk = document.createElement('div');
-                trunk.style.position = 'absolute';
-                trunk.style.bottom = '-25px';
-                trunk.style.left = '20px';
-                trunk.style.width = '20px';
-                trunk.style.height = '30px';
-                trunk.style.background = 'repeating-linear-gradient(0deg, #8b4513 0px, #a0522d 4px, #654321 8px)';
-                
-                tree.appendChild(trunk);
-                container.appendChild(tree);
-            }
-        }
-        
-        function createMoon(container) {
-            const moon = document.createElement('div');
-            moon.style.position = 'absolute';
-            moon.style.top = '80px';
-            moon.style.right = '150px';
-            moon.style.width = '80px';
-            moon.style.height = '80px';
-            moon.style.background = '#ffff00';
-            moon.style.borderRadius = '50%';
-            moon.style.boxShadow = '0 0 30px rgba(255, 255, 0, 0.5)';
-            moon.style.zIndex = '2';
-            
-            container.appendChild(moon);
-        }
-        
-        function createGround(container) {
-            const ground = document.createElement('div');
-            ground.style.position = 'absolute';
-            ground.style.bottom = '0';
-            ground.style.left = '0';
-            ground.style.width = '100%';
-            ground.style.height = '150px';
-            ground.style.background = 'repeating-linear-gradient(90deg, #8b4513 0px, #a0522d 25px, #654321 50px)';
-            ground.style.zIndex = '2';
-            
-            container.appendChild(ground);
-        }
-        
-        function createControlsOverlay(container) {
+        function createControlsOverlay() {
             const overlay = document.createElement('div');
-            overlay.style.position = 'fixed';
-            overlay.style.top = '20px';
-            overlay.style.left = '20px';
-            overlay.style.background = 'rgba(0, 0, 0, 0.8)';
-            overlay.style.color = '#fff';
-            overlay.style.padding = '20px';
-            overlay.style.borderRadius = '10px';
-            overlay.style.fontSize = '18px';
-            overlay.style.lineHeight = '1.5';
-            overlay.style.zIndex = '100';
-            overlay.style.maxWidth = '300px';
+            overlay.className = 'controls-overlay';
             
             overlay.innerHTML = `
-                <div style="font-size: 22px; font-weight: bold; margin-bottom: 15px; color: #ffff99;">
+                <div style="font-size: 20px; font-weight: bold; margin-bottom: 15px; color: #FFD700;">
                     🎮 Tutorial - Controls
                 </div>
-                <div style="margin-bottom: 10px;"><strong>W</strong> or <strong>↑</strong> - Jump</div>
-                <div style="margin-bottom: 10px;"><strong>S</strong> or <strong>↓</strong> - Duck</div>
-                <div style="margin-bottom: 10px;"><strong>A</strong> or <strong>←</strong> - Move Left</div>
-                <div style="margin-bottom: 15px;"><strong>D</strong> or <strong>→</strong> - Move Right</div>
-                <div style="font-size: 16px; color: #ffff99;">💡 Jump over the tree log!</div>
-                <button onclick="backToMenu()" style="margin-top: 15px; padding: 8px 16px; background: rgba(255,255,255,0.1); border: 2px solid #fff; color: #fff; cursor: pointer; border-radius: 5px;">Back to Menu</button>
+                <div style="margin-bottom: 8px;"><strong>W</strong> - Move Up</div>
+                <div style="margin-bottom: 8px;"><strong>S</strong> - Move Down</div>
+                <div style="margin-bottom: 8px;"><strong>A</strong> or <strong>←</strong> - Move Left</div>
+                <div style="margin-bottom: 8px;"><strong>D</strong> or <strong>→</strong> - Move Right</div>
+                <div style="margin-bottom: 8px;"><strong>Space</strong> - Jump</div>
+                <div style="margin-bottom: 8px;"><strong>Ctrl</strong> - Duck</div>
+                <div style="margin-bottom: 15px;"><strong>Shift</strong> - Sprint (2x speed) ⚡</div>
+                <div style="font-size: 16px; color: #FFD700; margin-bottom: 15px;">
+                    💡 Jump over the tree log or move around freely!
+                </div>
+                <button onclick="backToMenu()">← Back to Menu</button>
             `;
             
-            container.appendChild(overlay);
+            document.getElementById('gameContainer').appendChild(overlay);
         }
         
-        function createObstacles() {
-            // Create tree log obstacle like in screenshot
+        function createImageObstacles() {
+            // Create tree log obstacle using the provided image
             const logObstacle = {
                 x: 400,
-                y: 320,
-                width: 150,
+                y: window.innerHeight - 280, // Position on ground
+                width: 200,
                 height: 80
             };
             
-            const logElement = document.createElement('div');
+            const logElement = document.createElement('img');
+            logElement.src = 'Pictures/Baumstamm-removebg-preview.png';
+            logElement.className = 'game-obstacle';
             logElement.style.position = 'absolute';
             logElement.style.left = logObstacle.x + 'px';
             logElement.style.top = logObstacle.y + 'px';
             logElement.style.width = logObstacle.width + 'px';
             logElement.style.height = logObstacle.height + 'px';
-            logElement.style.background = 'repeating-linear-gradient(0deg, #8b4513 0px, #a0522d 12px, #654321 24px)';
-            logElement.style.borderRadius = '40px';
-            logElement.style.border = '4px solid #654321';
             logElement.style.zIndex = '5';
-            logElement.style.boxShadow = 'inset 0 0 15px rgba(0,0,0,0.4)';
-            
-            // Add log rings
-            const ring1 = document.createElement('div');
-            ring1.style.position = 'absolute';
-            ring1.style.right = '15px';
-            ring1.style.top = '50%';
-            ring1.style.transform = 'translateY(-50%)';
-            ring1.style.width = '50px';
-            ring1.style.height = '50px';
-            ring1.style.border = '4px solid #654321';
-            ring1.style.borderRadius = '50%';
-            ring1.style.background = '#a0522d';
-            
-            const ring2 = document.createElement('div');
-            ring2.style.position = 'absolute';
-            ring2.style.left = '15px';
-            ring2.style.top = '50%';
-            ring2.style.transform = 'translateY(-50%)';
-            ring2.style.width = '45px';
-            ring2.style.height = '45px';
-            ring2.style.border = '3px solid #654321';
-            ring2.style.borderRadius = '50%';
-            ring2.style.background = '#8b4513';
-            
-            logElement.appendChild(ring1);
-            logElement.appendChild(ring2);
             
             obstacles.push(logObstacle);
             document.getElementById('gameContainer').appendChild(logElement);
@@ -412,7 +465,7 @@
                 if (gameState !== 'playing') return;
                 
                 const currentTime = performance.now();
-                const deltaTime = (currentTime - lastTime) / 1000;
+                const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.016); // Cap at 60fps
                 lastTime = currentTime;
                 
                 if (player) {
@@ -421,7 +474,6 @@
                     // Check if player reached end
                     if (player.x > window.innerWidth - 100) {
                         console.log('Tutorial completed!');
-                        // Could trigger level complete here
                     }
                 }
                 
@@ -442,24 +494,27 @@
                 player = null;
             }
             
-            const gameEnv = document.getElementById('gameEnvironment');
-            if (gameEnv) gameEnv.remove();
+            if (gameMap && gameMap.parentNode) {
+                gameMap.parentNode.removeChild(gameMap);
+                gameMap = null;
+            }
             
-            // Remove obstacles
+            // Remove obstacles and overlays
             obstacles = [];
-            document.querySelectorAll('.game-player').forEach(el => el.remove());
+            document.querySelectorAll('.game-character, .game-obstacle, .controls-overlay').forEach(el => {
+                if (el.parentNode) el.parentNode.removeChild(el);
+            });
             
             // Show menu
             const menuEl = document.getElementById('startScreen');
             if (menuEl) {
                 menuEl.style.display = 'flex';
             } else {
-                // Recreate menu if needed
                 location.reload();
             }
         }
         
-        // Override the window startGame event to use our tutorial
+        // Override the window startGame event
         window.addEventListener('startGame', () => {
             startTutorial();
         });
