@@ -1,0 +1,258 @@
+/* Levels CSS - Level-specific styling */
+
+/* General Level Styling */
+.level-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.level-grid {
+    display: grid;
+    background-color: #333;
+    border: 2px solid #666;
+    border-radius: 5px;
+    position: relative;
+    margin: auto;
+}
+
+/* Level 1 - Classic Maze */
+.level1 {
+    background: linear-gradient(45deg, #001122, #002244);
+}
+
+.level1 .wall {
+    background-color: #333;
+    border: 1px solid #555;
+}
+
+.level1 .path {
+    background-color: #fff;
+    transition: opacity 0.3s;
+}
+
+.level1 .goal {
+    background-color: #4CAF50 !important;
+    animation: pulse 2s infinite;
+    box-shadow: 0 0 15px #4CAF50;
+}
+
+/* Level 2 - Forest Theme */
+.level2 {
+    background: linear-gradient(45deg, #1a1a1a, #2d2d2d);
+    position: relative;
+}
+
+.level2::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+        radial-gradient(circle at 20% 20%, rgba(255, 255, 0, 0.1) 2px, transparent 2px),
+        radial-gradient(circle at 80% 80%, rgba(255, 255, 0, 0.1) 1px, transparent 1px);
+    background-size: 200px 200px, 150px 150px;
+    pointer-events: none;
+}
+
+.level2 .forest-cell {
+    background: #3d3223;
+    transition: opacity 0.3s;
+}
+
+.level2 .forest-wall {
+    background: #1a1a1a;
+}
+
+.level2 .tree {
+    background: #3d3223;
+    position: relative;
+    opacity: 0.9;
+}
+
+.level2 .tree::after {
+    content: '🌲';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 20px;
+}
+
+.level2 .lake {
+    background: #1a4d66;
+    border-radius: 50%;
+    position: relative;
+    box-shadow: inset 0 0 10px rgba(0, 100, 150, 0.5);
+}
+
+.level2 .lake::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, rgba(255,255,255,0.1), transparent);
+    border-radius: 50%;
+}
+
+.level2 .forest-exit {
+    background-color: #4CAF50 !important;
+    animation: pulse 2s infinite;
+    box-shadow: 0 0 20px #4CAF50;
+}
+
+/* Special Effects */
+.darkness-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(
+        circle 180px at var(--mouse-x, 50%) var(--mouse-y, 50%),
+        transparent 0%,
+        rgba(0, 0, 0, 0.95) 100%
+    );
+    pointer-events: none;
+    z-index: 5;
+    transition: background 0.1s ease;
+}
+
+/* Moon for night levels */
+.moon {
+    position: absolute;
+    top: 20px;
+    right: 100px;
+    width: 40px;
+    height: 40px;
+    background: #ffff00;
+    border-radius: 50%;
+    box-shadow: 0 0 20px #ffff00;
+    z-index: 1;
+}
+
+/* Level Transition Effects */
+.level-transition {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: black;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1500;
+    color: white;
+    font-size: 24px;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 1s ease;
+}
+
+.level-transition.active {
+    opacity: 1;
+}
+
+.level-transition-text {
+    max-width: 600px;
+    line-height: 1.6;
+    padding: 20px;
+}
+
+/* Scrolling Background Effects */
+.scrolling-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 200%;
+    height: 100%;
+    background-repeat: repeat-x;
+    animation: scroll 20s linear infinite;
+}
+
+@keyframes scroll {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-50%);
+    }
+}
+
+/* Level-specific Entities */
+.forest-monster {
+    width: 40px;
+    height: 40px;
+    background: radial-gradient(circle at 60% 40%, #660000, #330000);
+    border-radius: 10px;
+    position: absolute;
+    z-index: 900;
+    box-shadow: 0 0 20px #ff0000;
+    border: 3px solid #800000;
+    transition: transform 0.3s ease;
+}
+
+.forest-monster::before {
+    content: '👹';
+    font-size: 30px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.forest-monster.turned {
+    transform: scaleX(-1);
+}
+
+/* Animations */
+@keyframes pulse {
+    0% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.1); }
+    100% { opacity: 0.6; transform: scale(1); }
+}
+
+@keyframes glow {
+    0% { box-shadow: 0 0 5px currentColor; }
+    50% { box-shadow: 0 0 20px currentColor; }
+    100% { box-shadow: 0 0 5px currentColor; }
+}
+
+.glowing {
+    animation: glow 2s infinite;
+}
+
+/* Responsive Design for Levels */
+@media (max-width: 768px) {
+    .level-grid {
+        transform: scale(0.8);
+    }
+    
+    .level-transition-text {
+        font-size: 18px;
+        padding: 15px;
+    }
+    
+    .moon {
+        width: 30px;
+        height: 30px;
+        top: 15px;
+        right: 50px;
+    }
+}
+
+@media (max-width: 480px) {
+    .level-grid {
+        transform: scale(0.6);
+    }
+    
+    .level-transition-text {
+        font-size: 16px;
+    }
+} 

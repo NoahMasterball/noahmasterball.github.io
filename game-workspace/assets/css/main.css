@@ -1,0 +1,99 @@
+/* Main CSS - Basic styling and layout */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #000;
+    color: #fff;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#gameContainer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* General utility classes */
+.hidden {
+    display: none !important;
+}
+
+.visible {
+    display: block !important;
+}
+
+.center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+.fade-out {
+    animation: fadeOut 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* Game grid/canvas styling */
+.game-grid {
+    display: grid;
+    background-color: #333;
+    border: 2px solid #666;
+    border-radius: 5px;
+    position: relative;
+}
+
+.game-cell {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+/* Entity styling (player, enemies, etc.) */
+.game-entity {
+    position: absolute;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.player {
+    background: radial-gradient(circle at 60% 40%, #ff9999, #ff0000);
+    box-shadow: 0 0 10px #ff0000;
+    border: 2px solid #cc0000;
+}
+
+.enemy {
+    background: radial-gradient(circle at 60% 40%, #ff99ff, #ff00ff);
+    box-shadow: 0 0 15px #ff00ff;
+    border: 2px solid #cc00cc;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    #gameContainer {
+        transform: scale(0.8);
+    }
+} 
