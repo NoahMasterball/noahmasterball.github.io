@@ -7,19 +7,48 @@
 
 // Game instance holder
 let gameInstance = null;
+let menuInstance = null;
 
 /**
  * Initialize the game when the DOM is loaded
  */
 document.addEventListener('DOMContentLoaded', () => {
     try {
-        // Initialize the game
-        initializeGame();
+        // Initialize the BWS start screen first
+        initializeStartScreen();
+        
+        // Set up game start listener (simplified approach)
+        window.addEventListener('startGame', () => {
+            console.log('Window event received: startGame');
+            if (gameInstance) {
+                gameInstance.startGame();
+            } else {
+                initializeGame();
+            }
+        });
     } catch (error) {
         console.error('Failed to initialize game:', error);
         showErrorMessage('Failed to load the game. Please refresh the page.');
     }
 });
+
+/**
+ * Initialize the BWS start screen
+ */
+function initializeStartScreen() {
+    console.log('Initializing BWS Start Screen...');
+    
+    // Verify Menu class is available
+    if (typeof window.Menu === 'undefined') {
+        throw new Error('Menu class is not loaded');
+    }
+    
+    // Create and initialize the menu
+    menuInstance = new Menu();
+    menuInstance.init();
+    
+    console.log('BWS Start Screen initialized successfully!');
+}
 
 /**
  * Main game initialization function
@@ -40,8 +69,8 @@ function initializeGame() {
     const renderer = new Renderer();
     const collision = new Collision();
     
-    // Initialize UI systems
-    const menu = new Menu();
+    // Initialize UI systems (reuse menu instance if exists)
+    const menu = menuInstance || new Menu();
     const gameUI = new GameUI();
     const gameOver = new GameOver();
     const settings = new Settings();
@@ -62,6 +91,9 @@ function initializeGame() {
         levelManager
     });
     
+    // Make game instance globally accessible
+    window.gameInstance = gameInstance;
+    
     console.log('Game initialized successfully!');
 }
 
@@ -79,6 +111,7 @@ function verifyDependencies() {
         'Enemy',
         'Game',
         'Level',
+        'LevelTutorial',
         'Level1',
         'Level2',
         'LevelManager',

@@ -43,14 +43,11 @@ class Game {
         
         // Initialize systems
         this.renderer.init(document.getElementById('gameContainer'));
-        this.menu.init();
         this.gameUI.init();
         this.gameOver.init();
         this.settings.init();
         
-        // Show main menu
-        this.showMenu();
-        
+        // Don't show menu here - it's already shown by main.js
         console.log('Game initialized successfully');
     }
 
@@ -83,29 +80,53 @@ class Game {
     startGame() {
         console.log('Starting new game...');
         
-        this.state = 'PLAYING';
-        this.isRunning = true;
-        this.score = 0;
-        this.startTime = performance.now();
-        
-        // Hide menu, show game UI
-        this.menu.hide();
-        this.gameUI.show();
-        
-        // Create player
-        this.player = new Player({
-            eventManager: this.eventManager,
-            renderer: this.renderer
-        });
-        
-        // Load first level
-        this.levelManager.loadLevel(1);
-        this.currentLevel = this.levelManager.getCurrentLevel();
-        
-        // Start game loop
-        this.startGameLoop();
-        
-        this.eventManager.emit('gameStarted');
+        try {
+            this.state = 'PLAYING';
+            this.isRunning = true;
+            this.score = 0;
+            this.startTime = performance.now();
+            
+            console.log('Game state set to PLAYING');
+            
+            // Hide menu, show game UI
+            this.menu.hide();
+            console.log('Menu hidden');
+            
+            this.gameUI.show();
+            console.log('Game UI shown');
+            
+            // Create player
+            console.log('Creating player...');
+            this.player = new Player({
+                eventManager: this.eventManager,
+                renderer: this.renderer
+            });
+            console.log('Player created successfully');
+            
+            // Load tutorial level
+            console.log('Creating tutorial level...');
+            this.currentLevel = new LevelTutorial({
+                eventManager: this.eventManager,
+                renderer: this.renderer
+            });
+            console.log('Tutorial level created');
+            
+            this.currentLevel.show();
+            console.log('Tutorial level shown');
+            
+            // Start game loop
+            console.log('Starting game loop...');
+            this.startGameLoop();
+            console.log('Game loop started');
+            
+            this.eventManager.emit('gameStarted');
+            console.log('Game started successfully!');
+            
+        } catch (error) {
+            console.error('Error starting game:', error);
+            console.error('Stack trace:', error.stack);
+            this.showMenu(); // Fallback to menu if error occurs
+        }
     }
 
     /**
@@ -228,12 +249,10 @@ class Game {
      * Start the game loop
      */
     startGameLoop() {
-        if (this.animationFrameId) {
-            cancelAnimationFrame(this.animationFrameId);
-        }
+        if (!this.isRunning) return;
         
         this.lastTime = performance.now();
-        this.gameLoop(this.lastTime);
+        this.gameLoop();
     }
 
     /**
@@ -249,46 +268,37 @@ class Game {
     /**
      * Main game loop
      */
-    gameLoop(currentTime) {
+    gameLoop() {
         if (!this.isRunning) return;
         
-        const deltaTime = currentTime - this.lastTime;
+        const currentTime = performance.now();
+        const deltaTime = (currentTime - this.lastTime) / 1000; // Convert to seconds
         this.lastTime = currentTime;
         
         // Update game systems
         this.update(deltaTime);
         
-        // Render game
-        this.render(deltaTime);
-        
         // Continue loop
-        this.animationFrameId = requestAnimationFrame((time) => this.gameLoop(time));
+        this.animationFrameId = requestAnimationFrame(() => this.gameLoop());
     }
 
     /**
-     * Update game logic
+     * Update all game systems
      */
     update(deltaTime) {
-        if (this.state !== 'PLAYING') return;
-        
-        // Update player
         if (this.player) {
             this.player.update(deltaTime);
         }
         
-        // Update current level
         if (this.currentLevel) {
-            this.currentLevel.update(deltaTime);
+            this.currentLevel.update(deltaTime, this.player);
         }
         
         // Update UI
-        this.gameUI.update(deltaTime, {
+        this.gameUI.update({
             score: this.score,
             time: this.getGameTime()
         });
-        
-        // Check collisions
-        this.checkCollisions();
     }
 
     /**

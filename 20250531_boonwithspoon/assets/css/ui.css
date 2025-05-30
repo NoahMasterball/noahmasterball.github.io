@@ -1,5 +1,183 @@
 /* UI CSS - User Interface elements */
 
+/* BWS Start Screen Styles */
+.start-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    transition: opacity 1s ease;
+}
+
+.start-title {
+    font-family: 'Arial Black', sans-serif;
+    font-size: 120px;
+    color: #fff;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+    margin-bottom: 40px;
+    letter-spacing: 15px;
+    animation: textFlicker 3s infinite;
+}
+
+.button-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    margin-top: 30px;
+}
+
+.start-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid #fff;
+    color: #fff;
+    padding: 15px 40px;
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    width: 250px;
+    border-radius: 0;
+    font-family: inherit;
+}
+
+.start-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+/* Options Screen */
+.options-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1001;
+    flex-direction: column;
+    transition: opacity 0.5s ease;
+}
+
+.options-menu {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 300px;
+}
+
+.option-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
+    font-size: 18px;
+}
+
+.option-button {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid #fff;
+    color: #fff;
+    padding: 5px 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 0;
+    font-family: inherit;
+}
+
+.option-button:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.back-button {
+    margin-top: 20px;
+    align-self: center;
+    width: 200px;
+}
+
+/* Credits Screen */
+.credits-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1001;
+    flex-direction: column;
+    transition: opacity 0.5s ease;
+    overflow: hidden;
+}
+
+.credits-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    opacity: 0;
+    transition: opacity 1s ease;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+.credits-text {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    color: #fff;
+    font-family: 'Arial', sans-serif;
+    top: 100vh;
+    animation: none;
+    padding: 20px;
+}
+
+.credits-line {
+    font-size: 24px;
+    margin: 10px 0;
+    letter-spacing: 2px;
+    color: #fff;
+}
+
+.credits-name {
+    font-size: 32px;
+    font-weight: bold;
+    margin: 10px 0;
+    color: #ffff99;
+    text-shadow: 0 0 10px rgba(255, 255, 153, 0.5);
+}
+
+.credits-spacer {
+    height: 30px;
+}
+
+@keyframes creditsScroll {
+    0% {
+        transform: translateY(0);
+    }
+    100% {
+        transform: translateY(-200vh);
+    }
+}
+
 /* Menu System */
 .menu-screen {
     position: fixed;
@@ -235,4 +413,15 @@
     .game-over-title {
         font-size: 64px;
     }
+}
+
+.credits-screen .back-button {
+    position: fixed;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1002;
+    margin-top: 0;
+    align-self: unset;
+    width: 200px;
 } 
