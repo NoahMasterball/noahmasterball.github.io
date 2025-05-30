@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BWS Game</title>
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/ui.css">
+    <link rel="stylesheet" href="assets/css/levels.css">
+    
+    <style>
+        /* Game styling for image-based game */
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        .game-map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+        
+        .game-character {
+            position: absolute;
+            z-index: 10;
+            transition: none;
+        }
+        
+        .game-obstacle {
+            position: absolute;
+            z-index: 5;
+        }
+        
+        .controls-overlay {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 100;
+            font-family: Arial, sans-serif;
+        }
+        
+        .controls-overlay button {
+            margin-top: 15px;
+            padding: 10px 15px;
+            background: #ff4757;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .controls-overlay button:hover {
+            background: #ff3742;
+        }
+    </style>
+</head>
+<body>
+    <!-- Game Container -->
+    <div id="gameContainer">
+        <!-- Debug info (hidden in production) -->
+        <div id="debugInfo" style="display: none; position: fixed; top: 10px; right: 10px; background: rgba(255,0,0,0.8); color: white; padding: 10px; z-index: 9999; font-family: monospace; font-size: 12px;">
+            Debug Info
+        </div>
+    </div>
+
+    <!-- Load essential classes -->
+    <script src="src/utils/EventManager.js"></script>
+    <script src="src/ui/Menu.js"></script>
+    
+    <!-- Main Game Script -->
+    <script>
+        console.log('BWS Game loading...');
+        
+        // Game state management
+        let gameState = 'menu'; // 'menu', 'playing', 'credits'
+        let player = null;
+        let obstacles = [];
+        let gameMap = null;
+        let gameLoop = null;
+        
+        // Player class using real images
+        class ImagePlayer {
+            constructor() {
+                this.x = 100;
+                this.y = 0;
+                this.width = 150;  // Much larger for better visibility
+                this.height = 200; // Much larger for better visibility
+                this.velocityX = 0;
+                this.velocityY = 0;
+                this.baseSpeed = 250;
+                this.speed = 250;
+                this.sprintMultiplier = 2.0;
+                this.jumpPower = 450;
+                this.gravity = 800;
+                this.isOnGround = false;
+                this.isDucking = false;
+                this.isSprinting = false;
+                this.groundY = 0;
+                this.element = null;
+                this.state = 'standing'; // 'standing', 'jumping', 'ducking'
+                this.keys = { 
+                    left: false, 
+                    right: false, 
+                    up: false, 
+                    down: false, 
+                    space: false, 
+                    ctrl: false, 
+                    shift: false 
+                };
+                
+                this.calculateGroundLevel();
+                this.createElement();
+                this.setupControls();
+            }
+            
+            calculateGroundLevel() {
+                // Based on the map image, ground appears to be roughly at the bottom
+                // We'll position relative to window height with some margin
+                this.groundY = window.innerHeight - 300; // Adjust based on actual ground in image
+                this.y = this.groundY;
+                this.isOnGround = true;
+            }
+            
+            createElement() {
+                this.element = document.createElement('img');
+                this.element.className = 'game-character';
+                this.element.style.position = 'absolute';
+                this.element.style.width = this.width + 'px';
+                this.element.style.height = this.height + 'px';
+                this.element.style.zIndex = '10';
+                
+                // Start with standing character
+                this.element.src = 'Pictures/charakterstehend-removebg-preview.png';
+                
+                document.getElementById('gameContainer').appendChild(this.element);
+                this.updatePosition();
+            }
+            
+            setupControls() {
+                document.addEventListener('keydown', (e) => {
+                    if (gameState !== 'playing') return;
+                    
+                    switch(e.code) {
+                        case 'KeyW':
+                            this.keys.up = true;
+                            break;
+                        case 'KeyS':
+                            this.keys.down = true;
+                            break;
+                        case 'KeyA':
+                        case 'ArrowLeft':
+                            this.keys.left = true;
+                            this.element.style.transform = 'scaleX(-1)';
+                            break;
+                        case 'KeyD':
+                        case 'ArrowRight':
+                            this.keys.right = true;
+                            this.element.style.transform = 'scaleX(1)';
+                            break;
+                        case 'Space':
+                            e.preventDefault(); // Prevent page scrolling
+                            if (this.isOnGround && !this.isDucking) {
+                                this.velocityY = -this.jumpPower;
+                                this.isOnGround = false;
+                                this.state = 'jumping';
+                                this.element.src = 'Pictures/charakterspringend-removebg-preview.png';
+                            }
+                            break;
+                        case 'ControlLeft':
+                        case 'ControlRight':
+                            this.keys.ctrl = true;
+                            this.duck(true);
+                            break;
+                        case 'ShiftLeft':
+                            this.keys.shift = true;
+                            this.isSprinting = true;
+                            this.speed = this.baseSpeed * this.sprintMultiplier;
+                            break;
+                    }
+                });
+                
+                document.addEventListener('keyup', (e) => {
+                    switch(e.code) {
+                        case 'KeyW':
+                            this.keys.up = false;
+                            break;
+                        case 'KeyS':
+                            this.keys.down = false;
+                            break;
+                        case 'KeyA':
+                        case 'ArrowLeft':
+                            this.keys.left = false;
+                            break;
+                        case 'KeyD':
+                        case 'ArrowRight':
+                            this.keys.right = false;
+                            break;
+                        case 'ControlLeft':
+                        case 'ControlRight':
+                            this.keys.ctrl = false;
+                            this.duck(false);
+                            break;
+                        case 'ShiftLeft':
+                            this.keys.shift = false;
+                            this.isSprinting = false;
+                            this.speed = this.baseSpeed;
+                            break;
+                    }
+                });
+            }
+            
+            duck(isDucking) {
+                this.isDucking = isDucking;
+                if (isDucking) {
+                    this.state = 'ducking';
+                    this.element.src = 'Pictures/charakterduckend-removebg-preview.png';
+                    this.height = 130; // Proportional to larger size
+                    this.element.style.height = this.height + 'px';
+                } else if (this.isOnGround) {
+                    this.state = 'standing';
+                    this.element.src = 'Pictures/charakterstehend-removebg-preview.png';
+                    this.height = 200; // Back to full size
+                    this.element.style.height = this.height + 'px';
+                }
+            }
+            
+            update(deltaTime) {
+                // Horizontal movement
+                this.velocityX = 0;
+                if (this.keys.left) this.velocityX = -this.speed;
+                if (this.keys.right) this.velocityX = this.speed;
+                
+                // Free vertical movement with W/S
+                let verticalMovement = 0;
+                if (this.keys.up && !this.isDucking) verticalMovement = -this.speed;
+                if (this.keys.down && !this.isDucking) verticalMovement = this.speed;
+                
+                // Apply gravity only when jumping
+                if (!this.isOnGround) {
+                    this.velocityY += this.gravity * deltaTime;
+                } else {
+                    // Free vertical movement when on ground
+                    if (verticalMovement !== 0) {
+                        this.y += verticalMovement * deltaTime;
+                        // Don't apply gravity during free movement
+                    }
+                }
+                
+                // Update position
+                this.x += this.velocityX * deltaTime;
+                
+                // Only apply velocityY when jumping/falling
+                if (!this.isOnGround) {
+                    this.y += this.velocityY * deltaTime;
+                }
+                
+                // Ground collision (only when falling)
+                if (this.velocityY > 0 && this.y >= this.groundY) {
+                    this.y = this.groundY;
+                    this.velocityY = 0;
+                    this.isOnGround = true;
+                    
+                    // Change sprite back to standing/ducking when landing
+                    if (this.state === 'jumping') {
+                        if (this.isDucking) {
+                            this.state = 'ducking';
+                            this.element.src = 'Pictures/charakterduckend-removebg-preview.png';
+                        } else {
+                            this.state = 'standing';
+                            this.element.src = 'Pictures/charakterstehend-removebg-preview.png';
+                        }
+                    }
+                }
+                
+                // Keep in bounds
+                const maxX = window.innerWidth - this.width;
+                const maxY = window.innerHeight - this.height;
+                this.x = Math.max(0, Math.min(maxX, this.x));
+                this.y = Math.max(0, Math.min(maxY, this.y));
+                
+                // Check obstacle collisions
+                this.checkObstacleCollisions();
+                
+                this.updatePosition();
+                
+                // Visual feedback for sprinting
+                if (this.isSprinting && this.velocityX !== 0) {
+                    this.element.style.filter = 'brightness(1.2) drop-shadow(0 0 10px rgba(255,255,0,0.5))';
+                } else {
+                    this.element.style.filter = 'none';
+                }
+            }
+            
+            checkObstacleCollisions() {
+                obstacles.forEach(obstacle => {
+                    if (this.x < obstacle.x + obstacle.width &&
+                        this.x + this.width > obstacle.x &&
+                        this.y < obstacle.y + obstacle.height &&
+                        this.y + this.height > obstacle.y) {
+                        
+                        // Only block horizontal movement if player is close to ground level
+                        if (this.y + this.height > obstacle.y - 20) {
+                            // Horizontal collision
+                            if (this.velocityX > 0) {
+                                this.x = obstacle.x - this.width - 5;
+                            } else if (this.velocityX < 0) {
+                                this.x = obstacle.x + obstacle.width + 5;
+                            }
+                        }
+                        
+                        // Landing on top of obstacle
+                        if (this.velocityY > 0 && this.y < obstacle.y + 20) {
+                            this.y = obstacle.y - this.height;
+                            this.velocityY = 0;
+                            this.isOnGround = true;
+                            this.groundY = obstacle.y - this.height;
+                        }
+                    } else {
+                        // Reset to normal ground when not near obstacle
+                        if (this.groundY !== window.innerHeight - 200) {
+                            this.groundY = window.innerHeight - 200;
+                        }
+                    }
+                });
+            }
+            
+            updatePosition() {
+                if (this.element) {
+                    this.element.style.left = this.x + 'px';
+                    this.element.style.top = this.y + 'px';
+                }
+            }
+            
+            destroy() {
+                if (this.element && this.element.parentNode) {
+                    this.element.parentNode.removeChild(this.element);
+                }
+            }
+        }
+        
+        // Initialize the game
+        function initGame() {
+            console.log('Initializing BWS Game...');
+            
+            // Create event manager
+            const eventManager = new EventManager();
+            
+            // Create and initialize menu
+            const menu = new Menu();
+            menu.init();
+            
+            console.log('Game initialization complete');
+        }
+        
+        // Game functions
+        function startTutorial() {
+            console.log('Starting tutorial...');
+            gameState = 'playing';
+            
+            // Hide menu if exists
+            const menuEl = document.getElementById('startScreen');
+            if (menuEl) menuEl.style.display = 'none';
+            
+            // Create game environment using image
+            createImageBasedGame();
+            
+            // Create player
+            player = new ImagePlayer();
+            
+            // Create obstacles using image
+            createImageObstacles();
+            
+            // Start game loop
+            startGameLoop();
+        }
+        
+        function createImageBasedGame() {
+            // Create map using the screenshot image
+            gameMap = document.createElement('img');
+            gameMap.src = 'Pictures/Screenshot 2025-05-30 170528.png';
+            gameMap.className = 'game-map';
+            gameMap.style.position = 'fixed';
+            gameMap.style.top = '0';
+            gameMap.style.left = '0';
+            gameMap.style.width = '100%';
+            gameMap.style.height = '100%';
+            gameMap.style.objectFit = 'cover';
+            gameMap.style.zIndex = '1';
+            
+            document.getElementById('gameContainer').appendChild(gameMap);
+            
+            // Add controls overlay
+            createControlsOverlay();
+        }
+        
+        function createControlsOverlay() {
+            const overlay = document.createElement('div');
+            overlay.className = 'controls-overlay';
+            
+            overlay.innerHTML = `
+                <div style="font-size: 20px; font-weight: bold; margin-bottom: 15px; color: #FFD700;">
+                    🎮 Tutorial - Controls
+                </div>
+                <div style="margin-bottom: 8px;"><strong>W</strong> - Move Up</div>
+                <div style="margin-bottom: 8px;"><strong>S</strong> - Move Down</div>
+                <div style="margin-bottom: 8px;"><strong>A</strong> or <strong>←</strong> - Move Left</div>
+                <div style="margin-bottom: 8px;"><strong>D</strong> or <strong>→</strong> - Move Right</div>
+                <div style="margin-bottom: 8px;"><strong>Space</strong> - Jump</div>
+                <div style="margin-bottom: 8px;"><strong>Ctrl</strong> - Duck</div>
+                <div style="margin-bottom: 15px;"><strong>Shift</strong> - Sprint (2x speed) ⚡</div>
+                <div style="font-size: 16px; color: #FFD700; margin-bottom: 15px;">
+                    💡 Jump over the tree log or move around freely!
+                </div>
+                <button onclick="backToMenu()">← Back to Menu</button>
+            `;
+            
+            document.getElementById('gameContainer').appendChild(overlay);
+        }
+        
+        function createImageObstacles() {
+            // Create tree log obstacle using the provided image
+            const logObstacle = {
+                x: 400,
+                y: window.innerHeight - 280, // Position on ground
+                width: 200,
+                height: 80
+            };
+            
+            const logElement = document.createElement('img');
+            logElement.src = 'Pictures/Baumstamm-removebg-preview.png';
+            logElement.className = 'game-obstacle';
+            logElement.style.position = 'absolute';
+            logElement.style.left = logObstacle.x + 'px';
+            logElement.style.top = logObstacle.y + 'px';
+            logElement.style.width = logObstacle.width + 'px';
+            logElement.style.height = logObstacle.height + 'px';
+            logElement.style.zIndex = '5';
+            
+            obstacles.push(logObstacle);
+            document.getElementById('gameContainer').appendChild(logElement);
+        }
+        
+        function startGameLoop() {
+            let lastTime = 0;
+            
+            function loop() {
+                if (gameState !== 'playing') return;
+                
+                const currentTime = performance.now();
+                const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.016); // Cap at 60fps
+                lastTime = currentTime;
+                
+                if (player) {
+                    player.update(deltaTime);
+                    
+                    // Check if player reached end
+                    if (player.x > window.innerWidth - 100) {
+                        console.log('Tutorial completed!');
+                    }
+                }
+                
+                requestAnimationFrame(loop);
+            }
+            
+            lastTime = performance.now();
+            loop();
+        }
+        
+        function backToMenu() {
+            console.log('Returning to menu...');
+            gameState = 'menu';
+            
+            // Clean up game elements
+            if (player) {
+                player.destroy();
+                player = null;
+            }
+            
+            if (gameMap && gameMap.parentNode) {
+                gameMap.parentNode.removeChild(gameMap);
+                gameMap = null;
+            }
+            
+            // Remove obstacles and overlays
+            obstacles = [];
+            document.querySelectorAll('.game-character, .game-obstacle, .controls-overlay').forEach(el => {
+                if (el.parentNode) el.parentNode.removeChild(el);
+            });
+            
+            // Show menu
+            const menuEl = document.getElementById('startScreen');
+            if (menuEl) {
+                menuEl.style.display = 'flex';
+            } else {
+                location.reload();
+            }
+        }
+        
+        // Override the window startGame event
+        window.addEventListener('startGame', () => {
+            startTutorial();
+        });
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            initGame();
+        });
+        
+        console.log('BWS Game script loaded');
+    </script>
+</body>
+</html> 

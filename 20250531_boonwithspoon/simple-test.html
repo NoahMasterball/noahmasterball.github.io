@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BWS Simple Test</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #000;
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* BWS Start Screen Styles */
+        .start-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .start-title {
+            font-family: 'Arial Black', sans-serif;
+            font-size: 120px;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+            margin-bottom: 40px;
+            letter-spacing: 15px;
+            animation: textFlicker 3s infinite;
+        }
+
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .start-button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #fff;
+            color: #fff;
+            padding: 15px 40px;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            width: 250px;
+            font-family: inherit;
+        }
+
+        .start-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+
+        @keyframes textFlicker {
+            0% { opacity: 1; }
+            52% { opacity: 1; }
+            55% { opacity: 0.2; }
+            57% { opacity: 1; }
+            100% { opacity: 1; }
+        }
+        
+        /* Game area styles */
+        .game-area {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, #1a1a2e 0%, #16213e 50%, #8b4513 100%);
+            display: none;
+        }
+        
+        .player {
+            position: absolute;
+            width: 30px;
+            height: 50px;
+            background: #4a90e2;
+            border: 2px solid #2c5aa0;
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            transition: all 0.1s ease;
+        }
+        
+        .tutorial-controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 18px;
+            max-width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <!-- Start Screen -->
+        <div id="startScreen" class="start-screen">
+            <div class="start-title">BWS</div>
+            <div class="button-container">
+                <button class="start-button" onclick="startGame()">Start Game</button>
+                <button class="start-button" onclick="showCredits()">Credits</button>
+            </div>
+        </div>
+        
+        <!-- Game Area -->
+        <div id="gameArea" class="game-area">
+            <div class="tutorial-controls">
+                <div style="font-size: 22px; font-weight: bold; margin-bottom: 15px; color: #ffff99;">
+                    🎮 Tutorial - Controls
+                </div>
+                <div>W/↑ - Jump</div>
+                <div>S/↓ - Duck</div>
+                <div>A/← - Move Left</div>
+                <div>D/→ - Move Right</div>
+                <div style="margin-top: 15px; color: #ffff99;">💡 Use WASD to move!</div>
+                <button class="start-button" onclick="backToMenu()" style="margin-top: 20px; width: 150px; font-size: 16px;">Back to Menu</button>
+            </div>
+            
+            <div id="player" class="player" style="left: 100px; top: 300px;"></div>
+        </div>
+    </div>
+
+    <script>
+        console.log('Simple BWS Test loaded');
+        
+        // Simple game state
+        let gameState = 'menu'; // 'menu' or 'playing'
+        let player = {
+            x: 100,
+            y: 300,
+            width: 30,
+            height: 50,
+            velocityX: 0,
+            velocityY: 0,
+            speed: 150,
+            jumpPower: 250,
+            gravity: 500,
+            isOnGround: true,
+            groundY: 300
+        };
+        
+        let keys = {
+            left: false,
+            right: false,
+            up: false,
+            down: false
+        };
+        
+        // Menu functions
+        function startGame() {
+            console.log('Starting game...');
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('gameArea').style.display = 'block';
+            gameState = 'playing';
+            setupControls();
+            gameLoop();
+        }
+        
+        function showCredits() {
+            alert('Credits:\n\nGame made by Noah\nInspired by Yuri\nMany thanks to Christian & Milo\n\nGame made in 30 days in VSCode');
+        }
+        
+        function backToMenu() {
+            console.log('Back to menu...');
+            document.getElementById('gameArea').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'flex';
+            gameState = 'menu';
+        }
+        
+        // Game controls
+        function setupControls() {
+            document.addEventListener('keydown', (e) => {
+                switch(e.code) {
+                    case 'KeyW':
+                    case 'ArrowUp':
+                        if (player.isOnGround) {
+                            player.velocityY = -player.jumpPower;
+                            player.isOnGround = false;
+                        }
+                        break;
+                    case 'KeyS':
+                    case 'ArrowDown':
+                        keys.down = true;
+                        break;
+                    case 'KeyA':
+                    case 'ArrowLeft':
+                        keys.left = true;
+                        break;
+                    case 'KeyD':
+                    case 'ArrowRight':
+                        keys.right = true;
+                        break;
+                }
+            });
+            
+            document.addEventListener('keyup', (e) => {
+                switch(e.code) {
+                    case 'KeyS':
+                    case 'ArrowDown':
+                        keys.down = false;
+                        break;
+                    case 'KeyA':
+                    case 'ArrowLeft':
+                        keys.left = false;
+                        break;
+                    case 'KeyD':
+                    case 'ArrowRight':
+                        keys.right = false;
+                        break;
+                }
+            });
+        }
+        
+        // Simple game loop
+        let lastTime = 0;
+        function gameLoop() {
+            if (gameState !== 'playing') return;
+            
+            const currentTime = performance.now();
+            const deltaTime = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+            
+            updatePlayer(deltaTime);
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function updatePlayer(deltaTime) {
+            // Horizontal movement
+            player.velocityX = 0;
+            if (keys.left) player.velocityX = -player.speed;
+            if (keys.right) player.velocityX = player.speed;
+            
+            // Apply gravity
+            if (!player.isOnGround) {
+                player.velocityY += player.gravity * deltaTime;
+            }
+            
+            // Update position
+            player.x += player.velocityX * deltaTime;
+            player.y += player.velocityY * deltaTime;
+            
+            // Ground collision
+            if (player.y >= player.groundY) {
+                player.y = player.groundY;
+                player.velocityY = 0;
+                player.isOnGround = true;
+            }
+            
+            // Keep in bounds
+            const maxX = window.innerWidth - player.width;
+            player.x = Math.max(0, Math.min(maxX, player.x));
+            
+            // Update visual position
+            const playerElement = document.getElementById('player');
+            playerElement.style.left = player.x + 'px';
+            playerElement.style.top = player.y + 'px';
+            
+            // Ducking effect
+            if (keys.down) {
+                playerElement.style.height = '25px';
+                playerElement.style.borderRadius = '50%';
+            } else {
+                playerElement.style.height = '50px';
+                playerElement.style.borderRadius = '50% 50% 50% 50% / 60% 60% 40% 40%';
+            }
+        }
+        
+        console.log('BWS Simple Test ready!');
+    </script>
+</body>
+</html> 
