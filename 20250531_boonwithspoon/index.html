@@ -311,32 +311,82 @@
             
             checkObstacleCollisions() {
                 obstacles.forEach(obstacle => {
-                    if (this.x < obstacle.x + obstacle.width &&
-                        this.x + this.width > obstacle.x &&
-                        this.y < obstacle.y + obstacle.height &&
-                        this.y + this.height > obstacle.y) {
+                    // Special collision detection for the slanted tree log
+                    if (obstacle.width === 300 && obstacle.height === 120) {
+                        // Create a slanted hitbox using multiple points along the diagonal
+                        const logStartX = obstacle.x + 50; // Start point of the log (left side, higher)
+                        const logStartY = obstacle.y + 20;
+                        const logEndX = obstacle.x + obstacle.width - 50; // End point (right side, lower)
+                        const logEndY = obstacle.y + obstacle.height - 20;
                         
-                        // Only block horizontal movement if player is close to ground level
-                        if (this.y + this.height > obstacle.y - 20) {
-                            // Horizontal collision
-                            if (this.velocityX > 0) {
-                                this.x = obstacle.x - this.width - 5;
-                            } else if (this.velocityX < 0) {
-                                this.x = obstacle.x + obstacle.width + 5;
+                        // Check collision with the slanted line using distance calculation
+                        const playerCenterX = this.x + this.width / 2;
+                        const playerCenterY = this.y + this.height / 2;
+                        
+                        // Calculate distance from player center to the log line
+                        const A = logEndY - logStartY;
+                        const B = logStartX - logEndX;
+                        const C = logEndX * logStartY - logStartX * logEndY;
+                        
+                        const distance = Math.abs(A * playerCenterX + B * playerCenterY + C) / Math.sqrt(A * A + B * B);
+                        const logThickness = 40; // Half the thickness of the log
+                        
+                        // Check if player is within the log's length bounds
+                        const withinXBounds = playerCenterX >= logStartX - 30 && playerCenterX <= logEndX + 30;
+                        const withinYBounds = playerCenterY >= logStartY - 30 && playerCenterY <= logEndY + 30;
+                        
+                        if (distance < logThickness && withinXBounds && withinYBounds) {
+                            // Collision detected with slanted log
+                            if (this.velocityY > 0 && this.y < obstacle.y + 40) {
+                                // Landing on top of the log
+                                const logTopY = logStartY + (logEndY - logStartY) * ((playerCenterX - logStartX) / (logEndX - logStartX));
+                                this.y = logTopY - this.height - 10;
+                                this.velocityY = 0;
+                                this.isOnGround = true;
+                                this.groundY = this.y;
+                            } else {
+                                // Horizontal collision - push player away
+                                if (this.velocityX > 0) {
+                                    this.x = logStartX - this.width - 10;
+                                } else if (this.velocityX < 0) {
+                                    this.x = logEndX + 10;
+                                }
+                            }
+                        } else {
+                            // Reset to normal ground when not near obstacle
+                            if (this.groundY !== window.innerHeight - 300) {
+                                this.groundY = window.innerHeight - 300;
                             }
                         }
-                        
-                        // Landing on top of obstacle
-                        if (this.velocityY > 0 && this.y < obstacle.y + 20) {
-                            this.y = obstacle.y - this.height;
-                            this.velocityY = 0;
-                            this.isOnGround = true;
-                            this.groundY = obstacle.y - this.height;
-                        }
                     } else {
-                        // Reset to normal ground when not near obstacle
-                        if (this.groundY !== window.innerHeight - 200) {
-                            this.groundY = window.innerHeight - 200;
+                        // Regular rectangular collision for other obstacles
+                        if (this.x < obstacle.x + obstacle.width &&
+                            this.x + this.width > obstacle.x &&
+                            this.y < obstacle.y + obstacle.height &&
+                            this.y + this.height > obstacle.y) {
+                            
+                            // Only block horizontal movement if player is close to ground level
+                            if (this.y + this.height > obstacle.y - 20) {
+                                // Horizontal collision
+                                if (this.velocityX > 0) {
+                                    this.x = obstacle.x - this.width - 5;
+                                } else if (this.velocityX < 0) {
+                                    this.x = obstacle.x + obstacle.width + 5;
+                                }
+                            }
+                            
+                            // Landing on top of obstacle
+                            if (this.velocityY > 0 && this.y < obstacle.y + 20) {
+                                this.y = obstacle.y - this.height;
+                                this.velocityY = 0;
+                                this.isOnGround = true;
+                                this.groundY = obstacle.y - this.height;
+                            }
+                        } else {
+                            // Reset to normal ground when not near obstacle
+                            if (this.groundY !== window.innerHeight - 300) {
+                                this.groundY = window.innerHeight - 300;
+                            }
                         }
                     }
                 });
@@ -436,12 +486,12 @@
         }
         
         function createImageObstacles() {
-            // Create tree log obstacle using the provided image
+            // Create large tree log obstacle to match the one in the background map
             const logObstacle = {
-                x: 400,
-                y: window.innerHeight - 280, // Position on ground
-                width: 200,
-                height: 80
+                x: 600,  // Position it more to the right where the big log should be
+                y: window.innerHeight - 350, // Position it properly on the ground
+                width: 300,  // Large width to match the tree log in the map
+                height: 120  // Appropriate height for a fallen tree log
             };
             
             const logElement = document.createElement('img');
@@ -453,6 +503,9 @@
             logElement.style.width = logObstacle.width + 'px';
             logElement.style.height = logObstacle.height + 'px';
             logElement.style.zIndex = '5';
+            // Rotate the log to match the slanted hitbox
+            logElement.style.transform = 'rotate(12deg)';
+            logElement.style.transformOrigin = 'center center';
             
             obstacles.push(logObstacle);
             document.getElementById('gameContainer').appendChild(logElement);
