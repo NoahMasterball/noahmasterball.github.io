@@ -71,9 +71,6 @@ DOUBLE_CLICK_TIME = 0.5  # Max Zeit zwischen Klicks für Doppelklick
 # Socket timeout (wichtig!)
 SOCKET_TIMEOUT = 5  # 5 Sekunden timeout für alle Socket-Operationen
 
-# Cache refresh interval
-CACHE_REFRESH_INTERVAL = 300  # 5 Minuten statt 30 Minuten für genauere Zustandsprüfung
-
 # ------------------------------------------------------------------------------
 # GLOBALE VARIABLEN
 # ------------------------------------------------------------------------------
@@ -442,11 +439,8 @@ def schalte_shelly_um():
                 print("{} Toggle: beide AUS -> EIN/EIN - manueller Toggle.".format(format_debug_time(local_time())))
             return True
 
-def update_light_cache(new_state, force_update=False):
+def update_light_cache(new_state):
     global cached_light_state, last_state_update_time
-    if force_update:
-        if DEBUG:
-            print("{} Cache-Zwangsupdate: Neuer Zustand = {}".format(format_debug_time(local_time()), new_state))
     cached_light_state = new_state
     last_state_update_time = time.time()
 
@@ -570,7 +564,7 @@ def reagiere_raum_belegt():
         print("{} Raum belegt (auto): Shelly/NL werden eingeschaltet.".format(format_debug_time(local_time())))
     setze_shelly("ein")
     setze_nanoleaf(True)
-    update_light_cache(True, force_update=True)
+    update_light_cache(True)
 
 def reagiere_raum_unbelegt():
     global cached_light_state
@@ -583,116 +577,70 @@ def reagiere_raum_unbelegt():
         print("{} Raum unbelegt: Shelly/Nanoleaf werden ausgeschaltet.".format(format_debug_time(local_time())))
     setze_shelly("aus")
     setze_nanoleaf(False)
-    update_light_cache(False, force_update=True)
+    update_light_cache(False)
 
-def ueberkopflicht_an(force_refresh=False):
+def ueberkopflicht_an():
     global last_state_update_time, cached_light_state
-    refresh_interval = CACHE_REFRESH_INTERVAL
+    refresh_interval = 1800  # 30 Min.
     now = time.time()
-    
-    # Bei force_refresh oder abgelaufenem Cache: Zustand neu prüfen
-    if force_refresh or (now - last_state_update_time >= refresh_interval):
-        shelly_state = lese_shelly_status()
-        nanoleaf_state = lese_nanoleaf_status()
-        
-        # Wenn einer der Status None ist, verwenden wir den anderen (oder cached wenn beide None)
-        if shelly_state is None and nanoleaf_state is None:
-            if DEBUG:
-                print("{} Warnung: Beide Lichtzustände konnten nicht gelesen werden, verwende Cache={}".format(
-                    format_debug_time(local_time()), cached_light_state))
-            return cached_light_state
-        elif shelly_state is None:
-            updated_state = nanoleaf_state
-        elif nanoleaf_state is None:
-            updated_state = shelly_state
-        else:
-            updated_state = shelly_state or nanoleaf_state
-            
+    if now - last_state_update_time < refresh_interval:
+        return cached_light_state
+    else:
+        shelly_state = lese_shelly_status() or False
+        nanoleaf_state = lese_nanoleaf_status() or False
+        updated_state = shelly_state or nanoleaf_state
         cached_light_state = updated_state
         last_state_update_time = now
         if DEBUG:
-            print("{} Zust.-akt. OK: Shelly={}, NL={}, Resultat={} - gültig für {} Sek.".format(
-                format_debug_time(local_time()), shelly_state, nanoleaf_state, updated_state, refresh_interval))
+            print("{} Zust.-akt. OK: Shelly={}, NL={}, Resultat={} - gültig für {} Sek.".format(format_debug_time(local_time()), shelly_state, nanoleaf_state, updated_state, refresh_interval))
         return updated_state
-    else:
-        # Cache ist noch gültig
-        return cached_light_state
 
 def pir_aktiv(pir):
     global pir_events, last_reset, raum_belegt, last_event, pir_active, manuell_override_bis
     now = time.time()
-    
-    # Debug: PIR Event immer loggen
-    if DEBUG:
-        print("{} PIR-Event erkannt um {}".format(format_debug_time(local_time()), int(now)))
-    
-    # Prüfung 1: Manueller Override aktiv?
+    # Bei automatischem Einschalten wird geprüft, ob es dunkel genug ist.
+    # Im Test-Modus ist diese Prüfung immer erfolgreich
+    if not ist_dunkel_genug():
+        if DEBUG:
+            print("{} PIR ignoriert: Es ist zu hell.".format(format_debug_time(local_time())))
+        return
     if now < manuell_override_bis:
         remaining = int(manuell_override_bis - now)
         # Wenn Licht manuell eingeschaltet wurde, aktualisiere trotzdem den Timer bei Bewegung
         if ueberkopflicht_an():
             last_event = now
             if DEBUG:
-                print("{} Manueller Override aktiv ({} Sek. verbleibend), Timer wird bei Bewegung aktualisiert.".format(
-                    format_debug_time(local_time()), remaining))
+                print("{} Manueller Override aktiv ({} Sek. verbleibend), aber Timer wird bei Bewegung aktualisiert.".format(format_debug_time(local_time()), remaining))
         else:
             if DEBUG:
-                print("{} Manueller Override aktiv ({} Sek. verbleibend), PIR wird ignoriert.".format(
-                    format_debug_time(local_time()), remaining))
-        pir_active = True
+                print("{} Manueller Override aktiv ({} Sek. verbleibend), PIR-Ereignis wird ignoriert.".format(format_debug_time(local_time()), remaining))
         return
-    
-    # Prüfung 2: Ist es dunkel genug für automatisches Einschalten?
-    if not ist_dunkel_genug():
-        # Aber: Wenn das Licht bereits an ist, aktualisiere trotzdem den Timer
-        if ueberkopflicht_an():
-            last_event = now
-            if DEBUG:
-                print("{} Es ist zu hell für auto-ein, aber Licht ist an - Timer aktualisiert.".format(
-                    format_debug_time(local_time())))
-        else:
-            if DEBUG:
-                print("{} PIR ignoriert: Es ist zu hell und Licht ist aus.".format(format_debug_time(local_time())))
-        pir_active = True
-        return
-    
-    # Prüfung 3: Ist das Licht bereits an?
+    # Falls das Licht bereits an ist, wird hier lediglich der Inaktivitätstimer aktualisiert.
     if ueberkopflicht_an():
         if DEBUG:
-            print("{} Licht bereits an – aktualisiere nur Inaktivitäts-Timer.".format(format_debug_time(local_time())))
+            remaining = int(1800 - (now - last_state_update_time)) if now - last_state_update_time < 1800 else 0
+            print("{} Licht bereits an – aktualisiere Inaktivitäts-Timer (nächste Prüfung in {} Sek.).".format(format_debug_time(local_time()), remaining))
         last_event = now
-        # WICHTIG: PIR Events löschen wenn Licht bereits an ist
-        if len(pir_events) > 0:
-            if DEBUG:
-                print("{} Lösche {} PIR-Events da Licht bereits an.".format(format_debug_time(local_time()), len(pir_events)))
-            pir_events.clear()
         pir_active = True
         return
-    
-    # Ab hier: Licht ist aus, es ist dunkel genug, kein Override aktiv
     if DEBUG:
-        print("{} Bewegung für Auto-Einschalten erkannt um {}.".format(format_debug_time(local_time()), int(now)))
-    
+        print("{} Bewegung erkannt (PIR) um {}.".format(format_debug_time(local_time()), int(now)))
     pir_events.append(now)
     last_reset = now
     last_event = now  # Jede Bewegung setzt den Timer zurück
     count = len(pir_events)
-    
     if count < EVENT_THRESHOLD:
         color = step_to_rgb(count, EVENT_THRESHOLD)
         if DEBUG:
-            print("{} PIR {} von {}: LED-Farbe #{:06X}".format(
-                format_debug_time(local_time()), count, EVENT_THRESHOLD, color))
+            print("{} PIR {} von {}: LED-Farbe #{:06X}".format(format_debug_time(local_time()), count, EVENT_THRESHOLD, color))
         display_led(color, 2)
     else:
         if DEBUG:
-            print("{} PIR-Schwellenwert erreicht: Starte automatisches Licht-Einschalten.".format(
-                format_debug_time(local_time())))
+            print("{} PIR-Schwellenwert erreicht: Starte automatisches Licht-Einschalten.".format(format_debug_time(local_time())))
         reagiere_raum_belegt()
         raum_belegt = True
         last_event = now  # Timer für automatisches Ausschalten starten
         pir_events.clear()
-    
     pir_active = True
 
 def pir_inaktiv(pir):
@@ -704,9 +652,9 @@ def pir_inaktiv(pir):
             print("{} PIR meldet keine Aktivität. Kein Bewegungstimer aktiv.".format(format_debug_time(local_time())))
     else:
         remaining = INAKT_TIMEOUT - (now - last_event)
-        if DEBUG and remaining > 0:
-            print("{} PIR meldet keine Aktivität. Schalte Licht ab in {:.0f} Sekunden.".format(
-                format_debug_time(local_time()), remaining))
+        if DEBUG:
+            print("{} PIR meldet keine Aktivität.".format(format_debug_time(local_time())))
+            print("{} Schalte Licht ab in {:.0f} Sekunden.".format(format_debug_time(local_time()), remaining))
     pir_active = False
 
 # ------------------------------------------------------------------------------
@@ -715,15 +663,14 @@ def pir_inaktiv(pir):
 def central_toggle_shelly_nanoleaf(manuell_override_bis, pir_events, last_event, raum_belegt):
     t = time.time()
     if DEBUG:
-        print("{} Button (Langdruck): Toggle Shelly/NL – manueller Override für {} Sek.".format(
-            format_debug_time(local_time()), MANUAL_OVERRIDE_TIME))
+        print("{} Button (Langdruck): Toggle Shelly/NL – manueller Override für {} Sek.".format(format_debug_time(local_time()), MANUAL_OVERRIDE_TIME))
     new_state = schalte_shelly_um()
     manuell_override_bis = t + MANUAL_OVERRIDE_TIME
     pir_events = []
     # Beim manuellen Einschalten (new_state==True) den Timer setzen, damit auto-off greift
     last_event = t if new_state else None
     raum_belegt = new_state
-    update_light_cache(new_state, force_update=True)
+    update_light_cache(new_state)
     return manuell_override_bis, pir_events, last_event, raum_belegt
 
 def central_toggle_wled(wled_status, wled_auto_aus_timer, manuell_override_bis, pir_events, last_event, raum_belegt):
@@ -786,11 +733,6 @@ def setup():
         time.sleep(0.2)
         led_rgb.fill_color(LED_FARBEN["AUS"])
         time.sleep(0.1)
-    
-    # Initial cache update
-    if DEBUG:
-        print("{} Initiale Lichtzustandsprüfung...".format(format_debug_time(local_time())))
-    ueberkopflicht_an(force_refresh=True)
 
 def main_loop():
     global wled_auto_aus_timer, wled_status, raum_belegt, last_event, manuell_override_bis, pir_events
@@ -809,8 +751,7 @@ def main_loop():
         # --------------------------------------------------------------------------
         if last_event is not None and (now - last_event) >= INAKT_TIMEOUT:
             if DEBUG:
-                print("{} Inaktivität erkannt ({} Sek.) – schalte Licht aus.".format(
-                    format_debug_time(local_time()), int(now - last_event)))
+                print("{} Inaktivität erkannt ({} Sek.) – schalte Licht aus.".format(format_debug_time(local_time()), int(now - last_event)))
             reagiere_raum_unbelegt()
             last_event = None
             pir_events.clear()
@@ -867,8 +808,7 @@ def main_loop():
                             test_mode_active = not test_mode_active
                             if test_mode_active:
                                 if DEBUG:
-                                    print("{} TEST-MODUS AKTIVIERT - Button immer aktiv!".format(
-                                        format_debug_time(local_time())))
+                                    print("{} TEST-MODUS AKTIVIERT - Button immer aktiv!".format(format_debug_time(local_time())))
                                 # Blaues Blinken zur Bestätigung
                                 for _ in range(3):
                                     display_led("BLAU", 0.3, force_override=True)
@@ -877,8 +817,7 @@ def main_loop():
                                     time.sleep(0.2)
                             else:
                                 if DEBUG:
-                                    print("{} Test-Modus deaktiviert - normale Funktion".format(
-                                        format_debug_time(local_time())))
+                                    print("{} Test-Modus deaktiviert - normale Funktion".format(format_debug_time(local_time())))
                                 display_led("AUS", 0, force_override=True)
                         else:
                             # Erster Klick - warte auf möglichen zweiten
@@ -893,8 +832,7 @@ def main_loop():
                             )
                         else:
                             if DEBUG:
-                                print("{} Button ignoriert: Es ist zu hell (Test-Modus aus)".format(
-                                    format_debug_time(local_time())))
+                                print("{} Button ignoriert: Es ist zu hell (Test-Modus aus)".format(format_debug_time(local_time())))
                             display_led("ROT", 0.5, force_override=True)
                 except Exception as e:
                     if DEBUG:

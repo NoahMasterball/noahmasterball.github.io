@@ -66,18 +66,11 @@ NTP_HOST = "ntp1.lrz.de"
 
 # Button-Konstante
 LONG_PRESS_THRESHOLD = 1.5  # Sek.
-DOUBLE_CLICK_TIME = 0.5  # Max Zeit zwischen Klicks für Doppelklick
-
-# Socket timeout (wichtig!)
-SOCKET_TIMEOUT = 5  # 5 Sekunden timeout für alle Socket-Operationen
 
 # ------------------------------------------------------------------------------
 # GLOBALE VARIABLEN
 # ------------------------------------------------------------------------------
 btnA_druck_start = None
-btnA_last_release_time = 0  # Für manuelle Doppelklick-Erkennung
-btnA_click_pending = False   # Flag für ausstehenden Klick
-test_mode_active = False  # Test-Modus für Button-Tests
 wled_status = None
 wled_auto_aus_timer = None
 
@@ -106,7 +99,6 @@ LED_FARBEN = {
     "GRUEN_PIR": 0x00FF00,
     "ROT": 0xFF0000,
     "AUS": 0x000000,
-    "BLAU": 0x0000FF,  # Für Test-Modus
 }
 
 # LED-Steuerung
@@ -114,10 +106,6 @@ led_display_active = False
 led_display_expiry = 0
 led_display_color = None
 led_display_start = 0
-
-# Watchdog
-last_watchdog_feed = 0
-WATCHDOG_TIMEOUT = 30  # 30 Sekunden
 
 # ------------------------------------------------------------------------------
 # HELFER: Zeitstempel-Formatierung (ohne Komma, 2 Leerzeichen)
@@ -271,11 +259,6 @@ def ermittle_sunset_schaltzeit_minuten():
 # ------------------------------------------------------------------------------
 def ist_dunkel_genug():
     # Diese Funktion wird weiterhin für das automatische Einschalten via PIR genutzt
-    # Im Test-Modus ist es immer "dunkel genug"
-    if test_mode_active:
-        if DEBUG:
-            print("{} Test-Modus aktiv => immer dunkel".format(format_debug_time(local_time())))
-        return True
     if not zeit_sync:
         if DEBUG:
             print("{} Kein Sync => dunkel (schnell Prüfen)".format(format_debug_time(local_time())))
@@ -299,7 +282,7 @@ def ist_dunkel_genug():
         return False
 
 # ------------------------------------------------------------------------------
-# NANOLEAF-FUNKTIONEN (mit Timeout)
+# NANOLEAF-FUNKTIONEN
 # ------------------------------------------------------------------------------
 def empfange_daten(sock, laenge):
     daten = b""
@@ -317,7 +300,6 @@ def extrahiere_json(antwort):
 
 def lese_nanoleaf_status():
     s = socket.socket()
-    s.settimeout(SOCKET_TIMEOUT)  # Wichtig: Socket Timeout setzen!
     try:
         s.connect((NANOLEAF_IP, NANOLEAF_PORT))
         anfrage = "GET {} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n".format(NANOLEAF_URL, NANOLEAF_IP)
@@ -335,16 +317,10 @@ def lese_nanoleaf_status():
     except Exception as e:
         if DEBUG:
             print("{} NL-Fehler: {} - retry in 30 Sek.".format(format_debug_time(local_time()), e))
-    finally:
-        try:
-            s.close()
-        except:
-            pass
     return None
 
 def setze_nanoleaf(ein):
     s = socket.socket()
-    s.settimeout(SOCKET_TIMEOUT)  # Wichtig: Socket Timeout setzen!
     try:
         s.connect((NANOLEAF_IP, NANOLEAF_PORT))
         payload = '{"on":{"value":' + ('true' if ein else 'false') + '}}'
@@ -357,22 +333,16 @@ def setze_nanoleaf(ein):
     except Exception as e:
         if DEBUG:
             print("{} NL-SetFehler: {} - retry in 30 Sek.".format(format_debug_time(local_time()), e))
-    finally:
-        try:
-            s.close()
-        except:
-            pass
 
 # ------------------------------------------------------------------------------
-# SHELLY-FUNKTIONEN (mit Timeout)
+# SHELLY-FUNKTIONEN
 # ------------------------------------------------------------------------------
 def setze_shelly(zustand):
     body = '{"id":0,"on":' + ('true' if zustand == "ein" else 'false') + '}'
     anfrage = "POST /rpc/Switch.Set HTTP/1.1\r\nHost: {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}".format(SHELLY_IP, len(body), body)
-    s = socket.socket()
-    s.settimeout(SOCKET_TIMEOUT)  # Wichtig: Socket Timeout setzen!
     try:
         addr = socket.getaddrinfo(SHELLY_IP, SHELLY_PORT)[0][-1]
+        s = socket.socket()
         s.connect(addr)
         s.send(anfrage.encode())
         s.recv(2048)
@@ -382,18 +352,12 @@ def setze_shelly(zustand):
     except Exception as e:
         if DEBUG:
             print("{} Shelly-Fehler: {} - retry in 30 Sek.".format(format_debug_time(local_time()), e))
-    finally:
-        try:
-            s.close()
-        except:
-            pass
 
 def lese_shelly_status():
     anfrage = "GET /rpc/Switch.GetStatus?id=0 HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n".format(SHELLY_IP)
-    s = socket.socket()
-    s.settimeout(SOCKET_TIMEOUT)  # Wichtig: Socket Timeout setzen!
     try:
         addr = socket.getaddrinfo(SHELLY_IP, SHELLY_PORT)[0][-1]
+        s = socket.socket()
         s.connect(addr)
         s.send(anfrage.encode())
         antwort = b""
@@ -409,11 +373,6 @@ def lese_shelly_status():
     except Exception as e:
         if DEBUG:
             print("{} Shelly-Status Fehler: {} - retry in 30 Sek.".format(format_debug_time(local_time()), e))
-    finally:
-        try:
-            s.close()
-        except:
-            pass
     return None
 
 def schalte_shelly_um():
@@ -445,14 +404,13 @@ def update_light_cache(new_state):
     last_state_update_time = time.time()
 
 # ------------------------------------------------------------------------------
-# WLED-FUNKTIONEN (mit Timeout)
+# WLED-FUNKTIONEN
 # ------------------------------------------------------------------------------
 def wled_anfrage(methode="GET", daten=None, versuche=5):
     for _ in range(versuche):
-        s = socket.socket()
-        s.settimeout(SOCKET_TIMEOUT)  # Wichtig: Socket Timeout setzen!
         try:
             addr = socket.getaddrinfo(WLED_IP, 80)[0][-1]
+            s = socket.socket()
             s.connect(addr)
             if methode == "GET" and daten is None:
                 req = "GET /json/state HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n".format(WLED_IP)
@@ -472,11 +430,6 @@ def wled_anfrage(methode="GET", daten=None, versuche=5):
             if DEBUG:
                 print("{} WLED Fehler: {} - retry in 1 Sek.".format(format_debug_time(local_time()), e))
             time.sleep(1)
-        finally:
-            try:
-                s.close()
-            except:
-                pass
     return b""
 
 def aktualisiere_wled_status():
@@ -581,7 +534,7 @@ def reagiere_raum_unbelegt():
 
 def ueberkopflicht_an():
     global last_state_update_time, cached_light_state
-    refresh_interval = 300  # 5 Min. statt 30 Min für bessere Aktualität
+    refresh_interval = 1800  # 30 Min.
     now = time.time()
     if now - last_state_update_time < refresh_interval:
         return cached_light_state
@@ -599,37 +552,22 @@ def pir_aktiv(pir):
     global pir_events, last_reset, raum_belegt, last_event, pir_active, manuell_override_bis
     now = time.time()
     # Bei automatischem Einschalten wird geprüft, ob es dunkel genug ist.
-    # Im Test-Modus ist diese Prüfung immer erfolgreich
     if not ist_dunkel_genug():
         if DEBUG:
             print("{} PIR ignoriert: Es ist zu hell.".format(format_debug_time(local_time())))
         return
     if now < manuell_override_bis:
         remaining = int(manuell_override_bis - now)
-        # Wenn Licht manuell eingeschaltet wurde, aktualisiere trotzdem den Timer bei Bewegung
-        if ueberkopflicht_an():
-            last_event = now
-            if DEBUG:
-                print("{} Manueller Override aktiv ({} Sek. verbleibend), aber Timer wird bei Bewegung aktualisiert.".format(format_debug_time(local_time()), remaining))
-            # PIR Events auch hier leeren
-            if len(pir_events) > 0:
-                pir_events.clear()
-        else:
-            if DEBUG:
-                print("{} Manueller Override aktiv ({} Sek. verbleibend), PIR-Ereignis wird ignoriert.".format(format_debug_time(local_time()), remaining))
+        if DEBUG:
+            print("{} Manueller Override aktiv ({} Sek. verbleibend), PIR-Ereignis wird ignoriert.".format(format_debug_time(local_time()), remaining))
         return
     # Falls das Licht bereits an ist, wird hier lediglich der Inaktivitätstimer aktualisiert.
     if ueberkopflicht_an():
         if DEBUG:
-            remaining = int(300 - (now - last_state_update_time)) if now - last_state_update_time < 300 else 0
+            remaining = int(1800 - (now - last_state_update_time)) if now - last_state_update_time < 1800 else 0
             print("{} Licht bereits an – aktualisiere Inaktivitäts-Timer (nächste Prüfung in {} Sek.).".format(format_debug_time(local_time()), remaining))
         last_event = now
         pir_active = True
-        # PIR Events leeren wenn Licht bereits an ist
-        if len(pir_events) > 0:
-            if DEBUG:
-                print("{} Leere {} angesammelte PIR-Events".format(format_debug_time(local_time()), len(pir_events)))
-            pir_events.clear()
         return
     if DEBUG:
         print("{} Bewegung erkannt (PIR) um {}.".format(format_debug_time(local_time()), int(now)))
@@ -700,30 +638,13 @@ def central_toggle_wled(wled_status, wled_auto_aus_timer, manuell_override_bis, 
     return wled_status, wled_auto_aus_timer, manuell_override_bis, pir_events, last_event, raum_belegt
 
 # ------------------------------------------------------------------------------
-# WATCHDOG FUNKTION
-# ------------------------------------------------------------------------------
-def feed_watchdog():
-    global last_watchdog_feed
-    last_watchdog_feed = time.time()
-
-def check_watchdog():
-    global last_watchdog_feed
-    now = time.time()
-    if now - last_watchdog_feed > WATCHDOG_TIMEOUT:
-        if DEBUG:
-            print("{} Watchdog timeout! System wird neu gestartet.".format(format_debug_time(local_time())))
-        import machine
-        machine.reset()
-
-# ------------------------------------------------------------------------------
 # SETUP UND HAUPTSCHLEIFE
 # ------------------------------------------------------------------------------
 def setup():
-    global led_rgb, pir_sensor, last_sync, last_watchdog_feed
+    global led_rgb, pir_sensor, last_sync
     M5.begin()
     sync_zeit(NTP_HOST, versuche=10, intervall=30)
     last_sync = time.time()
-    last_watchdog_feed = time.time()
     led_rgb = RGB(io=35, n=1, type="SK6812")
     pir_sensor = PIRUnit((1, 2))
     pir_sensor.set_callback(pir_aktiv, pir_sensor.IRQ_ACTIVE)
@@ -732,128 +653,60 @@ def setup():
     led_rgb.fill_color(LED_FARBEN["AUS"])
     global led_display_active
     led_display_active = False
-    
-    # Startup-Indikation: 3x grünes Blinken
-    if DEBUG:
-        print("{} System gestartet - 3x grünes Blinken".format(format_debug_time(local_time())))
-    for _ in range(3):
-        led_rgb.fill_color(LED_FARBEN["GRUEN"])
-        time.sleep(0.2)
-        led_rgb.fill_color(LED_FARBEN["AUS"])
-        time.sleep(0.1)
 
 def main_loop():
-    global wled_auto_aus_timer, wled_status, raum_belegt, last_event, manuell_override_bis, pir_events
-    global btnA_druck_start, btnA_last_release_time, btnA_click_pending, test_mode_active, last_sync
-    
-    try:
-        M5.update()
-        now = time.time()
-        
-        # Watchdog füttern
-        feed_watchdog()
+    global wled_auto_aus_timer, wled_status, raum_belegt, last_event, manuell_override_bis, pir_events, btnA_druck_start, last_sync
 
-        # --------------------------------------------------------------------------
-        # AUTO-OFF BEI INAKTIVITÄT – UNABHÄNGIG VON MODUS ODER DUNKELHEIT
-        # (Wenn seit der letzten Bewegung mehr als INAKT_TIMEOUT Sekunden verstrichen sind, wird das Licht ausgeschaltet.)
-        # --------------------------------------------------------------------------
-        if last_event is not None and (now - last_event) >= INAKT_TIMEOUT:
-            if DEBUG:
-                print("{} Inaktivität erkannt ({} Sek.) – schalte Licht aus.".format(format_debug_time(local_time()), int(now - last_event)))
-            reagiere_raum_unbelegt()
-            last_event = None
-            pir_events.clear()
-            raum_belegt = False
+    M5.update()
+    now = time.time()
 
-        update_led_display()
+    # --------------------------------------------------------------------------
+    # AUTO-OFF BEI INAKTIVITÄT – UNABHÄNGIG VON MODUS ODER DUNKELHEIT
+    # (Wenn seit der letzten Bewegung mehr als INAKT_TIMEOUT Sekunden verstrichen sind, wird das Licht ausgeschaltet.)
+    # --------------------------------------------------------------------------
+    if last_event is not None and (now - last_event) >= INAKT_TIMEOUT:
+        if DEBUG:
+            print("{} Inaktivität erkannt ({} Sek.) – schalte Licht aus.".format(format_debug_time(local_time()), int(now - last_event)))
+        reagiere_raum_unbelegt()
+        last_event = None
+        pir_events.clear()
+        raum_belegt = False
 
-        # ------------------------------------------------------------------------------
-        # NTP-Synchronisierung alle 12 Stunden
-        if now - last_sync >= 43200:
-            if DEBUG:
-                print("{} 12h vorbei: erneute NTP-Synchronisation.".format(format_debug_time(local_time())))
-            sync_zeit(NTP_HOST, versuche=10, intervall=30)
-            last_sync = time.time()
+    update_led_display()
 
-        # ------------------------------------------------------------------------------
-        # WLED Auto-Off prüfen
-        if wled_auto_aus_timer and wled_status and now >= wled_auto_aus_timer:
-            setze_wled(WLED_JSON_AUS)
-            wled_status = False
-            wled_auto_aus_timer = None
+    # ------------------------------------------------------------------------------
+    # NTP-Synchronisierung alle 12 Stunden
+    if now - last_sync >= 43200:
+        if DEBUG:
+            print("{} 12h vorbei: erneute NTP-Synchronisation.".format(format_debug_time(local_time())))
+        sync_zeit(NTP_HOST, versuche=10, intervall=30)
+        last_sync = time.time()
 
-        # ------------------------------------------------------------------------------
-        # Button-Verarbeitung (mit manueller Doppelklick-Erkennung)
-        
-        # Prüfe ob ein ausstehender Klick zu alt ist
-        if btnA_click_pending and (now - btnA_last_release_time) > DOUBLE_CLICK_TIME:
-            # Einzelklick ausführen
-            btnA_click_pending = False
-            if ist_dunkel_genug() or test_mode_active:
+    # ------------------------------------------------------------------------------
+    # WLED Auto-Off prüfen
+    if wled_auto_aus_timer and wled_status and now >= wled_auto_aus_timer:
+        setze_wled(WLED_JSON_AUS)
+        wled_status = False
+        wled_auto_aus_timer = None
+
+    # ------------------------------------------------------------------------------
+    # Button-Verarbeitung
+    if BtnA.isPressed():
+        if btnA_druck_start is None:
+            btnA_druck_start = now
+    else:
+        if btnA_druck_start is not None:
+            press_duration = now - btnA_druck_start
+            if press_duration >= LONG_PRESS_THRESHOLD:
+                (manuell_override_bis, pir_events, last_event, raum_belegt) = central_toggle_shelly_nanoleaf(
+                    manuell_override_bis, pir_events, last_event, raum_belegt
+                )
+            else:
                 (wled_status, wled_auto_aus_timer, manuell_override_bis,
                  pir_events, last_event, raum_belegt) = central_toggle_wled(
                     wled_status, wled_auto_aus_timer, manuell_override_bis, pir_events, last_event, raum_belegt
                 )
-            else:
-                if DEBUG:
-                    print("{} Button ignoriert: Es ist zu hell (Test-Modus aus)".format(format_debug_time(local_time())))
-                display_led("ROT", 0.5, force_override=True)
-        
-        # Button-Status prüfen
-        if BtnA.isPressed():
-            if btnA_druck_start is None:
-                btnA_druck_start = now
-        else:
-            if btnA_druck_start is not None:
-                try:
-                    press_duration = now - btnA_druck_start
-                    
-                    if press_duration < LONG_PRESS_THRESHOLD:
-                        # Kurzer Druck - prüfe auf Doppelklick
-                        if btnA_click_pending and (now - btnA_last_release_time) < DOUBLE_CLICK_TIME:
-                            # Doppelklick erkannt!
-                            btnA_click_pending = False
-                            test_mode_active = not test_mode_active
-                            if test_mode_active:
-                                if DEBUG:
-                                    print("{} TEST-MODUS AKTIVIERT - Button immer aktiv!".format(format_debug_time(local_time())))
-                                # Blaues Blinken zur Bestätigung
-                                for _ in range(3):
-                                    display_led("BLAU", 0.3, force_override=True)
-                                    time.sleep(0.3)
-                                    display_led("AUS", 0.2, force_override=True)
-                                    time.sleep(0.2)
-                            else:
-                                if DEBUG:
-                                    print("{} Test-Modus deaktiviert - normale Funktion".format(format_debug_time(local_time())))
-                                display_led("AUS", 0, force_override=True)
-                        else:
-                            # Erster Klick - warte auf möglichen zweiten
-                            btnA_click_pending = True
-                            btnA_last_release_time = now
-                    else:
-                        # Langdruck - kein Doppelklick möglich
-                        btnA_click_pending = False
-                        if ist_dunkel_genug() or test_mode_active:
-                            (manuell_override_bis, pir_events, last_event, raum_belegt) = central_toggle_shelly_nanoleaf(
-                                manuell_override_bis, pir_events, last_event, raum_belegt
-                            )
-                        else:
-                            if DEBUG:
-                                print("{} Button ignoriert: Es ist zu hell (Test-Modus aus)".format(format_debug_time(local_time())))
-                            display_led("ROT", 0.5, force_override=True)
-                except Exception as e:
-                    if DEBUG:
-                        print("{} Fehler bei Button-Verarbeitung: {}".format(format_debug_time(local_time()), e))
-                finally:
-                    btnA_druck_start = None  # Immer zurücksetzen!
-                    
-    except Exception as e:
-        if DEBUG:
-            print("{} Fehler in main_loop: {}".format(format_debug_time(local_time()), e))
-        # Button-Status zurücksetzen bei Fehler
-        btnA_druck_start = None
-        
+            btnA_druck_start = None
     time.sleep(0.1)
 
 if __name__ == "__main__":
@@ -862,7 +715,6 @@ if __name__ == "__main__":
             setup()
             while True:
                 main_loop()
-                check_watchdog()  # Watchdog prüfen
         except KeyboardInterrupt:
             print("{} Benutzer-Interrupt.".format(format_debug_time(local_time())))
             break
