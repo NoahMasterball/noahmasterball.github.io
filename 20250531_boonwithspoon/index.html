@@ -90,11 +90,12 @@
         console.log('BWS Game loading...');
         
         // Game state management
-        let gameState = 'menu'; // 'menu', 'playing', 'credits'
+        let gameState = 'menu'; // 'menu', 'playing', 'credits', 'gameOver'
         let player = null;
         let obstacles = [];
         let gameMap = null;
         let gameLoop = null;
+        let isDying = false; // Flag for death animation
         
         // Player class using real images
         class ImagePlayer {
@@ -243,6 +244,13 @@
             }
             
             update(deltaTime) {
+                // Don't update if player is dying
+                if (isDying) return;
+                
+                // Store previous position for collision rollback
+                const prevX = this.x;
+                const prevY = this.y;
+                
                 // Horizontal movement
                 this.velocityX = 0;
                 if (this.keys.left) this.velocityX = -this.speed;
@@ -259,20 +267,55 @@
                 } else {
                     // Free vertical movement when on ground
                     if (verticalMovement !== 0) {
-                        this.y += verticalMovement * deltaTime;
-                        // Don't apply gravity during free movement
+                        // Test vertical movement
+                        const testY = this.y + verticalMovement * deltaTime;
+                        this.y = testY;
+                        
+                        // Check if this causes collision and revert if needed
+                        if (this.checkObstacleCollisions(true)) {
+                            this.y = prevY; // Revert movement
+                        }
                     }
                 }
                 
-                // Update position
-                this.x += this.velocityX * deltaTime;
+                // Test horizontal movement
+                const testX = this.x + this.velocityX * deltaTime;
+                this.x = testX;
                 
-                // Only apply velocityY when jumping/falling
-                if (!this.isOnGround) {
-                    this.y += this.velocityY * deltaTime;
+                // Check horizontal collision and revert if needed
+                if (this.checkObstacleCollisions(true)) {
+                    this.x = prevX; // Revert horizontal movement
                 }
                 
-                // Ground collision (only when falling)
+                // Test vertical movement from jumping/falling
+                if (!this.isOnGround) {
+                    const testY = this.y + this.velocityY * deltaTime;
+                    this.y = testY;
+                    
+                    // Check vertical collision and handle appropriately
+                    if (this.checkObstacleCollisions(true)) {
+                        // If we hit something while falling, land on it
+                        if (this.velocityY > 0) {
+                            // Find the obstacle we're colliding with and land on top
+                            let landingY = prevY;
+                            obstacles.forEach(obstacle => {
+                                if (this.isCollidingWith(obstacle)) {
+                                    landingY = obstacle.y - this.height;
+                                }
+                            });
+                            this.y = landingY;
+                            this.velocityY = 0;
+                            this.isOnGround = true;
+                            this.groundY = this.y;
+                        } else {
+                            // Hit ceiling, stop upward movement
+                            this.y = prevY;
+                            this.velocityY = 0;
+                        }
+                    }
+                }
+                
+                // Ground collision (only when falling naturally)
                 if (this.velocityY > 0 && this.y >= this.groundY) {
                     this.y = this.groundY;
                     this.velocityY = 0;
@@ -296,9 +339,6 @@
                 this.x = Math.max(0, Math.min(maxX, this.x));
                 this.y = Math.max(0, Math.min(maxY, this.y));
                 
-                // Check obstacle collisions
-                this.checkObstacleCollisions();
-                
                 this.updatePosition();
                 
                 // Visual feedback for sprinting
@@ -309,87 +349,198 @@
                 }
             }
             
-            checkObstacleCollisions() {
+            // Helper method to check if player is colliding with a specific obstacle
+            isCollidingWith(obstacle) {
+                return this.x < obstacle.x + obstacle.width &&
+                       this.x + this.width > obstacle.x &&
+                       this.y < obstacle.y + obstacle.height &&
+                       this.y + this.height > obstacle.y;
+            }
+            
+            checkObstacleCollisions(testOnly = false) {
+                let hasCollision = false;
+                
                 obstacles.forEach(obstacle => {
+                    // Special collision detection for pond (deadly)
+                    if (obstacle.type === 'pond') {
+                        // Simple collision detection - die immediately when touching pond
+                        const playerLeft = this.x;
+                        const playerRight = this.x + this.width;
+                        const playerTop = this.y;
+                        const playerBottom = this.y + this.height;
+                        
+                        const pondLeft = obstacle.x;
+                        const pondRight = obstacle.x + obstacle.width;
+                        const pondTop = obstacle.y;
+                        const pondBottom = obstacle.y + obstacle.height;
+                        
+                        // Check if player touches pond at all
+                        if (playerRight > pondLeft && playerLeft < pondRight &&
+                            playerBottom > pondTop && playerTop < pondBottom) {
+                            
+                            console.log('Player touched pond - starting death timer!');
+                            
+                            if (!testOnly && !isDying) {
+                                // Start death sequence after 0.2 seconds
+                                this.startDeathTimer();
+                            }
+                        }
+                    }
                     // Special collision detection for the slanted tree log
-                    if (obstacle.width === 300 && obstacle.height === 120) {
-                        // Create a slanted hitbox using multiple points along the diagonal
-                        const logStartX = obstacle.x + 50; // Start point of the log (left side, higher)
+                    else if (obstacle.width === 300 && obstacle.height === 120) {
+                        // Create a more robust collision system for the slanted log
+                        const logStartX = obstacle.x + 50;
                         const logStartY = obstacle.y + 20;
-                        const logEndX = obstacle.x + obstacle.width - 50; // End point (right side, lower)
+                        const logEndX = obstacle.x + obstacle.width - 50;
                         const logEndY = obstacle.y + obstacle.height - 20;
                         
-                        // Check collision with the slanted line using distance calculation
+                        // Player bounds
+                        const playerLeft = this.x;
+                        const playerRight = this.x + this.width;
+                        const playerTop = this.y;
+                        const playerBottom = this.y + this.height;
                         const playerCenterX = this.x + this.width / 2;
                         const playerCenterY = this.y + this.height / 2;
                         
-                        // Calculate distance from player center to the log line
-                        const A = logEndY - logStartY;
-                        const B = logStartX - logEndX;
-                        const C = logEndX * logStartY - logStartX * logEndY;
+                        // Create multiple collision zones for the log
+                        const logSegments = 8; // Divide log into segments for better detection
+                        let logCollision = false;
                         
-                        const distance = Math.abs(A * playerCenterX + B * playerCenterY + C) / Math.sqrt(A * A + B * B);
-                        const logThickness = 40; // Half the thickness of the log
-                        
-                        // Check if player is within the log's length bounds
-                        const withinXBounds = playerCenterX >= logStartX - 30 && playerCenterX <= logEndX + 30;
-                        const withinYBounds = playerCenterY >= logStartY - 30 && playerCenterY <= logEndY + 30;
-                        
-                        if (distance < logThickness && withinXBounds && withinYBounds) {
-                            // Collision detected with slanted log
-                            if (this.velocityY > 0 && this.y < obstacle.y + 40) {
-                                // Landing on top of the log
-                                const logTopY = logStartY + (logEndY - logStartY) * ((playerCenterX - logStartX) / (logEndX - logStartX));
-                                this.y = logTopY - this.height - 10;
-                                this.velocityY = 0;
-                                this.isOnGround = true;
-                                this.groundY = this.y;
-                            } else {
-                                // Horizontal collision - push player away
-                                if (this.velocityX > 0) {
-                                    this.x = logStartX - this.width - 10;
-                                } else if (this.velocityX < 0) {
-                                    this.x = logEndX + 10;
+                        for (let i = 0; i < logSegments; i++) {
+                            const segmentProgress = i / (logSegments - 1);
+                            const segmentX = logStartX + (logEndX - logStartX) * segmentProgress;
+                            const segmentY = logStartY + (logEndY - logStartY) * segmentProgress;
+                            const segmentThickness = 70; // Thick collision zone
+                            
+                            // Check if player overlaps with this segment
+                            const distanceToSegment = Math.sqrt(
+                                Math.pow(playerCenterX - segmentX, 2) + 
+                                Math.pow(playerCenterY - segmentY, 2)
+                            );
+                            
+                            if (distanceToSegment < segmentThickness) {
+                                // Additional check: make sure we're actually within the log bounds
+                                const logLeft = Math.min(logStartX, logEndX) - 40;
+                                const logRight = Math.max(logStartX, logEndX) + 40;
+                                const logTop = Math.min(logStartY, logEndY) - 40;
+                                const logBottom = Math.max(logStartY, logEndY) + 40;
+                                
+                                if (playerCenterX >= logLeft && playerCenterX <= logRight &&
+                                    playerCenterY >= logTop && playerCenterY <= logBottom) {
+                                    logCollision = true;
+                                    break;
                                 }
                             }
-                        } else {
+                        }
+                        
+                        // Additional rectangular collision check for the entire log area
+                        const logBoundingLeft = obstacle.x + 30;
+                        const logBoundingRight = obstacle.x + obstacle.width - 30;
+                        const logBoundingTop = obstacle.y + 10;
+                        const logBoundingBottom = obstacle.y + obstacle.height - 10;
+                        
+                        if (playerRight > logBoundingLeft && playerLeft < logBoundingRight &&
+                            playerBottom > logBoundingTop && playerTop < logBoundingBottom) {
+                            logCollision = true;
+                        }
+                        
+                        if (logCollision) {
+                            hasCollision = true;
+                            if (!testOnly) {
+                                // Handle landing on top of the log (when falling from above)
+                                if (this.velocityY > 0 && playerTop < obstacle.y + 60) {
+                                    // Calculate the correct landing position on the slanted surface
+                                    const progressAlongLog = Math.max(0, Math.min(1, 
+                                        (playerCenterX - logStartX) / (logEndX - logStartX)
+                                    ));
+                                    const landingY = logStartY + (logEndY - logStartY) * progressAlongLog;
+                                    this.y = landingY - this.height;
+                                    this.velocityY = 0;
+                                    this.isOnGround = true;
+                                    this.groundY = this.y;
+                                }
+                            }
+                        } else if (!testOnly) {
                             // Reset to normal ground when not near obstacle
-                            if (this.groundY !== window.innerHeight - 300) {
+                            if (this.groundY !== window.innerHeight - 300 && !this.isCollidingWithAnyObstacle()) {
                                 this.groundY = window.innerHeight - 300;
                             }
                         }
                     } else {
                         // Regular rectangular collision for other obstacles
-                        if (this.x < obstacle.x + obstacle.width &&
-                            this.x + this.width > obstacle.x &&
-                            this.y < obstacle.y + obstacle.height &&
-                            this.y + this.height > obstacle.y) {
-                            
-                            // Only block horizontal movement if player is close to ground level
-                            if (this.y + this.height > obstacle.y - 20) {
-                                // Horizontal collision
-                                if (this.velocityX > 0) {
-                                    this.x = obstacle.x - this.width - 5;
-                                } else if (this.velocityX < 0) {
-                                    this.x = obstacle.x + obstacle.width + 5;
+                        if (this.isCollidingWith(obstacle)) {
+                            hasCollision = true;
+                            if (!testOnly) {
+                                // Landing on top of obstacle
+                                if (this.velocityY > 0 && this.y < obstacle.y + 20) {
+                                    this.y = obstacle.y - this.height;
+                                    this.velocityY = 0;
+                                    this.isOnGround = true;
+                                    this.groundY = obstacle.y - this.height;
                                 }
                             }
-                            
-                            // Landing on top of obstacle
-                            if (this.velocityY > 0 && this.y < obstacle.y + 20) {
-                                this.y = obstacle.y - this.height;
-                                this.velocityY = 0;
-                                this.isOnGround = true;
-                                this.groundY = obstacle.y - this.height;
-                            }
-                        } else {
+                        } else if (!testOnly) {
                             // Reset to normal ground when not near obstacle
-                            if (this.groundY !== window.innerHeight - 300) {
+                            if (this.groundY !== window.innerHeight - 300 && !this.isCollidingWithAnyObstacle()) {
                                 this.groundY = window.innerHeight - 300;
                             }
                         }
                     }
                 });
+                
+                return hasCollision;
+            }
+            
+            // Helper to check if colliding with any obstacle
+            isCollidingWithAnyObstacle() {
+                return obstacles.some(obstacle => this.isCollidingWith(obstacle));
+            }
+            
+            // Start death timer when touching pond
+            startDeathTimer() {
+                if (isDying) return; // Prevent multiple death timers
+                
+                console.log('Death timer started...');
+                isDying = true;
+                
+                // Change character sprite immediately when touching pond
+                console.log('Changing to drowning sprite...');
+                this.element.src = 'Pictures/charakterertrinkt-removebg-preview.png';
+                
+                // Wait 0.2 seconds then start sinking animation
+                setTimeout(() => {
+                    console.log('Starting sinking animation after 0.2s...');
+                    this.startSinkingAnimation();
+                }, 200);
+            }
+            
+            // Start the sinking animation
+            startSinkingAnimation() {
+                let sinkProgress = 0;
+                const sinkDuration = 2000; // 2 seconds
+                const startY = this.y;
+                const startTime = performance.now();
+                
+                const sinkAnimation = () => {
+                    const currentTime = performance.now();
+                    const elapsed = currentTime - startTime;
+                    sinkProgress = Math.min(elapsed / sinkDuration, 1);
+                    
+                    // Sink down and fade out
+                    this.y = startY + (sinkProgress * 100); // Sink 100px down
+                    this.element.style.opacity = 1 - sinkProgress;
+                    this.updatePosition();
+                    
+                    if (sinkProgress < 1) {
+                        requestAnimationFrame(sinkAnimation);
+                    } else {
+                        // Hide player completely and show game over
+                        this.element.style.display = 'none';
+                        showGameOver();
+                    }
+                };
+                
+                requestAnimationFrame(sinkAnimation);
             }
             
             updatePosition() {
@@ -491,7 +642,8 @@
                 x: 600,  // Position it more to the right where the big log should be
                 y: window.innerHeight - 350, // Position it properly on the ground
                 width: 300,  // Large width to match the tree log in the map
-                height: 120  // Appropriate height for a fallen tree log
+                height: 120,  // Appropriate height for a fallen tree log
+                type: 'log'
             };
             
             const logElement = document.createElement('img');
@@ -509,6 +661,36 @@
             
             obstacles.push(logObstacle);
             document.getElementById('gameContainer').appendChild(logElement);
+            
+            // Create pond obstacle (deadly)
+            const pondObstacle = {
+                x: 300,  // Position it in the middle-left area
+                y: window.innerHeight - 280, // Position it on the ground
+                width: 200,  // Oval width
+                height: 120, // Oval height
+                type: 'pond'
+            };
+            
+            const pondElement = document.createElement('div');
+            pondElement.className = 'game-obstacle pond';
+            pondElement.style.position = 'absolute';
+            pondElement.style.left = pondObstacle.x + 'px';
+            pondElement.style.top = pondObstacle.y + 'px';
+            pondElement.style.width = pondObstacle.width + 'px';
+            pondElement.style.height = pondObstacle.height + 'px';
+            pondElement.style.background = 'radial-gradient(ellipse, #2E86AB 0%, #A23B72 50%, #F18F01 100%)';
+            pondElement.style.borderRadius = '50%';
+            pondElement.style.zIndex = '3';
+            pondElement.style.boxShadow = 'inset 0 5px 15px rgba(0,0,0,0.3), 0 2px 10px rgba(0,0,0,0.2)';
+            // Add water ripple effect
+            pondElement.style.background = `
+                radial-gradient(ellipse 80% 60% at 30% 40%, rgba(255,255,255,0.3) 0%, transparent 50%),
+                radial-gradient(ellipse 60% 40% at 70% 60%, rgba(255,255,255,0.2) 0%, transparent 50%),
+                radial-gradient(ellipse, #1e6091 0%, #2E86AB 30%, #4a90a4 70%, #6ba3b8 100%)
+            `;
+            
+            obstacles.push(pondObstacle);
+            document.getElementById('gameContainer').appendChild(pondElement);
         }
         
         function startGameLoop() {
@@ -518,11 +700,17 @@
                 if (gameState !== 'playing') return;
                 
                 const currentTime = performance.now();
-                const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.016); // Cap at 60fps
+                const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.008); // Increased to 125fps for better collision detection
                 lastTime = currentTime;
                 
                 if (player) {
-                    player.update(deltaTime);
+                    // Run collision detection multiple times per frame for higher precision
+                    const collisionSteps = 3; // Check collisions 3 times per frame
+                    const stepDelta = deltaTime / collisionSteps;
+                    
+                    for (let i = 0; i < collisionSteps; i++) {
+                        player.update(stepDelta);
+                    }
                     
                     // Check if player reached end
                     if (player.x > window.innerWidth - 100) {
@@ -554,9 +742,12 @@
             
             // Remove obstacles and overlays
             obstacles = [];
-            document.querySelectorAll('.game-character, .game-obstacle, .controls-overlay').forEach(el => {
+            document.querySelectorAll('.game-character, .game-obstacle, .controls-overlay, .game-over-screen').forEach(el => {
                 if (el.parentNode) el.parentNode.removeChild(el);
             });
+            
+            // Reset game state
+            isDying = false;
             
             // Show menu
             const menuEl = document.getElementById('startScreen');
@@ -565,6 +756,93 @@
             } else {
                 location.reload();
             }
+        }
+        
+        function retryGame() {
+            console.log('Retrying game...');
+            
+            // Clean up current game
+            if (player) {
+                player.destroy();
+                player = null;
+            }
+            
+            // Remove game over screen and obstacles
+            obstacles = [];
+            document.querySelectorAll('.game-character, .game-obstacle, .controls-overlay, .game-over-screen').forEach(el => {
+                if (el.parentNode) el.parentNode.removeChild(el);
+            });
+            
+            // Reset flags
+            isDying = false;
+            
+            // Restart the tutorial
+            startTutorial();
+        }
+        
+        function showGameOver() {
+            console.log('Game Over!');
+            gameState = 'gameOver';
+            
+            // Create game over screen
+            const gameOverScreen = document.createElement('div');
+            gameOverScreen.className = 'game-over-screen';
+            gameOverScreen.style.position = 'fixed';
+            gameOverScreen.style.top = '0';
+            gameOverScreen.style.left = '0';
+            gameOverScreen.style.width = '100vw';
+            gameOverScreen.style.height = '100vh';
+            gameOverScreen.style.backgroundColor = 'black';
+            gameOverScreen.style.color = 'white';
+            gameOverScreen.style.display = 'flex';
+            gameOverScreen.style.flexDirection = 'column';
+            gameOverScreen.style.justifyContent = 'center';
+            gameOverScreen.style.alignItems = 'center';
+            gameOverScreen.style.zIndex = '1000';
+            gameOverScreen.style.fontFamily = 'Arial, sans-serif';
+            
+            gameOverScreen.innerHTML = `
+                <div style="text-align: center;">
+                    <h1 style="font-size: 4rem; margin-bottom: 20px; color: #ff4757; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">
+                        💀 GAME OVER 💀
+                    </h1>
+                    <p style="font-size: 1.5rem; margin-bottom: 40px; color: #ddd;">
+                        Du bist im Teich ertrunken! 🌊
+                    </p>
+                    <div style="display: flex; gap: 30px; justify-content: center;">
+                        <button onclick="retryGame()" style="
+                            padding: 15px 30px; 
+                            font-size: 1.2rem; 
+                            background: #2ecc71; 
+                            border: none; 
+                            color: white; 
+                            border-radius: 10px; 
+                            cursor: pointer;
+                            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
+                            transition: all 0.3s ease;
+                        " onmouseover="this.style.background='#27ae60'; this.style.transform='translateY(-2px)'" 
+                           onmouseout="this.style.background='#2ecc71'; this.style.transform='translateY(0)'">
+                            🔄 Nochmal versuchen
+                        </button>
+                        <button onclick="backToMenu()" style="
+                            padding: 15px 30px; 
+                            font-size: 1.2rem; 
+                            background: #3498db; 
+                            border: none; 
+                            color: white; 
+                            border-radius: 10px; 
+                            cursor: pointer;
+                            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+                            transition: all 0.3s ease;
+                        " onmouseover="this.style.background='#2980b9'; this.style.transform='translateY(-2px)'" 
+                           onmouseout="this.style.background='#3498db'; this.style.transform='translateY(0)'">
+                            🏠 Zurück zum Menü
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(gameOverScreen);
         }
         
         // Override the window startGame event
