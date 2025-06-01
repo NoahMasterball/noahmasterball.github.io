@@ -1,0 +1,4 @@
+cd D:\OneDrive\Dokumente\noahmasterball.github.io\20250316_m5stack\Version5.0
+wsl
+claude
+
