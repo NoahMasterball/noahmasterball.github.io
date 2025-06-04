@@ -1,5 +1,7 @@
 import requests
 
+# curl -X PUT "http://10.80.23.56:16021/api/v1/<DEIN_API_KEY>/state" -H "Content-Type: application/json" -d "{\"on\":{\"value\":true}}"
+# curl -X PUT "http://10.80.23.56:16021/api/v1/<DEIN_API_KEY>/state" -H "Content-Type: application/json" -d "{\"on\":{\"value\":false}}"
 # IP-Adresse deines Nanoleaf-Geräts und dein API-Schlüssel
 nanoleaf_ip = '10.80.23.56'
 api_key = ''
