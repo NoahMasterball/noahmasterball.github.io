@@ -146,27 +146,25 @@ const game = {
 
 class SlotMachine {
     constructor() {
-        this.symbols = ['🍒', '🍊', '🍋', '🍇', '💎', '7️⃣'];
+        this.symbols = ['🍒', '🍇', '🍌', '🍊', '🍋', '💎', '7️⃣'];
+        this.fruits = ['🍒', '🍇', '🍌'];
         this.reels = document.querySelectorAll('.slot-reel');
         this.spinButton = document.querySelector('.spin-button');
         this.creditsDisplay = document.querySelector('.credits-display');
+        this.betInput = document.getElementById('bet-amount');
+        this.messageBox = document.getElementById('slot-message');
         this.credits = 100;
         this.isSpinning = false;
-        
         this.initializeGame();
     }
 
     initializeGame() {
-        // Initialisiere die Walzen mit zufälligen Symbolen
         this.reels.forEach(reel => {
             reel.textContent = this.getRandomSymbol();
         });
-
-        // Event Listener für den Spin-Button
         this.spinButton.addEventListener('click', () => this.spin());
-        
-        // Aktualisiere Credits-Anzeige
         this.updateCredits();
+        this.showMessage('');
     }
 
     getRandomSymbol() {
@@ -174,39 +172,69 @@ class SlotMachine {
     }
 
     async spin() {
-        if (this.isSpinning || this.credits < 10) return;
-        
+        const bet = parseInt(this.betInput.value);
+        if (this.isSpinning || isNaN(bet) || bet < 1 || bet > this.credits) return;
         this.isSpinning = true;
-        this.credits -= 10;
+        this.credits -= bet;
         this.updateCredits();
         this.spinButton.disabled = true;
-
-        // Drehe jede Walze nacheinander
+        this.showMessage('');
         for (let i = 0; i < this.reels.length; i++) {
             this.reels[i].classList.add('spinning');
-            // Warte 1 Sekunde pro Walze
             await new Promise(resolve => setTimeout(resolve, 1000));
             this.reels[i].classList.remove('spinning');
             this.reels[i].textContent = this.getRandomSymbol();
         }
-
-        // Prüfe auf Gewinn
-        this.checkWin();
-
+        this.checkWin(bet);
         this.isSpinning = false;
         this.spinButton.disabled = false;
     }
 
-    checkWin() {
+    checkWin(bet) {
         const symbols = Array.from(this.reels).map(reel => reel.textContent);
-        const firstSymbol = symbols[0];
-        const isWin = symbols.every(symbol => symbol === firstSymbol);
-
-        if (isWin) {
-            this.credits += 50;
-            this.updateCredits();
-            this.showWinAnimation();
+        // Drei gleiche
+        if (symbols[0] === symbols[1] && symbols[1] === symbols[2]) {
+            if (symbols[0] === '7️⃣') {
+                const win = bet * 100;
+                this.credits += win;
+                this.updateCredits();
+                this.showWinAnimation();
+                this.showMessage(`777! +${win} Credits!`, true);
+            } else if (symbols[0] === '💎') {
+                const win = bet * 20;
+                this.credits += win;
+                this.updateCredits();
+                this.showWinAnimation();
+                this.showMessage(`JACKPOT! 💎💎💎 +${win} Credits!`, true);
+            } else if (this.fruits.includes(symbols[0])) {
+                const win = bet * 3;
+                this.credits += win;
+                this.updateCredits();
+                this.showWinAnimation();
+                this.showMessage(`Drei gleiche Früchte! +${win} Credits!`, true);
+            } else {
+                const win = bet * 10;
+                this.credits += win;
+                this.updateCredits();
+                this.showWinAnimation();
+                this.showMessage(`Drei gleiche Symbole! +${win} Credits!`, true);
+            }
+            return;
         }
+        // Drei verschiedene Früchte
+        if (this.fruits.includes(symbols[0]) && this.fruits.includes(symbols[1]) && this.fruits.includes(symbols[2])) {
+            const unique = new Set(symbols);
+            if (unique.size === 3) {
+                const win = bet * 3;
+                this.credits += win;
+                this.updateCredits();
+                this.showWinAnimation();
+                this.showMessage(`Drei verschiedene Früchte! +${win} Credits!`, true);
+                return;
+            }
+        }
+        // Kein Gewinn
+        this.showMessage('Leider kein Gewinn!', false);
     }
 
     showWinAnimation() {
@@ -220,6 +248,14 @@ class SlotMachine {
 
     updateCredits() {
         this.creditsDisplay.textContent = `Credits: ${this.credits}`;
+    }
+
+    showMessage(msg, win) {
+        if (!this.messageBox) return;
+        this.messageBox.textContent = msg;
+        this.messageBox.classList.remove('win', 'lose');
+        if (win === true) this.messageBox.classList.add('win');
+        if (win === false) this.messageBox.classList.add('lose');
     }
 }
 

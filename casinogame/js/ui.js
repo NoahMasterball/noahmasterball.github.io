@@ -38,14 +38,16 @@ document.addEventListener('DOMContentLoaded', () => {
     gameOptions.forEach(option => {
         option.addEventListener('click', () => {
             const game = option.getAttribute('data-game');
-            
+            // Alle Spiele ausblenden
+            slotMachine.classList.remove('active');
+            gameSelection.classList.remove('active');
+            document.querySelector('.blackjack-game').style.display = 'none';
             switch(game) {
                 case 'slots':
-                    gameSelection.classList.remove('active');
                     slotMachine.classList.add('active');
                     break;
                 case 'blackjack':
-                    contentArea.innerHTML = '<div class="info-section"><h2>Blackjack</h2><p>Blackjack wird bald verfügbar sein!</p></div>';
+                    document.querySelector('.blackjack-game').style.display = 'block';
                     break;
                 case 'roulette':
                     contentArea.innerHTML = '<div class="info-section"><h2>Roulette</h2><p>Roulette wird bald verfügbar sein!</p></div>';
