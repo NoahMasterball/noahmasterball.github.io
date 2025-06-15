@@ -67,6 +67,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Zurück zum Hauptmenü
                 gameSelection.classList.remove('active');
                 mainMenu.style.display = '';
+            } else if (button.closest('.blackjack-game')) {
+                // Zurück zur Spielauswahl von Blackjack
+                document.querySelector('.blackjack-game').style.display = 'none';
+                gameSelection.classList.add('active');
             }
         });
     });
