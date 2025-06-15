@@ -1,5 +1,5 @@
 class BlackjackGame {
-    constructor() {
+    constructor(existingCredits) {
         this.deck = [];
         this.playerCards = [];
         this.opponentCards = [];
@@ -7,18 +7,47 @@ class BlackjackGame {
         this.opponentPoints = 0;
         this.hitCount = 0;
         this.maxHits = 2;
+        this.credits = typeof existingCredits === 'number' ? existingCredits : 100;
+        this.bet = 10;
+        this.betPaid = false;
         this.init();
     }
 
     init() {
+        // Einsatz und Credits initialisieren
+        const betInput = document.getElementById('blackjack-bet');
+        if (betInput) {
+            this.bet = parseInt(betInput.value) || 10;
+            betInput.value = this.bet;
+            betInput.onchange = () => {
+                this.bet = parseInt(betInput.value) || 1;
+                if (this.bet > this.credits) {
+                    this.bet = this.credits;
+                    betInput.value = this.bet;
+                }
+            };
+        }
+        this.updateCreditsDisplay();
+        // Kein Abzug des Einsatzes hier!
         this.createDeck();
         this.shuffleDeck();
         this.playerCards = [this.drawCard(), this.drawCard()];
         this.opponentCards = [this.drawCard(), this.drawCard()];
         this.hitCount = 0;
+        this.betPaid = false;
         this.updateUI();
         this.setButtonStates();
         this.addEventListeners();
+    }
+
+    updateCreditsDisplay() {
+        const creditsSpan = document.getElementById('blackjack-credits');
+        if (creditsSpan) creditsSpan.textContent = this.credits;
+    }
+
+    disableGame() {
+        document.querySelector('.hit-button').disabled = true;
+        document.querySelector('.stand-button').disabled = true;
     }
 
     createDeck() {
@@ -97,7 +126,22 @@ class BlackjackGame {
         document.querySelector('.stand-button').onclick = async () => await this.stand();
     }
 
+    payBetIfNeeded() {
+        if (!this.betPaid) {
+            if (this.bet > this.credits) {
+                this.showMessage('Nicht genug Credits für den Einsatz!', false);
+                this.disableGame();
+                return false;
+            }
+            this.credits -= this.bet;
+            this.updateCreditsDisplay();
+            this.betPaid = true;
+        }
+        return true;
+    }
+
     hit() {
+        if (!this.payBetIfNeeded()) return;
         if (this.hitCount < this.maxHits) {
             this.playerCards.push(this.drawCard());
             this.hitCount++;
@@ -110,6 +154,7 @@ class BlackjackGame {
     }
 
     async stand() {
+        if (!this.payBetIfNeeded()) return;
         // Gegner zieht nur, solange er weniger Punkte als der Spieler hat und max. 4 Karten
         let maxCards = Math.min(this.playerCards.length + 1, 4);
         this.updateOpponentUI(); // Zeige erste beiden Karten
@@ -150,22 +195,30 @@ class BlackjackGame {
         let msg = '';
         if (this.playerPoints > 21) {
             msg = 'Du hast über 21. Gegner gewinnt!';
+            // Einsatz bleibt verloren
         } else if (this.opponentPoints > 21) {
             msg = 'Gegner hat über 21. Du gewinnst!';
+            this.credits += this.bet * 2;
         } else if (this.playerPoints > this.opponentPoints) {
             msg = 'Du gewinnst!';
+            this.credits += this.bet * 2;
         } else if (this.playerPoints < this.opponentPoints) {
             msg = 'Gegner gewinnt!';
+            // Einsatz bleibt verloren
         } else {
-            msg = 'Unentschieden!';
+            msg = 'Unentschieden! Einsatz zurück.';
+            this.credits += this.bet;
         }
+        this.updateCreditsDisplay();
         document.querySelector('.blackjack-message').textContent = msg;
     }
 }
 
 // Initialisierung, wenn Blackjack angezeigt wird
 function startBlackjack() {
-    window.blackjackGame = new BlackjackGame();
+    // Wenn schon ein Spiel läuft, Credits übernehmen
+    const existingCredits = window.blackjackGame ? window.blackjackGame.credits : undefined;
+    window.blackjackGame = new BlackjackGame(existingCredits);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -180,7 +233,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Erneut spielen Button
     document.querySelector('.restart-button').addEventListener('click', () => {
         if (document.querySelector('.blackjack-game').style.display === 'block') {
-            window.blackjackGame = new BlackjackGame();
+            // Buttons wieder aktivieren
+            document.querySelector('.hit-button').disabled = false;
+            document.querySelector('.stand-button').disabled = false;
+            // Credits übernehmen
+            const existingCredits = window.blackjackGame ? window.blackjackGame.credits : undefined;
+            window.blackjackGame = new BlackjackGame(existingCredits);
         }
     });
 }); 

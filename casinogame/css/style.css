@@ -429,4 +429,34 @@ body {
 .restart-button:active {
     background: #1e7a43;
     transform: scale(0.97);
+}
+
+.blackjack-bet-area {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    margin-bottom: 0;
+}
+.blackjack-bet-area label {
+    font-size: 16px;
+    color: #f1c40f;
+}
+#blackjack-bet {
+    width: 80px;
+    padding: 5px 10px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 1px solid #f1c40f;
+    background: #fff;
+    color: #2c3e50;
+    outline: none;
+    text-align: right;
+}
+
+.blackjack-credits-display {
+    font-size: 18px;
+    color: #f1c40f;
+    margin-top: 8px;
+    font-weight: bold;
 } 
