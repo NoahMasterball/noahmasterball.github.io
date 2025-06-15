@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diamond Casino</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="menu-background">
+        <div class="container">
+            <!-- Hauptmenü-Bereich -->
+            <div id="main-menu" class="main-menu-area">
+                <header>
+                    <h1 class="main-title">Diamond Casino</h1>
+                </header>
+                <nav class="main-menu">
+                    <button class="menu-btn" data-section="play">Spielen</button>
+                    <button class="menu-btn" data-section="credits">Credits</button>
+                    <button class="menu-btn" data-section="options">Optionen</button>
+                </nav>
+            </div>
+
+            <div id="content-area">
+                <!-- Spielauswahl -->
+                <div class="game-selection">
+                    <h2>Wählen Sie Ihr Spiel</h2>
+                    <button class="game-option" data-game="slots">Slot Machine</button>
+                    <button class="game-option" data-game="blackjack">Blackjack</button>
+                    <button class="game-option" data-game="roulette">Roulette</button>
+                    <button class="back-button">Zurück zum Hauptmenü</button>
+                </div>
+
+                <!-- Slot Machine -->
+                <div class="slot-machine">
+                    <button class="back-button">Zurück zur Spielauswahl</button>
+                    <div class="credits-display">Credits: 100</div>
+                    <div class="slot-display">
+                        <div class="slot-reel"></div>
+                        <div class="slot-reel"></div>
+                        <div class="slot-reel"></div>
+                    </div>
+                    <div class="controls">
+                        <button class="spin-button">SPIN</button>
+                    </div>
+                </div>
+            </div>
+
+            <footer>
+                <p>&copy; 2024 Diamond Casino</p>
+            </footer>
+        </div>
+    </div>
+
+    <!-- JavaScript Dateien -->
+    <script src="js/game.js"></script>
+    <script src="js/ui.js"></script>
+</body>
+</html> 
