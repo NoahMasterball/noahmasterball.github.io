@@ -249,7 +249,7 @@ class SlotMachine {
                 this.showMessage(`777! +${win} Credits!`, true);
                 this.sounds.jackpot.play();
             } else if (symbols[0] === '💎') {
-                const win = bet * 15;
+                const win = bet * 100;
                 this.credits = sharedCredits.addCredits(win);
                 this.updateCredits();
                 this.showWinAnimation();
