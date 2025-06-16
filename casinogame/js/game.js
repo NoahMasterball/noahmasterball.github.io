@@ -144,17 +144,52 @@ const game = {
     }
 };
 
+// Shared credits system
+const sharedCredits = {
+    getCredits: () => {
+        const credits = localStorage.getItem('casinoCredits');
+        return credits ? parseInt(credits) : 100; // Default to 100 if no credits exist
+    },
+    setCredits: (amount) => {
+        localStorage.setItem('casinoCredits', amount.toString());
+    },
+    addCredits: (amount) => {
+        const currentCredits = sharedCredits.getCredits();
+        sharedCredits.setCredits(currentCredits + amount);
+        return currentCredits + amount;
+    },
+    removeCredits: (amount) => {
+        const currentCredits = sharedCredits.getCredits();
+        if (currentCredits >= amount) {
+            sharedCredits.setCredits(currentCredits - amount);
+            return true;
+        }
+        return false;
+    }
+};
+
 class SlotMachine {
     constructor() {
-        this.symbols = ['🍒', '🍇', '🍌', '🍊', '🍋', '💎', '7️⃣'];
-        this.fruits = ['🍒', '🍇', '🍌'];
+        // Increased frequency of high-value symbols
+        this.symbols = ['🍒', '🍇', '🍌', '🍊', '🍋', '💎', '7️⃣', '💎', '7️⃣', '💎'];
+        this.fruits = ['🍒', '🍇', '🍌', '🍊', '🍋'];
         this.reels = document.querySelectorAll('.slot-reel');
         this.spinButton = document.querySelector('.spin-button');
         this.creditsDisplay = document.querySelector('.credits-display');
         this.betInput = document.getElementById('bet-amount');
         this.messageBox = document.getElementById('slot-message');
-        this.credits = 100;
+        this.credits = sharedCredits.getCredits();
         this.isSpinning = false;
+        
+        // Initialize sound effects
+        this.sounds = {
+            spin: new Audio('sounds/spin.mp3'),
+            winSmall: new Audio('sounds/win-small.mp3'),
+            winMedium: new Audio('sounds/win-medium.mp3'),
+            winBig: new Audio('sounds/win-big.mp3'),
+            jackpot: new Audio('sounds/jackpot.mp3')
+        };
+        
         this.initializeGame();
     }
 
@@ -175,10 +210,21 @@ class SlotMachine {
         const bet = parseInt(this.betInput.value);
         if (this.isSpinning || isNaN(bet) || bet < 1 || bet > this.credits) return;
         this.isSpinning = true;
-        this.credits -= bet;
+        
+        if (!sharedCredits.removeCredits(bet)) {
+            this.showMessage('Nicht genug Credits!', false);
+            this.isSpinning = false;
+            return;
+        }
+        
+        this.credits = sharedCredits.getCredits();
         this.updateCredits();
         this.spinButton.disabled = true;
         this.showMessage('');
+        
+        // Play spin sound
+        this.sounds.spin.play();
+        
         for (let i = 0; i < this.reels.length; i++) {
             this.reels[i].classList.add('spinning');
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -192,47 +238,55 @@ class SlotMachine {
 
     checkWin(bet) {
         const symbols = Array.from(this.reels).map(reel => reel.textContent);
+        
         // Drei gleiche
         if (symbols[0] === symbols[1] && symbols[1] === symbols[2]) {
             if (symbols[0] === '7️⃣') {
-                const win = bet * 100;
-                this.credits += win;
+                const win = bet * 50;
+                this.credits = sharedCredits.addCredits(win);
                 this.updateCredits();
                 this.showWinAnimation();
                 this.showMessage(`777! +${win} Credits!`, true);
+                this.sounds.jackpot.play();
             } else if (symbols[0] === '💎') {
-                const win = bet * 20;
-                this.credits += win;
+                const win = bet * 15;
+                this.credits = sharedCredits.addCredits(win);
                 this.updateCredits();
                 this.showWinAnimation();
                 this.showMessage(`JACKPOT! 💎💎💎 +${win} Credits!`, true);
+                this.sounds.winBig.play();
             } else if (this.fruits.includes(symbols[0])) {
-                const win = bet * 3;
-                this.credits += win;
+                const win = bet * 5;
+                this.credits = sharedCredits.addCredits(win);
                 this.updateCredits();
                 this.showWinAnimation();
                 this.showMessage(`Drei gleiche Früchte! +${win} Credits!`, true);
+                this.sounds.winMedium.play();
             } else {
-                const win = bet * 10;
-                this.credits += win;
+                const win = bet * 8;
+                this.credits = sharedCredits.addCredits(win);
                 this.updateCredits();
                 this.showWinAnimation();
                 this.showMessage(`Drei gleiche Symbole! +${win} Credits!`, true);
+                this.sounds.winMedium.play();
             }
             return;
         }
+
         // Drei verschiedene Früchte
         if (this.fruits.includes(symbols[0]) && this.fruits.includes(symbols[1]) && this.fruits.includes(symbols[2])) {
             const unique = new Set(symbols);
             if (unique.size === 3) {
-                const win = bet * 3;
-                this.credits += win;
+                const win = bet * 4;
+                this.credits = sharedCredits.addCredits(win);
                 this.updateCredits();
                 this.showWinAnimation();
                 this.showMessage(`Drei verschiedene Früchte! +${win} Credits!`, true);
+                this.sounds.winMedium.play();
                 return;
             }
         }
+
         // Kein Gewinn
         this.showMessage('Leider kein Gewinn!', false);
     }

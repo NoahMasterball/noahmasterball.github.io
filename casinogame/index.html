@@ -92,6 +92,29 @@
                     </div>
                     <div class="blackjack-message"></div>
                 </div>
+
+                <!-- Roulette -->
+                <div class="roulette-game" style="display:none;">
+                    <button class="back-button">Zurück zur Spielauswahl</button>
+                    <div class="roulette-container">
+                        <div class="roulette-wheel-container">
+                            <div class="roulette-pointer"></div>
+                            <img src="bilder/roulette/rouletteweel.png" alt="Roulette Rad" class="roulette-wheel">
+                        </div>
+                        <div class="roulette-betting-board">
+                            <div class="roulette-numbers"></div>
+                        </div>
+                    </div>
+                    <div class="roulette-controls">
+                        <div class="credits-display">Credits: <span id="roulette-credits">100</span></div>
+                        <div class="bet-area">
+                            <label for="roulette-bet">Einsatz:</label>
+                            <input type="number" id="roulette-bet" min="1" value="10" step="1" />
+                        </div>
+                        <button class="spin-button">SPIN</button>
+                    </div>
+                    <div class="roulette-message"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -100,5 +123,6 @@
     <script src="js/game.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/blackjack.js"></script>
+    <script src="js/roulette.js"></script>
 </body>
 </html> 

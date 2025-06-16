@@ -1,5 +1,5 @@
 class BlackjackGame {
-    constructor(existingCredits) {
+    constructor() {
         this.deck = [];
         this.playerCards = [];
         this.opponentCards = [];
@@ -7,7 +7,7 @@ class BlackjackGame {
         this.opponentPoints = 0;
         this.hitCount = 0;
         this.maxHits = 2;
-        this.credits = typeof existingCredits === 'number' ? existingCredits : 100;
+        this.credits = sharedCredits.getCredits();
         this.bet = 10;
         this.betPaid = false;
         this.init();
@@ -28,7 +28,6 @@ class BlackjackGame {
             };
         }
         this.updateCreditsDisplay();
-        // Kein Abzug des Einsatzes hier!
         this.createDeck();
         this.shuffleDeck();
         this.playerCards = [this.drawCard(), this.drawCard()];
@@ -41,8 +40,10 @@ class BlackjackGame {
     }
 
     updateCreditsDisplay() {
-        const creditsSpan = document.getElementById('blackjack-credits');
-        if (creditsSpan) creditsSpan.textContent = this.credits;
+        const creditsDisplay = document.querySelector('.blackjack-credits-display');
+        if (creditsDisplay) {
+            creditsDisplay.textContent = `Credits: ${this.credits}`;
+        }
     }
 
     disableGame() {
@@ -128,12 +129,12 @@ class BlackjackGame {
 
     payBetIfNeeded() {
         if (!this.betPaid) {
-            if (this.bet > this.credits) {
+            if (!sharedCredits.removeCredits(this.bet)) {
                 this.showMessage('Nicht genug Credits für den Einsatz!', false);
                 this.disableGame();
                 return false;
             }
-            this.credits -= this.bet;
+            this.credits = sharedCredits.getCredits();
             this.updateCreditsDisplay();
             this.betPaid = true;
         }
@@ -198,16 +199,16 @@ class BlackjackGame {
             // Einsatz bleibt verloren
         } else if (this.opponentPoints > 21) {
             msg = 'Gegner hat über 21. Du gewinnst!';
-            this.credits += this.bet * 2;
+            this.credits = sharedCredits.addCredits(this.bet * 2);
         } else if (this.playerPoints > this.opponentPoints) {
             msg = 'Du gewinnst!';
-            this.credits += this.bet * 2;
+            this.credits = sharedCredits.addCredits(this.bet * 2);
         } else if (this.playerPoints < this.opponentPoints) {
             msg = 'Gegner gewinnt!';
             // Einsatz bleibt verloren
         } else {
             msg = 'Unentschieden! Einsatz zurück.';
-            this.credits += this.bet;
+            this.credits = sharedCredits.addCredits(this.bet);
         }
         this.updateCreditsDisplay();
         document.querySelector('.blackjack-message').textContent = msg;

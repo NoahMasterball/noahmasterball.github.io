@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const gameSelection = document.querySelector('.game-selection');
     const gameOptions = document.querySelectorAll('.game-option');
     const backButtons = document.querySelectorAll('.back-button');
+    const rouletteGame = document.querySelector('.roulette-game');
 
     // Hauptmenü Navigation
     menuButtons.forEach(button => {
@@ -15,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Verstecke alle Inhalte
             slotMachine.classList.remove('active');
             gameSelection.classList.remove('active');
+            rouletteGame.style.display = 'none';
             
             // Zeige den entsprechenden Inhalt
             switch(section) {
@@ -42,6 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
             slotMachine.classList.remove('active');
             gameSelection.classList.remove('active');
             document.querySelector('.blackjack-game').style.display = 'none';
+            rouletteGame.style.display = 'none';
+            
             switch(game) {
                 case 'slots':
                     slotMachine.classList.add('active');
@@ -50,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.querySelector('.blackjack-game').style.display = 'block';
                     break;
                 case 'roulette':
-                    contentArea.innerHTML = '<div class="info-section"><h2>Roulette</h2><p>Roulette wird bald verfügbar sein!</p></div>';
+                    rouletteGame.style.display = 'block';
                     break;
             }
         });
@@ -71,6 +75,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Zurück zur Spielauswahl von Blackjack
                 document.querySelector('.blackjack-game').style.display = 'none';
                 gameSelection.classList.add('active');
+            } else if (button.closest('.roulette-game')) {
+                // Zurück zur Spielauswahl von Roulette
+                rouletteGame.style.display = 'none';
+                gameSelection.classList.add('active');
             }
         });
     });
@@ -79,4 +87,5 @@ document.addEventListener('DOMContentLoaded', () => {
     mainMenu.style.display = '';
     gameSelection.classList.remove('active');
     slotMachine.classList.remove('active');
+    rouletteGame.style.display = 'none';
 }); 
