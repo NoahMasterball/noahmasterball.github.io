@@ -26,6 +26,7 @@
                     <button class="game-option" data-game="slots">Slot Machine</button>
                     <button class="game-option" data-game="blackjack">Blackjack</button>
                     <button class="game-option" data-game="roulette">Roulette</button>
+                    <button class="game-option" data-game="ridethetrain">Ride the Train</button>
                     <button class="back-button">Zurück zum Hauptmenü</button>
                 </div>
 
@@ -115,6 +116,35 @@
                     </div>
                     <div class="roulette-message"></div>
                 </div>
+
+                <!-- Ride the Train -->
+                <div class="ridethetrain-game" style="display:none;">
+                    <button class="back-button">Zurück zur Spielauswahl</button>
+                    <div class="ridethetrain-container">
+                        <div class="ridethetrain-header">
+                            <div class="credits-display">Credits: <span id="ridethetrain-credits">100</span></div>
+                            <div class="multiplier-display">Multiplikator: <span id="ridethetrain-multiplier">x1</span></div>
+                            <div class="score-display">Score: <span id="ridethetrain-score">0</span></div>
+                        </div>
+                        <div class="ridethetrain-cards"></div>
+                        <div class="ridethetrain-controls">
+                            <div class="level-1-controls">
+                                <button class="red-button">Rot</button>
+                                <button class="black-button">Schwarz</button>
+                            </div>
+                            <div class="level-2-controls" style="display:none;">
+                                <button class="karo-button">Karo</button>
+                                <button class="kreuz-button">Kreuz</button>
+                            </div>
+                            <div class="level-3-controls" style="display:none;">
+                                <button class="between-button">Zwischen</button>
+                                <button class="outside-button">Außerhalb</button>
+                            </div>
+                        </div>
+                        <button class="exit-button" style="margin-top: 16px; display: none;">Aussteigen und Gewinn nehmen</button>
+                        <div class="ridethetrain-message"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -124,5 +154,6 @@
     <script src="js/ui.js"></script>
     <script src="js/blackjack.js"></script>
     <script src="js/roulette.js"></script>
+    <script src="js/ridethetrain.js"></script>
 </body>
 </html> 

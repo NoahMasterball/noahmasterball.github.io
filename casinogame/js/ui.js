@@ -88,4 +88,147 @@ document.addEventListener('DOMContentLoaded', () => {
     gameSelection.classList.remove('active');
     slotMachine.classList.remove('active');
     rouletteGame.style.display = 'none';
+
+    // Ride the Train Game UI
+    let rideTheTrainGame = null;
+
+    function initializeRideTheTrain() {
+        if (!rideTheTrainGame) rideTheTrainGame = new RideTheTrain();
+        rideTheTrainGame.startGame();
+        updateRideTheTrainUI();
+    }
+
+    function updateRideTheTrainUI() {
+        if (!rideTheTrainGame) return;
+        document.getElementById('ridethetrain-credits').textContent = rideTheTrainGame.credits;
+        document.getElementById('ridethetrain-multiplier').textContent = 'x' + rideTheTrainGame.multiplier;
+        document.getElementById('ridethetrain-score').textContent = rideTheTrainGame.score;
+
+        // Kartenanzeige anpassen
+        const cardsContainer = document.querySelector('.ridethetrain-cards');
+        cardsContainer.innerHTML = '';
+
+        // Level 1: nur Rückseite
+        if (rideTheTrainGame.currentLevel === 1) {
+            const backImg = document.createElement('img');
+            backImg.src = 'Bilder/Karten/rueckseite.png';
+            backImg.alt = 'Rückseite';
+            cardsContainer.appendChild(backImg);
+        }
+        // Level 2: gezogene Karte + Rückseite
+        else if (rideTheTrainGame.currentLevel === 2) {
+            // Erste gezogene Karte
+            if (rideTheTrainGame.previousCards.length > 0) {
+                const card = rideTheTrainGame.previousCards[0];
+                const cardImg = document.createElement('img');
+                cardImg.src = `Bilder/Karten/${card.suit}${card.value}.png`;
+                cardImg.alt = `${card.suit} ${card.value}`;
+                cardsContainer.appendChild(cardImg);
+            }
+            // Rückseite für die zweite Karte
+            const backImg = document.createElement('img');
+            backImg.src = 'Bilder/Karten/rueckseite.png';
+            backImg.alt = 'Rückseite';
+            cardsContainer.appendChild(backImg);
+        }
+        // Level 3: zwei gezogene Karten + Rückseite
+        else if (rideTheTrainGame.currentLevel === 3) {
+            // Zwei gezogene Karten
+            for (let i = 0; i < 2; i++) {
+                if (rideTheTrainGame.previousCards[i]) {
+                    const card = rideTheTrainGame.previousCards[i];
+                    const cardImg = document.createElement('img');
+                    cardImg.src = `Bilder/Karten/${card.suit}${card.value}.png`;
+                    cardImg.alt = `${card.suit} ${card.value}`;
+                    cardsContainer.appendChild(cardImg);
+                }
+            }
+            // Rückseite für die dritte Karte
+            const backImg = document.createElement('img');
+            backImg.src = 'Bilder/Karten/rueckseite.png';
+            backImg.alt = 'Rückseite';
+            cardsContainer.appendChild(backImg);
+        }
+
+        // Buttons für die Levels korrekt anzeigen
+        document.querySelector('.level-1-controls').style.display = 
+            rideTheTrainGame.currentLevel === 1 ? 'block' : 'none';
+        document.querySelector('.level-2-controls').style.display = 
+            rideTheTrainGame.currentLevel === 2 ? 'block' : 'none';
+        document.querySelector('.level-3-controls').style.display = 
+            rideTheTrainGame.currentLevel === 3 ? 'block' : 'none';
+
+        // Exit-Button nur anzeigen, wenn Gewinn möglich ist (ab Level 2)
+        const exitBtn = document.querySelector('.exit-button');
+        if (rideTheTrainGame.currentLevel >= 2 && !rideTheTrainGame.gameOver && rideTheTrainGame.betActive) {
+            exitBtn.style.display = 'block';
+        } else {
+            exitBtn.style.display = 'none';
+        }
+    }
+
+    function handleRideTheTrainGuess(guess) {
+        if (!rideTheTrainGame || rideTheTrainGame.gameOver) return;
+
+        // Zeige zuerst die Rückseite für 500ms
+        const messageElement = document.querySelector('.ridethetrain-message');
+        messageElement.textContent = '';
+
+        // Zeige die Rückseite (UI neu rendern, aber noch keine Karte ziehen)
+        updateRideTheTrainUI();
+
+        // Nach 500ms Karte ziehen und anzeigen
+        setTimeout(() => {
+            const result = rideTheTrainGame.playRound(guess);
+            updateRideTheTrainUI();
+
+            if (result.success) {
+                messageElement.textContent = result.message;
+                messageElement.style.color = '#4CAF50';
+            } else {
+                messageElement.textContent = result.message;
+                messageElement.style.color = '#ff4444';
+            }
+
+            if (rideTheTrainGame.gameOver) {
+                setTimeout(() => {
+                    if (confirm('Game Over! Nochmal spielen?')) {
+                        rideTheTrainGame.reset();
+                        updateRideTheTrainUI();
+                        messageElement.textContent = '';
+                    }
+                }, 1000);
+            }
+        }, 500);
+    }
+
+    // Ride the Train game buttons
+    document.querySelector('.red-button')?.addEventListener('click', () => handleRideTheTrainGuess('red'));
+    document.querySelector('.black-button')?.addEventListener('click', () => handleRideTheTrainGuess('black'));
+    document.querySelector('.diamonds-clubs-button')?.addEventListener('click', () => handleRideTheTrainGuess('diamondsOrClubs'));
+    document.querySelector('.hearts-spades-button')?.addEventListener('click', () => handleRideTheTrainGuess('heartsOrSpades'));
+    document.querySelector('.between-button')?.addEventListener('click', () => handleRideTheTrainGuess('between'));
+    document.querySelector('.outside-button')?.addEventListener('click', () => handleRideTheTrainGuess('outside'));
+    document.querySelector('.karo-button')?.addEventListener('click', () => handleRideTheTrainGuess('karo'));
+    document.querySelector('.kreuz-button')?.addEventListener('click', () => handleRideTheTrainGuess('kreuz'));
+
+    // Initialize Ride the Train game when selected
+    document.querySelector('[data-game="ridethetrain"]')?.addEventListener('click', () => {
+        document.querySelector('.game-selection').style.display = 'none';
+        document.querySelector('.ridethetrain-game').style.display = 'block';
+        initializeRideTheTrain();
+    });
+
+    document.querySelector('.exit-button')?.addEventListener('click', () => {
+        if (!rideTheTrainGame || rideTheTrainGame.gameOver || !rideTheTrainGame.betActive) return;
+        // Gewinn berechnen
+        let gewinn = rideTheTrainGame.multiplier;
+        rideTheTrainGame.credits += gewinn;
+        rideTheTrainGame.betActive = false;
+        rideTheTrainGame.gameOver = true;
+        updateRideTheTrainUI();
+        const messageElement = document.querySelector('.ridethetrain-message');
+        messageElement.textContent = `Du bist ausgestiegen und erhältst ${gewinn} Credits!`;
+        messageElement.style.color = '#4CAF50';
+    });
 }); 
