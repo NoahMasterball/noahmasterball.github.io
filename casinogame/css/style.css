@@ -590,7 +590,7 @@ body {
 }
 
 .ridethetrain-container {
-    max-width: 800px;
+    max-width: 700px;
     margin: 0 auto;
     background: rgba(0, 0, 0, 0.7);
     padding: 20px;
@@ -599,9 +599,22 @@ body {
 
 .ridethetrain-header {
     display: flex;
-    justify-content: space-around;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 20px;
     color: white;
+}
+
+.ridethetrain-header .header-right {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+}
+
+.credits-display {
+    color: #FFD700;
+    font-size: 24px;
+    font-weight: bold;
 }
 
 .ridethetrain-cards {
