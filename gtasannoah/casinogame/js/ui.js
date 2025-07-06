@@ -43,9 +43,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Alle Spiele ausblenden
             slotMachine.classList.remove('active');
             gameSelection.classList.remove('active');
+            gameSelection.style.display = 'none';
             document.querySelector('.blackjack-game').style.display = 'none';
             rouletteGame.style.display = 'none';
-            
+            document.querySelector('.ridethetrain-game').style.display = 'none';
+
             switch(game) {
                 case 'slots':
                     slotMachine.classList.add('active');
@@ -55,6 +57,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     break;
                 case 'roulette':
                     rouletteGame.style.display = 'block';
+                    break;
+                case 'ridethetrain':
+                    document.querySelector('.ridethetrain-game').style.display = 'block';
+                    initializeRideTheTrain && initializeRideTheTrain();
                     break;
             }
         });
@@ -67,6 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Zurück zur Spielauswahl
                 slotMachine.classList.remove('active');
                 gameSelection.classList.add('active');
+                gameSelection.style.display = 'flex';
             } else if (button.parentElement.classList.contains('game-selection')) {
                 // Zurück zum Hauptmenü
                 gameSelection.classList.remove('active');
@@ -75,10 +82,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Zurück zur Spielauswahl von Blackjack
                 document.querySelector('.blackjack-game').style.display = 'none';
                 gameSelection.classList.add('active');
+                gameSelection.style.display = 'flex';
             } else if (button.closest('.roulette-game')) {
                 // Zurück zur Spielauswahl von Roulette
                 rouletteGame.style.display = 'none';
                 gameSelection.classList.add('active');
+                gameSelection.style.display = 'flex';
+            } else if (button.closest('.ridethetrain-game')) {
+                // Zurück zur Spielauswahl von Ride the Train
+                document.querySelector('.ridethetrain-game').style.display = 'none';
+                gameSelection.classList.add('active');
+                gameSelection.style.display = 'flex';
             }
         });
     });
