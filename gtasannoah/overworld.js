@@ -1,4 +1,4 @@
-﻿// 2D Overworld Game Engine - FIXED Coordinates - No Overlapping Houses!
+﻿// 2D Overworld Game Engine - Fixed House Textures & Road System
 console.log("Script wird geladen!");
 
 class OverworldGame {
@@ -175,66 +175,62 @@ class OverworldGame {
     
     getAllBuildings() {
         return [
-            // GESCHÄFTE - NEBEN den Straßen
+            // GESCHÄFTE
             {x: 300, y: 300, width: 100, height: 200, name: "Diamond Casino", type: "casino", interactive: true},
             {x: 1200, y: 300, width: 120, height: 80, name: "Polizeistation", type: "police", interactive: true},
             {x: 300, y: 1200, width: 100, height: 80, name: "Supermarkt", type: "shop", interactive: true},
             {x: 1200, y: 1200, width: 100, height: 80, name: "Restaurant", type: "restaurant", interactive: true},
             
-            // WOHNGEBÄUDE - EINZIGARTIGE KOORDINATEN!
-            // Obere Reihe - Y=20
-            {x: 100, y: 20, width: 80, height: 60, name: "Wohnhaus 1", type: "house", interactive: false, colorIndex: 0},
-            {x: 200, y: 20, width: 80, height: 60, name: "Wohnhaus 2", type: "house", interactive: false, colorIndex: 1},
-            {x: 300, y: 20, width: 80, height: 60, name: "Wohnhaus 3", type: "house", interactive: false, colorIndex: 2},
-            {x: 400, y: 20, width: 80, height: 60, name: "Wohnhaus 4", type: "house", interactive: false, colorIndex: 3},
-            {x: 500, y: 20, width: 80, height: 60, name: "Wohnhaus 5", type: "house", interactive: false, colorIndex: 4},
-            {x: 600, y: 20, width: 80, height: 60, name: "Wohnhaus 6", type: "house", interactive: false, colorIndex: 5},
+            // WOHNGEBÄUDE - Obere Straße
+            {x: 500, y: 200, width: 80, height: 60, name: "Wohnhaus 1", type: "house", interactive: false, colorIndex: 0},
+            {x: 600, y: 200, width: 80, height: 60, name: "Wohnhaus 2", type: "house", interactive: false, colorIndex: 1},
+            {x: 700, y: 200, width: 80, height: 60, name: "Wohnhaus 3", type: "house", interactive: false, colorIndex: 2},
+            {x: 800, y: 200, width: 80, height: 60, name: "Wohnhaus 4", type: "house", interactive: false, colorIndex: 3},
+            {x: 900, y: 200, width: 80, height: 60, name: "Wohnhaus 5", type: "house", interactive: false, colorIndex: 4},
+            {x: 1000, y: 200, width: 80, height: 60, name: "Wohnhaus 6", type: "house", interactive: false, colorIndex: 5},
             
-            // Zweite Reihe - Y=100
-            {x: 100, y: 100, width: 80, height: 60, name: "Wohnhaus 7", type: "house", interactive: false, colorIndex: 6},
-            {x: 200, y: 100, width: 80, height: 60, name: "Wohnhaus 8", type: "house", interactive: false, colorIndex: 7},
-            {x: 300, y: 100, width: 80, height: 60, name: "Wohnhaus 9", type: "house", interactive: false, colorIndex: 8},
-            {x: 400, y: 100, width: 80, height: 60, name: "Wohnhaus 10", type: "house", interactive: false, colorIndex: 9},
-            {x: 500, y: 100, width: 80, height: 60, name: "Wohnhaus 11", type: "house", interactive: false, colorIndex: 0},
-            {x: 600, y: 100, width: 80, height: 60, name: "Wohnhaus 12", type: "house", interactive: false, colorIndex: 1},
+            // WOHNGEBÄUDE - Untere Straße
+            {x: 500, y: 1300, width: 80, height: 60, name: "Wohnhaus 7", type: "house", interactive: false, colorIndex: 6},
+            {x: 600, y: 1300, width: 80, height: 60, name: "Wohnhaus 8", type: "house", interactive: false, colorIndex: 7},
+            {x: 700, y: 1300, width: 80, height: 60, name: "Wohnhaus 9", type: "house", interactive: false, colorIndex: 8},
+            {x: 800, y: 1300, width: 80, height: 60, name: "Wohnhaus 10", type: "house", interactive: false, colorIndex: 9},
+            {x: 900, y: 1300, width: 80, height: 60, name: "Wohnhaus 11", type: "house", interactive: false, colorIndex: 0},
+            {x: 1000, y: 1300, width: 80, height: 60, name: "Wohnhaus 12", type: "house", interactive: false, colorIndex: 1},
             
-            // Linke Reihe - X=20
-            {x: 20, y: 200, width: 60, height: 80, name: "Wohnhaus 13", type: "house", interactive: false, colorIndex: 2},
-            {x: 20, y: 300, width: 60, height: 80, name: "Wohnhaus 14", type: "house", interactive: false, colorIndex: 3},
-            {x: 20, y: 400, width: 60, height: 80, name: "Wohnhaus 15", type: "house", interactive: false, colorIndex: 4},
-            {x: 20, y: 600, width: 60, height: 80, name: "Wohnhaus 16", type: "house", interactive: false, colorIndex: 5},
-            {x: 20, y: 700, width: 60, height: 80, name: "Wohnhaus 17", type: "house", interactive: false, colorIndex: 6},
-            {x: 20, y: 800, width: 60, height: 80, name: "Wohnhaus 18", type: "house", interactive: false, colorIndex: 7},
+            // WOHNGEBÄUDE - Linke Straße
+            {x: 200, y: 500, width: 60, height: 80, name: "Wohnhaus 13", type: "house", interactive: false, colorIndex: 2},
+            {x: 200, y: 600, width: 60, height: 80, name: "Wohnhaus 14", type: "house", interactive: false, colorIndex: 3},
+            {x: 200, y: 700, width: 60, height: 80, name: "Wohnhaus 15", type: "house", interactive: false, colorIndex: 4},
+            {x: 200, y: 800, width: 60, height: 80, name: "Wohnhaus 16", type: "house", interactive: false, colorIndex: 5},
+            {x: 200, y: 900, width: 60, height: 80, name: "Wohnhaus 17", type: "house", interactive: false, colorIndex: 6},
+            {x: 200, y: 1000, width: 60, height: 80, name: "Wohnhaus 18", type: "house", interactive: false, colorIndex: 7},
             
-            // Rechte Reihe - X=1100
-            {x: 1100, y: 200, width: 60, height: 80, name: "Wohnhaus 19", type: "house", interactive: false, colorIndex: 8},
-            {x: 1100, y: 300, width: 60, height: 80, name: "Wohnhaus 20", type: "house", interactive: false, colorIndex: 9},
-            {x: 1100, y: 400, width: 60, height: 80, name: "Wohnhaus 21", type: "house", interactive: false, colorIndex: 0},
-            {x: 1100, y: 600, width: 60, height: 80, name: "Wohnhaus 22", type: "house", interactive: false, colorIndex: 1},
-            {x: 1100, y: 700, width: 60, height: 80, name: "Wohnhaus 23", type: "house", interactive: false, colorIndex: 2},
-            {x: 1100, y: 800, width: 60, height: 80, name: "Wohnhaus 24", type: "house", interactive: false, colorIndex: 3},
+            // WOHNGEBÄUDE - Rechte Straße
+            {x: 1400, y: 500, width: 60, height: 80, name: "Wohnhaus 19", type: "house", interactive: false, colorIndex: 8},
+            {x: 1400, y: 600, width: 60, height: 80, name: "Wohnhaus 20", type: "house", interactive: false, colorIndex: 9},
+            {x: 1400, y: 700, width: 60, height: 80, name: "Wohnhaus 21", type: "house", interactive: false, colorIndex: 0},
+            {x: 1400, y: 800, width: 60, height: 80, name: "Wohnhaus 22", type: "house", interactive: false, colorIndex: 1},
+            {x: 1400, y: 900, width: 60, height: 80, name: "Wohnhaus 23", type: "house", interactive: false, colorIndex: 2},
+            {x: 1400, y: 1000, width: 60, height: 80, name: "Wohnhaus 24", type: "house", interactive: false, colorIndex: 3},
             
-            // Untere Reihe - Y=1700
-            {x: 100, y: 1700, width: 80, height: 60, name: "Wohnhaus 25", type: "house", interactive: false, colorIndex: 4},
-            {x: 200, y: 1700, width: 80, height: 60, name: "Wohnhaus 26", type: "house", interactive: false, colorIndex: 5},
-            {x: 300, y: 1700, width: 80, height: 60, name: "Wohnhaus 27", type: "house", interactive: false, colorIndex: 6},
-            {x: 400, y: 1700, width: 80, height: 60, name: "Wohnhaus 28", type: "house", interactive: false, colorIndex: 7},
-            {x: 500, y: 1700, width: 80, height: 60, name: "Wohnhaus 29", type: "house", interactive: false, colorIndex: 8},
-            {x: 600, y: 1700, width: 80, height: 60, name: "Wohnhaus 30", type: "house", interactive: false, colorIndex: 9},
+            // ZUSÄTZLICHE WOHNGEBÄUDE - Weitere Straßen
+            {x: 400, y: 400, width: 70, height: 50, name: "Wohnhaus 25", type: "house", interactive: false, colorIndex: 4},
+            {x: 500, y: 400, width: 70, height: 50, name: "Wohnhaus 26", type: "house", interactive: false, colorIndex: 5},
+            {x: 600, y: 400, width: 70, height: 50, name: "Wohnhaus 27", type: "house", interactive: false, colorIndex: 6},
+            {x: 700, y: 400, width: 70, height: 50, name: "Wohnhaus 28", type: "house", interactive: false, colorIndex: 7},
+            {x: 800, y: 400, width: 70, height: 50, name: "Wohnhaus 29", type: "house", interactive: false, colorIndex: 8},
+            {x: 900, y: 400, width: 70, height: 50, name: "Wohnhaus 30", type: "house", interactive: false, colorIndex: 9},
+            {x: 1000, y: 400, width: 70, height: 50, name: "Wohnhaus 31", type: "house", interactive: false, colorIndex: 0},
+            {x: 1100, y: 400, width: 70, height: 50, name: "Wohnhaus 32", type: "house", interactive: false, colorIndex: 1},
             
-            // Zusätzliche Häuser - Y=1800
-            {x: 100, y: 1800, width: 80, height: 60, name: "Wohnhaus 31", type: "house", interactive: false, colorIndex: 0},
-            {x: 200, y: 1800, width: 80, height: 60, name: "Wohnhaus 32", type: "house", interactive: false, colorIndex: 1},
-            {x: 300, y: 1800, width: 80, height: 60, name: "Wohnhaus 33", type: "house", interactive: false, colorIndex: 2},
-            {x: 400, y: 1800, width: 80, height: 60, name: "Wohnhaus 34", type: "house", interactive: false, colorIndex: 3},
-            {x: 500, y: 1800, width: 80, height: 60, name: "Wohnhaus 35", type: "house", interactive: false, colorIndex: 4},
-            {x: 600, y: 1800, width: 80, height: 60, name: "Wohnhaus 36", type: "house", interactive: false, colorIndex: 5},
-            
-            // Weitere Häuser - Y=1900
-            {x: 100, y: 1900, width: 80, height: 60, name: "Wohnhaus 37", type: "house", interactive: false, colorIndex: 6},
-            {x: 200, y: 1900, width: 80, height: 60, name: "Wohnhaus 38", type: "house", interactive: false, colorIndex: 7},
-            {x: 300, y: 1900, width: 80, height: 60, name: "Wohnhaus 39", type: "house", interactive: false, colorIndex: 8},
-            {x: 400, y: 1900, width: 80, height: 60, name: "Wohnhaus 40", type: "house", interactive: false, colorIndex: 9}
+            {x: 400, y: 1100, width: 70, height: 50, name: "Wohnhaus 33", type: "house", interactive: false, colorIndex: 2},
+            {x: 500, y: 1100, width: 70, height: 50, name: "Wohnhaus 34", type: "house", interactive: false, colorIndex: 3},
+            {x: 600, y: 1100, width: 70, height: 50, name: "Wohnhaus 35", type: "house", interactive: false, colorIndex: 4},
+            {x: 700, y: 1100, width: 70, height: 50, name: "Wohnhaus 36", type: "house", interactive: false, colorIndex: 5},
+            {x: 800, y: 1100, width: 70, height: 50, name: "Wohnhaus 37", type: "house", interactive: false, colorIndex: 6},
+            {x: 900, y: 1100, width: 70, height: 50, name: "Wohnhaus 38", type: "house", interactive: false, colorIndex: 7},
+            {x: 1000, y: 1100, width: 70, height: 50, name: "Wohnhaus 39", type: "house", interactive: false, colorIndex: 8},
+            {x: 1100, y: 1100, width: 70, height: 50, name: "Wohnhaus 40", type: "house", interactive: false, colorIndex: 9}
         ];
     }
     
@@ -267,7 +263,7 @@ class OverworldGame {
         // VERBESSERTES STRAßENSYSTEM
         this.drawImprovedRoadSystem();
         
-        // GEHWEGE - KORREKT MIT STRAßEN VERBUNDEN
+        // GEHWEGE
         this.drawSidewalks();
         
         // Gebäude
@@ -371,40 +367,40 @@ class OverworldGame {
     }
     
     drawSidewalks() {
-        // Gehwege - KORREKT MIT STRAßEN VERBUNDEN
+        // Gehwege entlang der Straßen
         this.ctx.fillStyle = "#C0C0C0";
         
-        // Gehwege entlang horizontaler Straßen - KORREKTE POSITIONEN
-        this.ctx.fillRect(0, 500 - 50, 3000, 20);   // Obere Nebenstraße oben
-        this.ctx.fillRect(0, 500 + 70, 3000, 20);   // Obere Nebenstraße unten
+        // Gehwege entlang horizontaler Straßen
+        this.ctx.fillRect(0, 500 - 50, 3000, 20);
+        this.ctx.fillRect(0, 500 + 70, 3000, 20);
         
-        this.ctx.fillRect(0, 1000 - 50, 3000, 20);  // Mittlere Nebenstraße oben
-        this.ctx.fillRect(0, 1000 + 70, 3000, 20);  // Mittlere Nebenstraße unten
+        this.ctx.fillRect(0, 1000 - 50, 3000, 20);
+        this.ctx.fillRect(0, 1000 + 70, 3000, 20);
         
-        this.ctx.fillRect(0, 1500 - 70, 3000, 20);  // Hauptstraße oben
-        this.ctx.fillRect(0, 1500 + 130, 3000, 20); // Hauptstraße unten
+        this.ctx.fillRect(0, 1500 - 70, 3000, 20);
+        this.ctx.fillRect(0, 1500 + 130, 3000, 20);
         
-        this.ctx.fillRect(0, 2000 - 50, 3000, 20);  // Untere Nebenstraße oben
-        this.ctx.fillRect(0, 2000 + 70, 3000, 20);  // Untere Nebenstraße unten
+        this.ctx.fillRect(0, 2000 - 50, 3000, 20);
+        this.ctx.fillRect(0, 2000 + 70, 3000, 20);
         
-        this.ctx.fillRect(0, 2500 - 50, 3000, 20);  // Ganz unten oben
-        this.ctx.fillRect(0, 2500 + 70, 3000, 20);  // Ganz unten unten
+        this.ctx.fillRect(0, 2500 - 50, 3000, 20);
+        this.ctx.fillRect(0, 2500 + 70, 3000, 20);
         
-        // Gehwege entlang vertikaler Straßen - KORREKTE POSITIONEN
-        this.ctx.fillRect(500 - 50, 0, 20, 3000);   // Linke Nebenstraße links
-        this.ctx.fillRect(500 + 70, 0, 20, 3000);   // Linke Nebenstraße rechts
+        // Gehwege entlang vertikaler Straßen
+        this.ctx.fillRect(500 - 50, 0, 20, 3000);
+        this.ctx.fillRect(500 + 70, 0, 20, 3000);
         
-        this.ctx.fillRect(1000 - 50, 0, 20, 3000);  // Mittlere Nebenstraße links
-        this.ctx.fillRect(1000 + 70, 0, 20, 3000);  // Mittlere Nebenstraße rechts
+        this.ctx.fillRect(1000 - 50, 0, 20, 3000);
+        this.ctx.fillRect(1000 + 70, 0, 20, 3000);
         
-        this.ctx.fillRect(1500 - 70, 0, 20, 3000);  // Hauptstraße links
-        this.ctx.fillRect(1500 + 130, 0, 20, 3000); // Hauptstraße rechts
+        this.ctx.fillRect(1500 - 70, 0, 20, 3000);
+        this.ctx.fillRect(1500 + 130, 0, 20, 3000);
         
-        this.ctx.fillRect(2000 - 50, 0, 20, 3000);  // Rechte Nebenstraße links
-        this.ctx.fillRect(2000 + 70, 0, 20, 3000);  // Rechte Nebenstraße rechts
+        this.ctx.fillRect(2000 - 50, 0, 20, 3000);
+        this.ctx.fillRect(2000 + 70, 0, 20, 3000);
         
-        this.ctx.fillRect(2500 - 50, 0, 20, 3000);  // Ganz rechts links
-        this.ctx.fillRect(2500 + 70, 0, 20, 3000);  // Ganz rechts rechts
+        this.ctx.fillRect(2500 - 50, 0, 20, 3000);
+        this.ctx.fillRect(2500 + 70, 0, 20, 3000);
     }
     
     drawBuildings() {
