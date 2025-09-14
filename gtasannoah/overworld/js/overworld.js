@@ -1,4 +1,4 @@
-﻿// 2D Overworld Game Engine - Detailed Buildings
+﻿// 2D Overworld Game Engine - Fixed Buildings & Background
 console.log("Script wird geladen!");
 
 class OverworldGame {
@@ -22,9 +22,18 @@ class OverworldGame {
         this.keys = {};
         this.setupInput();
         
+        // Kamera
+        this.camera = {
+            x: 0,
+            y: 0
+        };
+        
+        // Zoom für kleinere Sichtweite
+        this.zoom = 1.0;
+        
         this.player = {
-            x: 100,
-            y: 100,
+            x: 400,
+            y: 300,
             width: 30,
             height: 30,
             speed: 3,
@@ -81,6 +90,7 @@ class OverworldGame {
     
     update() {
         this.handleInput();
+        this.updateCamera();
         this.checkBuildingCollisions();
         this.updateFPS();
     }
@@ -97,22 +107,40 @@ class OverworldGame {
         let newX = this.player.x + dx;
         let newY = this.player.y + dy;
         
-        if (newX >= 0 && newX <= this.width - this.player.width) {
+        // Weltgrenzen - größere Welt
+        const worldWidth = 2000;
+        const worldHeight = 2000;
+        
+        if (newX >= 0 && newX <= worldWidth - this.player.width) {
             this.player.x = newX;
         }
-        if (newY >= 0 && newY <= this.height - this.player.height) {
+        if (newY >= 0 && newY <= worldHeight - this.player.height) {
             this.player.y = newY;
         }
+    }
+    
+    updateCamera() {
+        // Kamera folgt dem Spieler
+        this.camera.x = this.player.x - this.width / 2;
+        this.camera.y = this.player.y - this.height / 2;
+        
+        // Kamera-Grenzen - größere Welt
+        const worldWidth = 2000;
+        const worldHeight = 2000;
+        
+        this.camera.x = Math.max(0, Math.min(this.camera.x, worldWidth - this.width));
+        this.camera.y = Math.max(0, Math.min(this.camera.y, worldHeight - this.height));
     }
     
     checkBuildingCollisions() {
         this.nearBuilding = null;
         
+        // Gebäude NEBEN den Straßen (nicht auf den Straßen!)
         const buildings = [
-            {x: 200, y: 150, width: 100, height: 200, name: "Diamond Casino", type: "casino", interactive: true},
-            {x: 400, y: 200, width: 120, height: 80, name: "Polizeistation", type: "police", interactive: true},
-            {x: 200, y: 400, width: 100, height: 80, name: "Supermarkt", type: "shop", interactive: true},
-            {x: 400, y: 400, width: 100, height: 80, name: "Restaurant", type: "restaurant", interactive: true}
+            {x: 300, y: 300, width: 100, height: 200, name: "Diamond Casino", type: "casino", interactive: true},
+            {x: 1200, y: 300, width: 120, height: 80, name: "Polizeistation", type: "police", interactive: true},
+            {x: 300, y: 1200, width: 100, height: 80, name: "Supermarkt", type: "shop", interactive: true},
+            {x: 1200, y: 1200, width: 100, height: 80, name: "Restaurant", type: "restaurant", interactive: true}
         ];
         
         for (let building of buildings) {
@@ -134,7 +162,7 @@ class OverworldGame {
                 }
             }
             
-            const interactionRange = 50;
+            const interactionRange = 60;
             if (this.player.x < building.x + building.width + interactionRange &&
                 this.player.x + this.player.width > building.x - interactionRange &&
                 this.player.y < building.y + building.height + interactionRange &&
@@ -158,30 +186,34 @@ class OverworldGame {
     render() {
         this.ctx.clearRect(0, 0, this.width, this.height);
         
-        // Himmel
-        this.ctx.fillStyle = "#87CEEB";
-        this.ctx.fillRect(0, 0, this.width, this.height);
+        // Kamera-Transformation anwenden
+        this.ctx.save();
+        this.ctx.translate(-this.camera.x, -this.camera.y);
         
-        // Gras
+        // Himmel - VOLLSTÄNDIGER HINTERGRUND für die ganze Welt
+        this.ctx.fillStyle = "#87CEEB";
+        this.ctx.fillRect(0, 0, 2000, 2000);
+        
+        // Gras - am unteren Rand
         this.ctx.fillStyle = "#90EE90";
-        this.ctx.fillRect(0, this.height - 100, this.width, 100);
+        this.ctx.fillRect(0, 1800, 2000, 200);
         
         // Straßen
         this.ctx.fillStyle = "#2F2F2F";
-        this.ctx.fillRect(0, this.height / 2 - 30, this.width, 60);
-        this.ctx.fillRect(this.width / 2 - 30, 0, 60, this.height);
+        this.ctx.fillRect(0, 1000 - 40, 2000, 80);
+        this.ctx.fillRect(1000 - 40, 0, 80, 2000);
         
         // Straßenmarkierungen
         this.ctx.strokeStyle = "#FFFF00";
-        this.ctx.lineWidth = 4;
-        this.ctx.setLineDash([20, 20]);
+        this.ctx.lineWidth = 6;
+        this.ctx.setLineDash([30, 30]);
         this.ctx.beginPath();
-        this.ctx.moveTo(0, this.height / 2);
-        this.ctx.lineTo(this.width, this.height / 2);
+        this.ctx.moveTo(0, 1000);
+        this.ctx.lineTo(2000, 1000);
         this.ctx.stroke();
         this.ctx.beginPath();
-        this.ctx.moveTo(this.width / 2, 0);
-        this.ctx.lineTo(this.width / 2, this.height);
+        this.ctx.moveTo(1000, 0);
+        this.ctx.lineTo(1000, 2000);
         this.ctx.stroke();
         this.ctx.setLineDash([]);
         
@@ -191,22 +223,25 @@ class OverworldGame {
         // Spieler
         this.drawPlayer();
         
-        // UI
+        // Kamera-Transformation zurücksetzen
+        this.ctx.restore();
+        
+        // UI (nicht von Kamera betroffen)
         this.drawUI();
     }
     
     drawBuildings() {
-        // CASINO - Hochhaus
-        this.drawCasino(200, 150, 100, 200);
+        // CASINO - NEBEN der Straße (nicht auf der Straße!)
+        this.drawCasino(300, 300, 100, 200);
         
-        // POLIZEISTATION - Mit Garage und Helipad
-        this.drawPoliceStation(400, 200, 120, 80);
+        // POLIZEISTATION - NEBEN der Straße
+        this.drawPoliceStation(1200, 300, 120, 80);
         
-        // SUPERMARKT
-        this.drawShop(200, 400, 100, 80);
+        // SUPERMARKT - NEBEN der Straße
+        this.drawShop(300, 1200, 100, 80);
         
-        // RESTAURANT
-        this.drawRestaurant(400, 400, 100, 80);
+        // RESTAURANT - NEBEN der Straße
+        this.drawRestaurant(1200, 1200, 100, 80);
         
         // Interaktionspunkte
         this.drawInteractionPoints();
@@ -219,10 +254,10 @@ class OverworldGame {
         
         // Sandstein Textur
         this.ctx.fillStyle = "#E6B800";
-        for (let i = 0; i < height; i += 20) {
+        for (let i = 0; i < height; i += 25) {
             this.ctx.fillRect(x, y + i, width, 2);
         }
-        for (let i = 0; i < width; i += 20) {
+        for (let i = 0; i < width; i += 25) {
             this.ctx.fillRect(x + i, y, 2, height);
         }
         
@@ -235,7 +270,7 @@ class OverworldGame {
         this.ctx.fillStyle = "#87CEEB";
         for (let floor = 0; floor < 8; floor++) {
             for (let window = 0; window < 4; window++) {
-                this.ctx.fillRect(x + 10 + window * 20, y + 20 + floor * 20, 15, 12);
+                this.ctx.fillRect(x + 10 + window * 20, y + 15 + floor * 22, 15, 12);
             }
         }
         
@@ -244,7 +279,7 @@ class OverworldGame {
         this.ctx.lineWidth = 1;
         for (let floor = 0; floor < 8; floor++) {
             for (let window = 0; window < 4; window++) {
-                this.ctx.strokeRect(x + 10 + window * 20, y + 20 + floor * 20, 15, 12);
+                this.ctx.strokeRect(x + 10 + window * 20, y + 15 + floor * 22, 15, 12);
             }
         }
         
@@ -273,9 +308,9 @@ class OverworldGame {
         // Casino Dach
         this.ctx.fillStyle = "#8B4513";
         this.ctx.beginPath();
-        this.ctx.moveTo(x - 10, y);
+        this.ctx.moveTo(x - 8, y);
         this.ctx.lineTo(x + width/2, y - 15);
-        this.ctx.lineTo(x + width + 10, y);
+        this.ctx.lineTo(x + width + 8, y);
         this.ctx.closePath();
         this.ctx.fill();
     }
@@ -283,16 +318,16 @@ class OverworldGame {
     drawPoliceStation(x, y, width, height) {
         // Grauer Boden (Garage)
         this.ctx.fillStyle = "#696969";
-        this.ctx.fillRect(x, y + height - 25, width, 25);
+        this.ctx.fillRect(x, y + height - 20, width, 20);
         
         // Blaue Polizei Basis
         this.ctx.fillStyle = "#4169E1";
-        this.ctx.fillRect(x, y, width, height - 25);
+        this.ctx.fillRect(x, y, width, height - 20);
         
         // Polizei Textur
         this.ctx.fillStyle = "#1E90FF";
         for (let i = 0; i < width; i += 15) {
-            this.ctx.fillRect(x + i, y, 2, height - 25);
+            this.ctx.fillRect(x + i, y, 2, height - 20);
         }
         
         // Umriss
@@ -313,46 +348,46 @@ class OverworldGame {
         this.ctx.strokeRect(x + 45, y + 15, 20, 15);
         this.ctx.strokeRect(x + 75, y + 15, 20, 15);
         
-        // Tür
+        // Tür - auf dem grauen Boden
         this.ctx.fillStyle = "#8B4513";
-        this.ctx.fillRect(x + 50, y + height - 40, 20, 15);
+        this.ctx.fillRect(x + 50, y + height - 15, 20, 12);
         
         // Türgriff
         this.ctx.fillStyle = "#FFD700";
         this.ctx.beginPath();
-        this.ctx.arc(x + 65, y + height - 32, 2, 0, 2 * Math.PI);
+        this.ctx.arc(x + 65, y + height - 9, 2, 0, 2 * Math.PI);
         this.ctx.fill();
         
-        // Garagentor
+        // Garagentore
         this.ctx.fillStyle = "#2F4F4F";
-        this.ctx.fillRect(x + 10, y + height - 20, 30, 15);
-        this.ctx.fillRect(x + 80, y + height - 20, 30, 15);
+        this.ctx.fillRect(x + 10, y + height - 15, 30, 12);
+        this.ctx.fillRect(x + 80, y + height - 15, 30, 12);
         
         // Garagentor Griffe
         this.ctx.fillStyle = "#FFD700";
         this.ctx.beginPath();
-        this.ctx.arc(x + 25, y + height - 12, 2, 0, 2 * Math.PI);
+        this.ctx.arc(x + 25, y + height - 9, 2, 0, 2 * Math.PI);
         this.ctx.fill();
         this.ctx.beginPath();
-        this.ctx.arc(x + 95, y + height - 12, 2, 0, 2 * Math.PI);
+        this.ctx.arc(x + 95, y + height - 9, 2, 0, 2 * Math.PI);
         this.ctx.fill();
         
         // Helipad
         this.ctx.fillStyle = "#2F2F2F";
         this.ctx.beginPath();
-        this.ctx.arc(x + width/2, y - 30, 25, 0, 2 * Math.PI);
+        this.ctx.arc(x + width/2, y - 25, 25, 0, 2 * Math.PI);
         this.ctx.fill();
         
         // Helipad H
         this.ctx.strokeStyle = "#FFFFFF";
         this.ctx.lineWidth = 3;
         this.ctx.beginPath();
-        this.ctx.moveTo(x + width/2 - 8, y - 30 - 8);
-        this.ctx.lineTo(x + width/2 - 8, y - 30 + 8);
-        this.ctx.moveTo(x + width/2 + 8, y - 30 - 8);
-        this.ctx.lineTo(x + width/2 + 8, y - 30 + 8);
-        this.ctx.moveTo(x + width/2 - 8, y - 30);
-        this.ctx.lineTo(x + width/2 + 8, y - 30);
+        this.ctx.moveTo(x + width/2 - 8, y - 25 - 8);
+        this.ctx.lineTo(x + width/2 - 8, y - 25 + 8);
+        this.ctx.moveTo(x + width/2 + 8, y - 25 - 8);
+        this.ctx.lineTo(x + width/2 + 8, y - 25 + 8);
+        this.ctx.moveTo(x + width/2 - 8, y - 25);
+        this.ctx.lineTo(x + width/2 + 8, y - 25);
         this.ctx.stroke();
         
         // Polizei Schild
@@ -386,12 +421,12 @@ class OverworldGame {
         
         // Schaufenster
         this.ctx.fillStyle = "#87CEEB";
-        this.ctx.fillRect(x + 10, y + 10, 80, 40);
+        this.ctx.fillRect(x + 15, y + 15, 70, 35);
         
         // Schaufensterrahmen
         this.ctx.strokeStyle = "#000";
         this.ctx.lineWidth = 2;
-        this.ctx.strokeRect(x + 10, y + 10, 80, 40);
+        this.ctx.strokeRect(x + 15, y + 15, 70, 35);
         
         // Tür
         this.ctx.fillStyle = "#8B4513";
@@ -469,16 +504,16 @@ class OverworldGame {
     drawInteractionPoints() {
         this.ctx.fillStyle = "#4CAF50";
         this.ctx.beginPath();
-        this.ctx.arc(290, 250, 8, 0, 2 * Math.PI);
+        this.ctx.arc(350, 400, 8, 0, 2 * Math.PI);
         this.ctx.fill();
         this.ctx.beginPath();
-        this.ctx.arc(520, 240, 8, 0, 2 * Math.PI);
+        this.ctx.arc(1260, 340, 8, 0, 2 * Math.PI);
         this.ctx.fill();
         this.ctx.beginPath();
-        this.ctx.arc(290, 440, 8, 0, 2 * Math.PI);
+        this.ctx.arc(350, 1240, 8, 0, 2 * Math.PI);
         this.ctx.fill();
         this.ctx.beginPath();
-        this.ctx.arc(490, 440, 8, 0, 2 * Math.PI);
+        this.ctx.arc(1250, 1240, 8, 0, 2 * Math.PI);
         this.ctx.fill();
     }
     
@@ -514,13 +549,14 @@ class OverworldGame {
             Math.round(this.player.x) + ", " + Math.round(this.player.y);
         
         this.ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-        this.ctx.fillRect(10, 60, 300, 100);
+        this.ctx.fillRect(10, 60, 350, 120);
         this.ctx.fillStyle = "#FFF";
-        this.ctx.font = "14px Arial";
-        this.ctx.fillText("Canvas: " + this.width + "x" + this.height, 15, 80);
-        this.ctx.fillText("Player: " + this.player.x + ", " + this.player.y, 15, 100);
-        this.ctx.fillText("Buildings: 4", 15, 120);
-        this.ctx.fillText("Near Building: " + (this.nearBuilding ? this.nearBuilding.name : "None"), 15, 140);
+        this.ctx.font = "16px Arial";
+        this.ctx.fillText("Canvas: " + this.width + "x" + this.height, 15, 85);
+        this.ctx.fillText("Player: " + this.player.x + ", " + this.player.y, 15, 110);
+        this.ctx.fillText("Camera: " + Math.round(this.camera.x) + ", " + Math.round(this.camera.y), 15, 135);
+        this.ctx.fillText("Zoom: " + this.zoom + "x", 15, 160);
+        this.ctx.fillText("Near Building: " + (this.nearBuilding ? this.nearBuilding.name : "None"), 15, 185);
     }
     
     showBuildingInteraction(building) {
