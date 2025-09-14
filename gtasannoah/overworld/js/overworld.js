@@ -1,4 +1,4 @@
-﻿// 2D Overworld Game Engine - Fixed Syntax
+﻿// 2D Overworld Game Engine - Detailed Buildings
 console.log("Script wird geladen!");
 
 class OverworldGame {
@@ -109,8 +109,8 @@ class OverworldGame {
         this.nearBuilding = null;
         
         const buildings = [
-            {x: 200, y: 200, width: 100, height: 80, name: "Diamond Casino", type: "casino", interactive: true},
-            {x: 400, y: 200, width: 100, height: 80, name: "Polizeistation", type: "police", interactive: true},
+            {x: 200, y: 150, width: 100, height: 200, name: "Diamond Casino", type: "casino", interactive: true},
+            {x: 400, y: 200, width: 120, height: 80, name: "Polizeistation", type: "police", interactive: true},
             {x: 200, y: 400, width: 100, height: 80, name: "Supermarkt", type: "shop", interactive: true},
             {x: 400, y: 400, width: 100, height: 80, name: "Restaurant", type: "restaurant", interactive: true}
         ];
@@ -156,20 +156,22 @@ class OverworldGame {
     }
     
     render() {
-        console.log("Render wird aufgerufen!");
-        
         this.ctx.clearRect(0, 0, this.width, this.height);
         
-        this.ctx.fillStyle = "#8A2BE2";
+        // Himmel
+        this.ctx.fillStyle = "#87CEEB";
         this.ctx.fillRect(0, 0, this.width, this.height);
         
+        // Gras
         this.ctx.fillStyle = "#90EE90";
         this.ctx.fillRect(0, this.height - 100, this.width, 100);
         
+        // Straßen
         this.ctx.fillStyle = "#2F2F2F";
         this.ctx.fillRect(0, this.height / 2 - 30, this.width, 60);
         this.ctx.fillRect(this.width / 2 - 30, 0, 60, this.height);
         
+        // Straßenmarkierungen
         this.ctx.strokeStyle = "#FFFF00";
         this.ctx.lineWidth = 4;
         this.ctx.setLineDash([20, 20]);
@@ -183,64 +185,300 @@ class OverworldGame {
         this.ctx.stroke();
         this.ctx.setLineDash([]);
         
+        // Gebäude
         this.drawBuildings();
+        
+        // Spieler
         this.drawPlayer();
+        
+        // UI
         this.drawUI();
     }
     
     drawBuildings() {
+        // CASINO - Hochhaus
+        this.drawCasino(200, 150, 100, 200);
+        
+        // POLIZEISTATION - Mit Garage und Helipad
+        this.drawPoliceStation(400, 200, 120, 80);
+        
+        // SUPERMARKT
+        this.drawShop(200, 400, 100, 80);
+        
+        // RESTAURANT
+        this.drawRestaurant(400, 400, 100, 80);
+        
+        // Interaktionspunkte
+        this.drawInteractionPoints();
+    }
+    
+    drawCasino(x, y, width, height) {
+        // Casino Basis - Sandstein
         this.ctx.fillStyle = "#F4A460";
-        this.ctx.fillRect(200, 200, 100, 80);
-        this.ctx.strokeStyle = "#000";
-        this.ctx.lineWidth = 3;
-        this.ctx.strokeRect(200, 200, 100, 80);
-        this.ctx.fillStyle = "#000";
-        this.ctx.font = "bold 16px Arial";
-        this.ctx.textAlign = "center";
-        this.ctx.fillText("CASINO", 250, 195);
+        this.ctx.fillRect(x, y, width, height);
         
+        // Sandstein Textur
+        this.ctx.fillStyle = "#E6B800";
+        for (let i = 0; i < height; i += 20) {
+            this.ctx.fillRect(x, y + i, width, 2);
+        }
+        for (let i = 0; i < width; i += 20) {
+            this.ctx.fillRect(x + i, y, 2, height);
+        }
+        
+        // Casino Umriss
+        this.ctx.strokeStyle = "#8B4513";
+        this.ctx.lineWidth = 4;
+        this.ctx.strokeRect(x, y, width, height);
+        
+        // Fenster (Hochhaus)
+        this.ctx.fillStyle = "#87CEEB";
+        for (let floor = 0; floor < 8; floor++) {
+            for (let window = 0; window < 4; window++) {
+                this.ctx.fillRect(x + 10 + window * 20, y + 20 + floor * 20, 15, 12);
+            }
+        }
+        
+        // Fensterrahmen
+        this.ctx.strokeStyle = "#000";
+        this.ctx.lineWidth = 1;
+        for (let floor = 0; floor < 8; floor++) {
+            for (let window = 0; window < 4; window++) {
+                this.ctx.strokeRect(x + 10 + window * 20, y + 20 + floor * 20, 15, 12);
+            }
+        }
+        
+        // Tür
+        this.ctx.fillStyle = "#8B4513";
+        this.ctx.fillRect(x + 35, y + height - 25, 30, 20);
+        
+        // Türgriff
+        this.ctx.fillStyle = "#FFD700";
+        this.ctx.beginPath();
+        this.ctx.arc(x + 60, y + height - 15, 3, 0, 2 * Math.PI);
+        this.ctx.fill();
+        
+        // Casino Schild
+        this.ctx.fillStyle = "#FFD700";
+        this.ctx.fillRect(x - 5, y - 20, width + 10, 15);
+        this.ctx.strokeStyle = "#000";
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(x - 5, y - 20, width + 10, 15);
+        
+        this.ctx.fillStyle = "#000";
+        this.ctx.font = "bold 14px Arial";
+        this.ctx.textAlign = "center";
+        this.ctx.fillText("DIAMOND CASINO", x + width/2, y - 8);
+        
+        // Casino Dach
+        this.ctx.fillStyle = "#8B4513";
+        this.ctx.beginPath();
+        this.ctx.moveTo(x - 10, y);
+        this.ctx.lineTo(x + width/2, y - 15);
+        this.ctx.lineTo(x + width + 10, y);
+        this.ctx.closePath();
+        this.ctx.fill();
+    }
+    
+    drawPoliceStation(x, y, width, height) {
+        // Grauer Boden (Garage)
+        this.ctx.fillStyle = "#696969";
+        this.ctx.fillRect(x, y + height - 25, width, 25);
+        
+        // Blaue Polizei Basis
         this.ctx.fillStyle = "#4169E1";
-        this.ctx.fillRect(400, 200, 100, 80);
+        this.ctx.fillRect(x, y, width, height - 25);
+        
+        // Polizei Textur
+        this.ctx.fillStyle = "#1E90FF";
+        for (let i = 0; i < width; i += 15) {
+            this.ctx.fillRect(x + i, y, 2, height - 25);
+        }
+        
+        // Umriss
         this.ctx.strokeStyle = "#000";
         this.ctx.lineWidth = 3;
-        this.ctx.strokeRect(400, 200, 100, 80);
-        this.ctx.fillStyle = "#000";
-        this.ctx.font = "bold 16px Arial";
-        this.ctx.textAlign = "center";
-        this.ctx.fillText("POLIZEI", 450, 195);
+        this.ctx.strokeRect(x, y, width, height);
         
+        // Fenster
+        this.ctx.fillStyle = "#87CEEB";
+        this.ctx.fillRect(x + 15, y + 15, 20, 15);
+        this.ctx.fillRect(x + 45, y + 15, 20, 15);
+        this.ctx.fillRect(x + 75, y + 15, 20, 15);
+        
+        // Fensterrahmen
+        this.ctx.strokeStyle = "#000";
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(x + 15, y + 15, 20, 15);
+        this.ctx.strokeRect(x + 45, y + 15, 20, 15);
+        this.ctx.strokeRect(x + 75, y + 15, 20, 15);
+        
+        // Tür
+        this.ctx.fillStyle = "#8B4513";
+        this.ctx.fillRect(x + 50, y + height - 40, 20, 15);
+        
+        // Türgriff
+        this.ctx.fillStyle = "#FFD700";
+        this.ctx.beginPath();
+        this.ctx.arc(x + 65, y + height - 32, 2, 0, 2 * Math.PI);
+        this.ctx.fill();
+        
+        // Garagentor
+        this.ctx.fillStyle = "#2F4F4F";
+        this.ctx.fillRect(x + 10, y + height - 20, 30, 15);
+        this.ctx.fillRect(x + 80, y + height - 20, 30, 15);
+        
+        // Garagentor Griffe
+        this.ctx.fillStyle = "#FFD700";
+        this.ctx.beginPath();
+        this.ctx.arc(x + 25, y + height - 12, 2, 0, 2 * Math.PI);
+        this.ctx.fill();
+        this.ctx.beginPath();
+        this.ctx.arc(x + 95, y + height - 12, 2, 0, 2 * Math.PI);
+        this.ctx.fill();
+        
+        // Helipad
+        this.ctx.fillStyle = "#2F2F2F";
+        this.ctx.beginPath();
+        this.ctx.arc(x + width/2, y - 30, 25, 0, 2 * Math.PI);
+        this.ctx.fill();
+        
+        // Helipad H
+        this.ctx.strokeStyle = "#FFFFFF";
+        this.ctx.lineWidth = 3;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x + width/2 - 8, y - 30 - 8);
+        this.ctx.lineTo(x + width/2 - 8, y - 30 + 8);
+        this.ctx.moveTo(x + width/2 + 8, y - 30 - 8);
+        this.ctx.lineTo(x + width/2 + 8, y - 30 + 8);
+        this.ctx.moveTo(x + width/2 - 8, y - 30);
+        this.ctx.lineTo(x + width/2 + 8, y - 30);
+        this.ctx.stroke();
+        
+        // Polizei Schild
+        this.ctx.fillStyle = "#FFD700";
+        this.ctx.fillRect(x - 5, y - 20, width + 10, 12);
+        this.ctx.strokeStyle = "#000";
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(x - 5, y - 20, width + 10, 12);
+        
+        this.ctx.fillStyle = "#000";
+        this.ctx.font = "bold 12px Arial";
+        this.ctx.textAlign = "center";
+        this.ctx.fillText("POLIZEI", x + width/2, y - 10);
+    }
+    
+    drawShop(x, y, width, height) {
+        // Shop Basis
         this.ctx.fillStyle = "#A9A9A9";
-        this.ctx.fillRect(200, 400, 100, 80);
+        this.ctx.fillRect(x, y, width, height);
+        
+        // Shop Textur
+        this.ctx.fillStyle = "#808080";
+        for (let i = 0; i < height; i += 15) {
+            this.ctx.fillRect(x, y + i, width, 2);
+        }
+        
+        // Umriss
         this.ctx.strokeStyle = "#000";
         this.ctx.lineWidth = 3;
-        this.ctx.strokeRect(200, 400, 100, 80);
-        this.ctx.fillStyle = "#000";
-        this.ctx.font = "bold 16px Arial";
-        this.ctx.textAlign = "center";
-        this.ctx.fillText("SHOP", 250, 395);
+        this.ctx.strokeRect(x, y, width, height);
         
+        // Schaufenster
+        this.ctx.fillStyle = "#87CEEB";
+        this.ctx.fillRect(x + 10, y + 10, 80, 40);
+        
+        // Schaufensterrahmen
+        this.ctx.strokeStyle = "#000";
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(x + 10, y + 10, 80, 40);
+        
+        // Tür
+        this.ctx.fillStyle = "#8B4513";
+        this.ctx.fillRect(x + 40, y + height - 20, 20, 15);
+        
+        // Türgriff
+        this.ctx.fillStyle = "#FFD700";
+        this.ctx.beginPath();
+        this.ctx.arc(x + 55, y + height - 12, 2, 0, 2 * Math.PI);
+        this.ctx.fill();
+        
+        // Shop Schild
+        this.ctx.fillStyle = "#FFD700";
+        this.ctx.fillRect(x - 5, y - 15, width + 10, 10);
+        this.ctx.strokeStyle = "#000";
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(x - 5, y - 15, width + 10, 10);
+        
+        this.ctx.fillStyle = "#000";
+        this.ctx.font = "bold 12px Arial";
+        this.ctx.textAlign = "center";
+        this.ctx.fillText("SUPERMARKT", x + width/2, y - 6);
+    }
+    
+    drawRestaurant(x, y, width, height) {
+        // Restaurant Basis
         this.ctx.fillStyle = "#DEB887";
-        this.ctx.fillRect(400, 400, 100, 80);
+        this.ctx.fillRect(x, y, width, height);
+        
+        // Restaurant Textur
+        this.ctx.fillStyle = "#D2B48C";
+        for (let i = 0; i < width; i += 10) {
+            this.ctx.fillRect(x + i, y, 2, height);
+        }
+        
+        // Umriss
         this.ctx.strokeStyle = "#000";
         this.ctx.lineWidth = 3;
-        this.ctx.strokeRect(400, 400, 100, 80);
-        this.ctx.fillStyle = "#000";
-        this.ctx.font = "bold 16px Arial";
-        this.ctx.textAlign = "center";
-        this.ctx.fillText("RESTAURANT", 450, 395);
+        this.ctx.strokeRect(x, y, width, height);
         
+        // Fenster
+        this.ctx.fillStyle = "#87CEEB";
+        this.ctx.fillRect(x + 15, y + 15, 25, 20);
+        this.ctx.fillRect(x + 60, y + 15, 25, 20);
+        
+        // Fensterrahmen
+        this.ctx.strokeStyle = "#000";
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(x + 15, y + 15, 25, 20);
+        this.ctx.strokeRect(x + 60, y + 15, 25, 20);
+        
+        // Tür
+        this.ctx.fillStyle = "#8B4513";
+        this.ctx.fillRect(x + 40, y + height - 20, 20, 15);
+        
+        // Türgriff
+        this.ctx.fillStyle = "#FFD700";
+        this.ctx.beginPath();
+        this.ctx.arc(x + 55, y + height - 12, 2, 0, 2 * Math.PI);
+        this.ctx.fill();
+        
+        // Restaurant Schild
+        this.ctx.fillStyle = "#FFD700";
+        this.ctx.fillRect(x - 5, y - 15, width + 10, 10);
+        this.ctx.strokeStyle = "#000";
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(x - 5, y - 15, width + 10, 10);
+        
+        this.ctx.fillStyle = "#000";
+        this.ctx.font = "bold 10px Arial";
+        this.ctx.textAlign = "center";
+        this.ctx.fillText("RESTAURANT", x + width/2, y - 6);
+    }
+    
+    drawInteractionPoints() {
         this.ctx.fillStyle = "#4CAF50";
         this.ctx.beginPath();
-        this.ctx.arc(290, 240, 10, 0, 2 * Math.PI);
+        this.ctx.arc(290, 250, 8, 0, 2 * Math.PI);
         this.ctx.fill();
         this.ctx.beginPath();
-        this.ctx.arc(490, 240, 10, 0, 2 * Math.PI);
+        this.ctx.arc(520, 240, 8, 0, 2 * Math.PI);
         this.ctx.fill();
         this.ctx.beginPath();
-        this.ctx.arc(290, 440, 10, 0, 2 * Math.PI);
+        this.ctx.arc(290, 440, 8, 0, 2 * Math.PI);
         this.ctx.fill();
         this.ctx.beginPath();
-        this.ctx.arc(490, 440, 10, 0, 2 * Math.PI);
+        this.ctx.arc(490, 440, 8, 0, 2 * Math.PI);
         this.ctx.fill();
     }
     
