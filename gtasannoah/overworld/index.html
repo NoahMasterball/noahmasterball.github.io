@@ -1,0 +1,128 @@
+﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Overworld - GTA San Andreas Noah</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #222;
+        }
+        
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            background: #87CEEB;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+        
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            font-size: 16px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+        
+        .building-interaction {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            z-index: 20;
+            border: 2px solid #4CAF50;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+        }
+        
+        .building-interaction h3 {
+            margin-bottom: 15px;
+            font-size: 24px;
+            color: #4CAF50;
+        }
+        
+        .building-interaction p {
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+        
+        .building-interaction button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        
+        .building-interaction button:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+        
+        .building-interaction button:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="ui">
+            <div>Position: <span id="playerPos">0, 0</span></div>
+            <div>FPS: <span id="fps">60</span></div>
+        </div>
+        <div id="instructions">
+            WASD oder Pfeiltasten: Bewegen | E: Interagieren
+        </div>
+        <div id="buildingInteraction" class="building-interaction">
+            <h3>Gebäude betreten</h3>
+            <p id="buildingName">Unbekanntes Gebäude</p>
+            <button id="enterBuilding">Betreten</button>
+            <button id="cancelInteraction">Abbrechen</button>
+        </div>
+    </div>
+    
+    <script src="js/overworld.js"></script>
+</body>
+</html>
