@@ -45,7 +45,7 @@ overworld/
 │       └── AssetManager.ts   # Asset management
 ├── 📁 assets/                # Game assets
 │   ├── 🎨 models/            # 3D models and meshes
-│   ├── 🖼️ textures/          # Textures and materials
+│   ├── 🖼️ textures/          # Textures and materialsaaaasssssssswa
 │   ├── 🔊 audio/             # Sound effects and music
 │   └── 📊 data/              # Game data and configurations
 ├── 📁 docs/                  # Documentation

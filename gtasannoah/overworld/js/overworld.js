@@ -176,7 +176,7 @@ class OverworldGame {
     getAllBuildings() {
         return [
             // GESCHÄFTE - NEBEN den Straßen
-            {x: 300, y: 300, width: 100, height: 200, name: "Diamond Casino", type: "casino", interactive: true},
+            {x: 300, y: 200, width: 100, height: 200, name: "Diamond Casino", type: "casino", interactive: true},
             {x: 1200, y: 300, width: 120, height: 80, name: "Polizeistation", type: "police", interactive: true},
             {x: 300, y: 1200, width: 100, height: 80, name: "Supermarkt", type: "shop", interactive: true},
             {x: 1200, y: 1200, width: 100, height: 80, name: "Restaurant", type: "restaurant", interactive: true},
@@ -284,127 +284,275 @@ class OverworldGame {
     }
     
     drawImprovedRoadSystem() {
-        // Hauptstraßen - EINHEITLICH, nicht doppelt
+        // ZUFÄLLIGES ABER VERBUNDENES STRAßENSYSTEM MIT SCHRÄGEN
         this.ctx.fillStyle = "#2F2F2F";
         
-        // Horizontale Hauptstraße (EINHEITLICH)
-        this.ctx.fillRect(0, 1500 - 50, 3000, 100);
+        // Seed für konsistente Zufallswerte
+        const seed = 12345;
+        const random = this.seededRandom(seed);
         
-        // Vertikale Hauptstraße (EINHEITLICH)
-        this.ctx.fillRect(1500 - 50, 0, 100, 3000);
+        // Hauptstraßen - zufällige aber verbundene Positionen
+        const mainRoads = this.generateRandomRoadNetwork(random);
         
-        // Nebenstraßen - Horizontal
-        this.ctx.fillRect(0, 500 - 30, 3000, 60);
-        this.ctx.fillRect(0, 1000 - 30, 3000, 60);
-        this.ctx.fillRect(0, 2000 - 30, 3000, 60);
-        this.ctx.fillRect(0, 2500 - 30, 3000, 60);
-        
-        // Nebenstraßen - Vertikal
-        this.ctx.fillRect(500 - 30, 0, 60, 3000);
-        this.ctx.fillRect(1000 - 30, 0, 60, 3000);
-        this.ctx.fillRect(2000 - 30, 0, 60, 3000);
-        this.ctx.fillRect(2500 - 30, 0, 60, 3000);
+        // Straßen zeichnen
+        for (let road of mainRoads) {
+            if (road.type === 'horizontal') {
+                this.ctx.fillRect(road.startX, road.y - 25, road.endX - road.startX, 50);
+            } else if (road.type === 'vertical') {
+                this.ctx.fillRect(road.x - 25, road.startY, 50, road.endY - road.startY);
+            } else if (road.type === 'diagonal') {
+                // Schräge Straße zeichnen
+                this.drawDiagonalRoad(road);
+            }
+        }
         
         // Straßenmarkierungen
         this.ctx.strokeStyle = "#FFFF00";
-        this.ctx.lineWidth = 4;
-        this.ctx.setLineDash([40, 40]);
+        this.ctx.lineWidth = 3;
+        this.ctx.setLineDash([30, 30]);
         
-        // Hauptstraßen-Markierungen
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, 1500);
-        this.ctx.lineTo(3000, 1500);
-        this.ctx.stroke();
-        
-        this.ctx.beginPath();
-        this.ctx.moveTo(1500, 0);
-        this.ctx.lineTo(1500, 3000);
-        this.ctx.stroke();
-        
-        // Nebenstraßen-Markierungen
-        this.ctx.lineWidth = 2;
-        this.ctx.setLineDash([20, 20]);
-        
-        // Horizontale Nebenstraßen
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, 500);
-        this.ctx.lineTo(3000, 500);
-        this.ctx.stroke();
-        
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, 1000);
-        this.ctx.lineTo(3000, 1000);
-        this.ctx.stroke();
-        
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, 2000);
-        this.ctx.lineTo(3000, 2000);
-        this.ctx.stroke();
-        
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, 2500);
-        this.ctx.lineTo(3000, 2500);
-        this.ctx.stroke();
-        
-        // Vertikale Nebenstraßen
-        this.ctx.beginPath();
-        this.ctx.moveTo(500, 0);
-        this.ctx.lineTo(500, 3000);
-        this.ctx.stroke();
-        
-        this.ctx.beginPath();
-        this.ctx.moveTo(1000, 0);
-        this.ctx.lineTo(1000, 3000);
-        this.ctx.stroke();
-        
-        this.ctx.beginPath();
-        this.ctx.moveTo(2000, 0);
-        this.ctx.lineTo(2000, 3000);
-        this.ctx.stroke();
-        
-        this.ctx.beginPath();
-        this.ctx.moveTo(2500, 0);
-        this.ctx.lineTo(2500, 3000);
-        this.ctx.stroke();
+        for (let road of mainRoads) {
+            this.ctx.beginPath();
+            if (road.type === 'horizontal') {
+                this.ctx.moveTo(road.startX, road.y);
+                this.ctx.lineTo(road.endX, road.y);
+            } else if (road.type === 'vertical') {
+                this.ctx.moveTo(road.x, road.startY);
+                this.ctx.lineTo(road.x, road.endY);
+            } else if (road.type === 'diagonal') {
+                this.ctx.moveTo(road.startX, road.startY);
+                this.ctx.lineTo(road.endX, road.endY);
+            }
+            this.ctx.stroke();
+        }
         
         this.ctx.setLineDash([]);
     }
     
+    drawDiagonalRoad(road) {
+        // Schräge Straße als Polygon zeichnen
+        const dx = road.endX - road.startX;
+        const dy = road.endY - road.startY;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+        
+        // Straßenbreite
+        const width = 50;
+        const halfWidth = width / 2;
+        
+        // Perpendikuläre Vektoren für Straßenbreite
+        const perpX = -Math.sin(angle) * halfWidth;
+        const perpY = Math.cos(angle) * halfWidth;
+        
+        // Straßenpolygon erstellen
+        this.ctx.beginPath();
+        this.ctx.moveTo(road.startX + perpX, road.startY + perpY);
+        this.ctx.lineTo(road.startX - perpX, road.startY - perpY);
+        this.ctx.lineTo(road.endX - perpX, road.endY - perpY);
+        this.ctx.lineTo(road.endX + perpX, road.endY + perpY);
+        this.ctx.closePath();
+        this.ctx.fill();
+    }
+    
+    seededRandom(seed) {
+        let x = Math.sin(seed) * 10000;
+        return () => {
+            x = Math.sin(x) * 10000;
+            return x - Math.floor(x);
+        };
+    }
+    
+    generateRandomRoadNetwork(random) {
+        const roads = [];
+        const worldWidth = 3000;
+        const worldHeight = 3000;
+        
+        // STRUKTURIERTES ABER INTERESSANTES STRAßENSYSTEM
+        
+        // Hauptstraßen - durchgehend aber nicht zu viele
+        const mainHorizontalY = 600 + Math.floor(random() * 200); // 600-800
+        const mainVerticalX = 1200 + Math.floor(random() * 200);   // 1200-1400
+        
+        // Hauptstraße horizontal (durchgehend)
+        roads.push({
+            type: 'horizontal',
+            startX: 0,
+            endX: worldWidth,
+            y: mainHorizontalY
+        });
+        
+        // Hauptstraße vertikal (durchgehend)
+        roads.push({
+            type: 'vertical',
+            x: mainVerticalX,
+            startY: 0,
+            endY: worldHeight
+        });
+        
+        // Sekundäre Hauptstraßen - kreuzen die Hauptstraßen
+        const secondaryHorizontalY = 1400 + Math.floor(random() * 200); // 1400-1600
+        const secondaryVerticalX = 600 + Math.floor(random() * 200);    // 600-800
+        
+        roads.push({
+            type: 'horizontal',
+            startX: 0,
+            endX: worldWidth,
+            y: secondaryHorizontalY
+        });
+        
+        roads.push({
+            type: 'vertical',
+            x: secondaryVerticalX,
+            startY: 0,
+            endY: worldHeight
+        });
+        
+        // Begrenzte Anzahl von Nebenstraßen - nicht quer durch die ganze Welt
+        const neighborhoodCount = 4;
+        const neighborhoodSize = 600;
+        
+        for (let i = 0; i < neighborhoodCount; i++) {
+            const baseX = 200 + i * 700;
+            const baseY = 200 + i * 700;
+            
+            // Horizontale Nebenstraßen nur in bestimmten Bereichen
+            if (baseY < worldHeight - 200) {
+                roads.push({
+                    type: 'horizontal',
+                    startX: baseX,
+                    endX: Math.min(baseX + neighborhoodSize, worldWidth - 200),
+                    y: baseY
+                });
+            }
+            
+            // Vertikale Nebenstraßen nur in bestimmten Bereichen
+            if (baseX < worldWidth - 200) {
+                roads.push({
+                    type: 'vertical',
+                    x: baseX,
+                    startY: baseY,
+                    endY: Math.min(baseY + neighborhoodSize, worldHeight - 200)
+                });
+            }
+        }
+        
+        // WENIGE aber strategische schräge Straßen
+        const diagonalCount = 3; // Reduziert von 4+6 auf nur 3
+        
+        for (let i = 0; i < diagonalCount; i++) {
+            // Schräge Straßen nur zwischen Hauptstraßen
+            const startX = 400 + Math.floor(random() * 800);
+            const startY = 400 + Math.floor(random() * 800);
+            const length = 300 + Math.floor(random() * 400); // Kürzer
+            const angle = Math.PI / 4 + (random() - 0.5) * Math.PI / 6; // 30-60 Grad, weniger extrem
+            
+            const endX = startX + Math.cos(angle) * length;
+            const endY = startY + Math.sin(angle) * length;
+            
+            // Nur hinzufügen wenn sie nicht zu weit gehen
+            if (endX < worldWidth - 200 && endY < worldHeight - 200 && endX > 200 && endY > 200) {
+                roads.push({
+                    type: 'diagonal',
+                    startX: startX,
+                    startY: startY,
+                    endX: endX,
+                    endY: endY
+                });
+            }
+        }
+        
+        // Kurze Verbindungsstraßen - nur in lokalen Bereichen
+        for (let i = 0; i < 4; i++) { // Reduziert von 6 auf 4
+            const connectionType = Math.floor(random() * 2); // Nur horizontal/vertikal, keine schrägen
+            
+            if (connectionType === 0) {
+                // Horizontale Verbindung - begrenzt
+                const y = 800 + Math.floor(random() * 800);
+                const startX = 300 + Math.floor(random() * 600);
+                const endX = 1800 + Math.floor(random() * 600);
+                
+                roads.push({
+                    type: 'horizontal',
+                    startX: startX,
+                    endX: endX,
+                    y: y
+                });
+            } else {
+                // Vertikale Verbindung - begrenzt
+                const x = 800 + Math.floor(random() * 800);
+                const startY = 300 + Math.floor(random() * 600);
+                const endY = 1800 + Math.floor(random() * 600);
+                
+                roads.push({
+                    type: 'vertical',
+                    x: x,
+                    startY: startY,
+                    endY: endY
+                });
+            }
+        }
+        
+        return roads;
+    }
+    
     drawSidewalks() {
-        // Gehwege - KORREKT MIT STRAßEN VERBUNDEN
+        // Gehwege - AN DAS NEUE ZUFÄLLIGE STRAßENSYSTEM MIT SCHRÄGEN ANGEPASST
         this.ctx.fillStyle = "#C0C0C0";
         
-        // Gehwege entlang horizontaler Straßen - KORREKTE POSITIONEN
-        this.ctx.fillRect(0, 500 - 50, 3000, 20);   // Obere Nebenstraße oben
-        this.ctx.fillRect(0, 500 + 70, 3000, 20);   // Obere Nebenstraße unten
+        // Seed für konsistente Zufallswerte (gleicher wie bei Straßen)
+        const seed = 12345;
+        const random = this.seededRandom(seed);
+        const mainRoads = this.generateRandomRoadNetwork(random);
         
-        this.ctx.fillRect(0, 1000 - 50, 3000, 20);  // Mittlere Nebenstraße oben
-        this.ctx.fillRect(0, 1000 + 70, 3000, 20);  // Mittlere Nebenstraße unten
+        // Gehwege entlang aller Straßen zeichnen
+        for (let road of mainRoads) {
+            if (road.type === 'horizontal') {
+                // Gehwege oben und unten der horizontalen Straße
+                this.ctx.fillRect(road.startX, road.y - 45, road.endX - road.startX, 15);
+                this.ctx.fillRect(road.startX, road.y + 35, road.endX - road.startX, 15);
+            } else if (road.type === 'vertical') {
+                // Gehwege links und rechts der vertikalen Straße
+                this.ctx.fillRect(road.x - 45, road.startY, 15, road.endY - road.startY);
+                this.ctx.fillRect(road.x + 35, road.startY, 15, road.endY - road.startY);
+            } else if (road.type === 'diagonal') {
+                // Gehwege für schräge Straßen
+                this.drawDiagonalSidewalks(road);
+            }
+        }
+    }
+    
+    drawDiagonalSidewalks(road) {
+        // Schräge Gehwege zeichnen
+        const dx = road.endX - road.startX;
+        const dy = road.endY - road.startY;
+        const angle = Math.atan2(dy, dx);
         
-        this.ctx.fillRect(0, 1500 - 70, 3000, 20);  // Hauptstraße oben
-        this.ctx.fillRect(0, 1500 + 130, 3000, 20); // Hauptstraße unten
+        // Gehwegbreite
+        const sidewalkWidth = 15;
+        const roadWidth = 50;
+        const totalWidth = roadWidth + sidewalkWidth * 2;
+        const halfTotalWidth = totalWidth / 2;
         
-        this.ctx.fillRect(0, 2000 - 50, 3000, 20);  // Untere Nebenstraße oben
-        this.ctx.fillRect(0, 2000 + 70, 3000, 20);  // Untere Nebenstraße unten
+        // Perpendikuläre Vektoren für Gehwegbreite
+        const perpX = -Math.sin(angle) * halfTotalWidth;
+        const perpY = Math.cos(angle) * halfTotalWidth;
         
-        this.ctx.fillRect(0, 2500 - 50, 3000, 20);  // Ganz unten oben
-        this.ctx.fillRect(0, 2500 + 70, 3000, 20);  // Ganz unten unten
+        // Äußere Gehwege (links und rechts)
+        this.ctx.beginPath();
+        this.ctx.moveTo(road.startX + perpX, road.startY + perpY);
+        this.ctx.lineTo(road.startX + perpX - Math.sin(angle) * sidewalkWidth, road.startY + perpY + Math.cos(angle) * sidewalkWidth);
+        this.ctx.lineTo(road.endX + perpX - Math.sin(angle) * sidewalkWidth, road.endY + perpY + Math.cos(angle) * sidewalkWidth);
+        this.ctx.lineTo(road.endX + perpX, road.endY + perpY);
+        this.ctx.closePath();
+        this.ctx.fill();
         
-        // Gehwege entlang vertikaler Straßen - KORREKTE POSITIONEN
-        this.ctx.fillRect(500 - 50, 0, 20, 3000);   // Linke Nebenstraße links
-        this.ctx.fillRect(500 + 70, 0, 20, 3000);   // Linke Nebenstraße rechts
-        
-        this.ctx.fillRect(1000 - 50, 0, 20, 3000);  // Mittlere Nebenstraße links
-        this.ctx.fillRect(1000 + 70, 0, 20, 3000);  // Mittlere Nebenstraße rechts
-        
-        this.ctx.fillRect(1500 - 70, 0, 20, 3000);  // Hauptstraße links
-        this.ctx.fillRect(1500 + 130, 0, 20, 3000); // Hauptstraße rechts
-        
-        this.ctx.fillRect(2000 - 50, 0, 20, 3000);  // Rechte Nebenstraße links
-        this.ctx.fillRect(2000 + 70, 0, 20, 3000);  // Rechte Nebenstraße rechts
-        
-        this.ctx.fillRect(2500 - 50, 0, 20, 3000);  // Ganz rechts links
-        this.ctx.fillRect(2500 + 70, 0, 20, 3000);  // Ganz rechts rechts
+        this.ctx.beginPath();
+        this.ctx.moveTo(road.startX - perpX, road.startY - perpY);
+        this.ctx.lineTo(road.startX - perpX + Math.sin(angle) * sidewalkWidth, road.startY - perpY - Math.cos(angle) * sidewalkWidth);
+        this.ctx.lineTo(road.endX - perpX + Math.sin(angle) * sidewalkWidth, road.endY - perpY - Math.cos(angle) * sidewalkWidth);
+        this.ctx.lineTo(road.endX - perpX, road.endY - perpY);
+        this.ctx.closePath();
+        this.ctx.fill();
     }
     
     drawBuildings() {
@@ -733,19 +881,19 @@ class OverworldGame {
     }
     
     drawInteractionPoints() {
-        // Nur für Geschäfte
+        // Nur für Geschäfte - an neue Casino-Position angepasst
         this.ctx.fillStyle = "#4CAF50";
         this.ctx.beginPath();
-        this.ctx.arc(350, 400, 8, 0, 2 * Math.PI);
+        this.ctx.arc(350, 300, 8, 0, 2 * Math.PI);  // Casino (neue Position)
         this.ctx.fill();
         this.ctx.beginPath();
-        this.ctx.arc(1260, 340, 8, 0, 2 * Math.PI);
+        this.ctx.arc(1260, 340, 8, 0, 2 * Math.PI);  // Polizeistation
         this.ctx.fill();
         this.ctx.beginPath();
-        this.ctx.arc(350, 1240, 8, 0, 2 * Math.PI);
+        this.ctx.arc(350, 1240, 8, 0, 2 * Math.PI);  // Supermarkt
         this.ctx.fill();
         this.ctx.beginPath();
-        this.ctx.arc(1250, 1240, 8, 0, 2 * Math.PI);
+        this.ctx.arc(1250, 1240, 8, 0, 2 * Math.PI); // Restaurant
         this.ctx.fill();
     }
     
