@@ -256,13 +256,9 @@ class OverworldGame {
         this.ctx.save();
         this.ctx.translate(-this.camera.x, -this.camera.y);
         
-        // Himmel - VOLLSTÄNDIGER HINTERGRUND
-        this.ctx.fillStyle = "#87CEEB";
-        this.ctx.fillRect(0, 0, 3000, 3000);
-        
-        // Gras - am unteren Rand
+        // Gras - ÜBERALL als Basis
         this.ctx.fillStyle = "#90EE90";
-        this.ctx.fillRect(0, 2500, 3000, 500);
+        this.ctx.fillRect(0, 0, 3000, 3000);
         
         // VERBESSERTES STRAßENSYSTEM
         this.drawImprovedRoadSystem();
@@ -312,7 +308,7 @@ class OverworldGame {
         this.ctx.setLineDash([30, 30]);
         
         for (let road of mainRoads) {
-            this.ctx.beginPath();
+        this.ctx.beginPath();
             if (road.type === 'horizontal') {
                 this.ctx.moveTo(road.startX, road.y);
                 this.ctx.lineTo(road.endX, road.y);
@@ -323,7 +319,7 @@ class OverworldGame {
                 this.ctx.moveTo(road.startX, road.startY);
                 this.ctx.lineTo(road.endX, road.endY);
             }
-            this.ctx.stroke();
+        this.ctx.stroke();
         }
         
         this.ctx.setLineDash([]);
@@ -370,7 +366,7 @@ class OverworldGame {
         // STRUKTURIERTES ABER INTERESSANTES STRAßENSYSTEM
         
         // Hauptstraßen - durchgehend aber nicht zu viele
-        const mainHorizontalY = 600 + Math.floor(random() * 200); // 600-800
+        const mainHorizontalY = 700 + Math.floor(random() * 200); // 700-900 (etwas runter)
         const mainVerticalX = 1200 + Math.floor(random() * 200);   // 1200-1400
         
         // Hauptstraße horizontal (durchgehend)
@@ -389,23 +385,7 @@ class OverworldGame {
             endY: worldHeight
         });
         
-        // Sekundäre Hauptstraßen - kreuzen die Hauptstraßen
-        const secondaryHorizontalY = 1400 + Math.floor(random() * 200); // 1400-1600
-        const secondaryVerticalX = 600 + Math.floor(random() * 200);    // 600-800
-        
-        roads.push({
-            type: 'horizontal',
-            startX: 0,
-            endX: worldWidth,
-            y: secondaryHorizontalY
-        });
-        
-        roads.push({
-            type: 'vertical',
-            x: secondaryVerticalX,
-            startY: 0,
-            endY: worldHeight
-        });
+        // Sekundäre Hauptstraßen entfernt - nur eine lange Straße behalten
         
         // Begrenzte Anzahl von Nebenstraßen - nicht quer durch die ganze Welt
         const neighborhoodCount = 4;
@@ -415,53 +395,45 @@ class OverworldGame {
             const baseX = 200 + i * 700;
             const baseY = 200 + i * 700;
             
+            // Casino-Bereich (um 961, 1065) - weniger Straßen
+            const isCasinoArea = (baseX >= 600 && baseX <= 1200 && baseY >= 800 && baseY <= 1200);
+            
+            // Restaurant-Bereich (um 1200, 1200) - keine Straßen
+            const isRestaurantArea = (baseX >= 1000 && baseX <= 1400 && baseY >= 1000 && baseY <= 1400);
+            
+            // Kurze Straße bei 1752,1571 vermeiden - auch in Nebenstraßen
+            const isShortRoadArea = (baseX >= 1600 && baseX <= 1900 && baseY >= 1500 && baseY <= 1700);
+            
             // Horizontale Nebenstraßen nur in bestimmten Bereichen
             if (baseY < worldHeight - 200) {
-                roads.push({
-                    type: 'horizontal',
-                    startX: baseX,
-                    endX: Math.min(baseX + neighborhoodSize, worldWidth - 200),
-                    y: baseY
-                });
+                // Im Casino-Bereich nur jede zweite Straße, Restaurant-Bereich und kurze Straße komplett vermeiden
+                if ((!isCasinoArea || i % 2 === 0) && !isRestaurantArea && !isShortRoadArea) {
+                    roads.push({
+                        type: 'horizontal',
+                        startX: baseX,
+                        endX: Math.min(baseX + neighborhoodSize, worldWidth - 200),
+                        y: baseY
+                    });
+                }
             }
             
             // Vertikale Nebenstraßen nur in bestimmten Bereichen
             if (baseX < worldWidth - 200) {
-                roads.push({
-                    type: 'vertical',
-                    x: baseX,
-                    startY: baseY,
-                    endY: Math.min(baseY + neighborhoodSize, worldHeight - 200)
-                });
+                // Im Casino-Bereich nur jede zweite Straße, Restaurant-Bereich und kurze Straße komplett vermeiden
+                if ((!isCasinoArea || i % 2 === 0) && !isRestaurantArea && !isShortRoadArea) {
+                    roads.push({
+                        type: 'vertical',
+                        x: baseX,
+                        startY: baseY,
+                        endY: Math.min(baseY + neighborhoodSize, worldHeight - 200)
+                    });
+                }
             }
         }
         
-        // WENIGE aber strategische schräge Straßen
-        const diagonalCount = 3; // Reduziert von 4+6 auf nur 3
+        // Schräge Straßen komplett entfernt - nur gerade Straßen
         
-        for (let i = 0; i < diagonalCount; i++) {
-            // Schräge Straßen nur zwischen Hauptstraßen
-            const startX = 400 + Math.floor(random() * 800);
-            const startY = 400 + Math.floor(random() * 800);
-            const length = 300 + Math.floor(random() * 400); // Kürzer
-            const angle = Math.PI / 4 + (random() - 0.5) * Math.PI / 6; // 30-60 Grad, weniger extrem
-            
-            const endX = startX + Math.cos(angle) * length;
-            const endY = startY + Math.sin(angle) * length;
-            
-            // Nur hinzufügen wenn sie nicht zu weit gehen
-            if (endX < worldWidth - 200 && endY < worldHeight - 200 && endX > 200 && endY > 200) {
-                roads.push({
-                    type: 'diagonal',
-                    startX: startX,
-                    startY: startY,
-                    endX: endX,
-                    endY: endY
-                });
-            }
-        }
-        
-        // Kurze Verbindungsstraßen - nur in lokalen Bereichen
+        // Kurze Verbindungsstraßen - nur in lokalen Bereichen, NICHT im Casino-Bereich
         for (let i = 0; i < 4; i++) { // Reduziert von 6 auf 4
             const connectionType = Math.floor(random() * 2); // Nur horizontal/vertikal, keine schrägen
             
@@ -471,26 +443,58 @@ class OverworldGame {
                 const startX = 300 + Math.floor(random() * 600);
                 const endX = 1800 + Math.floor(random() * 600);
                 
-                roads.push({
-                    type: 'horizontal',
-                    startX: startX,
-                    endX: endX,
-                    y: y
-                });
+                // Casino-Bereich vermeiden (um 961, 1065)
+                const isInCasinoArea = (y >= 800 && y <= 1200 && startX <= 1200 && endX >= 600);
+                
+                // Kurze Straße bei 1752,1571 vermeiden - noch größerer Bereich für horizontale Straßen
+                const isShortRoad = (y >= 1520 && y <= 1620 && startX >= 1600 && endX <= 1900);
+                
+                if (!isInCasinoArea && !isShortRoad) {
+                    roads.push({
+                        type: 'horizontal',
+                        startX: startX,
+                        endX: endX,
+                        y: y
+                    });
+                }
             } else {
                 // Vertikale Verbindung - begrenzt
                 const x = 800 + Math.floor(random() * 800);
                 const startY = 300 + Math.floor(random() * 600);
                 const endY = 1800 + Math.floor(random() * 600);
                 
-                roads.push({
-                    type: 'vertical',
-                    x: x,
-                    startY: startY,
-                    endY: endY
-                });
+                // Casino-Bereich vermeiden (um 961, 1065)
+                const isInCasinoArea = (x >= 600 && x <= 1200 && startY <= 1200 && endY >= 800);
+                
+                // Kurze Straße bei 1752,1571 vermeiden - auch für vertikale Straßen
+                const isShortRoadVertical = (x >= 1700 && x <= 1800 && startY >= 1500 && endY <= 1650);
+                
+                if (!isInCasinoArea && !isShortRoadVertical) {
+                    roads.push({
+                        type: 'vertical',
+                        x: x,
+                        startY: startY,
+                        endY: endY
+                    });
+                }
             }
         }
+        
+        // Casino-Straße vertikal (Casino bei 300, 200)
+        roads.push({
+            type: 'vertical',
+            x: 600,      // Weiter rechts vom Casino
+            startY: 0,
+            endY: 800    // Noch weiter nach unten verlängert
+        });
+        
+        // Eine lange durchgehende Straße für Restaurant und Supermarkt
+        roads.push({
+            type: 'horizontal',
+            startX: 0,
+            endX: 1500,  // Länger - geht über beide Gebäude hinweg
+            y: 1300      // Einheitliche Höhe für beide Gebäude
+        });
         
         return roads;
     }
