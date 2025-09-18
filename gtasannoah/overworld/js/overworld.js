@@ -1,4 +1,4 @@
-// 2D Overworld Game Engine - FIXED Coordinates - No Overlapping Houses!
+﻿// 2D Overworld Game Engine - FIXED Coordinates - No Overlapping Houses!
 console.log("Script wird geladen!");
 
 class OverworldGame {
@@ -28,7 +28,7 @@ class OverworldGame {
             y: 0
         };
         
-        // Zoom für kleinere Sichtweite
+        // Zoom fÃ¼r kleinere Sichtweite
         this.zoom = 1.0;
         
         this.player = {
@@ -47,7 +47,7 @@ class OverworldGame {
         this.nearBuilding = null;
         this.interactionUI = document.getElementById("buildingInteraction");
         
-        // FESTE HAUSFARBEN - keine zufälligen Farben mehr!
+        // FESTE HAUSFARBEN - keine zufÃ¤lligen Farben mehr!
         this.houseColors = [
             "#DEB887", "#F5DEB3", "#D2B48C", "#BC8F8F", "#CD853F",
             "#D2691E", "#A0522D", "#8B7355", "#D2B48C", "#F4A460"
@@ -55,7 +55,9 @@ class OverworldGame {
         
         this.houseStyles = this.createHouseStyles();
         this.sidewalkWidth = 36;
-        
+        this.roadWidth = 70;
+        this.roadHalfWidth = this.roadWidth / 2;
+
         this.roadLayout = this.createCityRoadLayout();
         this.buildings = this.createCityBuildings();
         console.log("Buildings prepared", Array.isArray(this.buildings) ? this.buildings.length : this.buildings);
@@ -93,7 +95,7 @@ class OverworldGame {
             if (this.nearBuilding && this.nearBuilding.type === "casino") {
                 window.location.href = "../casinogame/index.html";
             } else {
-                alert("Dieses Gebäude ist noch nicht verfügbar!");
+                alert("Dieses GebÃ¤ude ist noch nicht verfÃ¼gbar!");
             }
             this.hideBuildingInteraction();
         });
@@ -122,7 +124,7 @@ class OverworldGame {
         let newX = this.player.x + dx;
         let newY = this.player.y + dy;
         
-        // Weltgrenzen - größere Welt
+        // Weltgrenzen - grÃ¶ÃŸere Welt
         const worldWidth = 3000;
         const worldHeight = 3000;
         
@@ -139,7 +141,7 @@ class OverworldGame {
         this.camera.x = this.player.x - this.width / 2;
         this.camera.y = this.player.y - this.height / 2;
         
-        // Kamera-Grenzen - größere Welt
+        // Kamera-Grenzen - grÃ¶ÃŸere Welt
         const worldWidth = 3000;
         const worldHeight = 3000;
         
@@ -150,7 +152,7 @@ class OverworldGame {
     checkBuildingCollisions() {
         this.nearBuilding = null;
         
-        // Alle Gebäude (Geschäfte + Wohngebäude)
+        // Alle GebÃ¤ude (GeschÃ¤fte + WohngebÃ¤ude)
         const buildings = this.getAllBuildings();
         if (!Array.isArray(buildings)) {
             return;
@@ -211,7 +213,7 @@ class OverworldGame {
         this.ctx.save();
         this.ctx.translate(-this.camera.x, -this.camera.y);
 
-        // Grundfläche in warmem Grün, leicht entsättigt für Golden-Hour-Stimmung
+        // GrundflÃ¤che in warmem GrÃ¼n, leicht entsÃ¤ttigt fÃ¼r Golden-Hour-Stimmung
         this.ctx.fillStyle = "#7da57a";
         this.ctx.fillRect(0, 0, 3000, 3000);
 
@@ -305,7 +307,7 @@ class OverworldGame {
             roads.push({ type: "vertical", x, startY: 200, endY: 2800 });
         }
 
-        // Verbindungsstraßen, die Plätze und Innenhöfe erschließen
+        // VerbindungsstraÃŸen, die PlÃ¤tze und InnenhÃ¶fe erschlieÃŸen
         roads.push({ type: "horizontal", startX: 950, endX: 1700, y: 1260 });
         roads.push({ type: "horizontal", startX: 950, endX: 1700, y: 2100 });
         roads.push({ type: "vertical", x: 1330, startY: 1700, endY: 2400 });
@@ -437,8 +439,8 @@ class OverworldGame {
 
         const horizontalRows = [900, 1700];
         for (const y of horizontalRows) {
-            const upper = y - 25 - this.sidewalkWidth / 2;
-            const lower = y + 25 + this.sidewalkWidth / 2;
+            const upper = y - this.roadHalfWidth - this.sidewalkWidth / 2;
+            const lower = y + this.roadHalfWidth + this.sidewalkWidth / 2;
             for (let x = 260; x <= 2440; x += 220) {
                 addTree(x, upper, 30, (x / 220) % 3);
                 addTree(x, lower, 32, ((x + 110) / 180) % 3);
@@ -447,8 +449,8 @@ class OverworldGame {
 
         const verticalColumns = [950, 1700];
         for (const x of verticalColumns) {
-            const left = x - 25 - this.sidewalkWidth / 2;
-            const right = x + 25 + this.sidewalkWidth / 2;
+            const left = x - this.roadHalfWidth - this.sidewalkWidth / 2;
+            const right = x + this.roadHalfWidth + this.sidewalkWidth / 2;
             for (let y = 260; y <= 2360; y += 220) {
                 addTree(left, y, 28, (y / 210) % 3);
                 addTree(right, y, 28, ((y + 90) / 190) % 3);
@@ -527,6 +529,10 @@ class OverworldGame {
         const asphalt = "#2c3036";
         const edgeColor = "#42474f";
         const laneColor = "rgba(255, 224, 150, 0.9)";
+        const roadHalfWidth = this.roadHalfWidth ?? (this.roadWidth ?? 50) / 2;
+        const roadWidth = this.roadWidth ?? roadHalfWidth * 2;
+        const borderThickness = 2;
+        const borderOffset = roadHalfWidth + borderThickness;
 
         this.ctx.save();
 
@@ -534,19 +540,19 @@ class OverworldGame {
             if (road.type === "horizontal") {
                 const length = road.endX - road.startX;
                 this.ctx.fillStyle = asphalt;
-                this.ctx.fillRect(road.startX, road.y - 25, length, 50);
+                this.ctx.fillRect(road.startX, road.y - roadHalfWidth, length, roadWidth);
 
                 this.ctx.fillStyle = edgeColor;
-                this.ctx.fillRect(road.startX, road.y - 27, length, 2);
-                this.ctx.fillRect(road.startX, road.y + 25, length, 2);
+                this.ctx.fillRect(road.startX, road.y - borderOffset, length, borderThickness);
+                this.ctx.fillRect(road.startX, road.y + roadHalfWidth, length, borderThickness);
             } else if (road.type === "vertical") {
                 const length = road.endY - road.startY;
                 this.ctx.fillStyle = asphalt;
-                this.ctx.fillRect(road.x - 25, road.startY, 50, length);
+                this.ctx.fillRect(road.x - roadHalfWidth, road.startY, roadWidth, length);
 
                 this.ctx.fillStyle = edgeColor;
-                this.ctx.fillRect(road.x - 27, road.startY, 2, length);
-                this.ctx.fillRect(road.x + 25, road.startY, 2, length);
+                this.ctx.fillRect(road.x - borderOffset, road.startY, borderThickness, length);
+                this.ctx.fillRect(road.x + roadHalfWidth, road.startY, borderThickness, length);
             } else if (road.type === "diagonal") {
                 this.ctx.fillStyle = asphalt;
                 this.drawDiagonalRoad(road);
@@ -558,15 +564,15 @@ class OverworldGame {
         this.ctx.setLineDash([32, 28]);
 
         for (const road of this.roadLayout) {
-            this.ctx.beginPath();
             if (road.type === "horizontal") {
+                this.ctx.beginPath();
                 this.ctx.moveTo(road.startX, road.y);
                 this.ctx.lineTo(road.endX, road.y);
+                this.ctx.stroke();
             } else if (road.type === "vertical") {
+                this.ctx.beginPath();
                 this.ctx.moveTo(road.x, road.startY);
                 this.ctx.lineTo(road.x, road.endY);
-            }
-            if (road.type !== "diagonal") {
                 this.ctx.stroke();
             }
         }
@@ -591,10 +597,11 @@ class OverworldGame {
         const dx = road.endX - road.startX;
         const dy = road.endY - road.startY;
         const angle = Math.atan2(dy, dx);
-        const width = 50;
-        const halfWidth = width / 2;
+        const width = this.roadWidth ?? 50;
+        const halfWidth = this.roadHalfWidth ?? width / 2;
         const perpX = -Math.sin(angle) * halfWidth;
         const perpY = Math.cos(angle) * halfWidth;
+
         this.ctx.beginPath();
         this.ctx.moveTo(road.startX + perpX, road.startY + perpY);
         this.ctx.lineTo(road.startX - perpX, road.startY - perpY);
@@ -608,27 +615,28 @@ class OverworldGame {
         const width = this.sidewalkWidth;
         const surface = "#d9d1c4";
         const grout = "rgba(255, 255, 255, 0.18)";
+        const roadHalfWidth = this.roadHalfWidth ?? (this.roadWidth ?? 50) / 2;
 
         for (const road of this.roadLayout) {
             if (road.type === "horizontal") {
                 const length = road.endX - road.startX;
 
                 this.ctx.fillStyle = surface;
-                this.ctx.fillRect(road.startX, road.y - 25 - width, length, width);
-                this.ctx.fillRect(road.startX, road.y + 25, length, width);
+                this.ctx.fillRect(road.startX, road.y - roadHalfWidth - width, length, width);
+                this.ctx.fillRect(road.startX, road.y + roadHalfWidth, length, width);
 
                 this.ctx.save();
                 this.ctx.strokeStyle = grout;
                 this.ctx.lineWidth = 1;
                 for (let x = road.startX; x <= road.endX; x += 50) {
                     this.ctx.beginPath();
-                    this.ctx.moveTo(x, road.y - 25 - width);
-                    this.ctx.lineTo(x, road.y - 25);
+                    this.ctx.moveTo(x, road.y - roadHalfWidth - width);
+                    this.ctx.lineTo(x, road.y - roadHalfWidth);
                     this.ctx.stroke();
 
                     this.ctx.beginPath();
-                    this.ctx.moveTo(x, road.y + 25);
-                    this.ctx.lineTo(x, road.y + 25 + width);
+                    this.ctx.moveTo(x, road.y + roadHalfWidth);
+                    this.ctx.lineTo(x, road.y + roadHalfWidth + width);
                     this.ctx.stroke();
                 }
                 this.ctx.restore();
@@ -636,21 +644,21 @@ class OverworldGame {
                 const length = road.endY - road.startY;
 
                 this.ctx.fillStyle = surface;
-                this.ctx.fillRect(road.x - 25 - width, road.startY, width, length);
-                this.ctx.fillRect(road.x + 25, road.startY, width, length);
+                this.ctx.fillRect(road.x - roadHalfWidth - width, road.startY, width, length);
+                this.ctx.fillRect(road.x + roadHalfWidth, road.startY, width, length);
 
                 this.ctx.save();
                 this.ctx.strokeStyle = grout;
                 this.ctx.lineWidth = 1;
                 for (let y = road.startY; y <= road.endY; y += 50) {
                     this.ctx.beginPath();
-                    this.ctx.moveTo(road.x - 25 - width, y);
-                    this.ctx.lineTo(road.x - 25, y);
+                    this.ctx.moveTo(road.x - roadHalfWidth - width, y);
+                    this.ctx.lineTo(road.x - roadHalfWidth, y);
                     this.ctx.stroke();
 
                     this.ctx.beginPath();
-                    this.ctx.moveTo(road.x + 25, y);
-                    this.ctx.lineTo(road.x + 25 + width, y);
+                    this.ctx.moveTo(road.x + roadHalfWidth, y);
+                    this.ctx.lineTo(road.x + roadHalfWidth + width, y);
                     this.ctx.stroke();
                 }
                 this.ctx.restore();
@@ -663,7 +671,7 @@ class OverworldGame {
     drawDiagonalSidewalks(road) {
         const width = this.sidewalkWidth;
         const surface = "#d9d1c4";
-        const roadWidth = 50;
+        const roadWidth = this.roadWidth ?? 50;
         const totalWidth = roadWidth + width * 2;
         const halfTotalWidth = totalWidth / 2;
 
@@ -721,7 +729,8 @@ class OverworldGame {
         const { x, y, orientation, span } = config;
         const stripeWidth = 6;
         const gap = 10;
-        const roadWidth = 50;
+        const roadWidth = this.roadWidth ?? 50;
+        const roadHalfWidth = this.roadHalfWidth ?? roadWidth / 2;
         const stripeColor = "rgba(255, 255, 255, 0.85)";
         const shadowColor = "rgba(0, 0, 0, 0.08)";
 
@@ -733,18 +742,18 @@ class OverworldGame {
             const endX = x + span / 2;
             for (let sx = startX; sx <= endX; sx += stripeWidth + gap) {
                 this.ctx.fillStyle = stripeColor;
-                this.ctx.fillRect(sx, y - 25, stripeWidth, roadWidth);
+                this.ctx.fillRect(sx, y - roadHalfWidth, stripeWidth, roadWidth);
                 this.ctx.fillStyle = shadowColor;
-                this.ctx.fillRect(sx, y - 25, stripeWidth, 4);
+                this.ctx.fillRect(sx, y - roadHalfWidth, stripeWidth, 4);
             }
         } else {
             const startY = y - span / 2;
             const endY = y + span / 2;
             for (let sy = startY; sy <= endY; sy += stripeWidth + gap) {
                 this.ctx.fillStyle = stripeColor;
-                this.ctx.fillRect(x - 25, sy, roadWidth, stripeWidth);
+                this.ctx.fillRect(x - roadHalfWidth, sy, roadWidth, stripeWidth);
                 this.ctx.fillStyle = shadowColor;
-                this.ctx.fillRect(x - 25, sy, 4, stripeWidth);
+                this.ctx.fillRect(x - roadHalfWidth, sy, 4, stripeWidth);
             }
         }
 
@@ -1121,123 +1130,218 @@ class OverworldGame {
         const styleIndex = variant.styleIndex ?? building.colorIndex ?? 0;
         const palette = this.houseStyles[styleIndex % this.houseStyles.length];
 
-        const floors = Math.max(3, variant.floors ?? palette.floors ?? 5);
-        const roofGarden = variant.roofGarden ?? palette.roofGarden ?? false;
-        const balconyRhythm = Math.max(2, variant.balconyRhythm ?? 3);
-        const erker = Boolean(variant.erker);
-        const stepped = Boolean(variant.stepped);
+        const floors = Math.max(2, variant.floors ?? palette.floors ?? 4);
+        const roofGarden = Boolean(variant.roofGarden ?? palette.roofGarden ?? false);
+        const balconyRhythm = Math.max(0, variant.balconyRhythm ?? 0);
 
         this.ctx.save();
+        this.ctx.lineJoin = "round";
 
-        // Basis und warme Highlight-Simulation
-        this.ctx.fillStyle = palette.base;
-        this.ctx.fillRect(x, y, width, height);
+        const roofDepth = Math.max(32, Math.min(height * 0.3, 88));
+        const facadeHeight = Math.max(70, height - roofDepth);
+        const facadeTop = y + roofDepth;
+        const roofOverhang = Math.min(width * 0.14, 32);
 
-        const warmGradient = this.ctx.createLinearGradient(x, y, x + width * 0.8, y + height * 0.6);
-        warmGradient.addColorStop(0, "rgba(255, 196, 128, 0.28)");
-        warmGradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-        this.ctx.fillStyle = warmGradient;
-        this.ctx.fillRect(x, y, width, height);
+        this.ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
+        this.ctx.fillRect(x - 12, facadeTop + facadeHeight, width + 24, 10);
 
-        const coolGradient = this.ctx.createLinearGradient(x + width, y + height, x + width * 0.4, y + height * 0.4);
-        coolGradient.addColorStop(0, "rgba(70, 90, 120, 0.18)");
-        coolGradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-        this.ctx.fillStyle = coolGradient;
-        this.ctx.fillRect(x, y, width, height);
-
-        // Umrandung
-        this.ctx.strokeStyle = palette.roof;
-        this.ctx.lineWidth = 2;
-        this.ctx.strokeRect(x, y, width, height);
-
-        this.ctx.setLineDash([12, 6]);
-        this.ctx.strokeStyle = palette.accent;
-        this.ctx.lineWidth = 1.5;
-        this.ctx.strokeRect(x + 8, y + 8, width - 16, height - 16);
-        this.ctx.setLineDash([]);
-
-        // Dachgestaltung: Garten oder Technikaufsätze
         if (roofGarden) {
-            const padding = Math.min(width, height) * 0.18;
-            this.ctx.fillStyle = "#6ea56f";
-            this.ctx.fillRect(x + padding, y + padding, width - padding * 2, height - padding * 2);
+            const deckBackY = y + Math.max(roofDepth * 0.25, 12);
+            const inset = Math.min(width * 0.12, 28);
 
-            this.ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
-            this.ctx.lineWidth = 1;
-            for (let i = x + padding; i <= x + width - padding; i += 26) {
-                this.ctx.beginPath();
-                this.ctx.moveTo(i, y + padding);
-                this.ctx.lineTo(i, y + height - padding);
-                this.ctx.stroke();
+            this.ctx.beginPath();
+            this.ctx.moveTo(x - roofOverhang, facadeTop);
+            this.ctx.lineTo(x + width + roofOverhang, facadeTop);
+            this.ctx.lineTo(x + width - inset, deckBackY);
+            this.ctx.lineTo(x + inset, deckBackY);
+            this.ctx.closePath();
+
+            const roofGradient = this.ctx.createLinearGradient(x, deckBackY, x, facadeTop);
+            roofGradient.addColorStop(0, palette.roof);
+            roofGradient.addColorStop(1, "rgba(30, 30, 30, 0.82)");
+            this.ctx.fillStyle = roofGradient;
+            this.ctx.fill();
+
+            this.ctx.strokeStyle = "rgba(0, 0, 0, 0.45)";
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+
+            this.ctx.fillStyle = palette.accent;
+            this.ctx.fillRect(x - roofOverhang, facadeTop - 5, width + roofOverhang * 2, 5);
+
+            const planterCount = Math.max(3, Math.floor(width / 90));
+            const planterSpacing = planterCount > 1 ? (width - inset * 2) / (planterCount - 1) : 0;
+            for (let i = 0; i < planterCount; i++) {
+                const px = x + inset + planterSpacing * i - 12;
+                const py = deckBackY + 6;
+                this.ctx.fillStyle = palette.highlight ?? palette.accent;
+                this.ctx.fillRect(px, py, 24, 10);
+                this.ctx.fillStyle = "#4d8b54";
+                this.ctx.fillRect(px + 2, py - 6, 20, 8);
             }
         } else {
-            const hvacCount = Math.max(2, Math.floor(width / 90));
-            const unitWidth = Math.min(36, width / (hvacCount + 1));
-            const unitHeight = Math.min(24, height / 4);
-            for (let i = 0; i < hvacCount; i++) {
-                const ux = x + 20 + i * (unitWidth + 16);
-                const uy = y + height / 2 - unitHeight / 2;
-                this.ctx.fillStyle = palette.metallic;
-                this.ctx.fillRect(ux, uy, unitWidth, unitHeight);
-                this.ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
-                this.ctx.fillRect(ux + 4, uy + 4, unitWidth - 8, unitHeight - 8);
-            }
-        }
+            const roofPeakY = y + Math.max(roofDepth * 0.18, 12);
 
-        // Balkone als rhythmische Auskragungen
-        const moduleWidth = width / (balconyRhythm + 1);
-        this.ctx.fillStyle = palette.balcony;
-        for (let i = 1; i <= balconyRhythm; i++) {
-            const bx = x + i * moduleWidth - 8;
-            this.ctx.fillRect(bx, y - 6, 16, 6);
-            this.ctx.fillRect(bx, y + height, 16, 6);
-        }
+            this.ctx.beginPath();
+            this.ctx.moveTo(x - roofOverhang, facadeTop);
+            this.ctx.lineTo(x + width + roofOverhang, facadeTop);
+            this.ctx.lineTo(x + width / 2, roofPeakY);
+            this.ctx.closePath();
 
-        // Erker/Erweiterungen
-        if (erker) {
-            const erkerWidth = width * 0.32;
-            const erkerDepth = 10;
-            const center = x + width / 2 - erkerWidth / 2;
-            this.ctx.fillStyle = palette.accent;
-            this.ctx.fillRect(center, y - erkerDepth, erkerWidth, erkerDepth);
-            this.ctx.fillRect(center, y + height, erkerWidth, erkerDepth);
-        }
+            const roofGradient = this.ctx.createLinearGradient(x, roofPeakY, x, facadeTop);
+            roofGradient.addColorStop(0, palette.roof);
+            roofGradient.addColorStop(1, "rgba(25, 25, 25, 0.78)");
+            this.ctx.fillStyle = roofGradient;
+            this.ctx.fill();
 
-        // Staffelung der oberen Geschosse
-        if (stepped) {
-            const stepWidth = width * 0.45;
-            const stepHeight = height * 0.45;
-            this.ctx.fillStyle = palette.accent;
-            this.ctx.fillRect(x + width - stepWidth - 12, y + 12, stepWidth, stepHeight);
-            this.ctx.strokeStyle = "rgba(0, 0, 0, 0.2)";
-            this.ctx.strokeRect(x + width - stepWidth - 12, y + 12, stepWidth, stepHeight);
-        }
+            this.ctx.strokeStyle = "rgba(0, 0, 0, 0.5)";
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
 
-        // Dachbegrünung mit Punktbeleuchtung
-        if (roofGarden) {
-            this.ctx.fillStyle = "rgba(255, 245, 200, 0.4)";
-            for (let i = 0; i < floors; i++) {
-                const angle = (Math.PI * 2 * i) / floors;
-                const radius = Math.min(width, height) * 0.3;
-                const px = x + width / 2 + Math.cos(angle) * radius * 0.6;
-                const py = y + height / 2 + Math.sin(angle) * radius * 0.4;
+            this.ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
+            this.ctx.lineWidth = 1;
+            for (let band = facadeTop - 8; band > roofPeakY + 6; band -= 10) {
                 this.ctx.beginPath();
-                this.ctx.arc(px, py, 4, 0, Math.PI * 2);
-                this.ctx.fill();
+                this.ctx.moveTo(x - roofOverhang + 10, band);
+                this.ctx.lineTo(x + width + roofOverhang - 10, band);
+                this.ctx.stroke();
+            }
+
+            this.ctx.fillStyle = "rgba(0, 0, 0, 0.32)";
+            this.ctx.fillRect(x - roofOverhang, facadeTop - 3, width + roofOverhang * 2, 3);
+        }
+
+        const facadeGradient = this.ctx.createLinearGradient(x, facadeTop, x, facadeTop + facadeHeight);
+        facadeGradient.addColorStop(0, palette.highlight ?? palette.base);
+        facadeGradient.addColorStop(0.6, palette.base);
+        facadeGradient.addColorStop(1, palette.base);
+        this.ctx.fillStyle = facadeGradient;
+        this.ctx.fillRect(x, facadeTop, width, facadeHeight);
+
+        this.ctx.strokeStyle = "rgba(0, 0, 0, 0.28)";
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(x, facadeTop, width, facadeHeight);
+
+        const pilasterCount = Math.max(0, Math.floor(width / 140) - 1);
+        if (pilasterCount > 0) {
+            const spacing = width / (pilasterCount + 1);
+            this.ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+            for (let i = 1; i <= pilasterCount; i++) {
+                const px = x + spacing * i - 6;
+                this.ctx.fillRect(px, facadeTop + 10, 12, facadeHeight - 20);
             }
         }
 
-        // Skylights als Fensterbänder
-        const skylightCount = Math.max(2, Math.floor(width / 70));
-        this.ctx.fillStyle = "rgba(220, 236, 255, 0.8)";
-        for (let i = 0; i < skylightCount; i++) {
-            const sx = x + 18 + i * (width - 36) / Math.max(1, skylightCount - 1) - 12;
-            const sy = y + height / 2 - 6;
-            this.ctx.fillRect(sx, sy, 24, 12);
-            this.ctx.fillStyle = "rgba(80, 110, 160, 0.35)";
-            this.ctx.fillRect(sx, sy, 24, 4);
-            this.ctx.fillStyle = "rgba(220, 236, 255, 0.8)";
+        if (balconyRhythm > 0) {
+            const beltSpacing = facadeHeight / (balconyRhythm + 1);
+            this.ctx.fillStyle = palette.balcony;
+            for (let i = 1; i <= balconyRhythm; i++) {
+                const beltY = facadeTop + beltSpacing * i;
+                this.ctx.fillRect(x + 12, beltY - 2, width - 24, 4);
+            }
+        } else {
+            this.ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
+            this.ctx.fillRect(x + 12, facadeTop + facadeHeight * 0.45, width - 24, 3);
         }
+
+        const doorWidth = Math.min(width * 0.26, 68);
+        const doorHeight = Math.max(52, Math.min(facadeHeight * 0.42, 100));
+        const doorX = x + width / 2 - doorWidth / 2;
+        const doorY = facadeTop + facadeHeight - doorHeight;
+
+        const windowAreaTop = facadeTop + 14;
+        const windowAreaBottom = doorY - 12;
+        const windowAreaHeight = Math.max(40, windowAreaBottom - windowAreaTop);
+
+        let windowRows = Math.min(4, Math.max(2, Math.round(floors * 0.6)));
+        let windowHeight = Math.min(30, (windowAreaHeight - (windowRows - 1) * 14) / windowRows);
+        while (windowHeight < 18 && windowRows > 2) {
+            windowRows -= 1;
+            windowHeight = Math.min(30, (windowAreaHeight - (windowRows - 1) * 14) / windowRows);
+        }
+        windowHeight = Math.max(18, Math.min(30, windowHeight));
+        const verticalSpacing = windowRows > 1
+            ? (windowAreaHeight - windowRows * windowHeight) / (windowRows - 1)
+            : 0;
+        const windowStartY = windowAreaTop + Math.max(0, (windowAreaHeight - (windowRows * windowHeight + verticalSpacing * (windowRows - 1))) / 2);
+
+        const windowAreaWidth = width - 40;
+        let windowCols = Math.min(4, Math.max(2, Math.floor(windowAreaWidth / 80)));
+        let windowWidth = Math.min(34, (windowAreaWidth - (windowCols - 1) * 18) / windowCols);
+        while (windowWidth < 18 && windowCols > 2) {
+            windowCols -= 1;
+            windowWidth = Math.min(34, (windowAreaWidth - (windowCols - 1) * 18) / windowCols);
+        }
+        windowWidth = Math.max(18, Math.min(34, windowWidth));
+        const horizontalSpacing = windowCols > 1
+            ? (windowAreaWidth - windowCols * windowWidth) / (windowCols - 1)
+            : 0;
+        const windowStartX = x + Math.max(10, (width - (windowCols * windowWidth + horizontalSpacing * (windowCols - 1))) / 2);
+
+        for (let row = 0; row < windowRows; row++) {
+            for (let col = 0; col < windowCols; col++) {
+                const wx = windowStartX + col * (windowWidth + horizontalSpacing);
+                const wy = windowStartY + row * (windowHeight + verticalSpacing);
+
+                const glassGradient = this.ctx.createLinearGradient(wx, wy, wx, wy + windowHeight);
+                glassGradient.addColorStop(0, "rgba(220, 236, 255, 0.9)");
+                glassGradient.addColorStop(0.5, "rgba(120, 160, 200, 0.65)");
+                glassGradient.addColorStop(1, "rgba(60, 90, 130, 0.7)");
+                this.ctx.fillStyle = glassGradient;
+                this.ctx.fillRect(wx, wy, windowWidth, windowHeight);
+
+                this.ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeRect(wx, wy, windowWidth, windowHeight);
+
+                this.ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+                this.ctx.beginPath();
+                this.ctx.moveTo(wx + windowWidth / 2, wy);
+                this.ctx.lineTo(wx + windowWidth / 2, wy + windowHeight);
+                this.ctx.moveTo(wx, wy + windowHeight / 2);
+                this.ctx.lineTo(wx + windowWidth, wy + windowHeight / 2);
+                this.ctx.stroke();
+            }
+        }
+
+        if (balconyRhythm > 0) {
+            const barY = windowStartY + (windowRows - 1) * (windowHeight + verticalSpacing) + windowHeight + 6;
+            const segments = Math.max(1, Math.min(windowCols, balconyRhythm));
+            const every = Math.max(1, Math.round(windowCols / segments));
+            for (let col = 0; col < windowCols; col += every) {
+                const bx = windowStartX + col * (windowWidth + horizontalSpacing) - 6;
+                const bw = windowWidth + 12;
+                this.ctx.fillStyle = palette.balcony;
+                this.ctx.fillRect(bx, barY, bw, 6);
+                this.ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+                this.ctx.fillRect(bx, barY, bw, 2);
+            }
+        }
+
+        const doorGradient = this.ctx.createLinearGradient(doorX, doorY, doorX, doorY + doorHeight);
+        doorGradient.addColorStop(0, palette.accent);
+        doorGradient.addColorStop(1, "rgba(40, 40, 40, 0.8)");
+        this.ctx.fillStyle = doorGradient;
+        this.ctx.fillRect(doorX, doorY, doorWidth, doorHeight);
+
+        this.ctx.strokeStyle = "rgba(0, 0, 0, 0.35)";
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(doorX, doorY, doorWidth, doorHeight);
+
+        this.ctx.fillStyle = "rgba(255, 215, 120, 0.85)";
+        this.ctx.beginPath();
+        this.ctx.arc(doorX + doorWidth - 10, doorY + doorHeight / 2, 3, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        const transomHeight = Math.min(18, doorHeight * 0.25);
+        this.ctx.fillStyle = "rgba(220, 236, 255, 0.85)";
+        this.ctx.fillRect(doorX + 6, doorY + 6, doorWidth - 12, transomHeight);
+
+        const stepHeight = Math.max(6, Math.min(12, facadeHeight * 0.08));
+        this.ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
+        this.ctx.fillRect(doorX - 16, doorY + doorHeight, doorWidth + 32, stepHeight);
+        this.ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+        this.ctx.fillRect(doorX - 16, doorY + doorHeight, doorWidth + 32, 2);
 
         this.ctx.restore();
     }
