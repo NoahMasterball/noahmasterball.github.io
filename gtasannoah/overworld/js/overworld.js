@@ -1,4 +1,4 @@
-﻿// 2D Overworld Game Engine - FIXED Coordinates - No Overlapping Houses!
+// 2D Overworld Game Engine - FIXED Coordinates - No Overlapping Houses!
 console.log("Script wird geladen!");
 
 class OverworldGame {
@@ -28,7 +28,7 @@ class OverworldGame {
             y: 0
         };
         
-        // Zoom fÃ¼r kleinere Sichtweite
+        // Zoom für kleinere Sichtweite
         this.zoom = 1.0;
         
         this.player = {
@@ -47,7 +47,7 @@ class OverworldGame {
         this.nearBuilding = null;
         this.interactionUI = document.getElementById("buildingInteraction");
         
-        // FESTE HAUSFARBEN - keine zufÃ¤lligen Farben mehr!
+        // FESTE HAUSFARBEN - keine zufälligen Farben mehr!
         this.houseColors = [
             "#DEB887", "#F5DEB3", "#D2B48C", "#BC8F8F", "#CD853F",
             "#D2691E", "#A0522D", "#8B7355", "#D2B48C", "#F4A460"
@@ -95,7 +95,7 @@ class OverworldGame {
             if (this.nearBuilding && this.nearBuilding.type === "casino") {
                 window.location.href = "../casinogame/index.html";
             } else {
-                alert("Dieses GebÃ¤ude ist noch nicht verfÃ¼gbar!");
+                alert("Dieses Gebäude ist noch nicht verfügbar!");
             }
             this.hideBuildingInteraction();
         });
@@ -124,7 +124,7 @@ class OverworldGame {
         let newX = this.player.x + dx;
         let newY = this.player.y + dy;
         
-        // Weltgrenzen - grÃ¶ÃŸere Welt
+        // Weltgrenzen - größere Welt
         const worldWidth = 3000;
         const worldHeight = 3000;
         
@@ -141,7 +141,7 @@ class OverworldGame {
         this.camera.x = this.player.x - this.width / 2;
         this.camera.y = this.player.y - this.height / 2;
         
-        // Kamera-Grenzen - grÃ¶ÃŸere Welt
+        // Kamera-Grenzen - größere Welt
         const worldWidth = 3000;
         const worldHeight = 3000;
         
@@ -151,42 +151,69 @@ class OverworldGame {
     
     checkBuildingCollisions() {
         this.nearBuilding = null;
-        
-        // Alle GebÃ¤ude (GeschÃ¤fte + WohngebÃ¤ude)
+
         const buildings = this.getAllBuildings();
         if (!Array.isArray(buildings)) {
             return;
         }
-        
-        for (let building of buildings) {
-            if (this.player.x < building.x + building.width &&
-                this.player.x + this.player.width > building.x &&
-                this.player.y < building.y + building.height &&
-                this.player.y + this.player.height > building.y) {
-                
-                if (this.player.x < building.x) {
-                    this.player.x = building.x - this.player.width;
-                } else if (this.player.x > building.x) {
-                    this.player.x = building.x + building.width;
-                }
-                
-                if (this.player.y < building.y) {
-                    this.player.y = building.y - this.player.height;
-                } else if (this.player.y > building.y) {
-                    this.player.y = building.y + building.height;
+
+        const epsilon = 0.1;
+
+        for (const building of buildings) {
+            const padding = Math.max(0, building.collisionPadding ?? 0);
+            const bx = building.x + padding;
+            const by = building.y + padding;
+            const bw = Math.max(0, building.width - padding * 2);
+            const bh = Math.max(0, building.height - padding * 2);
+
+            if (bw <= 0 || bh <= 0) {
+                continue;
+            }
+
+            const intersects =
+                this.player.x < bx + bw &&
+                this.player.x + this.player.width > bx &&
+                this.player.y < by + bh &&
+                this.player.y + this.player.height > by;
+
+            if (intersects) {
+                const overlapLeft = this.player.x + this.player.width - bx;
+                const overlapRight = bx + bw - this.player.x;
+                const overlapTop = this.player.y + this.player.height - by;
+                const overlapBottom = by + bh - this.player.y;
+
+                const minOverlapX = Math.min(overlapLeft, overlapRight);
+                const minOverlapY = Math.min(overlapTop, overlapBottom);
+
+                if (minOverlapX < minOverlapY) {
+                    if (overlapLeft < overlapRight) {
+                        this.player.x = bx - this.player.width - epsilon;
+                    } else {
+                        this.player.x = bx + bw + epsilon;
+                    }
+                } else {
+                    if (overlapTop < overlapBottom) {
+                        this.player.y = by - this.player.height - epsilon;
+                    } else {
+                        this.player.y = by + bh + epsilon;
+                    }
                 }
             }
-            
+
             const interactionRange = 60;
-            if (this.player.x < building.x + building.width + interactionRange &&
-                this.player.x + this.player.width > building.x - interactionRange &&
-                this.player.y < building.y + building.height + interactionRange &&
-                this.player.y + this.player.height > building.y - interactionRange) {
+            const near =
+                this.player.x < bx + bw + interactionRange &&
+                this.player.x + this.player.width > bx - interactionRange &&
+                this.player.y < by + bh + interactionRange &&
+                this.player.y + this.player.height > by - interactionRange;
+
+            if (near) {
                 this.nearBuilding = building;
             }
         }
     }
-    
+
+
     updateFPS() {
         const now = performance.now();
         if (!this.lastTime) {
@@ -213,7 +240,7 @@ class OverworldGame {
         this.ctx.save();
         this.ctx.translate(-this.camera.x, -this.camera.y);
 
-        // GrundflÃ¤che in warmem GrÃ¼n, leicht entsÃ¤ttigt fÃ¼r Golden-Hour-Stimmung
+        // Grundfläche in warmem Grün, leicht entsättigt für Golden-Hour-Stimmung
         this.ctx.fillStyle = "#7da57a";
         this.ctx.fillRect(0, 0, 3000, 3000);
 
@@ -307,7 +334,7 @@ class OverworldGame {
             roads.push({ type: "vertical", x, startY: 200, endY: 2800 });
         }
 
-        // VerbindungsstraÃŸen, die PlÃ¤tze und InnenhÃ¶fe erschlieÃŸen
+        // Verbindungsstraßen, die Plätze und Innenhöfe erschließen
         roads.push({ type: "horizontal", startX: 950, endX: 1700, y: 1260 });
         roads.push({ type: "horizontal", startX: 950, endX: 1700, y: 2100 });
         roads.push({ type: "vertical", x: 1330, startY: 1700, endY: 2400 });
@@ -390,11 +417,16 @@ class OverworldGame {
 
         for (const blueprint of residentialBlueprints) {
             const styleIndex = blueprint.styleIndex % this.houseStyles.length;
+            const lotPaddingBase = Math.min(36, Math.min(blueprint.width, blueprint.height) * 0.22);
+            const maxInset = Math.max(0, Math.min(blueprint.width, blueprint.height) / 2 - 20);
+            const collisionPadding = Math.max(0, Math.min(lotPaddingBase * 0.95, maxInset));
             buildings.push({
                 x: blueprint.x,
                 y: blueprint.y,
                 width: blueprint.width,
                 height: blueprint.height,
+                lotPadding: lotPaddingBase,
+                collisionPadding,
                 name: `Wohnhaus ${houseCounter}`,
                 type: "house",
                 interactive: false,
@@ -1126,7 +1158,7 @@ class OverworldGame {
     }
 
     drawHouse(building) {
-        const { x, y, width, height, variant = {} } = building;
+        const { x: lotOriginX, y: lotOriginY, width: lotWidth, height: lotHeight, variant = {} } = building;
         const styleIndex = variant.styleIndex ?? building.colorIndex ?? 0;
         const palette = this.houseStyles[styleIndex % this.houseStyles.length];
 
@@ -1134,29 +1166,117 @@ class OverworldGame {
         const roofGarden = Boolean(variant.roofGarden ?? palette.roofGarden ?? false);
         const balconyRhythm = Math.max(0, variant.balconyRhythm ?? 0);
 
+        const lotPaddingBase = building.lotPadding ?? Math.min(36, Math.min(lotWidth, lotHeight) * 0.22);
+        const sideMax = Math.max(12, (lotWidth - 140) / 2);
+        const sidePadding = Math.min(Math.max(14, lotPaddingBase), sideMax);
+
+        let rearPadding = Math.min(lotHeight * 0.22, Math.max(12, lotPaddingBase * 0.65));
+        const minHouseHeight = 120;
+        const maxFrontSpace = Math.max(20, lotHeight - rearPadding - minHouseHeight);
+        let desiredFront = Math.min(maxFrontSpace, Math.max(48, lotPaddingBase * 1.45, lotHeight * 0.26));
+        if (desiredFront < 32) {
+            desiredFront = Math.min(maxFrontSpace, Math.max(32, lotPaddingBase * 1.15));
+        }
+
+        let houseHeight = lotHeight - rearPadding - desiredFront;
+        if (houseHeight < minHouseHeight) {
+            houseHeight = minHouseHeight;
+            desiredFront = lotHeight - rearPadding - houseHeight;
+        }
+
+        const houseWidth = Math.max(120, lotWidth - sidePadding * 2);
+        const houseX = (lotWidth - houseWidth) / 2;
+        const houseY = Math.max(10, rearPadding);
+        const houseBottom = houseY + houseHeight;
+        const frontDepth = Math.max(10, desiredFront);
+
+        let roofDepth = Math.max(32, Math.min(houseHeight * 0.32, 88));
+        if (houseHeight - roofDepth < 96) {
+            roofDepth = Math.max(24, houseHeight - 96);
+        }
+        const facadeHeight = houseHeight - roofDepth;
+        const facadeTop = houseY + roofDepth;
+
         this.ctx.save();
+        this.ctx.translate(lotOriginX, lotOriginY);
         this.ctx.lineJoin = "round";
 
-        const roofDepth = Math.max(32, Math.min(height * 0.3, 88));
-        const facadeHeight = Math.max(70, height - roofDepth);
-        const facadeTop = y + roofDepth;
-        const roofOverhang = Math.min(width * 0.14, 32);
+        const lawnHeight = Math.max(8, frontDepth * 0.65);
+        if (lawnHeight > 6) {
+            const lawnWidthExtra = Math.min(sidePadding * 0.8, 26);
+            const lawnGradient = this.ctx.createLinearGradient(0, houseBottom, 0, houseBottom + lawnHeight);
+            lawnGradient.addColorStop(0, "rgba(124, 164, 118, 0.75)");
+            lawnGradient.addColorStop(1, "rgba(92, 132, 90, 0.82)");
+            this.ctx.fillStyle = lawnGradient;
+            this.ctx.fillRect(houseX - lawnWidthExtra, houseBottom, houseWidth + lawnWidthExtra * 2, lawnHeight);
+        }
 
-        this.ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
-        this.ctx.fillRect(x - 12, facadeTop + facadeHeight, width + 24, 10);
+        const walkwayWidth = Math.min(48, houseWidth * 0.28);
+        const walkwayX = lotWidth / 2 - walkwayWidth / 2;
+        const walkwayY = houseBottom;
+        const walkwayHeight = frontDepth;
+        this.ctx.fillStyle = "#d9d1c4";
+        this.ctx.fillRect(walkwayX, walkwayY, walkwayWidth, walkwayHeight);
+        this.ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
+        this.ctx.fillRect(walkwayX, walkwayY, walkwayWidth, 3);
+        this.ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
+        this.ctx.fillRect(walkwayX + 4, walkwayY, walkwayWidth - 8, 2);
+
+        if (lawnHeight > 6) {
+            const shrubRadius = Math.min(10, sidePadding * 0.45);
+            if (shrubRadius > 3) {
+                this.ctx.fillStyle = "rgba(72, 110, 72, 0.78)";
+                this.ctx.beginPath();
+                this.ctx.arc(houseX - shrubRadius * 0.6, walkwayY + shrubRadius * 0.9, shrubRadius, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.beginPath();
+                this.ctx.arc(houseX + houseWidth + shrubRadius * 0.6, walkwayY + shrubRadius * 0.9, shrubRadius, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+        }
+
+        const shadowHeight = Math.min(10, lawnHeight + 6);
+        this.ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+        this.ctx.fillRect(houseX - 10, houseBottom - 4, houseWidth + 20, shadowHeight);
+
+        this.ctx.fillStyle = palette.base;
+        this.ctx.fillRect(houseX, facadeTop, houseWidth, facadeHeight);
+
+        const warmGradient = this.ctx.createLinearGradient(houseX, facadeTop, houseX + houseWidth * 0.8, facadeTop + facadeHeight * 0.8);
+        warmGradient.addColorStop(0, "rgba(255, 196, 128, 0.32)");
+        warmGradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+        this.ctx.fillStyle = warmGradient;
+        this.ctx.fillRect(houseX, facadeTop, houseWidth, facadeHeight);
+
+        const coolGradient = this.ctx.createLinearGradient(houseX + houseWidth, facadeTop + facadeHeight, houseX + houseWidth * 0.4, facadeTop + facadeHeight * 0.4);
+        coolGradient.addColorStop(0, "rgba(70, 90, 120, 0.2)");
+        coolGradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+        this.ctx.fillStyle = coolGradient;
+        this.ctx.fillRect(houseX, facadeTop, houseWidth, facadeHeight);
+
+        this.ctx.strokeStyle = palette.roof;
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(houseX, facadeTop, houseWidth, facadeHeight);
+
+        if (facadeHeight > 20) {
+            this.ctx.setLineDash([12, 6]);
+            this.ctx.strokeStyle = palette.accent;
+            this.ctx.lineWidth = 1.5;
+            this.ctx.strokeRect(houseX + 8, facadeTop + 8, houseWidth - 16, Math.max(12, facadeHeight - 16));
+            this.ctx.setLineDash([]);
+        }
 
         if (roofGarden) {
-            const deckBackY = y + Math.max(roofDepth * 0.25, 12);
-            const inset = Math.min(width * 0.12, 28);
-
+            const padding = Math.min(houseWidth * 0.6, roofDepth * 1.05);
+            const deckY = facadeTop - Math.max(8, roofDepth * 0.65);
             this.ctx.beginPath();
-            this.ctx.moveTo(x - roofOverhang, facadeTop);
-            this.ctx.lineTo(x + width + roofOverhang, facadeTop);
-            this.ctx.lineTo(x + width - inset, deckBackY);
-            this.ctx.lineTo(x + inset, deckBackY);
+            this.ctx.moveTo(houseX - 6, facadeTop);
+            this.ctx.lineTo(houseX + houseWidth + 6, facadeTop);
+            this.ctx.lineTo(houseX + houseWidth - padding * 0.45, deckY);
+            this.ctx.lineTo(houseX + padding * 0.45, deckY);
             this.ctx.closePath();
 
-            const roofGradient = this.ctx.createLinearGradient(x, deckBackY, x, facadeTop);
+            const roofGradient = this.ctx.createLinearGradient(houseX, deckY, houseX, facadeTop);
             roofGradient.addColorStop(0, palette.roof);
             roofGradient.addColorStop(1, "rgba(30, 30, 30, 0.82)");
             this.ctx.fillStyle = roofGradient;
@@ -1167,28 +1287,26 @@ class OverworldGame {
             this.ctx.stroke();
 
             this.ctx.fillStyle = palette.accent;
-            this.ctx.fillRect(x - roofOverhang, facadeTop - 5, width + roofOverhang * 2, 5);
+            this.ctx.fillRect(houseX - 4, facadeTop - 3, houseWidth + 8, 3);
 
-            const planterCount = Math.max(3, Math.floor(width / 90));
-            const planterSpacing = planterCount > 1 ? (width - inset * 2) / (planterCount - 1) : 0;
+            const planterCount = Math.max(3, Math.floor(houseWidth / 80));
             for (let i = 0; i < planterCount; i++) {
-                const px = x + inset + planterSpacing * i - 12;
-                const py = deckBackY + 6;
+                const px = houseX + 18 + i * (houseWidth - 36) / Math.max(1, planterCount - 1) - 12;
+                const py = deckY + 6;
                 this.ctx.fillStyle = palette.highlight ?? palette.accent;
                 this.ctx.fillRect(px, py, 24, 10);
                 this.ctx.fillStyle = "#4d8b54";
                 this.ctx.fillRect(px + 2, py - 6, 20, 8);
             }
         } else {
-            const roofPeakY = y + Math.max(roofDepth * 0.18, 12);
-
+            const ridgeHeight = Math.max(10, roofDepth * 0.55);
             this.ctx.beginPath();
-            this.ctx.moveTo(x - roofOverhang, facadeTop);
-            this.ctx.lineTo(x + width + roofOverhang, facadeTop);
-            this.ctx.lineTo(x + width / 2, roofPeakY);
+            this.ctx.moveTo(houseX - 8, facadeTop);
+            this.ctx.lineTo(houseX + houseWidth + 8, facadeTop);
+            this.ctx.lineTo(houseX + houseWidth / 2, facadeTop - ridgeHeight);
             this.ctx.closePath();
 
-            const roofGradient = this.ctx.createLinearGradient(x, roofPeakY, x, facadeTop);
+            const roofGradient = this.ctx.createLinearGradient(houseX, facadeTop - ridgeHeight, houseX, facadeTop);
             roofGradient.addColorStop(0, palette.roof);
             roofGradient.addColorStop(1, "rgba(25, 25, 25, 0.78)");
             this.ctx.fillStyle = roofGradient;
@@ -1200,72 +1318,53 @@ class OverworldGame {
 
             this.ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
             this.ctx.lineWidth = 1;
-            for (let band = facadeTop - 8; band > roofPeakY + 6; band -= 10) {
+            for (let band = facadeTop - 6; band > facadeTop - ridgeHeight + 6; band -= 10) {
                 this.ctx.beginPath();
-                this.ctx.moveTo(x - roofOverhang + 10, band);
-                this.ctx.lineTo(x + width + roofOverhang - 10, band);
+                this.ctx.moveTo(houseX + 14, band);
+                this.ctx.lineTo(houseX + houseWidth - 14, band);
                 this.ctx.stroke();
             }
 
-            this.ctx.fillStyle = "rgba(0, 0, 0, 0.32)";
-            this.ctx.fillRect(x - roofOverhang, facadeTop - 3, width + roofOverhang * 2, 3);
-        }
-
-        const facadeGradient = this.ctx.createLinearGradient(x, facadeTop, x, facadeTop + facadeHeight);
-        facadeGradient.addColorStop(0, palette.highlight ?? palette.base);
-        facadeGradient.addColorStop(0.6, palette.base);
-        facadeGradient.addColorStop(1, palette.base);
-        this.ctx.fillStyle = facadeGradient;
-        this.ctx.fillRect(x, facadeTop, width, facadeHeight);
-
-        this.ctx.strokeStyle = "rgba(0, 0, 0, 0.28)";
-        this.ctx.lineWidth = 2;
-        this.ctx.strokeRect(x, facadeTop, width, facadeHeight);
-
-        const pilasterCount = Math.max(0, Math.floor(width / 140) - 1);
-        if (pilasterCount > 0) {
-            const spacing = width / (pilasterCount + 1);
-            this.ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
-            for (let i = 1; i <= pilasterCount; i++) {
-                const px = x + spacing * i - 6;
-                this.ctx.fillRect(px, facadeTop + 10, 12, facadeHeight - 20);
+            const hvacCount = Math.max(2, Math.floor(houseWidth / 90));
+            const hvacY = facadeTop - Math.min(18, roofDepth * 0.45);
+            const unitWidth = Math.min(36, houseWidth / (hvacCount + 1));
+            const unitHeight = Math.min(20, roofDepth * 0.45);
+            for (let i = 0; i < hvacCount; i++) {
+                const ux = houseX + 18 + i * (unitWidth + 16);
+                this.ctx.fillStyle = palette.metallic;
+                this.ctx.fillRect(ux, hvacY, unitWidth, unitHeight);
+                this.ctx.fillStyle = "rgba(255, 255, 255, 0.24)";
+                this.ctx.fillRect(ux + 3, hvacY + 3, unitWidth - 6, unitHeight - 6);
             }
         }
 
-        if (balconyRhythm > 0) {
+        if (balconyRhythm > 0 && facadeHeight > 30) {
             const beltSpacing = facadeHeight / (balconyRhythm + 1);
             this.ctx.fillStyle = palette.balcony;
             for (let i = 1; i <= balconyRhythm; i++) {
                 const beltY = facadeTop + beltSpacing * i;
-                this.ctx.fillRect(x + 12, beltY - 2, width - 24, 4);
+                this.ctx.fillRect(houseX + 14, beltY - 2, houseWidth - 28, 4);
             }
-        } else {
+        } else if (facadeHeight > 40) {
             this.ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
-            this.ctx.fillRect(x + 12, facadeTop + facadeHeight * 0.45, width - 24, 3);
+            this.ctx.fillRect(houseX + 14, facadeTop + facadeHeight * 0.46, houseWidth - 28, 3);
         }
-
-        const doorWidth = Math.min(width * 0.26, 68);
-        const doorHeight = Math.max(52, Math.min(facadeHeight * 0.42, 100));
-        const doorX = x + width / 2 - doorWidth / 2;
-        const doorY = facadeTop + facadeHeight - doorHeight;
 
         const windowAreaTop = facadeTop + 14;
-        const windowAreaBottom = doorY - 12;
-        const windowAreaHeight = Math.max(40, windowAreaBottom - windowAreaTop);
+        const windowAreaBottom = facadeTop + facadeHeight - 14;
+        const windowAreaHeight = Math.max(36, windowAreaBottom - windowAreaTop);
 
         let windowRows = Math.min(4, Math.max(2, Math.round(floors * 0.6)));
-        let windowHeight = Math.min(30, (windowAreaHeight - (windowRows - 1) * 14) / windowRows);
+        let windowHeight = Math.min(34, (windowAreaHeight - (windowRows - 1) * 14) / windowRows);
         while (windowHeight < 18 && windowRows > 2) {
             windowRows -= 1;
-            windowHeight = Math.min(30, (windowAreaHeight - (windowRows - 1) * 14) / windowRows);
+            windowHeight = Math.min(34, (windowAreaHeight - (windowRows - 1) * 14) / windowRows);
         }
-        windowHeight = Math.max(18, Math.min(30, windowHeight));
-        const verticalSpacing = windowRows > 1
-            ? (windowAreaHeight - windowRows * windowHeight) / (windowRows - 1)
-            : 0;
+        windowHeight = Math.max(18, Math.min(34, windowHeight));
+        const verticalSpacing = windowRows > 1 ? (windowAreaHeight - windowRows * windowHeight) / (windowRows - 1) : 0;
         const windowStartY = windowAreaTop + Math.max(0, (windowAreaHeight - (windowRows * windowHeight + verticalSpacing * (windowRows - 1))) / 2);
 
-        const windowAreaWidth = width - 40;
+        const windowAreaWidth = houseWidth - 40;
         let windowCols = Math.min(4, Math.max(2, Math.floor(windowAreaWidth / 80)));
         let windowWidth = Math.min(34, (windowAreaWidth - (windowCols - 1) * 18) / windowCols);
         while (windowWidth < 18 && windowCols > 2) {
@@ -1273,10 +1372,8 @@ class OverworldGame {
             windowWidth = Math.min(34, (windowAreaWidth - (windowCols - 1) * 18) / windowCols);
         }
         windowWidth = Math.max(18, Math.min(34, windowWidth));
-        const horizontalSpacing = windowCols > 1
-            ? (windowAreaWidth - windowCols * windowWidth) / (windowCols - 1)
-            : 0;
-        const windowStartX = x + Math.max(10, (width - (windowCols * windowWidth + horizontalSpacing * (windowCols - 1))) / 2);
+        const horizontalSpacing = windowCols > 1 ? (windowAreaWidth - windowCols * windowWidth) / (windowCols - 1) : 0;
+        const windowStartX = houseX + Math.max(10, (houseWidth - (windowCols * windowWidth + horizontalSpacing * (windowCols - 1))) / 2);
 
         for (let row = 0; row < windowRows; row++) {
             for (let col = 0; col < windowCols; col++) {
@@ -1284,9 +1381,9 @@ class OverworldGame {
                 const wy = windowStartY + row * (windowHeight + verticalSpacing);
 
                 const glassGradient = this.ctx.createLinearGradient(wx, wy, wx, wy + windowHeight);
-                glassGradient.addColorStop(0, "rgba(220, 236, 255, 0.9)");
+                glassGradient.addColorStop(0, "rgba(220, 236, 255, 0.92)");
                 glassGradient.addColorStop(0.5, "rgba(120, 160, 200, 0.65)");
-                glassGradient.addColorStop(1, "rgba(60, 90, 130, 0.7)");
+                glassGradient.addColorStop(1, "rgba(60, 90, 130, 0.72)");
                 this.ctx.fillStyle = glassGradient;
                 this.ctx.fillRect(wx, wy, windowWidth, windowHeight);
 
@@ -1304,23 +1401,14 @@ class OverworldGame {
             }
         }
 
-        if (balconyRhythm > 0) {
-            const barY = windowStartY + (windowRows - 1) * (windowHeight + verticalSpacing) + windowHeight + 6;
-            const segments = Math.max(1, Math.min(windowCols, balconyRhythm));
-            const every = Math.max(1, Math.round(windowCols / segments));
-            for (let col = 0; col < windowCols; col += every) {
-                const bx = windowStartX + col * (windowWidth + horizontalSpacing) - 6;
-                const bw = windowWidth + 12;
-                this.ctx.fillStyle = palette.balcony;
-                this.ctx.fillRect(bx, barY, bw, 6);
-                this.ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
-                this.ctx.fillRect(bx, barY, bw, 2);
-            }
-        }
+        const doorWidth = Math.min(houseWidth * 0.26, 68);
+        const doorHeight = Math.max(58, Math.min(facadeHeight * 0.44, 104));
+        const doorX = houseX + houseWidth / 2 - doorWidth / 2;
+        const doorY = facadeTop + facadeHeight - doorHeight;
 
         const doorGradient = this.ctx.createLinearGradient(doorX, doorY, doorX, doorY + doorHeight);
         doorGradient.addColorStop(0, palette.accent);
-        doorGradient.addColorStop(1, "rgba(40, 40, 40, 0.8)");
+        doorGradient.addColorStop(1, "rgba(40, 40, 40, 0.82)");
         this.ctx.fillStyle = doorGradient;
         this.ctx.fillRect(doorX, doorY, doorWidth, doorHeight);
 
@@ -1337,7 +1425,7 @@ class OverworldGame {
         this.ctx.fillStyle = "rgba(220, 236, 255, 0.85)";
         this.ctx.fillRect(doorX + 6, doorY + 6, doorWidth - 12, transomHeight);
 
-        const stepHeight = Math.max(6, Math.min(12, facadeHeight * 0.08));
+        const stepHeight = Math.max(6, Math.min(12, frontDepth * 0.22));
         this.ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
         this.ctx.fillRect(doorX - 16, doorY + doorHeight, doorWidth + 32, stepHeight);
         this.ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
@@ -1728,6 +1816,7 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("DOM ist geladen, Spiel wird gestartet!");
     new OverworldGame();
 });
+
 
 
 
