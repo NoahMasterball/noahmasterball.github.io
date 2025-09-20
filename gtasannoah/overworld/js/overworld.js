@@ -27,9 +27,22 @@ class OverworldGame {
             y: 300,
             width: 30,
             height: 30,
-            speed: 3,
-            color: "#FF0000"
+            baseSpeed: 1.5,
+            sprintMultiplier: 2,
+            speed: 1.5,
+            color: "#FF0000",
+            animationPhase: 0,
+            moving: false
         };
+        this.player.parts = this.buildNPCParts({
+            head: '#f6d7c4',
+            torso: '#1b4965',
+            limbs: '#16324f',
+            accent: '#5fa8d3',
+            hair: '#2b2118',
+            eyes: '#ffffff',
+            pupil: '#1b1b1b'
+        });
         this.lastTime = 0;
         this.fps = 0;
         this.frameCount = 0;
@@ -44,11 +57,13 @@ class OverworldGame {
         this.sidewalkWidth = 36;
         this.roadWidth = 70;
         this.roadHalfWidth = this.roadWidth / 2;
+        this.crosswalks = this.createCrosswalks();
+        this.crosswalkAreas = this.crosswalks.map((cw, index) => this.computeCrosswalkArea(cw, index));
         this.roadLayout = this.createCityRoadLayout();
         this.buildings = this.createCityBuildings();
         console.log("Buildings prepared", Array.isArray(this.buildings) ? this.buildings.length : this.buildings);
         this.streetDetails = this.createStreetDetails();
-        this.ambientActors = this.createAmbientActors();
+        this.dynamicAgents = this.createDynamicAgents();
         this.setupUI();
         console.log("Spiel wird gestartet!");
         this.gameLoop();
@@ -88,19 +103,25 @@ class OverworldGame {
         this.handleInput();
         this.updateCamera();
         this.checkBuildingCollisions();
+        this.updateAgents();
+        this.updatePlayerAnimation();
         this.updateFPS();
     }
     handleInput() {
         let dx = 0;
         let dy = 0;
-        if (this.keys["w"] || this.keys["arrowup"]) dy -= this.player.speed;
-        if (this.keys["s"] || this.keys["arrowdown"]) dy += this.player.speed;
-        if (this.keys["a"] || this.keys["arrowleft"]) dx -= this.player.speed;
-        if (this.keys["d"] || this.keys["arrowright"]) dx += this.player.speed;
+        const sprinting = this.keys["shift"] || this.keys["shiftleft"] || this.keys["shiftright"];
+        const speed = this.player.baseSpeed * (sprinting ? this.player.sprintMultiplier : 1);
+        this.player.speed = speed;
+        if (this.keys["w"] || this.keys["arrowup"]) dy -= speed;
+        if (this.keys["s"] || this.keys["arrowdown"]) dy += speed;
+        if (this.keys["a"] || this.keys["arrowleft"]) dx -= speed;
+        if (this.keys["d"] || this.keys["arrowright"]) dx += speed;
+        this.player.moving = dx !== 0 || dy !== 0;
         let newX = this.player.x + dx;
         let newY = this.player.y + dy;
         // Weltgrenzen - größere Welt
-        const worldWidth = 3000;
+        const worldWidth = 3600;
         const worldHeight = 3000;
         if (newX >= 0 && newX <= worldWidth - this.player.width) {
             this.player.x = newX;
@@ -114,7 +135,7 @@ class OverworldGame {
         this.camera.x = this.player.x - this.width / 2;
         this.camera.y = this.player.y - this.height / 2;
         // Kamera-Grenzen - größere Welt
-        const worldWidth = 3000;
+        const worldWidth = 3600;
         const worldHeight = 3000;
         this.camera.x = Math.max(0, Math.min(this.camera.x, worldWidth - this.width));
         this.camera.y = Math.max(0, Math.min(this.camera.y, worldHeight - this.height));
@@ -197,12 +218,12 @@ class OverworldGame {
         this.ctx.translate(-this.camera.x, -this.camera.y);
         // Grundfläche in warmem Grün, leicht entsättigt für Golden-Hour-Stimmung
         this.ctx.fillStyle = "#7da57a";
-        this.ctx.fillRect(0, 0, 3000, 3000);
+        this.ctx.fillRect(0, 0, 3600, 3000);
         this.drawImprovedRoadSystem();
         this.drawSidewalks();
         this.drawStreetDetails();
         this.drawBuildings();
-        this.drawAmbientActors();
+        this.drawDynamicAgents();
         this.drawPlayer();
         this.drawGoldenHourLighting();
         this.ctx.restore();
@@ -272,24 +293,33 @@ class OverworldGame {
             }
         ]
     }
+    createCrosswalks() {
+        return [
+            { x: 1100, y: 1700, orientation: "horizontal", span: 240 },
+            { x: 1700, y: 1700, orientation: "vertical", span: 240 },
+            { x: 1100, y: 900, orientation: "horizontal", span: 240 },
+            { x: 1700, y: 900, orientation: "vertical", span: 240 },
+            { x: 2050, y: 1700, orientation: "horizontal", span: 260 }
+        ];
+    }
+
     createCityRoadLayout() {
         const roads = [];
-        const verticalCorridors = [200, 950, 1700, 2450, 2800];
+        const verticalCorridors = [200, 950, 1700, 2450, 3350];
         const horizontalCorridors = [200, 900, 1700, 2400, 2800];
         for (let y of horizontalCorridors) {
-            roads.push({ type: "horizontal", startX: 200, endX: 2800, y });
+            roads.push({ type: "horizontal", startX: 200, endX: 3400, y });
         }
         for (let x of verticalCorridors) {
             roads.push({ type: "vertical", x, startY: 200, endY: 2800 });
         }
-        // Verbindungsstraßen, die Plätze und Innenhöfe erschließen
         roads.push({ type: "horizontal", startX: 950, endX: 1700, y: 1260 });
         roads.push({ type: "horizontal", startX: 950, endX: 1700, y: 2100 });
         roads.push({ type: "vertical", x: 1330, startY: 1700, endY: 2400 });
         roads.push({ type: "vertical", x: 2050, startY: 900, endY: 1700 });
         return roads;
     }
-        createCityBuildings() {
+    createCityBuildings() {
         const buildings = [];
         // Landmark: Polizeihauptquartier mit grossem Hof
         buildings.push({
@@ -301,16 +331,36 @@ class OverworldGame {
             type: "police",
             interactive: true
         });
-        // Landmark: Casino-Hotel-Tower mit vorgelagertem Platz
+
+        // Downtown Skyline mit verlegtem Casino und Hochh�usern
         buildings.push({
-            x: 1180,
-            y: 280,
-            width: 360,
-            height: 540,
+            x: 3040,
+            y: 960,
+            width: 238,
+            height: 560,
             name: "Starlight Casino Tower",
             type: "casino",
             interactive: true
         });
+        buildings.push({
+            x: 2540,
+            y: 940,
+            width: 160,
+            height: 540,
+            name: "Aurora Financial Center",
+            type: "officeTower",
+            interactive: false
+        });
+        buildings.push({
+            x: 2720,
+            y: 980,
+            width: 150,
+            height: 500,
+            name: "Skyline Exchange",
+            type: "residentialTower",
+            interactive: false
+        });
+
         // Mixed-Use Block mit Restaurant, Supermarkt und Polizeiposten
         buildings.push({
             x: 1080,
@@ -326,10 +376,11 @@ class OverworldGame {
                 { label: "Polizeiposten", accent: "#5da1ff" }
             ]
         });
+
         let houseCounter = 1;
         const residentialBlueprints = [
-            { x: 280, y: 980, width: 250, height: 300, styleIndex: 0, floors: 6, roofGarden: true, balconyRhythm: 2, erker: true, walkwayExtension: 36, walkwaySpurLength: 90, walkwaySpurWidth: 16 },
-            { x: 560, y: 960, width: 300, height: 280, styleIndex: 1, floors: 5, roofGarden: false, balconyRhythm: 3, walkwayExtension: 36, walkwaySpurLength: 90, walkwaySpurWidth: 16 },
+            { x: 280, y: 980, width: 250, height: 300, styleIndex: 0, floors: 6, roofGarden: true, balconyRhythm: 2, erker: true, walkwayExtension: 48, walkwaySpurLength: 220, walkwaySpurWidth: 22 },
+            { x: 560, y: 960, width: 300, height: 280, styleIndex: 1, floors: 5, roofGarden: false, balconyRhythm: 3, walkwayExtension: 48, walkwaySpurLength: 220, walkwaySpurWidth: 22 },
             { x: 280, y: 1300, width: 240, height: 320, styleIndex: 3, floors: 4, roofGarden: true, balconyRhythm: 2 },
             { x: 560, y: 1310, width: 300, height: 300, styleIndex: 4, floors: 7, roofGarden: false, balconyRhythm: 4 },
             { x: 980, y: 960, width: 260, height: 260, styleIndex: 2, floors: 7, roofGarden: true, balconyRhythm: 3 },
@@ -338,7 +389,7 @@ class OverworldGame {
             { x: 1270, y: 1280, width: 340, height: 280, styleIndex: 1, floors: 6, roofGarden: true, balconyRhythm: 3, erker: true },
             { x: 1760, y: 320, width: 300, height: 320, styleIndex: 2, floors: 6, roofGarden: true, balconyRhythm: 2 },
             { x: 2080, y: 320, width: 300, height: 280, styleIndex: 4, floors: 5, roofGarden: false, balconyRhythm: 3 },
-            { x: 1760, y: 700, width: 520, height: 180, styleIndex: 5, floors: 4, roofGarden: true, balconyRhythm: 2 },
+            { x: 1760, y: 660, width: 520, height: 180, styleIndex: 5, floors: 4, roofGarden: true, balconyRhythm: 2 },
             { x: 1760, y: 980, width: 300, height: 260, styleIndex: 1, floors: 6, roofGarden: true, balconyRhythm: 3 },
             { x: 2080, y: 980, width: 300, height: 260, styleIndex: 3, floors: 5, roofGarden: false, balconyRhythm: 2 },
             { x: 1760, y: 1320, width: 300, height: 300, styleIndex: 2, floors: 7, roofGarden: true, balconyRhythm: 3, erker: true },
@@ -350,9 +401,21 @@ class OverworldGame {
             { x: 280, y: 1840, width: 260, height: 320, styleIndex: 2, floors: 5, roofGarden: true, balconyRhythm: 2 },
             { x: 580, y: 1840, width: 260, height: 320, styleIndex: 5, floors: 4, roofGarden: true, balconyRhythm: 3 },
             { x: 280, y: 2200, width: 260, height: 200, styleIndex: 0, floors: 5, roofGarden: true, balconyRhythm: 3 },
-            { x: 580, y: 2200, width: 260, height: 200, styleIndex: 4, floors: 6, roofGarden: false, balconyRhythm: 2 }
+            { x: 580, y: 2200, width: 260, height: 200, styleIndex: 4, floors: 6, roofGarden: false, balconyRhythm: 2, weaponShop: true }
         ];
         for (const blueprint of residentialBlueprints) {
+            if (blueprint.weaponShop) {
+                buildings.push({
+                    x: blueprint.x,
+                    y: blueprint.y,
+                    width: blueprint.width,
+                    height: blueprint.height,
+                    name: "Ammu-Nation",
+                    type: "weaponShop",
+                    interactive: false
+                });
+                continue;
+            }
             const styleIndex = blueprint.styleIndex % this.houseStyles.length;
             const lotPaddingBase = Math.min(36, Math.min(blueprint.width, blueprint.height) * 0.22);
             const maxInset = Math.max(0, Math.min(blueprint.width, blueprint.height) / 2 - 20);
@@ -386,6 +449,7 @@ class OverworldGame {
     }
     createStreetDetails() {
         const details = {
+            parkingLots: [],
             parkingBays: [],
             trees: [],
             benches: [],
@@ -409,12 +473,13 @@ class OverworldGame {
         for (const y of horizontalRows) {
             const upper = y - this.roadHalfWidth - this.sidewalkWidth / 2;
             const lower = y + this.roadHalfWidth + this.sidewalkWidth / 2;
-            for (let x = 260; x <= 2440; x += 220) {
+            for (let x = 260; x <= 3240; x += 220) {
                 addTree(x, upper, 30, (x / 220) % 3);
                 addTree(x, lower, 32, ((x + 110) / 180) % 3);
             }
         }
-        const verticalColumns = [950, 1700];
+        details.parkingLots.push({ x: 2480, y: 1480, width: 520, height: 160, rows: 2, slots: 6, aisle: 28, padding: 12 });
+        const verticalColumns = [950, 1700, 2950, 3350];
         for (const x of verticalColumns) {
             const left = x - this.roadHalfWidth - this.sidewalkWidth / 2;
             const right = x + this.roadHalfWidth + this.sidewalkWidth / 2;
@@ -436,7 +501,8 @@ class OverworldGame {
         const lampRows = [
             { y: 1860, start: 1100, end: 1620, step: 120 },
             { y: 820, start: 1180, end: 1540, step: 120 },
-            { y: 2120, start: 1780, end: 2320, step: 140 }
+            { y: 2120, start: 1780, end: 2320, step: 140 },
+            { y: 1180, start: 2760, end: 3260, step: 120 }
         ];
         for (const row of lampRows) {
             for (let x = row.start; x <= row.end; x += row.step) {
@@ -453,6 +519,7 @@ class OverworldGame {
         details.parkingBays.push({ x: 360, y: 870, width: 110, height: 42, orientation: "horizontal" });
         details.parkingBays.push({ x: 480, y: 870, width: 110, height: 42, orientation: "horizontal" });
         details.parkingBays.push({ x: 1880, y: 880, width: 120, height: 46, orientation: "horizontal" });
+        details.parkingBays.push({ x: 2980, y: 1140, width: 140, height: 46, orientation: "horizontal" });
         details.planters.push({ x: 1160, y: 1840, width: 80, height: 32 });
         details.planters.push({ x: 1320, y: 1840, width: 80, height: 32 });
         details.planters.push({ x: 1480, y: 1840, width: 80, height: 32 });
@@ -464,22 +531,392 @@ class OverworldGame {
     getAllBuildings() {
         return this.buildings;
     }
-    createAmbientActors() {
+    createDynamicAgents() {
+        const resolveCrosswalk = (matcher) => this.crosswalks.findIndex(matcher);
+        const mainHorizontal = resolveCrosswalk((cw) => cw.orientation === "horizontal" && cw.y === 1700 && cw.x === 1100);
+        const downtownVertical = resolveCrosswalk((cw) => cw.orientation === "vertical" && cw.x === 2950 && cw.y === 1100);
+        const downtownHorizontal = resolveCrosswalk((cw) => cw.orientation === "horizontal" && cw.y === 1500 && cw.x === 3040);
+        const safeIndex = (index) => (index >= 0 ? index : null);
+        const crosswalkMain = safeIndex(mainHorizontal);
+        const crosswalkDowntownV = safeIndex(downtownVertical);
+        const crosswalkDowntownH = safeIndex(downtownHorizontal);
+
+        const npcs = [
+            this.buildNPC({
+                palette: { head: "#f1d2b6", torso: "#3c6e71", limbs: "#284b52", accent: "#f7ede2", hair: '#3b2c1e' },
+                bounds: { left: 960, right: 1320, top: 1640, bottom: 1760 },
+                waypoints: [
+                    { x: 980, y: 1660, wait: 12 },
+                    { x: 1100, y: 1660, wait: 18, crosswalkIndex: crosswalkMain },
+                    { x: 1100, y: 1740, wait: 0 },
+                    { x: 1280, y: 1740, wait: 10 },
+                    { x: 1100, y: 1740, wait: 6 },
+                    { x: 1100, y: 1660, wait: 16, crosswalkIndex: crosswalkMain }
+                ],
+                speed: 1.25
+            }),
+            this.buildNPC({
+                palette: { head: "#f8cfd2", torso: "#6a4c93", limbs: "#413c58", accent: "#ffb5a7", hair: '#2e1f36' },
+                bounds: { left: 2920, right: 3200, top: 1180, bottom: 1460 },
+                waypoints: [
+                    { x: 2960, y: 1220, wait: 12 },
+                    { x: 3120, y: 1220, wait: 10 },
+                    { x: 3120, y: 1400, wait: 12 },
+                    { x: 2960, y: 1400, wait: 10 }
+                ],
+                speed: 1.05
+            }),
+            this.buildNPC({
+                palette: { head: "#fbe2b4", torso: "#ff914d", limbs: "#583101", accent: "#ffd166", hair: '#3c2a1f' },
+                bounds: { left: 540, right: 780, top: 1660, bottom: 1880 },
+                waypoints: [
+                    { x: 600, y: 1820, wait: 14 },
+                    { x: 560, y: 1680, wait: 12 },
+                    { x: 720, y: 1680, wait: 10 },
+                    { x: 760, y: 1840, wait: 16 },
+                    { x: 600, y: 1840, wait: 12 }
+                ],
+                speed: 1.35
+            })
+        ];
+
+        const vehicles = [
+            this.buildVehicle({
+                baseColor: "#d35400",
+                accentColor: "#f5c16f",
+                width: 96,
+                height: 44,
+                speed: 2.6,
+                path: [
+                    { x: 240, y: 1700, wait: 0 },
+                    { x: 3320, y: 1700, wait: 18 }
+                ]
+            }),
+            this.buildVehicle({
+                baseColor: "#2980b9",
+                accentColor: "#8fd3fe",
+                width: 110,
+                height: 48,
+                speed: 2.4,
+                path: [
+                    { x: 1700, y: 2600, wait: 20 },
+                    { x: 1700, y: 260, wait: 24 }
+                ]
+            }),
+            this.buildVehicle({
+                baseColor: "#6c5ce7",
+                accentColor: "#fd79a8",
+                width: 102,
+                height: 46,
+                speed: 2.2,
+                path: [
+                    { x: 2450, y: 1700, wait: 12 },
+                    { x: 3350, y: 1700, wait: 10 },
+                    { x: 3350, y: 2400, wait: 12 },
+                    { x: 2450, y: 2400, wait: 10 }
+                ]
+            })
+        ];
+
+        return { npcs, vehicles };
+    }
+        buildNPC(config) {
+        const path = (config.waypoints ?? []).map((wp) => ({ ...wp }));
+        if (path.length < 2) {
+            throw new Error('NPC needs at least two waypoints to move.');
+        }
+        const start = path[0];
         return {
-            vehicles: [
-                { x: 980, y: 872, width: 92, height: 44, color: "#d35400", direction: "east", lights: true },
-                { x: 1880, y: 1688, width: 118, height: 46, color: "#2980b9", direction: "west", lights: true },
-                { x: 520, y: 1688, width: 96, height: 44, color: "#9b59b6", direction: "east", lights: false }
-            ],
-            people: [
-                { x: 1160, y: 1960, color: "#f4c27a" },
-                { x: 1350, y: 1980, color: "#bfe0ff" },
-                { x: 1500, y: 1920, color: "#f7a1a1" },
-                { x: 2060, y: 1860, color: "#fee29d" }
-            ]
+            x: start.x,
+            y: start.y,
+            speed: config.speed ?? 1.2,
+            path,
+            waypointIndex: (path.length > 1 ? 1 : 0),
+            waitTimer: start.wait ?? 0,
+            waitingForCrosswalk: start.crosswalkIndex ?? null,
+            isCrossing: false,
+            animationPhase: 0,
+            moving: false,
+            bounds: config.bounds ?? null,
+            parts: this.buildNPCParts(config.palette ?? {})
         };
     }
-        drawImprovedRoadSystem() {
+
+    buildVehicle(config) {
+        const path = (config.path ?? []).map((wp) => ({ ...wp }));
+        if (path.length < 2) {
+            throw new Error('Vehicle needs at least two waypoints to move.');
+        }
+        const start = path[0];
+        return {
+            x: start.x,
+            y: start.y,
+            width: config.width ?? 96,
+            height: config.height ?? 44,
+            speed: config.speed ?? 2.2,
+            path,
+            waypointIndex: (path.length > 1 ? 1 : 0),
+            waitTimer: start.wait ?? 0,
+            stopTimer: 0,
+            rotation: 0,
+            parts: this.buildVehicleParts({
+                baseColor: config.baseColor ?? '#555555',
+                accentColor: config.accentColor ?? '#888888',
+                width: config.width ?? 96,
+                height: config.height ?? 44
+            })
+        };
+    }
+
+    buildNPCParts(palette) {
+        const headColor = palette.head ?? '#f2d6c1';
+        const torsoColor = palette.torso ?? '#2b6777';
+        const limbColor = palette.limbs ?? '#1b3a4b';
+        const accentColor = palette.accent ?? '#f2f2f2';
+        const hairColor = palette.hair ?? '#2b2118';
+        const eyeColor = palette.eyes ?? '#ffffff';
+        const pupilColor = palette.pupil ?? '#1b1b1b';
+        return [
+            { id: 'shadow', type: 'circle', radius: 10, offsetX: 0, offsetY: 12, color: 'rgba(0, 0, 0, 0.15)', damaged: false },
+            { id: 'torso', type: 'rect', width: 14, height: 18, offsetX: -7, offsetY: -12, color: torsoColor, damaged: false },
+            { id: 'leftArm', type: 'rect', width: 4, height: 16, offsetX: -11, offsetY: -10, color: limbColor, damaged: false },
+            { id: 'rightArm', type: 'rect', width: 4, height: 16, offsetX: 7, offsetY: -10, color: limbColor, damaged: false },
+            { id: 'leftLeg', type: 'rect', width: 4, height: 18, offsetX: -4, offsetY: 6, color: accentColor, damaged: false },
+            { id: 'rightLeg', type: 'rect', width: 4, height: 18, offsetX: 0, offsetY: 6, color: accentColor, damaged: false },
+            { id: 'hairBack', type: 'circle', radius: 8, offsetX: 0, offsetY: -24, color: hairColor, damaged: false },
+            { id: 'head', type: 'circle', radius: 6, offsetX: 0, offsetY: -20, color: headColor, damaged: false },
+            { id: 'hairFringe', type: 'rect', width: 16, height: 3, offsetX: -8, offsetY: -22, color: hairColor, damaged: false },
+            { id: 'leftEye', type: 'circle', radius: 1.8, offsetX: -3, offsetY: -17, color: eyeColor, damaged: false },
+            { id: 'rightEye', type: 'circle', radius: 1.8, offsetX: 3, offsetY: -17, color: eyeColor, damaged: false },
+            { id: 'leftPupil', type: 'circle', radius: 0.9, offsetX: -3, offsetY: -17, color: pupilColor, damaged: false },
+            { id: 'rightPupil', type: 'circle', radius: 0.9, offsetX: 3, offsetY: -17, color: pupilColor, damaged: false }
+        ];
+    }
+
+    buildVehicleParts(config) {
+        const width = config.width;
+        const height = config.height;
+        const wheelRadius = Math.max(5, Math.floor(height * 0.24));
+        const windowColor = 'rgba(132, 188, 226, 0.9)';
+        const rearWindowColor = 'rgba(96, 140, 180, 0.85)';
+        const trimColor = '#1f2a36';
+        const lightFront = '#ffe8a3';
+        const lightRear = '#ff6464';
+        return [
+            { id: 'chassis', type: 'rect', width, height, offsetX: -width / 2, offsetY: -height / 2, color: config.baseColor, damaged: false },
+            { id: 'stripe', type: 'rect', width: width * 0.86, height: height * 0.22, offsetX: -width * 0.43, offsetY: -height * 0.12, color: config.accentColor, damaged: false },
+            { id: 'windshield', type: 'rect', width: width * 0.32, height: height * 0.44, offsetX: width * 0.18, offsetY: -height * 0.34, color: windowColor, damaged: false },
+            { id: 'rearGlass', type: 'rect', width: width * 0.28, height: height * 0.4, offsetX: -width * 0.46, offsetY: -height * 0.32, color: rearWindowColor, damaged: false },
+            { id: 'roof', type: 'rect', width: width * 0.6, height: height * 0.48, offsetX: -width * 0.3, offsetY: -height * 0.36, color: config.accentColor, damaged: false },
+            { id: 'trimFront', type: 'rect', width: width * 0.08, height: height * 0.72, offsetX: width / 2 - width * 0.08, offsetY: -height * 0.36, color: trimColor, damaged: false },
+            { id: 'trimRear', type: 'rect', width: width * 0.08, height: height * 0.72, offsetX: -width / 2, offsetY: -height * 0.36, color: trimColor, damaged: false },
+            { id: 'frontLightLeft', type: 'rect', width: width * 0.06, height: height * 0.2, offsetX: width / 2 - width * 0.08, offsetY: -height * 0.35, color: lightFront, damaged: false },
+            { id: 'frontLightRight', type: 'rect', width: width * 0.06, height: height * 0.2, offsetX: width / 2 - width * 0.08, offsetY: height * 0.15, color: lightFront, damaged: false },
+            { id: 'rearLightLeft', type: 'rect', width: width * 0.06, height: height * 0.2, offsetX: -width / 2, offsetY: -height * 0.35, color: lightRear, damaged: false },
+            { id: 'rearLightRight', type: 'rect', width: width * 0.06, height: height * 0.2, offsetX: -width / 2, offsetY: height * 0.15, color: lightRear, damaged: false },
+            { id: 'wheelFrontLeft', type: 'circle', radius: wheelRadius, offsetX: width * 0.28, offsetY: height / 2 - wheelRadius, color: trimColor, damaged: false, visible: false },
+            { id: 'wheelFrontRight', type: 'circle', radius: wheelRadius, offsetX: width * 0.28, offsetY: -height / 2 + wheelRadius, color: trimColor, damaged: false, visible: false },
+            { id: 'wheelRearLeft', type: 'circle', radius: wheelRadius, offsetX: -width * 0.28, offsetY: height / 2 - wheelRadius, color: trimColor, damaged: false, visible: false },
+            { id: 'wheelRearRight', type: 'circle', radius: wheelRadius, offsetX: -width * 0.28, offsetY: -height / 2 + wheelRadius, color: trimColor, damaged: false, visible: false }
+        ];
+    }
+
+    computeCrosswalkArea(crosswalk, index) {
+        const halfRoad = this.roadHalfWidth ?? (this.roadWidth ?? 50) / 2;
+        if (crosswalk.orientation === "horizontal") {
+            const halfSpan = crosswalk.span / 2;
+            return {
+                id: index,
+                orientation: "horizontal",
+                left: crosswalk.x - halfSpan,
+                right: crosswalk.x + halfSpan,
+                top: crosswalk.y - halfRoad,
+                bottom: crosswalk.y + halfRoad
+            };
+        }
+        const halfSpan = crosswalk.span / 2;
+        return {
+            id: index,
+            orientation: "vertical",
+            left: crosswalk.x - halfRoad,
+            right: crosswalk.x + halfRoad,
+            top: crosswalk.y - halfSpan,
+            bottom: crosswalk.y + halfSpan
+        };
+    }
+
+    updateAgents() {
+        if (!this.dynamicAgents) {
+            return;
+        }
+        for (const npc of this.dynamicAgents.npcs) {
+            this.updateNPC(npc);
+        }
+        for (const vehicle of this.dynamicAgents.vehicles) {
+            this.updateVehicle(vehicle, this.dynamicAgents.npcs);
+        }
+    }
+
+    updateNPC(npc) {
+        if (!npc || !npc.path || npc.path.length < 2) {
+            return;
+        }
+        let movingThisFrame = false;
+        if (npc.waitTimer > 0) {
+            npc.waitTimer -= 1;
+        } else {
+            const target = npc.path[npc.waypointIndex];
+            const dx = target.x - npc.x;
+            const dy = target.y - npc.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist <= npc.speed) {
+                npc.x = target.x;
+                npc.y = target.y;
+                npc.waitTimer = target.wait ?? 0;
+                npc.waitingForCrosswalk = target.crosswalkIndex ?? null;
+                npc.waypointIndex = (npc.waypointIndex + 1) % npc.path.length;
+            } else if (dist > 0) {
+                const ratio = npc.speed / dist;
+                npc.x += dx * ratio;
+                npc.y += dy * ratio;
+                movingThisFrame = true;
+            }
+        }
+        if (npc.bounds) {
+            npc.x = Math.max(npc.bounds.left, Math.min(npc.x, npc.bounds.right));
+            npc.y = Math.max(npc.bounds.top, Math.min(npc.y, npc.bounds.bottom));
+        }
+        npc.isCrossing = this.isPointInsideAnyCrosswalk(npc.x, npc.y);
+        if (movingThisFrame && npc.waitTimer === 0) {
+            npc.animationPhase = (npc.animationPhase + npc.speed * 0.08) % (Math.PI * 2);
+        } else {
+            npc.animationPhase *= 0.85;
+        }
+        npc.moving = movingThisFrame && npc.waitTimer === 0;
+        if (!npc.isCrossing && npc.waitTimer === 0 && !npc.moving) {
+            npc.waitingForCrosswalk = null;
+        }
+    }
+
+    updateVehicle(vehicle, npcs) {
+        if (!vehicle || !vehicle.path || vehicle.path.length < 2) {
+            return;
+        }
+        const target = vehicle.path[vehicle.waypointIndex];
+        const dx = target.x - vehicle.x;
+        const dy = target.y - vehicle.y;
+        const dist = Math.hypot(dx, dy);
+        const stepX = dist === 0 ? 0 : (dx / dist) * vehicle.speed;
+        const stepY = dist === 0 ? 0 : (dy / dist) * vehicle.speed;
+        if (vehicle.waitTimer > 0) {
+            vehicle.waitTimer -= 1;
+            return;
+        }
+        if (vehicle.stopTimer > 0) {
+            if (this.shouldVehicleYield(vehicle, stepX, stepY, npcs)) {
+                vehicle.stopTimer = Math.max(vehicle.stopTimer, 6);
+            } else {
+                vehicle.stopTimer -= 1;
+            }
+            return;
+        }
+        if (dist <= vehicle.speed) {
+            vehicle.x = target.x;
+            vehicle.y = target.y;
+            vehicle.waitTimer = target.wait ?? 0;
+            vehicle.waypointIndex = (vehicle.waypointIndex + 1) % vehicle.path.length;
+            return;
+        }
+        if (this.shouldVehicleYield(vehicle, stepX, stepY, npcs)) {
+            vehicle.stopTimer = 12;
+            return;
+        }
+        vehicle.rotation = Math.atan2(stepY, stepX);
+        vehicle.x += stepX;
+        vehicle.y += stepY;
+    }
+
+    updatePlayerAnimation() {
+        if (!this.player || !this.player.parts) {
+            return;
+        }
+        if (this.player.moving) {
+            this.player.animationPhase = (this.player.animationPhase + this.player.speed * 0.12) % (Math.PI * 2);
+        } else {
+            this.player.animationPhase *= 0.85;
+        }
+    }
+
+    shouldVehicleYield(vehicle, stepX, stepY, npcs) {
+        const orientation = Math.abs(stepX) >= Math.abs(stepY) ? "horizontal" : "vertical";
+        const direction = orientation === "horizontal" ? Math.sign(stepX) || 1 : Math.sign(stepY) || 1;
+        const halfWidth = vehicle.width / 2;
+        const halfHeight = vehicle.height / 2;
+        for (const area of this.crosswalkAreas) {
+            if (area.orientation !== orientation) {
+                continue;
+            }
+            if (!this.isVehicleAlignedForCrosswalk(vehicle, area, orientation, halfWidth, halfHeight)) {
+                continue;
+            }
+            if (!this.isVehicleApproachingCrosswalk(vehicle, area, orientation, direction, stepX, stepY, halfWidth, halfHeight)) {
+                continue;
+            }
+            const npcBlocking = npcs.some((npc) => {
+                if (!npc) {
+                    return false;
+                }
+                if (npc.isCrossing && this.isPointInsideArea(npc.x, npc.y, area)) {
+                    return true;
+                }
+                return npc.waitingForCrosswalk === area.id;
+            });
+            if (npcBlocking) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    isVehicleAlignedForCrosswalk(vehicle, area, orientation, halfWidth, halfHeight) {
+        if (orientation === "horizontal") {
+            const yTop = vehicle.y - halfHeight;
+            const yBottom = vehicle.y + halfHeight;
+            return !(yBottom < area.top - 6 || yTop > area.bottom + 6);
+        }
+        const xLeft = vehicle.x - halfWidth;
+        const xRight = vehicle.x + halfWidth;
+        return !(xRight < area.left - 6 || xLeft > area.right + 6);
+    }
+
+    isVehicleApproachingCrosswalk(vehicle, area, orientation, direction, stepX, stepY, halfWidth, halfHeight) {
+        if (orientation === "horizontal") {
+            const frontBefore = direction > 0 ? vehicle.x + halfWidth : vehicle.x - halfWidth;
+            const frontAfter = frontBefore + stepX;
+            if (direction > 0) {
+                return frontBefore <= area.left - 4 && frontAfter >= area.left;
+            }
+            return frontBefore >= area.right + 4 && frontAfter <= area.right;
+        }
+        const frontBefore = direction > 0 ? vehicle.y + halfHeight : vehicle.y - halfHeight;
+        const frontAfter = frontBefore + stepY;
+        if (direction > 0) {
+            return frontBefore <= area.top - 4 && frontAfter >= area.top;
+        }
+        return frontBefore >= area.bottom + 4 && frontAfter <= area.bottom;
+    }
+
+    isPointInsideArea(x, y, area) {
+        return x >= area.left && x <= area.right && y >= area.top && y <= area.bottom;
+    }
+
+    isPointInsideAnyCrosswalk(x, y) {
+        return this.crosswalkAreas.some((area) => this.isPointInsideArea(x, y, area));
+    }
+
+
+
+    drawImprovedRoadSystem() {
         const asphalt = "#2c3036";
         const edgeColor = "#42474f";
         const laneColor = "rgba(255, 224, 150, 0.9)";
@@ -526,14 +963,7 @@ class OverworldGame {
         }
         this.ctx.setLineDash([]);
         this.ctx.restore();
-        const crosswalks = [
-            { x: 1100, y: 1700, orientation: "horizontal", span: 240 },
-            { x: 1700, y: 1700, orientation: "vertical", span: 240 },
-            { x: 1100, y: 900, orientation: "horizontal", span: 240 },
-            { x: 1700, y: 900, orientation: "vertical", span: 240 },
-            { x: 2050, y: 1700, orientation: "horizontal", span: 260 }
-        ];
-        for (const crosswalk of crosswalks) {
+        for (const crosswalk of this.crosswalks) {
             this.drawCrosswalk(crosswalk);
         }
     }
@@ -804,17 +1234,103 @@ class OverworldGame {
             this.drawBusStop(stop);
         }
     }
-    drawAmbientActors() {
-        if (!this.ambientActors) {
+    drawDynamicAgents() {
+        if (!this.dynamicAgents) {
             return;
         }
-        for (const vehicle of this.ambientActors.vehicles) {
-            this.drawVehicle(vehicle);
+        for (const vehicle of this.dynamicAgents.vehicles) {
+            this.drawVehicleParts(vehicle);
         }
-        for (const person of this.ambientActors.people) {
-            this.drawPerson(person);
+        for (const npc of this.dynamicAgents.npcs) {
+            this.drawNPC(npc);
         }
     }
+
+    drawCharacterParts(character) {
+        if (!character || !character.parts) {
+            return;
+        }
+        const phase = character.animationPhase ?? 0;
+        const swing = Math.sin(phase);
+        const bob = (character.moving ? Math.abs(Math.cos(phase)) * 1.2 : 0);
+        const centerX = character.x;
+        const centerY = character.y;
+        for (const part of character.parts) {
+            if (part.id !== 'shadow' || part.damaged) {
+                continue;
+            }
+            this.ctx.save();
+            this.ctx.fillStyle = part.color;
+            if (part.type === 'circle') {
+                this.ctx.beginPath();
+                this.ctx.arc(centerX + part.offsetX, centerY + part.offsetY, part.radius, 0, Math.PI * 2);
+                this.ctx.fill();
+            } else if (part.type === 'rect') {
+                this.ctx.fillRect(centerX + part.offsetX, centerY + part.offsetY, part.width, part.height);
+            }
+            this.ctx.restore();
+        }
+        this.ctx.save();
+        this.ctx.translate(centerX, centerY - bob);
+        for (const part of character.parts) {
+            if (part.damaged || part.id === 'shadow') {
+                continue;
+            }
+            let offsetX = part.offsetX;
+            let offsetY = part.offsetY;
+            if (part.id === 'leftLeg') {
+                offsetY += swing * 2.4;
+            } else if (part.id === 'rightLeg') {
+                offsetY -= swing * 2.4;
+            } else if (part.id === 'leftArm') {
+                offsetY -= swing * 1.9;
+            } else if (part.id === 'rightArm') {
+                offsetY += swing * 1.9;
+            }
+            this.ctx.fillStyle = part.color;
+            if (part.type === 'rect') {
+                this.ctx.fillRect(offsetX, offsetY, part.width, part.height);
+            } else if (part.type === 'circle') {
+                this.ctx.beginPath();
+                this.ctx.arc(offsetX, offsetY, part.radius, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+        }
+        this.ctx.restore();
+    }
+
+    drawNPC(npc) {
+        this.drawCharacterParts(npc);
+    }
+
+    drawVehicleParts(vehicle) {
+        if (!vehicle || !vehicle.parts) {
+            return;
+        }
+        const rotation = vehicle.rotation ?? 0;
+        this.ctx.save();
+        this.ctx.translate(vehicle.x, vehicle.y);
+        this.ctx.rotate(rotation);
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.14)';
+        this.ctx.beginPath();
+        this.ctx.ellipse(0, 0, vehicle.width / 2 + 6, vehicle.height / 2 + 4, 0, 0, Math.PI * 2);
+        this.ctx.fill();
+        for (const part of vehicle.parts) {
+            if (part.damaged || part.visible === false) {
+                continue;
+            }
+            this.ctx.fillStyle = part.color;
+            if (part.type === 'rect') {
+                this.ctx.fillRect(part.offsetX, part.offsetY, part.width, part.height);
+            } else if (part.type === 'circle') {
+                this.ctx.beginPath();
+                this.ctx.arc(part.offsetX, part.offsetY, part.radius, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+        }
+        this.ctx.restore();
+    }
+
     drawParkingBay(bay) {
         const { x, y, width, height } = bay;
         this.ctx.save();
@@ -952,41 +1468,6 @@ class OverworldGame {
         this.ctx.fill();
         this.ctx.restore();
     }
-    drawVehicle(vehicle) {
-        const { x, y, width, height, color, direction, lights } = vehicle;
-        this.ctx.save();
-        this.ctx.fillStyle = color;
-        this.ctx.fillRect(x, y, width, height);
-        this.ctx.fillStyle = "#1f2a36";
-        this.ctx.fillRect(x + 6, y + 6, width - 12, height / 2);
-        if (direction === "east") {
-            this.ctx.fillStyle = "rgba(255, 240, 180, 0.9)";
-            if (lights) {
-                this.ctx.fillRect(x + width - 4, y + 4, 4, height - 8);
-            }
-            this.ctx.fillStyle = "rgba(255, 80, 60, 0.7)";
-            this.ctx.fillRect(x, y + height - 6, 8, 4);
-        } else if (direction === "west") {
-            this.ctx.fillStyle = "rgba(255, 240, 180, 0.9)";
-            if (lights) {
-                this.ctx.fillRect(x, y + 4, 4, height - 8);
-            }
-            this.ctx.fillStyle = "rgba(255, 80, 60, 0.7)";
-            this.ctx.fillRect(x + width - 8, y + height - 6, 8, 4);
-        }
-        this.ctx.restore();
-    }
-    drawPerson(person) {
-        const { x, y, color } = person;
-        this.ctx.save();
-        this.ctx.fillStyle = color;
-        this.ctx.beginPath();
-        this.ctx.arc(x, y - 6, 6, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.fillStyle = "#2f2f2f";
-        this.ctx.fillRect(x - 4, y - 6, 8, 16);
-        this.ctx.restore();
-    }
     drawBuildings() {
         if (!Array.isArray(this.buildings)) {
             console.warn('drawBuildings skipped', this.buildings);
@@ -999,6 +1480,12 @@ class OverworldGame {
                 this.drawPoliceStation(building);
             } else if (building.type === "mixedUse") {
                 this.drawMixedUseBlock(building);
+            } else if (building.type === "officeTower") {
+                this.drawOfficeTower(building);
+            } else if (building.type === "residentialTower") {
+                this.drawResidentialTower(building);
+            } else if (building.type === "weaponShop") {
+                this.drawWeaponShop(building);
             } else if (building.type === "house") {
                 this.drawHouse(building);
             } else if (building.type === "restaurant") {
@@ -1412,6 +1899,126 @@ class OverworldGame {
         this.ctx.fillRect(x - 6, y - 6, width + 12, 6);
         this.ctx.restore();
     }
+
+
+    drawOfficeTower(building) {
+        const { x, y, width, height } = building;
+        this.ctx.save();
+        const facade = this.ctx.createLinearGradient(x, y, x + width, y + height);
+        facade.addColorStop(0, "#1c2738");
+        facade.addColorStop(0.5, "#243750");
+        facade.addColorStop(1, "#101722");
+        this.ctx.fillStyle = facade;
+        this.ctx.fillRect(x, y, width, height);
+        const columnCount = Math.max(3, Math.floor(width / 24));
+        const columnWidth = width / columnCount;
+        for (let i = 0; i < columnCount; i++) {
+            const colX = x + i * columnWidth;
+            const shine = this.ctx.createLinearGradient(colX, y, colX + columnWidth, y);
+            shine.addColorStop(0, "rgba(255, 255, 255, 0.12)");
+            shine.addColorStop(0.5, "rgba(255, 255, 255, 0.02)");
+            shine.addColorStop(1, "rgba(255, 255, 255, 0.16)");
+            this.ctx.fillStyle = shine;
+            this.ctx.fillRect(colX + columnWidth * 0.05, y + 12, columnWidth * 0.9, height - 24);
+        }
+        this.ctx.strokeStyle = "rgba(180, 200, 220, 0.35)";
+        this.ctx.lineWidth = 2;
+        for (let bandY = y + 30; bandY < y + height - 40; bandY += 26) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(x + 12, bandY);
+            this.ctx.lineTo(x + width - 12, bandY);
+            this.ctx.stroke();
+        }
+        this.ctx.fillStyle = "#3a475f";
+        this.ctx.fillRect(x - 8, y - 14, width + 16, 14);
+        this.ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+        this.ctx.fillRect(x - 4, y - 10, width + 8, 6);
+        const lobbyHeight = Math.min(70, height * 0.18);
+        this.ctx.fillStyle = "#121922";
+        this.ctx.fillRect(x - 6, y + height - lobbyHeight, width + 12, lobbyHeight);
+        const glow = this.ctx.createLinearGradient(x - 6, y + height - lobbyHeight, x - 6, y + height);
+        glow.addColorStop(0, "rgba(255, 212, 120, 0.55)");
+        glow.addColorStop(1, "rgba(255, 212, 120, 0)");
+        this.ctx.fillStyle = glow;
+        this.ctx.fillRect(x - 6, y + height - lobbyHeight, width + 12, lobbyHeight);
+        this.ctx.restore();
+    }
+
+    drawResidentialTower(building) {
+        const { x, y, width, height } = building;
+        this.ctx.save();
+        const facade = this.ctx.createLinearGradient(x, y, x + width, y + height);
+        facade.addColorStop(0, "#6d7f91");
+        facade.addColorStop(1, "#3b495a");
+        this.ctx.fillStyle = facade;
+        this.ctx.fillRect(x, y, width, height);
+        const floorHeight = 34;
+        for (let level = y + 28; level < y + height - 64; level += floorHeight) {
+            this.ctx.fillStyle = "rgba(240, 244, 255, 0.55)";
+            this.ctx.fillRect(x + 12, level, width - 24, 18);
+            this.ctx.fillStyle = "#2f3b4c";
+            this.ctx.fillRect(x + 10, level + 18, width - 20, 4);
+        }
+        this.ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+        this.ctx.fillRect(x + width / 2 - 6, y + 16, 12, height - 32);
+        this.ctx.fillStyle = "#38462f";
+        this.ctx.fillRect(x - 4, y - 10, width + 8, 10);
+        this.ctx.fillStyle = "#6fa16c";
+        this.ctx.fillRect(x - 2, y - 8, width + 4, 6);
+        const entryHeight = Math.min(60, height * 0.16);
+        this.ctx.fillStyle = "#1f242f";
+        this.ctx.fillRect(x + width / 2 - 28, y + height - entryHeight, 56, entryHeight);
+        this.ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+        this.ctx.fillRect(x + width / 2 - 22, y + height - entryHeight + 10, 44, entryHeight - 20);
+        this.ctx.restore();
+    }
+
+    drawWeaponShop(building) {
+        const { x, y, width, height } = building;
+        this.ctx.save();
+        const upperHeight = height * 0.62;
+        const facadeGradient = this.ctx.createLinearGradient(x, y, x, y + upperHeight);
+        facadeGradient.addColorStop(0, "#3a3f4b");
+        facadeGradient.addColorStop(1, "#232631");
+        this.ctx.fillStyle = facadeGradient;
+        this.ctx.fillRect(x, y, width, upperHeight);
+        const baseHeight = height - upperHeight;
+        this.ctx.fillStyle = "#151920";
+        this.ctx.fillRect(x, y + upperHeight, width, baseHeight);
+        this.ctx.fillStyle = "#b12a2a";
+        this.ctx.fillRect(x + 20, y + 10, width - 40, 32);
+        this.ctx.strokeStyle = "#ffe3a3";
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(x + 20, y + 10, width - 40, 32);
+        this.ctx.fillStyle = "#ffe3a3";
+        this.ctx.font = "bold 18px Arial";
+        this.ctx.textAlign = "center";
+        this.ctx.fillText("AMMU-NATION", x + width / 2, y + 33);
+        const windowWidth = Math.max(48, (width - 100) / 2);
+        const windowHeight = Math.max(50, upperHeight - 80);
+        this.ctx.fillStyle = "#8db5d8";
+        this.ctx.fillRect(x + 32, y + 60, windowWidth, windowHeight);
+        this.ctx.fillRect(x + width - 32 - windowWidth, y + 60, windowWidth, windowHeight);
+        this.ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
+        this.ctx.fillRect(x + 36, y + 64, windowWidth - 8, windowHeight - 8);
+        this.ctx.fillRect(x + width - 36 - windowWidth + 8, y + 64, windowWidth - 8, windowHeight - 8);
+        const doorWidth = 56;
+        const doorHeight = baseHeight - 12;
+        const doorX = x + width / 2 - doorWidth / 2;
+        const doorY = y + upperHeight + 6;
+        this.ctx.fillStyle = "#11151c";
+        this.ctx.fillRect(doorX, doorY, doorWidth, doorHeight);
+        this.ctx.fillStyle = "#e0c068";
+        this.ctx.fillRect(doorX + doorWidth - 12, doorY + doorHeight / 2 - 3, 6, 6);
+        this.ctx.fillStyle = "#5a4b32";
+        this.ctx.fillRect(x + width - 72, y + upperHeight - 10, 44, 18);
+        this.ctx.fillRect(x + width - 82, y + upperHeight - 30, 44, 18);
+        this.ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
+        this.ctx.strokeRect(x + width - 72, y + upperHeight - 10, 44, 18);
+        this.ctx.strokeRect(x + width - 82, y + upperHeight - 30, 44, 18);
+        this.ctx.restore();
+    }
+
     drawPoliceStation(building) {
         const { x, y, width, height } = building;
         this.ctx.save();
@@ -1605,24 +2212,21 @@ class OverworldGame {
         this.ctx.restore();
     }
     drawPlayer() {
-        this.ctx.fillStyle = this.player.color;
-        this.ctx.fillRect(this.player.x, this.player.y, this.player.width, this.player.height);
-        this.ctx.strokeStyle = "#000";
-        this.ctx.lineWidth = 3;
-        this.ctx.strokeRect(this.player.x, this.player.y, this.player.width, this.player.height);
-        this.ctx.fillStyle = "#FFF";
-        this.ctx.fillRect(this.player.x + 8, this.player.y + 8, 6, 6);
-        this.ctx.fillRect(this.player.x + 16, this.player.y + 8, 6, 6);
-        this.ctx.fillStyle = "#000";
-        this.ctx.fillRect(this.player.x + 10, this.player.y + 10, 2, 2);
-        this.ctx.fillRect(this.player.x + 18, this.player.y + 10, 2, 2);
+        const playerRenderable = {
+            x: this.player.x + this.player.width / 2,
+            y: this.player.y + this.player.height / 2,
+            parts: this.player.parts,
+            animationPhase: this.player.animationPhase ?? 0,
+            moving: this.player.moving
+        };
+        this.drawCharacterParts(playerRenderable);
         if (this.nearBuilding) {
-            this.ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-            this.ctx.fillRect(this.player.x - 15, this.player.y - 40, 60, 30);
-            this.ctx.fillStyle = "#FFF";
-            this.ctx.font = "16px Arial";
-            this.ctx.textAlign = "center";
-            this.ctx.fillText("E", this.player.x + 15, this.player.y - 20);
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            this.ctx.fillRect(this.player.x - 5, this.player.y - 36, 40, 26);
+            this.ctx.fillStyle = '#FFF';
+            this.ctx.font = 'bold 16px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('E', this.player.x + 15, this.player.y - 18);
         }
     }
     drawUI() {
