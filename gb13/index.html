@@ -2,52 +2,67 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Einladung zu meinem 13. Geburtstag</title>
   <style>
-    /* Globale Schriftgröße um 50% erhöhen */
-    html { font-size: 150%; }
-    /* Eigene Schriftarten einbinden */
+    /* Mobile-typisch: keine Auto-Vergrößerung */
+    html {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+      /* Flüssige Basis-Schriftgröße: ~16–18.5px */
+      font-size: clamp(100%, 0.95rem + 0.4vw, 116%);
+    }
+
+    /* Eigene Schriftarten (lassen Fallback zu) */
     @font-face {
       font-family: 'MyFont';
       font-weight: 300;
+      font-display: swap;
       src: url('https://noahmasterball.github.io/index/myfont-Light.ttf') format('truetype');
     }
     @font-face {
       font-family: 'MyFont';
       font-weight: 400;
+      font-display: swap;
       src: url('https://noahmasterball.github.io/index/myfont-Regular.ttf') format('truetype');
     }
+
     :root {
       --primary: #6f42c1;
       --accent: #9c27b0;
       --text: #333;
       --bg: #fafafa;
+      --radius: 12px;
+      --shadow: 0 4px 12px rgba(0,0,0,0.1);
+      --pad: clamp(16px, 3vw, 32px);
+      --container-ch: 72ch; /* angenehme Zeilenlänge */
     }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'MyFont', sans-serif;
+      font-family: 'MyFont', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
       background: var(--bg);
       color: var(--text);
       line-height: 1.6;
     }
+
     header {
       background: linear-gradient(135deg, var(--primary), var(--accent));
-      height: 300px; /* Erhöht, damit der Container weiter unten beginnt */
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      min-height: min(28vh, 220px);
+      display: grid;
+      place-items: center;
       position: relative;
       overflow: hidden;
+      padding: 16px;
     }
     header::after {
       content: '';
       position: absolute;
-      top: -50%; left: -50%;
-      width: 200%; height: 200%;
-      background: rgba(255,255,255,0.1);
+      inset: -50%;
+      background: rgba(255,255,255,0.08);
       transform: rotate(45deg);
-      animation: slide 10s linear infinite;
+      animation: slide 12s linear infinite;
+      pointer-events: none;
     }
     @keyframes slide {
       from { transform: rotate(45deg) translate(0,0); }
@@ -57,44 +72,57 @@
       text-align: center;
       font-weight: 400;
       color: #fff;
-      padding: 0 20px;
+      /* Fluides H1 */
+      font-size: clamp(1.2rem, 1rem + 2vw, 2rem);
+      max-width: 90%;
     }
+
     .container {
-      max-width: 900px;
-      margin: 20px auto 40px; /* Angepasst: kein Überlappen mehr */
+      /* Max über ch statt px → bessere Lesbarkeit */
+      max-width: min(100%, var(--container-ch));
+      margin: clamp(12px, 3vw, 24px) auto 40px;
       background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
       overflow: hidden;
     }
+
     .section {
-      padding: 40px;
+      padding: var(--pad);
       border-bottom: 1px solid #eee;
+      word-wrap: break-word;
+      overflow-wrap: anywhere;
     }
     .section:last-child { border-bottom: none; }
+
     .section h2 {
-      font-weight: 400;
+      font-weight: 500;
       color: var(--primary);
-      margin-bottom: 15px;
+      margin-bottom: 10px;
+      line-height: 1.25;
+      font-size: clamp(1.05rem, 0.95rem + 0.8vw, 1.35rem);
       position: relative;
-      line-height: 1.2;
     }
     .section h2::after {
       content: '';
       display: block;
-      width: 50px;
+      width: 48px;
       height: 4px;
       background: var(--accent);
       margin-top: 6px;
       border-radius: 2px;
     }
-    .section p, .section ul {
-      margin-top: 10px;
+
+    .section h3 {
+      margin-top: 12px;
+      font-size: clamp(1rem, 0.95rem + 0.5vw, 1.15rem);
     }
+
+    .section p, .section ul { margin-top: 10px; }
     ul { list-style: none; }
     ul li {
       position: relative;
-      padding-left: 30px;
+      padding-left: 28px;
       margin-bottom: 8px;
     }
     ul li::before {
@@ -103,30 +131,45 @@
       left: 0;
       top: 0;
     }
-    .buttons { margin-top: 20px; }
+
+    .buttons { margin-top: 16px; display: grid; gap: 10px; }
     a.button {
       display: inline-block;
-      margin-right: 15px;
-      padding: 12px 24px;
-      font-weight: 300;
+      text-align: center;
+      padding: 12px 16px;
+      font-weight: 400;
       text-decoration: none;
-      border-radius: 6px;
+      border-radius: 8px;
       background: linear-gradient(135deg, var(--primary), var(--accent));
       color: #fff;
       box-shadow: 0 6px 15px rgba(0,0,0,0.1);
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+      /* Auf Mobil: full width */
+      width: 100%;
     }
     a.button:hover {
-      transform: translateY(-4px);
+      transform: translateY(-2px);
       box-shadow: 0 10px 20px rgba(0,0,0,0.15);
-      background: linear-gradient(135deg, var(--accent), var(--primary));
+      filter: brightness(1.05);
     }
+
+    /* Bilder responsiv & mit Radius */
+    img { max-width: 100%; height: auto; border-radius: 8px; display:block; }
+
     footer {
       text-align: center;
-      padding: 20px;
-      font-size: 0.9rem;
+      padding: 16px;
+      font-size: 0.95rem;
       color: #777;
       font-weight: 300;
+    }
+
+    /* Dichte auf sehr kleinen Viewports reduzieren */
+    @media (max-width: 420px) {
+      .section { padding: 14px; }
+      header { min-height: 180px; }
+      ul li { padding-left: 24px; }
+      .section h2::after { width: 40px; }
     }
   </style>
 </head>
@@ -134,6 +177,7 @@
   <header>
     <h1>Einladung zum 13. Geburtstag mit Weekend-Overnight-Stay im Center Parcs Exklusivhaus!</h1>
   </header>
+
   <div class="container">
     <!-- Treffpunkt -->
     <div class="section">
@@ -145,6 +189,7 @@
       <p><strong>Verabschiedung von Eltern:</strong> Hier verabschieden sich eure Eltern von euch.</p>
       <p>Dann fahren wir gemeinsam zur Geburtstagsunterkunft mit zwei Autos.</p>
     </div>
+
     <!-- Ablauf & Anreise -->
     <div class="section">
       <h2>🏫 Ablauf &amp; Anreise</h2>
@@ -154,6 +199,7 @@
       <p>Ihr benötigt nur (evtl. extra) ausreichend Kleidung, Hygieneartikel (z.B. Zahnbürste) und Schwimmsachen – sonst nichts.</p>
       <p>Schaut euch gerne unten den Parkplan und das Haus an.</p>
     </div>
+
     <!-- Abreise -->
     <div class="section">
       <h2>🚗 Abreise</h2>
@@ -162,7 +208,8 @@
         <li>Nach der Schule geht ihr dann ganz normal nach Hause.</li>
       </ul>
     </div>
-    <!-- Unterkunft: Datum & Ort + Details -->
+
+    <!-- Unterkunft -->
     <div class="section">
       <h2>🏡 Unterkunft: Datum &amp; Ort</h2>
       <ul>
@@ -170,85 +217,84 @@
         <li><strong>Dauer:</strong> 3 Nächte (26.–29. September 2025)</li>
         <li>Exklusives Ferienhaus für 8 Personen (Haus Nr. 860)</li>
         <li>Unteres Stockwerk mit 3 Doppelzimmern reserviert nur für Kinder</li>
-      
-    </ul>
+      </ul>
       <div class="buttons">
-        <a class="button" href="https://photos.centerparcs.com/user/plan/DE/AG.pdf" target="_blank">Lageplan Haus 860</a>
-        <a class="button" href="https://www.centerparcs.de/de-de/deutschland/fp_AG_ferienpark-park-allgaeu" target="_blank">Park-Info</a>
+        <a class="button" href="https://photos.centerparcs.com/user/plan/DE/AG.pdf" target="_blank" rel="noopener">Lageplan Haus 860</a>
+        <a class="button" href="https://www.centerparcs.de/de-de/deutschland/fp_AG_ferienpark-park-allgaeu" target="_blank" rel="noopener">Park-Info</a>
       </div>
     </div>
+
     <!-- Programm -->
- 
-  <div class="section">
-    <h2>Geplante Aktivitäten & Tagesabläufe</h2>
-    <p>Änderungen/Absagen jederzeit möglich. 👉 Bitte bei Fragen oder Änderungswünschen direkt an uns wenden – nicht in eine Gruppe schreiben, um diese übersichtlich zu halten.</p>
+    <div class="section">
+      <h2>Geplante Aktivitäten & Tagesabläufe</h2>
+      <p>Änderungen/Absagen jederzeit möglich. 👉 Bitte bei Fragen oder Änderungswünschen direkt an uns wenden – nicht in eine Gruppe schreiben, um diese übersichtlich zu halten.</p>
 
-    <div class="day">
-      <h3>📅 Freitag, 26. September</h3>
+      <div class="day">
+        <h3>📅 Freitag, 26. September</h3>
+        <ul>
+          <li>16:00–17:00 – Zimmer beziehen, TV-Stick & WLAN einrichten</li>
+          <li>17:00–18:00 – Gelände erkunden, Supermarktbesuch</li>
+          <li>18:00–19:00 – Abendessen (gehen, bestellen oder kochen)</li>
+          <li>19:00–20:00 – Bowling</li>
+          <li>Ab 20:00 – Freie Verfügung im Zimmer (TV/YouTube)</li>
+        </ul>
+      </div>
+
+      <div class="day">
+        <h3>📅 Samstag, 27. September</h3>
+        <ul>
+          <li>11:00–11:45 – Laser Tag</li>
+          <li>12:00–12:45 – Laser Tag (Nochmal!)</li>
+          <li>12:45–14:00 – Marktbesuch & Mittagessen</li>
+          <li>Anschließend – Freie Verfügung & Zimmerzeit</li>
+          <li>16:00–17:30 – High Adventure Park</li>
+          <li>Ab 17:30 – Abendessen (Grillen, gehen, bestellen oder kochen)</li>
+          <li>Danach – Freie Verfügung im Zimmer (TV/YouTube)</li>
+        </ul>
+      </div>
+
+      <div class="day">
+        <h3>📅 Sonntag, 28. September</h3>
+        <ul>
+          <li>10:00–15:00 – Schwimmen & Mittagessen</li>
+          <li>15:15–16:00 – Indoor-Kletterparadies</li>
+          <li>16:15–17:00 – Minigolf (Indoor)</li>
+          <li>Anschließend – Abendessen (Grillen, gehen, bestellen oder kochen)</li>
+          <li>Danach – Freie Verfügung im Zimmer (TV/YouTube)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Mitbringen</h2>
       <ul>
-        <li>16:00–17:00 – Zimmer beziehen, TV-Stick & WLAN einrichten</li>
-        <li>17:00–18:00 – Gelände erkunden, Supermarktbesuch</li>
-        <li>18:00–19:00 – Abendessen (gehen, bestellen oder kochen)</li>
-        <li>19:00–20:00 – Bowling</li>
-        <li>Ab 20:00 – Freie Verfügung im Zimmer (TV/YouTube)</li>
+        <li>🧳 Keine Handtücher oder Bettwäsche notwendig</li>
+        <li>✔ Ausreichend Kleidung</li>
+        <li>✔ Hygieneartikel (z. B. Zahnbürste)</li>
+        <li>✔ Schwimmsachen</li>
+        <li>✔ TV Stick (Netflix, YouTube) – (Jedes Kinderzimmer ist mit einem Fernseher ausgestattet)</li>
       </ul>
     </div>
 
-    <div class="day">
-      <h3>📅 Samstag, 27. September</h3>
-      <ul>
-        <li>11:00–11:45 – Laser Tag</li>
-        <li>12:00–12:45 – Laser Tag (Nochmal !)</li>
-        <li>12:45–14:00 – Marktbesuch & Mittagessen</li>
-        <li>Anschließend – Freie Verfügung & Zimmerzeit</li>
-        <li>16:00–17:30 – High Adventure Park</li>
-        <li>Ab 17:30 – Abendessen (Grillen, gehen, bestellen oder kochen)</li>
-        <li>Danach – Freie Verfügung im Zimmer (TV/YouTube)</li>
-      </ul>
+    <div class="section">
+      <h2>Zimmerausstattung</h2>
+      <p>
+        <img src="aus1.png" alt="Übersichtsbild 1" style="margin-bottom:16px;">
+        <img src="aus2.png" alt="Übersichtsbild 2">
+      </p>
     </div>
 
-    <div class="day">
-      <h3>📅 Sonntag, 28. September</h3>
-      <ul>
-        <li>10:00–15:00 – Schwimmen & Mittagessen</li>
-        <li>15:15–16:00 – Indoor-Kletterparadies</li>
-        <li>16:15–17:00 – Minigolf (Indoor)</li>
-        <li>Anschließend – Abendessen (Grillen, gehen, bestellen oder kochen)</li>
-        <li>Danach – Freie Verfügung im Zimmer (TV/YouTube)</li>
-      </ul>
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>Mitbringen</h2>
-    <ul>
-      <li>🧳 Keine Handtücher oder Bettwäsche notwendig</li>
-      <li>✔ Ausreichend Kleidung</li>
-      <li>✔ Hygieneartikel (z. B. Zahnbürste)</li>
-      <li>✔ Schwimmsachen</li>
-      <li>✔ TV Stick (Netflix, Youtube) - (Jedes Kinderzimmer ist mit einem Fernseher ausgestattet)</li>
-    </ul>
-  </div>
-
-  <div class="section">
-    <h2>Zimmerausstattung</h2>
-    <p><img src="aus1.png" alt="Übersichtsbild" style="max-width:100%; height:auto; margin-bottom:20px;">
-    <img src="aus2.png" alt="Übersichtsbild" style="max-width:100%; height:auto; margin-bottom:20px;">
-  </p>
-  </div>
-    <!-- Unterlagen -->
     <div class="section">
       <h2>📋 Unterlagen</h2>
       <p>Alles fertig. Danke!</p>
     </div>
-    <!-- Rückmeldung -->
+
     <div class="section">
       <h2>🎁 Kontakt</h2>
-      <p>Uns ist klar, dass eure Eltern euch ein ganzes Wochenende nicht haben und eventuell viele Fragen haben. Diese können meine Eltern gerne ausführlich beantworten - einfach direkt an diese schreiben. (Nicht in eine Gruppe schreiben, um diese übersichtlich zu halten.)</p>
+      <p>Uns ist klar, dass eure Eltern euch ein ganzes Wochenende nicht haben und eventuell viele Fragen haben. Diese können meine Eltern gerne ausführlich beantworten – einfach direkt an diese schreiben. (Nicht in eine Gruppe schreiben, um diese übersichtlich zu halten.)</p>
     </div>
   </div>
-  <footer>
-    Wir freuen uns schon riesig – das wird ein Spaß! 🎂
-  </footer>
+
+  <footer>Wir freuen uns schon riesig – das wird ein Spaß! 🎂</footer>
 </body>
 </html>
