@@ -128,6 +128,8 @@ class OverworldGame {
 
         this.buildings = this.createCityBuildings();
 
+        this.sidewalkObstacles = this.createSidewalkObstacles(this.buildings);
+
         console.log("Buildings prepared", Array.isArray(this.buildings) ? this.buildings.length : this.buildings);
 
         this.streetDetails = this.createStreetDetails();
@@ -892,6 +894,228 @@ class OverworldGame {
 
     }
 
+    createSidewalkObstacles(buildings) {
+
+        if (!Array.isArray(buildings)) {
+
+            return [];
+
+        }
+
+        const clearance = Math.max(4, Math.min(12, (this.sidewalkWidth ?? 36) * 0.35));
+
+        const obstacles = [];
+
+        for (const building of buildings) {
+
+            if (!building) {
+
+                continue;
+
+            }
+
+            const candidates = [];
+
+            if (Array.isArray(building.collisionRects) && building.collisionRects.length > 0) {
+
+                for (const rect of building.collisionRects) {
+
+                    if (!rect) {
+
+                        continue;
+
+                    }
+
+                    const rawWidth = Number(rect.width ?? 0);
+
+                    const rawHeight = Number(rect.height ?? 0);
+
+                    if (!(rawWidth > 0 && rawHeight > 0)) {
+
+                        continue;
+
+                    }
+
+                    const rectPadding = Math.max(0, rect.padding ?? 0);
+
+                    const paddedWidth = rawWidth - rectPadding * 2;
+
+                    const paddedHeight = rawHeight - rectPadding * 2;
+
+                    if (!(paddedWidth > 0 && paddedHeight > 0)) {
+
+                        continue;
+
+                    }
+
+                    const resolvedX = Number(rect.x ?? building.x ?? 0);
+
+                    const resolvedY = Number(rect.y ?? building.y ?? 0);
+
+                    candidates.push({
+
+                        x: resolvedX + rectPadding,
+
+                        y: resolvedY + rectPadding,
+
+                        width: paddedWidth,
+
+                        height: paddedHeight
+
+                    });
+
+                }
+
+            }
+
+            if (candidates.length === 0) {
+
+                const baseWidth = Number(building.width ?? 0);
+
+                const baseHeight = Number(building.height ?? 0);
+
+                if (baseWidth > 0 && baseHeight > 0) {
+
+                    const basePadding = Math.max(0, building.collisionPadding ?? 0);
+
+                    const paddedWidth = baseWidth - basePadding * 2;
+
+                    const paddedHeight = baseHeight - basePadding * 2;
+
+                    if (paddedWidth > 0 && paddedHeight > 0) {
+
+                        candidates.push({
+
+                            x: Number(building.x ?? 0) + basePadding,
+
+                            y: Number(building.y ?? 0) + basePadding,
+
+                            width: paddedWidth,
+
+                            height: paddedHeight
+
+                        });
+
+                    }
+
+                }
+
+            }
+
+            for (const rect of candidates) {
+
+                obstacles.push({
+
+                    x: rect.x - clearance,
+
+                    y: rect.y - clearance,
+
+                    width: rect.width + clearance * 2,
+
+                    height: rect.height + clearance * 2
+
+                });
+
+            }
+
+        }
+
+        return obstacles;
+
+    }
+
+    pushPointOutOfObstacles(point, corridor) {
+
+        const obstacles = Array.isArray(this.sidewalkObstacles) ? this.sidewalkObstacles : [];
+
+        if (!point || !obstacles.length) {
+
+            const fallbackX = point && point.x != null ? Number(point.x) : 0;
+
+            const fallbackY = point && point.y != null ? Number(point.y) : 0;
+
+            return { x: fallbackX, y: fallbackY };
+
+        }
+
+        let px = Number(point.x ?? 0);
+
+        let py = Number(point.y ?? 0);
+
+        const maxIterations = 6;
+
+        const epsilon = 1;
+
+        for (let i = 0; i < maxIterations; i++) {
+
+            const blocker = obstacles.find((rect) => rect && this.isPointInsideRect(px, py, rect));
+
+            if (!blocker) {
+
+                break;
+
+            }
+
+            const rectX = Number(blocker.x ?? 0);
+
+            const rectY = Number(blocker.y ?? 0);
+
+            const rectW = Math.max(0, Number(blocker.width ?? 0));
+
+            const rectH = Math.max(0, Number(blocker.height ?? 0));
+
+            if (!(rectW > 0 && rectH > 0)) {
+
+                break;
+
+            }
+
+            const distanceLeft = px - rectX;
+
+            const distanceRight = rectX + rectW - px;
+
+            const distanceTop = py - rectY;
+
+            const distanceBottom = rectY + rectH - py;
+
+            const minDistance = Math.min(distanceLeft, distanceRight, distanceTop, distanceBottom);
+
+            if (minDistance === distanceLeft) {
+
+                px = rectX - epsilon;
+
+            } else if (minDistance === distanceRight) {
+
+                px = rectX + rectW + epsilon;
+
+            } else if (minDistance === distanceTop) {
+
+                py = rectY - epsilon;
+
+            } else {
+
+                py = rectY + rectH + epsilon;
+
+            }
+
+            if (corridor) {
+
+                const maxX = corridor.x + Math.max(0, corridor.width);
+
+                const maxY = corridor.y + Math.max(0, corridor.height);
+
+                px = Math.min(Math.max(px, corridor.x), maxX);
+
+                py = Math.min(Math.max(py, corridor.y), maxY);
+
+            }
+
+        }
+
+        return { x: px, y: py };
+
+    }
+
     projectPointToSidewalk(x, y) {
 
         const corridors = Array.isArray(this.sidewalkCorridors) ? this.sidewalkCorridors : [];
@@ -902,11 +1126,49 @@ class OverworldGame {
 
         }
 
+        const obstacles = Array.isArray(this.sidewalkObstacles) ? this.sidewalkObstacles : [];
+
+        const pointIsClear = (px, py) => {
+
+            if (!obstacles.length) {
+
+                return true;
+
+            }
+
+            for (const rect of obstacles) {
+
+                if (rect && this.isPointInsideRect(px, py, rect)) {
+
+                    return false;
+
+                }
+
+            }
+
+            return true;
+
+        };
+
         for (const rect of corridors) {
 
-            if (this.isPointInsideRect(x, y, rect)) {
+            if (!rect || !this.isPointInsideRect(x, y, rect)) {
+
+                continue;
+
+            }
+
+            if (pointIsClear(x, y)) {
 
                 return { x, y, inside: true };
+
+            }
+
+            const pushed = this.pushPointOutOfObstacles({ x, y }, rect);
+
+            if (pointIsClear(pushed.x, pushed.y) && this.isPointInsideRect(pushed.x, pushed.y, rect)) {
+
+                return { x: pushed.x, y: pushed.y, inside: true };
 
             }
 
@@ -914,7 +1176,13 @@ class OverworldGame {
 
         let closest = { x, y, inside: false };
 
+        let closestCorridor = null;
+
         let bestDist = Infinity;
+
+        let bestClear = null;
+
+        let bestClearDist = Infinity;
 
         for (const rect of corridors) {
 
@@ -926,9 +1194,15 @@ class OverworldGame {
 
             const clamped = this.clampPointToRect(x, y, rect);
 
-            const dx = x - clamped.x;
+            const resolved = this.pushPointOutOfObstacles(clamped, rect);
 
-            const dy = y - clamped.y;
+            const resolvedInside = this.isPointInsideRect(resolved.x, resolved.y, rect);
+
+            const isClear = pointIsClear(resolved.x, resolved.y);
+
+            const dx = x - resolved.x;
+
+            const dy = y - resolved.y;
 
             const distSq = dx * dx + dy * dy;
 
@@ -936,9 +1210,43 @@ class OverworldGame {
 
                 bestDist = distSq;
 
-                closest = { x: clamped.x, y: clamped.y, inside: false };
+                closest = { x: resolved.x, y: resolved.y, inside: resolvedInside && isClear };
+
+                closestCorridor = rect;
 
             }
+
+            if (isClear && distSq < bestClearDist) {
+
+                bestClearDist = distSq;
+
+                bestClear = { x: resolved.x, y: resolved.y, inside: resolvedInside };
+
+            }
+
+        }
+
+        if (bestClear) {
+
+            return { x: bestClear.x, y: bestClear.y, inside: bestClear.inside };
+
+        }
+
+        if (!pointIsClear(closest.x, closest.y) && closestCorridor) {
+
+            const pushed = this.pushPointOutOfObstacles(closest, closestCorridor);
+
+            const stillClear = pointIsClear(pushed.x, pushed.y);
+
+            return {
+
+                x: pushed.x,
+
+                y: pushed.y,
+
+                inside: stillClear && this.isPointInsideRect(pushed.x, pushed.y, closestCorridor)
+
+            };
 
         }
 
