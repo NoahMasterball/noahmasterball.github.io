@@ -13,6 +13,9 @@
       font-size: clamp(100%, 0.95rem + 0.4vw, 116%);
     }
 
+    /* Harte Verhinderung von horizontalem Scrollen */
+    html, body { overflow-x: hidden; }
+
     /* Eigene Schriftarten (lassen Fallback zu) */
     @font-face {
       font-family: 'MyFont';
@@ -35,7 +38,13 @@
       --radius: 12px;
       --shadow: 0 4px 12px rgba(0,0,0,0.1);
       --pad: clamp(16px, 3vw, 32px);
-      --container-ch: 72ch; /* angenehme Zeilenlänge */
+
+      /* Neu: Breiten-Logik */
+      --container-max: 1200px;   /* maximale Gesamtbreite am Desktop */
+      --text-max: 72ch;          /* angenehme Zeilenlänge für Fließtext */
+
+      /* alte Variable kann bleiben, wird aber nicht mehr zur Begrenzung genutzt */
+      --container-ch: 72ch;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -72,23 +81,24 @@
       text-align: center;
       font-weight: 400;
       color: #fff;
-    
-      /* Fluides H1 wie gehabt */
+
+      /* Fluides H1 */
       font-size: clamp(1.2rem, 1rem + 2vw, 2rem);
-    
+
       /* WICHTIG: darf im Grid schrumpfen */
       min-width: 0;
-    
+
       /* Schöne, robuste Umbrüche */
       max-inline-size: clamp(24ch, 90vw, 32ch);
-      overflow-wrap: anywhere;   /* bricht auch “zusammengeklebte” Worte */
+      overflow-wrap: anywhere;
       word-break: normal;
-      hyphens: auto;             /* Silbentrennung (lang="de" ist gesetzt) */
-      text-wrap: balance;        /* ausgewogene Zeilen (moderne Browser) */
+      hyphens: auto;
+      text-wrap: balance;
     }
-    .container {
-      /* Max über ch statt px → bessere Lesbarkeit */
-      max-width: min(100%, var(--container-ch));
+
+    /* Container: jetzt wirklich responsiv */
+    .container{
+      width: min(100%, var(--container-max));
       margin: clamp(12px, 3vw, 24px) auto 40px;
       background: #fff;
       border-radius: var(--radius);
@@ -128,6 +138,14 @@
     }
 
     .section p, .section ul { margin-top: 10px; }
+
+    /* Textblöcke: max. Zeilenlänge für gute Lesbarkeit auch bei breitem Container */
+    .section > p,
+    .section > ul,
+    .section > ol {
+      max-inline-size: var(--text-max);
+    }
+
     ul { list-style: none; }
     ul li {
       position: relative;
@@ -153,7 +171,6 @@
       color: #fff;
       box-shadow: 0 6px 15px rgba(0,0,0,0.1);
       transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
-      /* Auf Mobil: full width */
       width: 100%;
     }
     a.button:hover {
@@ -171,6 +188,19 @@
       font-size: 0.95rem;
       color: #777;
       font-weight: 300;
+    }
+
+    /* Handy: wirklich randlos & ohne Schatten – echte Vollbreite */
+    @media (max-width: 768px){
+      .container{
+        width: 100svw;      /* nutzt die sichtbare Viewport-Breite (auch mit Notch) */
+        margin: 0;          /* kein Außenabstand -> keine weißen Ränder */
+        border-radius: 0;   /* Vollflächen-Layout */
+        box-shadow: none;
+      }
+      .section{ padding: 16px; }
+      /* Optional: Header randlos strecken */
+      header{ margin: 0 calc(50% - 50svw); }
     }
 
     /* Dichte auf sehr kleinen Viewports reduzieren */
