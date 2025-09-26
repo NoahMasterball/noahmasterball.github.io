@@ -72,11 +72,20 @@
       text-align: center;
       font-weight: 400;
       color: #fff;
-      /* Fluides H1 */
+    
+      /* Fluides H1 wie gehabt */
       font-size: clamp(1.2rem, 1rem + 2vw, 2rem);
-      max-width: 90%;
+    
+      /* WICHTIG: darf im Grid schrumpfen */
+      min-width: 0;
+    
+      /* Schöne, robuste Umbrüche */
+      max-inline-size: clamp(24ch, 90vw, 32ch);
+      overflow-wrap: anywhere;   /* bricht auch “zusammengeklebte” Worte */
+      word-break: normal;
+      hyphens: auto;             /* Silbentrennung (lang="de" ist gesetzt) */
+      text-wrap: balance;        /* ausgewogene Zeilen (moderne Browser) */
     }
-
     .container {
       /* Max über ch statt px → bessere Lesbarkeit */
       max-width: min(100%, var(--container-ch));
@@ -235,7 +244,7 @@
           <li>16:00–17:00 – Zimmer beziehen, TV-Stick & WLAN einrichten</li>
           <li>17:00–18:00 – Gelände erkunden, Supermarktbesuch</li>
           <li>18:00–19:00 – Abendessen (gehen, bestellen oder kochen)</li>
-          <li>19:00–20:00 – Abgesagt von Centerparcs (Renovierung): <del>Bowling</del></li>
+          <li><del>19:00–20:00 – Bowling (Abgesagt von Centerparcs(Renovierung))</del></li>
           <li>Ab 20:00 – Freie Verfügung im Zimmer (TV/YouTube)</li>
         </ul>
       </div>
@@ -247,7 +256,7 @@
           <li>12:00–12:45 – Laser Tag (Nochmal!)</li>
           <li>12:45–14:00 – Marktbesuch & Mittagessen</li>
           <li>Anschließend – Freie Verfügung & Zimmerzeit</li>
-          <li>16:00–17:30 – Abgesagt von Centerparcs: <del>High Adventure Park</del></li>
+          <li><del>16:00–17:30 – High Adventure Park (Abgesagt von Centerparcs)</del></li>
           <li>Ab 17:30 – Abendessen (Grillen, gehen, bestellen oder kochen)</li>
           <li>Danach – Freie Verfügung im Zimmer (TV/YouTube)</li>
         </ul>
