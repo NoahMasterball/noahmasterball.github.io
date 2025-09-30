@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diamond Casino</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="menu-background">
+        <div class="container">
+            <!-- Hauptmenü-Bereich -->
+            <div id="main-menu" class="main-menu-area">
+                <header>
+                    <h1 class="main-title">Diamond Casino</h1>
+                </header>
+                <nav class="main-menu">
+                    <button class="menu-btn" data-section="play">Enter</button>
+                    <button class="menu-btn" data-section="leave" id="leaveCasino">Zurueck zur Stadt</button>
+                </nav>
+            </div>
+
+            <div id="content-area">
+                <!-- Spielauswahl -->
+                <div class="game-selection">
+                    <h2>Wählen Sie Ihr Spiel</h2>
+                    <button class="game-option" data-game="slots">Slot Machine</button>
+                    <button class="game-option" data-game="blackjack">Blackjack</button>
+                    <button class="game-option" data-game="roulette">Roulette</button>
+                    <button class="game-option" data-game="ridethetrain">Ride the Train</button>
+                    <button class="back-button">Zurück zum Hauptmenü</button>
+                </div>
+
+                <!-- Slot Machine -->
+                <div class="slot-machine">
+                    <button class="back-button">Zurück zur Spielauswahl</button>
+                    <div class="credits-display">Credits: 100</div>
+                    <div class="bet-area">
+                        <label for="bet-amount">Einsatz:</label>
+                        <input type="number" id="bet-amount" min="1" value="10" step="1" />
+                    </div>
+                    <div class="slot-display">
+                        <div class="slot-reel"></div>
+                        <div class="slot-reel"></div>
+                        <div class="slot-reel"></div>
+                    </div>
+                    <div class="controls">
+                        <button class="spin-button">SPIN</button>
+                    </div>
+                    <div id="slot-message" class="slot-message"></div>
+                </div>
+
+                <!-- Blackjack -->
+                <div class="blackjack-game" style="display:none;">
+                    <div class="blackjack-header" style="display: flex; gap: 16px; align-items: center; margin-bottom: 10px;">
+                        <button class="back-button">Zurück zur Spielauswahl</button>
+                        <button class="restart-button">Erneut spielen</button>
+                    </div>
+                    <div class="blackjack-table">
+                        <div class="blackjack-players">
+                            <div class="opponent-area">
+                                <div class="opponent-label">Gegner</div>
+                                <div class="opponent-cards">
+                                    <img class="opponent-card" src="" alt="Karte 1" />
+                                    <img class="opponent-card" src="" alt="Karte 2" />
+                                    <img class="opponent-card extra" style="display:none;" src="" alt="Karte 3" />
+                                    <img class="opponent-card extra" style="display:none;" src="" alt="Karte 4" />
+                                </div>
+                            </div>
+                            <div class="player-area">
+                                <div class="player-label">Du</div>
+                                <div class="player-cards">
+                                    <img class="player-card" src="" alt="Karte 1" />
+                                    <img class="player-card" src="" alt="Karte 2" />
+                                    <img class="player-card extra" style="display:none;" src="" alt="Karte 3" />
+                                    <img class="player-card extra" style="display:none;" src="" alt="Karte 4" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="blackjack-controls-and-points">
+                            <div class="blackjack-controls">
+                                <button class="hit-button">Hit</button>
+                                <button class="stand-button">Stand</button>
+                            </div>
+                            <div class="points-area">
+                                <span>Deine Punkte: <span class="player-points">0</span></span>
+                            </div>
+                            <div class="blackjack-bet-area">
+                                <label for="blackjack-bet">Einsatz:</label>
+                                <input type="number" id="blackjack-bet" min="1" value="10" step="1" />
+                            </div>
+                            <div class="blackjack-credits-display">Credits: <span id="blackjack-credits">100</span></div>
+                        </div>
+                    </div>
+                    <div class="blackjack-message"></div>
+                </div>
+
+                <!-- Roulette -->
+                <div class="roulette-game" style="display:none;">
+                    <button class="back-button">Zurück zur Spielauswahl</button>
+                    <div class="roulette-container">
+                        <div class="roulette-wheel-container">
+                            <div class="roulette-pointer"></div>
+                            <img src="bilder/roulette/rouletteweel.png" alt="Roulette Rad" class="roulette-wheel">
+                        </div>
+                        <div class="roulette-betting-board">
+                            <div class="roulette-numbers"></div>
+                        </div>
+                    </div>
+                    <div class="roulette-controls">
+                        <div class="credits-display">Credits: <span id="roulette-credits">100</span></div>
+                        <div class="bet-area">
+                            <label for="roulette-bet">Einsatz:</label>
+                            <input type="number" id="roulette-bet" min="1" value="10" step="1" />
+                        </div>
+                        <button class="spin-button">SPIN</button>
+                    </div>
+                    <div class="roulette-message"></div>
+                </div>
+
+                <!-- Ride the Train -->
+                <div class="ridethetrain-game" style="display:none;">
+                    <button class="back-button">Zurück zur Spielauswahl</button>
+                    <div class="ridethetrain-container">
+                        <div class="ridethetrain-header">
+                            <div class="credits-display">Credits: <span id="ridethetrain-credits">100</span></div>
+                            <div class="header-right">
+                                <div class="multiplier-display">Multiplikator: <span id="ridethetrain-multiplier">x1</span></div>
+                                <div class="score-display">Score: <span id="ridethetrain-score">0</span></div>
+                            </div>
+                        </div>
+                        <div class="ridethetrain-cards"></div>
+                        <div class="ridethetrain-controls">
+                            <div class="level-1-controls">
+                                <button class="red-button">Rot</button>
+                                <button class="black-button">Schwarz</button>
+                            </div>
+                            <div class="level-2-controls" style="display:none;">
+                                <button class="karo-button">Karo</button>
+                                <button class="kreuz-button">Kreuz</button>
+                            </div>
+                            <div class="level-3-controls" style="display:none;">
+                                <button class="between-button">Zwischen</button>
+                                <button class="outside-button">Außerhalb</button>
+                            </div>
+                        </div>
+                        <button class="exit-button" style="margin-top: 16px; display: none;">Aussteigen und Gewinn nehmen</button>
+                        <div class="ridethetrain-message"></div>
+                    </div>
+                    <button id="rtt-restart-button" class="restart-button" disabled>Erneut spielen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Dateien -->
+    <script src="js/game.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/blackjack.js"></script>
+    <script src="js/roulette.js"></script>
+    <script src="js/ridethetrain.js"></script>
+</body>
+</html> 

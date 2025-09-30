@@ -97,6 +97,32 @@ class OverworldGame {
         this.nearBuilding = null;
 
         this.interactionUI = document.getElementById("buildingInteraction");
+        this.scene = "overworld";
+
+        this.activeInterior = null;
+
+        this.overworldReturnState = null;
+
+        this.projectiles = [];
+
+        this.bloodDecals = [];
+
+        this.firingState = { active: false, justPressed: false, lastShotAt: 0 };
+
+        this.mouse = { x: 0, y: 0, worldX: 0, worldY: 0 };
+
+        this.weaponsCatalog = this.createWeaponCatalog();
+
+        this.weaponInventory = new Set(["pistol"]);
+
+
+
+        this.weaponOrder = ["pistol", "smg", "assaultRifle", "shotgun"];
+
+
+
+        this.currentWeaponId = "pistol";
+
 
         // FESTE HAUSFARBEN - keine zufÃ¤lligen Farben mehr!
 
@@ -160,111 +186,425 @@ class OverworldGame {
 
     setupInput() {
 
+
+
         document.addEventListener("keydown", (e) => {
 
-            this.keys[e.key.toLowerCase()] = true;
 
-            if (e.key.toLowerCase() === "e" && this.nearBuilding) {
 
-                this.showBuildingInteraction(this.nearBuilding);
+            const key = e.key.toLowerCase();
+
+
+
+            this.keys[key] = true;
+
+
+
+            if (/^[1-9]$/.test(key)) {
+
+
+
+                this.selectWeaponByIndex(Number(key));
+
+
 
             }
 
+
+
+            if (key === "escape") {
+
+
+
+                if (this.scene !== "overworld") {
+
+
+
+                    this.exitInterior();
+
+
+
+                }
+
+
+
+                return;
+
+
+
+            }
+
+
+
+            if (this.scene === "weaponShop") {
+
+
+
+                if (key === "e") {
+
+
+
+                    this.handleWeaponShopInteraction();
+
+
+
+                }
+
+
+
+                return;
+
+
+
+            }
+
+
+
+            if (key === "e" && this.nearBuilding && this.nearBuilding.interactive) {
+
+
+
+                this.showBuildingInteraction(this.nearBuilding);
+
+
+
+            }
+
+
+
         });
+
+
 
         document.addEventListener("keyup", (e) => {
 
-            this.keys[e.key.toLowerCase()] = false;
+
+
+            const key = e.key.toLowerCase();
+
+
+
+            this.keys[key] = false;
+
+
 
         });
+
+
+
+        this.canvas.addEventListener("mousemove", (e) => {
+
+
+
+            const rect = this.canvas.getBoundingClientRect();
+
+
+
+            this.mouse.x = e.clientX - rect.left;
+
+
+
+            this.mouse.y = e.clientY - rect.top;
+
+
+
+            this.updateMouseWorldPosition();
+
+
+
+        });
+
+
+
+        this.canvas.addEventListener("mousedown", (e) => {
+
+
+
+            if (e.button === 0) {
+
+
+
+                this.firingState.active = true;
+
+
+
+                this.firingState.justPressed = true;
+
+
+
+            }
+
+
+
+        });
+
+
+
+        document.addEventListener("mouseup", (e) => {
+
+
+
+            if (e.button === 0) {
+
+
+
+                this.firingState.active = false;
+
+
+
+                this.firingState.justPressed = false;
+
+
+
+            }
+
+
+
+        });
+
+
 
     }
 
     setupUI() {
 
+
+
         document.getElementById("enterBuilding").addEventListener("click", () => {
 
-            if (this.nearBuilding && this.nearBuilding.type === "casino") {
 
-                window.location.href = "../casinogame/index.html";
 
-            } else {
+            if (!this.nearBuilding) {
 
-                alert("Dieses GebÃ¤ude ist noch nicht verfÃ¼gbar!");
+
+
+                this.hideBuildingInteraction();
+
+
+
+                return;
+
+
 
             }
 
+
+
+            const type = this.nearBuilding.type;
+
+
+
+            if (type === "casino") {
+
+
+
+                window.location.href = "../casinogame/index.html";
+
+
+
+            } else if (type === "weaponShop") {
+
+
+
+                this.enterWeaponShop(this.nearBuilding);
+
+
+
+            } else {
+
+
+
+                alert("Dieses Gebäude ist noch nicht verfügbar!");
+
+
+
+            }
+
+
+
             this.hideBuildingInteraction();
 
+
+
         });
+
+
 
         document.getElementById("cancelInteraction").addEventListener("click", () => {
 
+
+
             this.hideBuildingInteraction();
 
+
+
         });
+
+
 
     }
 
     update() {
 
-        this.handleInput();
 
-        this.updateCamera();
 
-        this.checkBuildingCollisions();
+        const now = performance.now();
 
-        this.updateAgents();
+
+
+        if (this.scene === "weaponShop") {
+
+
+
+            this.handleInput();
+
+
+
+            this.updateWeaponShopState();
+
+
+
+        } else {
+
+
+
+            this.handleInput();
+
+
+
+            this.updateCamera();
+
+
+
+            this.checkBuildingCollisions();
+
+
+
+            this.updateAgents();
+
+
+
+        }
+
+
+
+        this.processPlayerFiring(now);
+
+
+
+        this.updateProjectiles();
+
+
 
         this.updatePlayerAnimation();
 
+
+
         this.updateFPS();
+
+
 
     }
 
     handleInput() {
 
+
+
+        if (this.scene === "weaponShop") {
+
+
+
+            this.handleWeaponShopMovement();
+
+
+
+            return;
+
+
+
+        }
+
+
+
         let dx = 0;
+
+
 
         let dy = 0;
 
+
+
         const sprinting = this.keys["shift"] || this.keys["shiftleft"] || this.keys["shiftright"];
+
+
 
         const speed = this.player.baseSpeed * (sprinting ? this.player.sprintMultiplier : 1);
 
+
+
         this.player.speed = speed;
+
+
 
         if (this.keys["w"] || this.keys["arrowup"]) dy -= speed;
 
+
+
         if (this.keys["s"] || this.keys["arrowdown"]) dy += speed;
+
+
 
         if (this.keys["a"] || this.keys["arrowleft"]) dx -= speed;
 
+
+
         if (this.keys["d"] || this.keys["arrowright"]) dx += speed;
+
+
 
         this.player.moving = dx !== 0 || dy !== 0;
 
-        let newX = this.player.x + dx;
 
-        let newY = this.player.y + dy;
 
-        // Weltgrenzen - grÃ¶ÃŸere Welt
+        const newX = this.player.x + dx;
+
+
+
+        const newY = this.player.y + dy;
+
+
 
         const worldWidth = 3600;
 
+
+
         const worldHeight = 3000;
+
+
 
         if (newX >= 0 && newX <= worldWidth - this.player.width) {
 
+
+
             this.player.x = newX;
 
+
+
         }
+
+
 
         if (newY >= 0 && newY <= worldHeight - this.player.height) {
 
+
+
             this.player.y = newY;
 
+
+
         }
+
+
 
     }
 
@@ -454,7 +794,7 @@ class OverworldGame {
 
                 }
 
-                if (!buildingIsNear) {
+                if (!buildingIsNear && building.interactive) {
 
                     const interactionRange = 60;
 
@@ -478,7 +818,7 @@ class OverworldGame {
 
             }
 
-            if (buildingIsNear) {
+            if (buildingIsNear && building.interactive) {
 
                 this.nearBuilding = building;
 
@@ -528,747 +868,664 @@ class OverworldGame {
 
     render() {
 
+
+
         this.ctx.clearRect(0, 0, this.width, this.height);
+
+
+
+        if (this.scene === "weaponShop") {
+
+
+
+            this.renderWeaponShopInterior();
+
+
+
+            this.drawProjectiles();
+
+
+
+            this.drawWeaponShopOverlay();
+
+
+
+            this.drawUI();
+
+
+
+            return;
+
+
+
+        }
+
+
 
         this.ctx.save();
 
+
+
         this.ctx.translate(-this.camera.x, -this.camera.y);
 
-        // GrundflÃ¤che in warmem GrÃ¼n, leicht entsÃ¤ttigt fÃ¼r Golden-Hour-Stimmung
+
 
         this.ctx.fillStyle = "#7da57a";
 
+
+
         this.ctx.fillRect(0, 0, 3600, 3000);
+
+
 
         this.drawImprovedRoadSystem();
 
+
+
         this.drawSidewalks();
+
+
 
         this.drawStreetDetails();
 
+
+
         this.drawBuildings();
+
+
+
+        this.drawBloodDecals();
+
+
 
         this.drawDynamicAgents();
 
+
+
+        this.drawProjectiles();
+
+
+
         this.drawPlayer();
+
+
 
         this.drawGoldenHourLighting();
 
+
+
         this.ctx.restore();
+
+
 
         this.drawUI();
 
+
+
     }
+    renderWeaponShopInterior() {
 
-    createHouseStyles() {
+        const interior = this.activeInterior;
 
-        return [
+        if (!interior) {
 
-            {
+            return;
 
-                base: "#c37e61",
+        }
 
-                accent: "#f7e3c4",
+        if (interior.originX === undefined || interior.originY === undefined) {
 
-                roof: "#3a3a3a",
+            interior.originX = Math.max(0, Math.floor((this.width - interior.width) / 2));
 
-                highlight: "#fcd9a9",
+            interior.originY = Math.max(0, Math.floor((this.height - interior.height) / 2));
 
-                balcony: "#d97757",
+        }
 
-                metallic: "#6f8fa6",
+        this.ctx.save();
 
-                roofGarden: true,
+        this.ctx.translate(interior.originX, interior.originY);
 
-                floors: 6
+        this.ctx.fillStyle = "#242831";
 
-            },
+        this.ctx.fillRect(0, 0, interior.width, interior.height);
 
-            {
+        const floorGradient = this.ctx.createLinearGradient(0, 0, 0, interior.height);
 
-                base: "#d4d0c5",
+        floorGradient.addColorStop(0, "#2d323e");
 
-                accent: "#faf6ec",
+        floorGradient.addColorStop(1, "#1d222b");
 
-                roof: "#494949",
+        this.ctx.fillStyle = floorGradient;
 
-                highlight: "#ffe4ba",
+        this.ctx.fillRect(12, 12, interior.width - 24, interior.height - 24);
 
-                balcony: "#9fb4c7",
+        this.ctx.strokeStyle = "rgba(10, 12, 16, 0.7)";
 
-                metallic: "#6d7c8e",
+        this.ctx.lineWidth = 6;
 
-                roofGarden: false,
+        this.ctx.strokeRect(12, 12, interior.width - 24, interior.height - 24);
 
-                floors: 5
+        const exit = interior.exitZone;
 
-            },
+        this.ctx.fillStyle = "#0f1217";
 
-            {
+        this.ctx.fillRect(exit.x - 2, exit.y - 4, exit.width + 4, exit.height + 8);
 
-                base: "#8e9faa",
+        this.ctx.fillStyle = "#c9d1d9";
 
-                accent: "#e4eef5",
+        this.ctx.fillRect(exit.x, exit.y, exit.width, exit.height);
 
-                roof: "#2d3a4a",
+        this.ctx.fillStyle = "#4cc9f0";
 
-                highlight: "#abd1ff",
+        this.ctx.fillRect(exit.x + exit.width / 2 - 12, exit.y + 4, 24, exit.height - 8);
 
-                balcony: "#5f7ba6",
+        const counter = interior.counter;
 
-                metallic: "#95c4d8",
+        this.ctx.fillStyle = "#1d2129";
 
-                roofGarden: true,
+        this.ctx.fillRect(counter.x - 6, counter.y - 6, counter.width + 12, counter.height + 12);
 
-                floors: 7
+        this.ctx.fillStyle = "#3f444f";
 
-            },
+        this.ctx.fillRect(counter.x, counter.y, counter.width, counter.height);
 
-            {
+        this.ctx.fillStyle = "rgba(120, 186, 255, 0.22)";
 
-                base: "#b8a089",
+        this.ctx.fillRect(counter.x + 6, counter.y + 8, counter.width - 12, counter.height - 24);
 
-                accent: "#f1dfc6",
+        this.ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
 
-                roof: "#4d4338",
+        this.ctx.fillRect(counter.x + 12, counter.y + 12, counter.width - 24, 6);
 
-                highlight: "#ffd9ae",
+        for (const display of interior.displayCases) {
 
-                balcony: "#f17a52",
+            const glassY = counter.y + 12;
 
-                metallic: "#a88a6d",
+            this.ctx.save();
 
-                roofGarden: true,
+            if (interior.nearDisplay && interior.nearDisplay.id === display.id) {
 
-                floors: 4
+                this.ctx.shadowColor = "rgba(76, 201, 240, 0.8)";
 
-            },
-
-            {
-
-                base: "#9d9aa7",
-
-                accent: "#ebe8f2",
-
-                roof: "#2f2b3f",
-
-                highlight: "#d4c1ff",
-
-                balcony: "#7f89c2",
-
-                metallic: "#616f9d",
-
-                roofGarden: false,
-
-                floors: 6
-
-            },
-
-            {
-
-                base: "#c4b087",
-
-                accent: "#f3e5c3",
-
-                roof: "#4a4131",
-
-                highlight: "#ffcc8a",
-
-                balcony: "#dda15e",
-
-                metallic: "#b7c4c8",
-
-                roofGarden: true,
-
-                floors: 5
+                this.ctx.shadowBlur = 18;
 
             }
 
-        ]
+            this.ctx.fillStyle = "rgba(120, 186, 255, 0.28)";
+
+            this.ctx.fillRect(display.x, glassY, display.width, counter.height - 32);
+
+            this.ctx.restore();
+
+            this.ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+
+            this.ctx.lineWidth = 2;
+
+            this.ctx.strokeRect(display.x, glassY, display.width, counter.height - 32);
+
+            const labelY = counter.y + counter.height + 22;
+
+            this.ctx.fillStyle = "#e5e9f0";
+
+            this.ctx.font = "14px Arial";
+
+            this.ctx.textAlign = "center";
+
+            this.ctx.fillText(display.label, display.x + display.width / 2, labelY);
+
+            const weapon = this.getWeaponDefinition(display.weaponId);
+
+            if (weapon) {
+
+                this.drawWeaponSilhouette(display.x + display.width / 2, glassY + (counter.height - 32) / 2, weapon);
+
+            }
+
+        }
+
+        this.ctx.textAlign = "center";
+
+        this.ctx.fillStyle = "#f1f3f5";
+
+        this.ctx.font = "22px Arial";
+
+        this.ctx.fillText("AMMU-NATION", interior.width / 2, 54);
+
+        this.ctx.fillStyle = "#ffad33";
+
+        this.ctx.fillRect(interior.width / 2 - 70, 62, 140, 6);
+
+        const playerRenderable = {
+
+            x: this.player.x,
+
+            y: this.player.y,
+
+            parts: this.player.parts,
+
+            animationPhase: this.player.animationPhase ?? 0,
+
+            moving: this.player.moving
+
+        };
+
+        this.drawCharacterParts(playerRenderable);
+
+        this.ctx.restore();
 
     }
 
-    createCrosswalks() {
+    drawWeaponSilhouette(cx, cy, weapon) {
 
-        return [
+        this.ctx.save();
 
-            { x: 1100, y: 1700, orientation: "horizontal", span: 240 },
+        this.ctx.translate(cx, cy);
 
-            { x: 1700, y: 1700, orientation: "vertical", span: 240 },
+        this.ctx.fillStyle = weapon.displayColor ?? "#ffd166";
 
-            { x: 1100, y: 900, orientation: "horizontal", span: 240 },
+        this.ctx.strokeStyle = "rgba(0, 0, 0, 0.35)";
 
-            { x: 1700, y: 900, orientation: "vertical", span: 240 },
+        this.ctx.lineWidth = 2;
 
-            { x: 2050, y: 1700, orientation: "horizontal", span: 260 }
+        switch (weapon.id) {
+
+            case "pistol":
+
+                this.ctx.fillRect(-22, -4, 30, 8);
+
+                this.ctx.fillRect(-12, 4, 8, 16);
+
+                break;
+
+            case "smg":
+
+                this.ctx.fillRect(-36, -5, 58, 10);
+
+                this.ctx.fillRect(-12, 5, 12, 18);
+
+                this.ctx.fillRect(8, -2, 6, 12);
+
+                break;
+
+            case "assaultRifle":
+
+                this.ctx.fillRect(-46, -5, 70, 10);
+
+                this.ctx.fillRect(-32, 5, 10, 18);
+
+                this.ctx.fillRect(12, -8, 6, 16);
+
+                this.ctx.fillRect(25, -2, 14, 4);
+
+                break;
+
+            case "shotgun":
+
+                this.ctx.fillRect(-50, -4, 74, 8);
+
+                this.ctx.fillRect(-32, 4, 10, 16);
+
+                this.ctx.fillRect(12, -2, 8, 12);
+
+                break;
+
+            default:
+
+                this.ctx.fillRect(-30, -4, 60, 8);
+
+                break;
+
+        }
+
+        this.ctx.restore();
+
+    }
+
+    drawWeaponShopOverlay() {
+
+        if (this.scene !== "weaponShop" || !this.activeInterior) {
+
+            return;
+
+        }
+
+        const interior = this.activeInterior;
+
+        const weapon = this.getCurrentWeapon();
+
+        this.ctx.save();
+
+        this.ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+
+        this.ctx.fillRect(20, 20, 380, 160);
+
+        this.ctx.fillStyle = "#ffffff";
+
+        this.ctx.font = "18px Arial";
+
+        this.ctx.fillText("Ammu-Nation Showroom", 40, 50);
+
+        this.ctx.font = "14px Arial";
+
+        this.ctx.fillText("Aktuelle Waffe: " + (weapon ? weapon.name : "Keine"), 40, 78);
+
+        this.ctx.fillText("WASD: Bewegen, Shift: Rennen", 40, 104);
+
+        this.ctx.fillText("Linke Maustaste: Feuer", 40, 128);
+
+        this.ctx.fillText("E oder ESC: Aktion / Verlassen", 40, 152);
+
+        if (interior.nearDisplay) {
+
+            const displayWeapon = this.getWeaponDefinition(interior.nearDisplay.weaponId);
+
+            this.ctx.fillStyle = "#a4fba6";
+
+            this.ctx.fillText("E drücken um " + (displayWeapon ? displayWeapon.name : "Waffe") + " auszurüsten", 40, 176);
+
+        } else if (interior.playerNearExit) {
+
+            this.ctx.fillStyle = "#ffd166";
+
+            this.ctx.fillText("E drücken um den Laden zu verlassen", 40, 176);
+
+        } else if (interior.messageText) {
+
+            this.ctx.fillStyle = "#8ce0ff";
+
+            this.ctx.fillText(interior.messageText, 40, 176);
+
+        }
+
+        this.ctx.restore();
+
+    }
+
+    createWeaponShopInterior() {
+
+
+
+        const width = 720;
+
+
+
+        const height = 420;
+
+
+
+        const margin = 36;
+
+
+
+        const counterHeight = 96;
+
+
+
+        const counter = {
+
+
+
+            x: margin,
+
+
+
+            y: 110,
+
+
+
+            width: width - margin * 2,
+
+
+
+            height: counterHeight
+
+
+
+        };
+
+
+
+        const caseGap = 18;
+
+
+
+        const caseDefinitions = [
+
+
+
+            { id: "case_pistol", weaponId: "pistol", label: "Pistolen", interactionRadius: 78 },
+
+
+
+            { id: "case_smg", weaponId: "smg", label: "Maschinenpistolen", interactionRadius: 84 },
+
+
+
+            { id: "case_rifle", weaponId: "assaultRifle", label: "Sturmgewehre", interactionRadius: 92 },
+
+
+
+            { id: "case_shotgun", weaponId: "shotgun", label: "Schrotflinten", interactionRadius: 88 },
+
+
 
         ];
 
-    }
 
 
+        const displayWidth = (counter.width - caseGap * (caseDefinitions.length - 1) - 24) / caseDefinitions.length;
 
-    createCityRoadLayout() {
 
-        const roads = [];
 
-        const verticalCorridors = [200, 950, 1700, 2450, 3350];
+        const displayHeight = counter.height - 32;
 
-        const horizontalCorridors = [200, 900, 1700, 2400, 2800];
 
-        for (let y of horizontalCorridors) {
 
-            roads.push({ type: "horizontal", startX: 200, endX: 3400, y });
+        const displayCases = caseDefinitions.map((def, index) => ({
 
-        }
 
-        for (let x of verticalCorridors) {
 
-            roads.push({ type: "vertical", x, startY: 200, endY: 2800 });
+            id: def.id,
 
-        }
 
-        roads.push({ type: "horizontal", startX: 950, endX: 1700, y: 1260 });
 
-        roads.push({ type: "horizontal", startX: 950, endX: 1700, y: 2100 });
+            weaponId: def.weaponId,
 
-        roads.push({ type: "vertical", x: 1330, startY: 1700, endY: 2400 });
 
-        roads.push({ type: "vertical", x: 2050, startY: 900, endY: 1700 });
 
-        return roads;
+            label: def.label,
 
-    }
 
-    createSidewalkCorridors() {
 
-        const corridors = [];
+            interactionRadius: def.interactionRadius,
 
-        const roads = Array.isArray(this.roadLayout) ? this.roadLayout : [];
 
-        const sidewalkWidth = this.sidewalkWidth ?? 36;
 
-        const halfRoad = this.roadHalfWidth ?? ((this.roadWidth ?? 70) / 2);
+            x: counter.x + 12 + index * (displayWidth + caseGap),
 
-        const extension = sidewalkWidth;
 
-        for (const road of roads) {
 
-            if (!road) {
+            width: displayWidth,
 
-                continue;
 
-            }
 
-            if (road.type === "horizontal") {
+        }));
 
-                const startRaw = Number(road.startX ?? road.x ?? 0);
 
-                const endRaw = Number(road.endX ?? startRaw);
 
-                const startX = Math.min(startRaw, endRaw);
+        const exitZone = {
 
-                const endX = Math.max(startRaw, endRaw);
 
-                const y = Number(road.y ?? 0);
 
-                const width = Math.max(0, endX - startX);
+            x: width / 2 - 80,
 
-                const spanWidth = width + extension * 2;
 
-                const offsetX = startX - extension;
 
-                const upperY = y - halfRoad - sidewalkWidth;
+            y: height - margin - 24,
 
-                const lowerY = y + halfRoad;
 
-                corridors.push({
 
-                    x: offsetX,
+            width: 160,
 
-                    y: upperY,
 
-                    width: spanWidth,
 
-                    height: sidewalkWidth
+            height: 36,
 
-                });
 
-                corridors.push({
 
-                    x: offsetX,
+        };
 
-                    y: lowerY,
 
-                    width: spanWidth,
 
-                    height: sidewalkWidth
+        return {
 
-                });
 
-            } else if (road.type === "vertical") {
 
-                const startRaw = Number(road.startY ?? road.y ?? 0);
+            width,
 
-                const endRaw = Number(road.endY ?? startRaw);
 
-                const startY = Math.min(startRaw, endRaw);
 
-                const endY = Math.max(startRaw, endRaw);
+            height,
 
-                const x = Number(road.x ?? 0);
 
-                const height = Math.max(0, endY - startY);
 
-                const spanHeight = height + extension * 2;
+            margin,
 
-                const offsetY = startY - extension;
 
-                const leftX = x - halfRoad - sidewalkWidth;
 
-                const rightX = x + halfRoad;
+            entry: { x: width / 2, y: height - margin - 60 },
 
-                corridors.push({
 
-                    x: leftX,
 
-                    y: offsetY,
+            exitZone,
 
-                    width: sidewalkWidth,
 
-                    height: spanHeight
 
-                });
+            counter,
 
-                corridors.push({
 
-                    x: rightX,
 
-                    y: offsetY,
+            displayCases: displayCases.map((d) => ({ ...d, height: displayHeight })),
 
-                    width: sidewalkWidth,
 
-                    height: spanHeight
 
-                });
+            obstacles: [counter],
 
-            }
 
-        }
 
-        const crosswalkAreas = Array.isArray(this.crosswalkAreas) ? this.crosswalkAreas : [];
+            playerRadius: 14,
 
-        const crosswalkPadding = sidewalkWidth * 0.35;
 
-        for (const area of crosswalkAreas) {
 
-            if (!area) {
+            nearDisplay: null,
 
-                continue;
 
-            }
 
-            const left = Number(area.left ?? area.x ?? 0);
+            playerNearExit: false,
 
-            const top = Number(area.top ?? area.y ?? 0);
 
-            const right = Number(area.right ?? left);
 
-            const bottom = Number(area.bottom ?? top);
+            messageText: null,
 
-            corridors.push({
 
-                x: left - crosswalkPadding,
 
-                y: top - crosswalkPadding,
+            messageTimer: 0,
 
-                width: Math.max(0, (right - left) + crosswalkPadding * 2),
 
-                height: Math.max(0, (bottom - top) + crosswalkPadding * 2)
 
-            });
+        };
 
-        }
 
-        return corridors;
 
     }
 
-    createSidewalkObstacles(buildings) {
+    handleWeaponShopMovement() {
 
-        if (!Array.isArray(buildings)) {
+        if (!this.activeInterior) {
 
-            return [];
+            return;
 
         }
 
-        const clearance = Math.max(4, Math.min(12, (this.sidewalkWidth ?? 36) * 0.35));
+        const interior = this.activeInterior;
 
-        const obstacles = [];
+        let dx = 0;
 
-        for (const building of buildings) {
+        let dy = 0;
 
-            if (!building) {
+        const sprinting = this.keys["shift"] || this.keys["shiftleft"] || this.keys["shiftright"];
 
-                continue;
+        const base = this.player.baseSpeed * 0.9;
 
-            }
+        const speed = sprinting ? base * 1.4 : base;
 
-            const candidates = [];
+        if (this.keys["w"] || this.keys["arrowup"]) dy -= speed;
 
-            if (Array.isArray(building.collisionRects) && building.collisionRects.length > 0) {
+        if (this.keys["s"] || this.keys["arrowdown"]) dy += speed;
 
-                for (const rect of building.collisionRects) {
+        if (this.keys["a"] || this.keys["arrowleft"]) dx -= speed;
 
-                    if (!rect) {
+        if (this.keys["d"] || this.keys["arrowright"]) dx += speed;
 
-                        continue;
+        this.player.speed = speed;
 
-                    }
+        const radius = interior.playerRadius ?? 14;
 
-                    const rawWidth = Number(rect.width ?? 0);
+        const margin = interior.margin ?? 36;
 
-                    const rawHeight = Number(rect.height ?? 0);
+        if (dx !== 0) {
 
-                    if (!(rawWidth > 0 && rawHeight > 0)) {
+            const candidateX = Math.max(radius + margin, Math.min(this.player.x + dx, interior.width - radius - margin));
 
-                        continue;
+            if (!this.circleHitsAnyObstacle(candidateX, this.player.y, radius, interior.obstacles)) {
 
-                    }
-
-                    const rectPadding = Math.max(0, rect.padding ?? 0);
-
-                    const paddedWidth = rawWidth - rectPadding * 2;
-
-                    const paddedHeight = rawHeight - rectPadding * 2;
-
-                    if (!(paddedWidth > 0 && paddedHeight > 0)) {
-
-                        continue;
-
-                    }
-
-                    const resolvedX = Number(rect.x ?? building.x ?? 0);
-
-                    const resolvedY = Number(rect.y ?? building.y ?? 0);
-
-                    candidates.push({
-
-                        x: resolvedX + rectPadding,
-
-                        y: resolvedY + rectPadding,
-
-                        width: paddedWidth,
-
-                        height: paddedHeight
-
-                    });
-
-                }
-
-            }
-
-            if (candidates.length === 0) {
-
-                const baseWidth = Number(building.width ?? 0);
-
-                const baseHeight = Number(building.height ?? 0);
-
-                if (baseWidth > 0 && baseHeight > 0) {
-
-                    const basePadding = Math.max(0, building.collisionPadding ?? 0);
-
-                    const paddedWidth = baseWidth - basePadding * 2;
-
-                    const paddedHeight = baseHeight - basePadding * 2;
-
-                    if (paddedWidth > 0 && paddedHeight > 0) {
-
-                        candidates.push({
-
-                            x: Number(building.x ?? 0) + basePadding,
-
-                            y: Number(building.y ?? 0) + basePadding,
-
-                            width: paddedWidth,
-
-                            height: paddedHeight
-
-                        });
-
-                    }
-
-                }
-
-            }
-
-            for (const rect of candidates) {
-
-                obstacles.push({
-
-                    x: rect.x - clearance,
-
-                    y: rect.y - clearance,
-
-                    width: rect.width + clearance * 2,
-
-                    height: rect.height + clearance * 2
-
-                });
+                this.player.x = candidateX;
 
             }
 
         }
 
-        return obstacles;
+        if (dy !== 0) {
+
+            const candidateY = Math.max(radius + margin, Math.min(this.player.y + dy, interior.height - radius - margin));
+
+            if (!this.circleHitsAnyObstacle(this.player.x, candidateY, radius, interior.obstacles)) {
+
+                this.player.y = candidateY;
+
+            }
+
+        }
+
+        this.player.moving = dx !== 0 || dy !== 0;
+
+        this.updateMouseWorldPosition();
 
     }
 
-    pushPointOutOfObstacles(point, corridor) {
+    circleHitsAnyObstacle(x, y, radius, obstacles) {
 
-        const obstacles = Array.isArray(this.sidewalkObstacles) ? this.sidewalkObstacles : [];
+        if (!Array.isArray(obstacles)) {
 
-        if (!point || !obstacles.length) {
-
-            const fallbackX = point && point.x != null ? Number(point.x) : 0;
-
-            const fallbackY = point && point.y != null ? Number(point.y) : 0;
-
-            return { x: fallbackX, y: fallbackY };
+            return false;
 
         }
 
-        let px = Number(point.x ?? 0);
+        for (const obstacle of obstacles) {
 
-        let py = Number(point.y ?? 0);
-
-        const maxIterations = 6;
-
-        const epsilon = 1;
-
-        for (let i = 0; i < maxIterations; i++) {
-
-            const blocker = obstacles.find((rect) => rect && this.isPointInsideRect(px, py, rect));
-
-            if (!blocker) {
-
-                break;
-
-            }
-
-            const rectX = Number(blocker.x ?? 0);
-
-            const rectY = Number(blocker.y ?? 0);
-
-            const rectW = Math.max(0, Number(blocker.width ?? 0));
-
-            const rectH = Math.max(0, Number(blocker.height ?? 0));
-
-            if (!(rectW > 0 && rectH > 0)) {
-
-                break;
-
-            }
-
-            const distanceLeft = px - rectX;
-
-            const distanceRight = rectX + rectW - px;
-
-            const distanceTop = py - rectY;
-
-            const distanceBottom = rectY + rectH - py;
-
-            const minDistance = Math.min(distanceLeft, distanceRight, distanceTop, distanceBottom);
-
-            if (minDistance === distanceLeft) {
-
-                px = rectX - epsilon;
-
-            } else if (minDistance === distanceRight) {
-
-                px = rectX + rectW + epsilon;
-
-            } else if (minDistance === distanceTop) {
-
-                py = rectY - epsilon;
-
-            } else {
-
-                py = rectY + rectH + epsilon;
-
-            }
-
-            if (corridor) {
-
-                const maxX = corridor.x + Math.max(0, corridor.width);
-
-                const maxY = corridor.y + Math.max(0, corridor.height);
-
-                px = Math.min(Math.max(px, corridor.x), maxX);
-
-                py = Math.min(Math.max(py, corridor.y), maxY);
-
-            }
-
-        }
-
-        return { x: px, y: py };
-
-    }
-
-    projectPointToSidewalk(x, y) {
-
-        const corridors = Array.isArray(this.sidewalkCorridors) ? this.sidewalkCorridors : [];
-
-        if (!corridors.length) {
-
-            return { x, y, inside: false };
-
-        }
-
-        const obstacles = Array.isArray(this.sidewalkObstacles) ? this.sidewalkObstacles : [];
-
-        const pointIsClear = (px, py) => {
-
-            if (!obstacles.length) {
+            if (this.circleIntersectsRect(x, y, radius, obstacle)) {
 
                 return true;
 
             }
 
-            for (const rect of obstacles) {
-
-                if (rect && this.isPointInsideRect(px, py, rect)) {
-
-                    return false;
-
-                }
-
-            }
-
-            return true;
-
-        };
-
-        for (const rect of corridors) {
-
-            if (!rect || !this.isPointInsideRect(x, y, rect)) {
-
-                continue;
-
-            }
-
-            if (pointIsClear(x, y)) {
-
-                return { x, y, inside: true };
-
-            }
-
-            const pushed = this.pushPointOutOfObstacles({ x, y }, rect);
-
-            if (pointIsClear(pushed.x, pushed.y) && this.isPointInsideRect(pushed.x, pushed.y, rect)) {
-
-                return { x: pushed.x, y: pushed.y, inside: true };
-
-            }
-
         }
 
-        let closest = { x, y, inside: false };
-
-        let closestCorridor = null;
-
-        let bestDist = Infinity;
-
-        let bestClear = null;
-
-        let bestClearDist = Infinity;
-
-        for (const rect of corridors) {
-
-            if (!rect) {
-
-                continue;
-
-            }
-
-            const clamped = this.clampPointToRect(x, y, rect);
-
-            const resolved = this.pushPointOutOfObstacles(clamped, rect);
-
-            const resolvedInside = this.isPointInsideRect(resolved.x, resolved.y, rect);
-
-            const isClear = pointIsClear(resolved.x, resolved.y);
-
-            const dx = x - resolved.x;
-
-            const dy = y - resolved.y;
-
-            const distSq = dx * dx + dy * dy;
-
-            if (distSq < bestDist) {
-
-                bestDist = distSq;
-
-                closest = { x: resolved.x, y: resolved.y, inside: resolvedInside && isClear };
-
-                closestCorridor = rect;
-
-            }
-
-            if (isClear && distSq < bestClearDist) {
-
-                bestClearDist = distSq;
-
-                bestClear = { x: resolved.x, y: resolved.y, inside: resolvedInside };
-
-            }
-
-        }
-
-        if (bestClear) {
-
-            return { x: bestClear.x, y: bestClear.y, inside: bestClear.inside };
-
-        }
-
-        if (!pointIsClear(closest.x, closest.y) && closestCorridor) {
-
-            const pushed = this.pushPointOutOfObstacles(closest, closestCorridor);
-
-            const stillClear = pointIsClear(pushed.x, pushed.y);
-
-            return {
-
-                x: pushed.x,
-
-                y: pushed.y,
-
-                inside: stillClear && this.isPointInsideRect(pushed.x, pushed.y, closestCorridor)
-
-            };
-
-        }
-
-        return closest;
+        return false;
 
     }
 
-    clampPointToRect(x, y, rect) {
-
-        const maxX = rect.x + Math.max(0, rect.width);
-
-        const maxY = rect.y + Math.max(0, rect.height);
-
-        const clampedX = Math.min(Math.max(x, rect.x), maxX);
-
-        const clampedY = Math.min(Math.max(y, rect.y), maxY);
-
-        return { x: clampedX, y: clampedY };
-
-    }
-
-    isPointInsideRect(x, y, rect) {
+    circleIntersectsRect(cx, cy, radius, rect) {
 
         if (!rect) {
 
@@ -1276,28 +1533,557 @@ class OverworldGame {
 
         }
 
-        const maxX = rect.x + Math.max(0, rect.width);
+        const nearestX = Math.max(rect.x, Math.min(cx, rect.x + rect.width));
 
-        const maxY = rect.y + Math.max(0, rect.height);
+        const nearestY = Math.max(rect.y, Math.min(cy, rect.y + rect.height));
 
-        return x >= rect.x && x <= maxX && y >= rect.y && y <= maxY;
+        const dx = cx - nearestX;
+
+        const dy = cy - nearestY;
+
+        return dx * dx + dy * dy <= radius * radius;
 
     }
 
-    applySidewalkConstraint(agent) {
+    updateWeaponShopState() {
 
-        if (!agent || agent.stayOnSidewalks === false) {
+        if (this.scene !== "weaponShop" || !this.activeInterior) {
 
             return;
 
         }
 
-        const projected = this.projectPointToSidewalk(agent.x, agent.y);
+        const interior = this.activeInterior;
 
-        agent.x = projected.x;
+        interior.nearDisplay = null;
 
-        agent.y = projected.y;
+        const radius = interior.playerRadius ?? 14;
 
+        for (const display of interior.displayCases) {
+
+            const centerX = display.x + display.width / 2;
+
+            const centerY = interior.counter.y + (interior.counter.height - 32) / 2;
+
+            const dist = Math.hypot(this.player.x - centerX, this.player.y - centerY);
+
+            if (dist <= (display.interactionRadius ?? 80)) {
+
+                interior.nearDisplay = display;
+
+                break;
+
+            }
+
+        }
+
+        interior.playerNearExit = this.circleIntersectsRect(this.player.x, this.player.y, radius, interior.exitZone);
+
+        if (interior.messageTimer > 0) {
+
+            interior.messageTimer -= 1;
+
+            if (interior.messageTimer <= 0) {
+
+                interior.messageText = null;
+
+            }
+
+        }
+
+    }
+
+    handleWeaponShopInteraction() {
+
+        if (this.scene !== "weaponShop" || !this.activeInterior) {
+
+            return;
+
+        }
+
+        const interior = this.activeInterior;
+
+        if (interior.nearDisplay) {
+
+            const weaponId = interior.nearDisplay.weaponId;
+
+            this.weaponInventory.add(weaponId);
+
+            this.currentWeaponId = weaponId;
+
+            const weapon = this.getWeaponDefinition(weaponId);
+
+            if (weapon) {
+
+                interior.messageText = weapon.name + " ausgerüstet";
+
+                interior.messageTimer = 180;
+
+            }
+
+            return;
+
+        }
+
+        if (interior.playerNearExit) {
+
+            this.exitInterior();
+
+        }
+
+    }
+
+    enterWeaponShop(building) {
+
+        if (this.scene === "weaponShop") {
+            return;
+        }
+
+        const interior = this.createWeaponShopInterior();
+        interior.originX = Math.max(0, Math.floor((this.width - interior.width) / 2));
+        interior.originY = Math.max(0, Math.floor((this.height - interior.height) / 2));
+
+        this.overworldReturnState = {
+            position: { x: this.player.x, y: this.player.y },
+            camera: { x: this.camera.x, y: this.camera.y },
+        };
+
+        this.scene = "weaponShop";
+        this.activeInterior = interior;
+
+        this.player.x = interior.entry.x;
+        this.player.y = interior.entry.y;
+        this.player.moving = false;
+        this.player.animationPhase = 0;
+
+        this.camera.x = 0;
+        this.camera.y = 0;
+
+        this.nearBuilding = null;
+
+        this.projectiles = [];
+        this.firingState.active = false;
+        this.firingState.justPressed = false;
+
+        for (const key of Object.keys(this.keys)) {
+            this.keys[key] = false;
+        }
+
+        this.updateMouseWorldPosition();
+    }
+
+    exitInterior() {
+
+        if (this.scene !== "weaponShop") {
+            return;
+        }
+
+        if (this.overworldReturnState) {
+            this.player.x = this.overworldReturnState.position.x;
+            this.player.y = this.overworldReturnState.position.y;
+            this.camera.x = this.overworldReturnState.camera.x;
+            this.camera.y = this.overworldReturnState.camera.y;
+        }
+
+        this.scene = "overworld";
+        this.activeInterior = null;
+        this.overworldReturnState = null;
+
+        this.nearBuilding = null;
+
+        this.projectiles = [];
+        this.firingState.active = false;
+        this.firingState.justPressed = false;
+
+        this.player.moving = false;
+        this.player.animationPhase = 0;
+
+        for (const key of Object.keys(this.keys)) {
+            this.keys[key] = false;
+        }
+
+        this.updateMouseWorldPosition();
+    }
+
+    updateMouseWorldPosition() {
+
+        if (this.scene === "weaponShop" && this.activeInterior) {
+
+            this.mouse.worldX = this.mouse.x - this.activeInterior.originX;
+
+            this.mouse.worldY = this.mouse.y - this.activeInterior.originY;
+
+            return;
+
+        }
+
+        this.mouse.worldX = this.mouse.x + this.camera.x;
+
+        this.mouse.worldY = this.mouse.y + this.camera.y;
+
+    }
+
+    getWeaponDefinition(id) {
+
+        if (!id) {
+
+            return null;
+
+        }
+
+        return this.weaponsCatalog.get(id) ?? null;
+
+    }
+
+    getCurrentWeapon() {
+
+        return this.getWeaponDefinition(this.currentWeaponId);
+
+    }
+
+    createWeaponCatalog() {
+
+        const catalog = new Map();
+
+        catalog.set("pistol", {
+            id: "pistol",
+            name: "9mm Pistole",
+            damage: 18,
+            fireRate: 240,
+            projectileSpeed: 9,
+            spread: 0.028,
+            automatic: false,
+            range: 640,
+            displayColor: "#ffd166",
+        });
+
+        catalog.set("smg", {
+            id: "smg",
+            name: "MP5 Maschinenpistole",
+            damage: 12,
+            fireRate: 100,
+            projectileSpeed: 11,
+            spread: 0.08,
+            automatic: true,
+            range: 520,
+            displayColor: "#74c0fc",
+        });
+
+        catalog.set("assaultRifle", {
+            id: "assaultRifle",
+            name: "M4 Sturmgewehr",
+            damage: 22,
+            fireRate: 140,
+            projectileSpeed: 12,
+            spread: 0.05,
+            automatic: true,
+            range: 780,
+            displayColor: "#ff6b6b",
+        });
+
+        catalog.set("shotgun", {
+            id: "shotgun",
+            name: "SPAS12 Schrotflinte",
+            damage: 16,
+            fireRate: 380,
+            projectileSpeed: 8,
+            spread: 0.28,
+            automatic: false,
+            pellets: 6,
+            range: 380,
+            displayColor: "#c77dff",
+        });
+
+        return catalog;
+    }
+
+    selectWeaponByIndex(index) {
+        if (!Number.isFinite(index)) {
+            return;
+        }
+
+        const ordered = this.weaponOrder.filter((id) => this.weaponInventory.has(id));
+        const weaponId = ordered[index - 1];
+
+        if (!weaponId || weaponId === this.currentWeaponId) {
+            return;
+        }
+
+        this.currentWeaponId = weaponId;
+
+        if (this.scene === "weaponShop" && this.activeInterior) {
+            const weapon = this.getWeaponDefinition(weaponId);
+            if (weapon) {
+                this.activeInterior.messageText = weapon.name + " ausgerüstet";
+                this.activeInterior.messageTimer = 150;
+            }
+        }
+    }
+
+    getPlayerMuzzlePosition() {
+        const width = this.player.width ?? 30;
+        const height = this.player.height ?? 30;
+
+        return {
+            x: this.player.x + width / 2,
+            y: this.player.y + height / 2,
+        };
+    }
+
+    processPlayerFiring(now) {
+        const weapon = this.getCurrentWeapon();
+
+        if (!weapon || !this.weaponInventory.has(weapon.id)) {
+            return;
+        }
+
+        if (!this.firingState.active && !this.firingState.justPressed) {
+            return;
+        }
+
+        if (!weapon.automatic && !this.firingState.justPressed) {
+            return;
+        }
+
+        const interval = weapon.fireRate ?? 250;
+
+        if (now - (this.firingState.lastShotAt ?? 0) < interval) {
+            return;
+        }
+
+        const muzzle = this.getPlayerMuzzlePosition();
+        this.spawnProjectilesForWeapon(weapon, muzzle);
+
+        this.firingState.lastShotAt = now;
+        this.firingState.justPressed = false;
+    }
+
+    spawnProjectilesForWeapon(weapon, muzzle) {
+        const targetX = this.mouse.worldX ?? muzzle.x;
+        const targetY = this.mouse.worldY ?? muzzle.y;
+
+        let angle = Math.atan2(targetY - muzzle.y, targetX - muzzle.x);
+
+        if (!Number.isFinite(angle)) {
+            angle = 0;
+        }
+
+        const spread = weapon.spread ?? 0;
+        const pelletCount = weapon.pellets && weapon.pellets > 1 ? weapon.pellets : 1;
+
+        for (let i = 0; i < pelletCount; i++) {
+            const offset = spread ? (Math.random() - 0.5) * spread * 2 : 0;
+            this.createProjectile(weapon, muzzle.x, muzzle.y, angle + offset);
+        }
+    }
+
+    createProjectile(weapon, startX, startY, angle) {
+        const speed = weapon.projectileSpeed ?? 10;
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+
+        const muzzleOffset = 18;
+        const originX = startX + Math.cos(angle) * muzzleOffset;
+        const originY = startY + Math.sin(angle) * muzzleOffset;
+
+        const projectile = {
+            x: originX,
+            y: originY,
+            vx,
+            vy,
+            speed,
+            damage: weapon.damage ?? 10,
+            weaponId: weapon.id,
+            color: weapon.displayColor ?? "#ffd166",
+            maxDistance: weapon.range ?? 600,
+            distance: 0,
+            scene: this.scene,
+            createdAt: performance.now(),
+        };
+
+        this.projectiles.push(projectile);
+    }
+
+    updateProjectiles() {
+        if (!this.projectiles.length) {
+            return;
+        }
+
+        const survivors = [];
+        const interior = this.scene === "weaponShop" ? this.activeInterior : null;
+
+        for (const projectile of this.projectiles) {
+            projectile.x += projectile.vx;
+            projectile.y += projectile.vy;
+            projectile.distance += projectile.speed;
+
+            let expired = projectile.distance >= projectile.maxDistance;
+
+            if (!expired) {
+                if (projectile.scene === "weaponShop") {
+                    if (!interior || projectile.x < 0 || projectile.y < 0 || projectile.x > interior.width || projectile.y > interior.height) {
+                        expired = true;
+                    }
+                } else if (projectile.x < 0 || projectile.y < 0 || projectile.x > 3600 || projectile.y > 3000) {
+                    expired = true;
+                }
+            }
+
+            if (!expired && projectile.scene !== "weaponShop") {
+                if (this.checkProjectileNpcCollision(projectile)) {
+                    expired = true;
+                }
+            }
+
+            if (!expired) {
+                survivors.push(projectile);
+            }
+        }
+
+        this.projectiles = survivors;
+    }
+
+    drawProjectiles() {
+        if (!this.projectiles.length) {
+            return;
+        }
+
+        this.ctx.save();
+
+        if (this.scene === "weaponShop") {
+            const interior = this.activeInterior;
+
+            if (!interior) {
+                this.ctx.restore();
+                return;
+            }
+
+            this.ctx.translate(interior.originX, interior.originY);
+
+            for (const projectile of this.projectiles) {
+                if (projectile.scene !== "weaponShop") {
+                    continue;
+                }
+
+                this.drawProjectileSprite(projectile);
+            }
+        } else {
+            for (const projectile of this.projectiles) {
+                if (projectile.scene === "weaponShop") {
+                    continue;
+                }
+
+                this.drawProjectileSprite(projectile);
+            }
+        }
+
+        this.ctx.restore();
+    }
+
+    drawProjectileSprite(projectile) {
+        this.ctx.save();
+        this.ctx.fillStyle = projectile.color;
+        this.ctx.globalAlpha = 0.9;
+
+        this.ctx.beginPath();
+        this.ctx.arc(projectile.x, projectile.y, 3.5, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        this.ctx.globalAlpha = 0.35;
+        this.ctx.beginPath();
+        this.ctx.arc(projectile.x, projectile.y, 6, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        this.ctx.restore();
+    }
+
+    drawBloodDecals() {
+        if (!this.bloodDecals.length) {
+            return;
+        }
+
+        this.ctx.save();
+
+        for (const decal of this.bloodDecals) {
+            const gradient = this.ctx.createRadialGradient(decal.x, decal.y, 4, decal.x, decal.y, decal.radius * 1.4);
+
+            gradient.addColorStop(0, "rgba(200, 24, 34, 0.55)");
+            gradient.addColorStop(1, "rgba(110, 0, 0, 0.05)");
+
+            this.ctx.fillStyle = gradient;
+            this.ctx.beginPath();
+            this.ctx.ellipse(decal.x, decal.y, decal.radius * 1.3, decal.radius, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+
+        this.ctx.restore();
+    }
+
+    checkProjectileNpcCollision(projectile) {
+        if (!this.dynamicAgents || !Array.isArray(this.dynamicAgents.npcs)) {
+            return false;
+        }
+
+        for (const npc of this.dynamicAgents.npcs) {
+            if (!npc || npc.dead) {
+                continue;
+            }
+
+            const radius = npc.hitRadius ?? 14;
+            const dx = projectile.x - npc.x;
+            const dy = projectile.y - npc.y;
+
+            if (dx * dx + dy * dy <= radius * radius) {
+                this.onNpcHit(npc, projectile);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    onNpcHit(npc, projectile) {
+        const maxHealth = npc.maxHealth ?? 70;
+
+        npc.health = Math.max(0, (npc.health ?? maxHealth) - projectile.damage);
+
+        const panicDuration = 180 + Math.floor(Math.random() * 120);
+        npc.panicTimer = Math.max(npc.panicTimer ?? 0, panicDuration);
+
+        if (npc.health <= 0) {
+            this.killNpc(npc);
+        }
+    }
+
+    killNpc(npc) {
+        if (npc.dead) {
+            return;
+        }
+
+        npc.dead = true;
+        npc.health = 0;
+        npc.moving = false;
+        npc.panicTimer = 0;
+        npc.waitTimer = 0;
+        npc.animationPhase = 0;
+        npc.isCrossing = false;
+        npc.waitingForCrosswalk = null;
+        npc.deathRotation = (Math.random() * Math.PI) - Math.PI / 2;
+
+        this.spawnBloodDecal(npc);
+    }
+
+    spawnBloodDecal(npc) {
+        this.bloodDecals.push({
+            x: npc.x,
+            y: npc.y,
+            radius: 18 + Math.random() * 12,
+            createdAt: performance.now(),
+        });
+
+        if (this.bloodDecals.length > 150) {
+            this.bloodDecals.shift();
+        }
     }
 
     createCityBuildings() {
@@ -1853,6 +2639,8 @@ class OverworldGame {
 
                 ],
 
+                stayOnSidewalks: false,
+
                 speed: 1.25
 
             }),
@@ -1874,6 +2662,8 @@ class OverworldGame {
                     { x: 2960, y: 1400, wait: 10 }
 
                 ],
+
+                stayOnSidewalks: false,
 
                 speed: 1.05
 
@@ -1899,6 +2689,8 @@ class OverworldGame {
 
                 ],
 
+                stayOnSidewalks: false,
+
                 speed: 1.35
 
             }),
@@ -1920,6 +2712,8 @@ class OverworldGame {
                     { x: 1100, y: 2040, wait: 10 }
 
                 ],
+
+                stayOnSidewalks: false,
 
                 speed: 1.18
 
@@ -1943,6 +2737,8 @@ class OverworldGame {
 
                 ],
 
+                stayOnSidewalks: false,
+
                 speed: 1.08
 
             }),
@@ -1964,6 +2760,8 @@ class OverworldGame {
                     { x: 360, y: 680, wait: 8 }
 
                 ],
+
+                stayOnSidewalks: false,
 
                 speed: 1.12
 
@@ -1987,6 +2785,8 @@ class OverworldGame {
 
                 ],
 
+                stayOnSidewalks: false,
+
                 speed: 1.22
 
             }),
@@ -2008,6 +2808,8 @@ class OverworldGame {
                     { x: 2240, y: 2220, wait: 6 }
 
                 ],
+
+                stayOnSidewalks: false,
 
                 speed: 1.14
 
@@ -2031,6 +2833,8 @@ class OverworldGame {
 
                 ],
 
+                stayOnSidewalks: false,
+
                 speed: 1.02
 
             }),
@@ -2052,6 +2856,8 @@ class OverworldGame {
                     { x: 3000, y: 1600, wait: 6 }
 
                 ],
+
+                stayOnSidewalks: false,
 
                 speed: 1.35
 
@@ -2169,6 +2975,10 @@ class OverworldGame {
 
         const stayOnSidewalks = config.stayOnSidewalks !== false;
 
+        const ignoreSidewalkObstacles = config.ignoreSidewalkObstacles !== false;
+
+        const hitboxDisabled = config.hitboxDisabled !== false;
+
         if (stayOnSidewalks) {
 
             for (const wp of path) {
@@ -2179,7 +2989,7 @@ class OverworldGame {
 
                 }
 
-                const projected = this.projectPointToSidewalk(wp.x ?? 0, wp.y ?? 0);
+                const projected = this.projectPointToSidewalk(wp.x ?? 0, wp.y ?? 0, { ignoreObstacles: ignoreSidewalkObstacles });
 
                 wp.x = projected.x;
 
@@ -2217,7 +3027,39 @@ class OverworldGame {
 
             stayOnSidewalks,
 
-            parts: this.buildNPCParts(config.palette ?? {})
+            ignoreSidewalkObstacles,
+
+            hitboxDisabled,
+
+            parts: this.buildNPCParts(config.palette ?? {}),
+
+
+
+            palette: config.palette ?? null,
+
+
+
+            maxHealth: config.maxHealth ?? 80,
+
+
+
+            health: config.maxHealth ?? 80,
+
+
+
+            hitRadius: config.hitRadius ?? 14,
+
+
+
+            panicTimer: 0,
+
+
+
+            dead: false,
+
+
+
+            deathRotation: 0
 
         };
 
@@ -2287,7 +3129,11 @@ class OverworldGame {
 
         }
 
-        const projected = this.projectPointToSidewalk(npc.x, npc.y);
+        npc.health = npc.maxHealth;
+
+
+
+        const projected = this.projectPointToSidewalk(npc.x, npc.y, { ignoreObstacles: npc.ignoreSidewalkObstacles });
 
         npc.x = projected.x;
 
@@ -2625,13 +3471,43 @@ class OverworldGame {
 
     updateNPC(npc) {
 
+
+
         if (!npc || !npc.path || npc.path.length < 2) {
 
             return;
 
         }
 
+
+
+        if (npc.dead) {
+
+            npc.moving = false;
+
+            npc.waitTimer = 0;
+
+            npc.animationPhase *= 0.85;
+
+            return;
+
+        }
+
+
+
+        if (npc.panicTimer && npc.panicTimer > 0) {
+
+            this.updateNpcPanicMovement(npc);
+
+            return;
+
+        }
+
+
+
         let movingThisFrame = false;
+
+
 
         if (npc.waitTimer > 0) {
 
@@ -2646,6 +3522,8 @@ class OverworldGame {
             const dy = target.y - npc.y;
 
             const dist = Math.hypot(dx, dy);
+
+
 
             if (dist <= npc.speed) {
 
@@ -2673,7 +3551,11 @@ class OverworldGame {
 
         }
 
+
+
         this.applySidewalkConstraint(npc);
+
+
 
         if (npc.bounds) {
 
@@ -2683,7 +3565,11 @@ class OverworldGame {
 
         }
 
+
+
         npc.isCrossing = this.isPointInsideAnyCrosswalk(npc.x, npc.y);
+
+
 
         if (movingThisFrame && npc.waitTimer === 0) {
 
@@ -2695,11 +3581,101 @@ class OverworldGame {
 
         }
 
+
+
         npc.moving = movingThisFrame && npc.waitTimer === 0;
+
+
 
         if (!npc.isCrossing && npc.waitTimer === 0 && !npc.moving) {
 
             npc.waitingForCrosswalk = null;
+
+        }
+
+    }
+
+
+
+    updateNpcPanicMovement(npc) {
+
+        if (!npc) {
+
+            return;
+
+        }
+
+
+
+        let awayX = npc.x - this.player.x;
+
+        let awayY = npc.y - this.player.y;
+
+        let length = Math.hypot(awayX, awayY);
+
+
+
+        if (length < 1) {
+
+            const angle = Math.random() * Math.PI * 2;
+
+            awayX = Math.cos(angle);
+
+            awayY = Math.sin(angle);
+
+            length = 1;
+
+        }
+
+
+
+        const baseSpeed = npc.speed ?? 1.2;
+
+        const panicSpeed = baseSpeed * 2.2;
+
+
+
+        npc.x += (awayX / length) * panicSpeed;
+
+        npc.y += (awayY / length) * panicSpeed;
+
+
+
+        npc.moving = true;
+
+        npc.waitTimer = 0;
+
+        npc.isCrossing = false;
+
+        npc.waitingForCrosswalk = null;
+
+
+
+        npc.x = Math.max(0, Math.min(npc.x, 3600));
+
+        npc.y = Math.max(0, Math.min(npc.y, 3000));
+
+
+
+        if (npc.bounds) {
+
+            npc.x = Math.max(npc.bounds.left, Math.min(npc.x, npc.bounds.right));
+
+            npc.y = Math.max(npc.bounds.top, Math.min(npc.y, npc.bounds.bottom));
+
+        }
+
+
+
+        npc.animationPhase = (npc.animationPhase + panicSpeed * 0.07) % (Math.PI * 2);
+
+        npc.panicTimer = Math.max(0, (npc.panicTimer ?? 0) - 1);
+
+
+
+        if (npc.panicTimer === 0) {
+
+            npc.waitTimer = 45;
 
         }
 
@@ -2837,7 +3813,7 @@ class OverworldGame {
 
             const npcBlocking = npcs.some((npc) => {
 
-                if (!npc) {
+                if (!npc || npc.dead) {
 
                     return false;
 
@@ -5827,3 +6803,397 @@ document.addEventListener("DOMContentLoaded", () => {
 
 });
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+OverworldGame.prototype.createHouseStyles = function () {
+    return [
+        {
+            base: "#c37e61",
+            accent: "#f7e3c4",
+            roof: "#3a3a3a",
+            highlight: "#fcd9a9",
+            balcony: "#d97757",
+            metallic: "#6f8fa6",
+            roofGarden: true,
+            floors: 6,
+        },
+        {
+            base: "#d4d0c5",
+            accent: "#faf6ec",
+            roof: "#494949",
+            highlight: "#ffe4ba",
+            balcony: "#9fb4c7",
+            metallic: "#6d7c8e",
+            roofGarden: false,
+            floors: 5,
+        },
+        {
+            base: "#8e9faa",
+            accent: "#e4eef5",
+            roof: "#2d3a4a",
+            highlight: "#abd1ff",
+            balcony: "#5f7ba6",
+            metallic: "#95c4d8",
+            roofGarden: true,
+            floors: 7,
+        },
+        {
+            base: "#c9a46c",
+            accent: "#f0e0c6",
+            roof: "#473a2f",
+            highlight: "#f6d7b0",
+            balcony: "#a7794f",
+            metallic: "#8c9aa6",
+            roofGarden: false,
+            floors: 4,
+        },
+        {
+            base: "#8898aa",
+            accent: "#dde7f0",
+            roof: "#2f3b4a",
+            highlight: "#b7d2f5",
+            balcony: "#5b6f87",
+            metallic: "#9fb7c9",
+            roofGarden: true,
+            floors: 8,
+        },
+        {
+            base: "#bda17a",
+            accent: "#f3e5c7",
+            roof: "#3f3223",
+            highlight: "#f9d9a6",
+            balcony: "#a87d53",
+            metallic: "#7f8c99",
+            roofGarden: false,
+            floors: 5,
+        },
+    ];
+};
+OverworldGame.prototype.createCrosswalks = function () {
+    return [
+        { orientation: "horizontal", x: 1100, y: 1700, span: 260 },
+        { orientation: "horizontal", x: 2050, y: 1700, span: 260 },
+        { orientation: "horizontal", x: 1040, y: 1680, span: 180 },
+        { orientation: "horizontal", x: 1860, y: 1680, span: 180 },
+        { orientation: "vertical", x: 950, y: 900, span: 300 },
+        { orientation: "vertical", x: 1700, y: 900, span: 300 },
+        { orientation: "vertical", x: 2050, y: 1700, span: 300 },
+        { orientation: "vertical", x: 1700, y: 2100, span: 280 },
+        { orientation: "horizontal", x: 2950, y: 1100, span: 260 },
+        { orientation: "vertical", x: 1330, y: 1700, span: 240 },
+        { orientation: "horizontal", x: 3040, y: 1500, span: 280 },
+    ];
+};
+OverworldGame.prototype.createCityRoadLayout = function () {
+    const roads = [];
+
+    const verticalCorridors = [200, 950, 1700, 2450, 3350];
+    const horizontalCorridors = [200, 900, 1700, 2400, 2800];
+
+    for (const y of horizontalCorridors) {
+        roads.push({ type: "horizontal", startX: 200, endX: 3400, y });
+    }
+
+    for (const x of verticalCorridors) {
+        roads.push({ type: "vertical", x, startY: 200, endY: 2800 });
+    }
+
+    roads.push({ type: "horizontal", startX: 950, endX: 1700, y: 1260 });
+    roads.push({ type: "horizontal", startX: 950, endX: 1700, y: 2100 });
+    roads.push({ type: "vertical", x: 1330, startY: 1700, endY: 2400 });
+    roads.push({ type: "vertical", x: 2050, startY: 900, endY: 1700 });
+
+    return roads;
+};
+OverworldGame.prototype.createSidewalkCorridors = function () {
+    const corridors = [];
+    const roads = Array.isArray(this.roadLayout) ? this.roadLayout : [];
+    const sidewalkWidth = this.sidewalkWidth ?? 36;
+    const halfRoad = this.roadHalfWidth ?? ((this.roadWidth ?? 70) / 2);
+    const extension = sidewalkWidth;
+
+    for (const road of roads) {
+        if (!road) {
+            continue;
+        }
+
+        if (road.type === "horizontal") {
+            const startRaw = Number(road.startX ?? road.x ?? 0);
+            const endRaw = Number(road.endX ?? startRaw);
+            const startX = Math.min(startRaw, endRaw);
+            const endX = Math.max(startRaw, endRaw);
+            const y = Number(road.y ?? 0);
+            const width = Math.max(0, endX - startX);
+            const spanWidth = width + extension * 2;
+            const offsetX = startX - extension;
+            const upperY = y - halfRoad - sidewalkWidth;
+            const lowerY = y + halfRoad;
+
+            corridors.push({
+                x: offsetX,
+                y: upperY,
+                width: spanWidth,
+                height: sidewalkWidth,
+            });
+
+            corridors.push({
+                x: offsetX,
+                y: lowerY,
+                width: spanWidth,
+                height: sidewalkWidth,
+            });
+        } else if (road.type === "vertical") {
+            const startRaw = Number(road.startY ?? road.y ?? 0);
+            const endRaw = Number(road.endY ?? startRaw);
+            const startY = Math.min(startRaw, endRaw);
+            const endY = Math.max(startRaw, endRaw);
+            const x = Number(road.x ?? 0);
+            const height = Math.max(0, endY - startY);
+            const spanHeight = height + extension * 2;
+            const offsetY = startY - extension;
+            const leftX = x - halfRoad - sidewalkWidth;
+            const rightX = x + halfRoad;
+
+            corridors.push({
+                x: leftX,
+                y: offsetY,
+                width: sidewalkWidth,
+                height: spanHeight,
+            });
+
+            corridors.push({
+                x: rightX,
+                y: offsetY,
+                width: sidewalkWidth,
+                height: spanHeight,
+            });
+        }
+    }
+
+    const crosswalkAreas = Array.isArray(this.crosswalkAreas) ? this.crosswalkAreas : [];
+    const crosswalkPadding = sidewalkWidth * 0.35;
+
+    for (const area of crosswalkAreas) {
+        if (!area) {
+            continue;
+        }
+
+        const left = Number(area.left ?? area.x ?? 0);
+        const top = Number(area.top ?? area.y ?? 0);
+        const right = Number(area.right ?? left);
+        const bottom = Number(area.bottom ?? top);
+
+        corridors.push({
+            x: left - crosswalkPadding,
+            y: top - crosswalkPadding,
+            width: Math.max(0, (right - left) + crosswalkPadding * 2),
+            height: Math.max(0, (bottom - top) + crosswalkPadding * 2),
+        });
+    }
+
+    return corridors;
+};
+OverworldGame.prototype.createSidewalkObstacles = function (buildings) {
+    if (!Array.isArray(buildings)) {
+        return [];
+    }
+
+    const clearance = Math.max(4, Math.min(12, (this.sidewalkWidth ?? 36) * 0.35));
+    const obstacles = [];
+
+    for (const building of buildings) {
+        if (!building) {
+            continue;
+        }
+
+        const candidates = [];
+
+        if (Array.isArray(building.collisionRects) && building.collisionRects.length > 0) {
+            for (const rect of building.collisionRects) {
+                if (!rect) {
+                    continue;
+                }
+
+                const rawWidth = Number(rect.width ?? 0);
+                const rawHeight = Number(rect.height ?? 0);
+
+                if (!(rawWidth > 0 && rawHeight > 0)) {
+                    continue;
+                }
+
+                const rectPadding = Math.max(0, rect.padding ?? 0);
+                const paddedWidth = rawWidth - rectPadding * 2;
+                const paddedHeight = rawHeight - rectPadding * 2;
+
+                if (!(paddedWidth > 0 && paddedHeight > 0)) {
+                    continue;
+                }
+
+                const resolvedX = Number(rect.x ?? building.x ?? 0);
+                const resolvedY = Number(rect.y ?? building.y ?? 0);
+
+                candidates.push({
+                    x: resolvedX + rectPadding,
+                    y: resolvedY + rectPadding,
+                    width: paddedWidth,
+                    height: paddedHeight,
+                });
+            }
+        }
+
+        if (candidates.length === 0) {
+            const baseWidth = Number(building.width ?? 0);
+            const baseHeight = Number(building.height ?? 0);
+
+            if (baseWidth > 0 && baseHeight > 0) {
+                const basePadding = Math.max(0, building.collisionPadding ?? 0);
+                const paddedWidth = baseWidth - basePadding * 2;
+                const paddedHeight = baseHeight - basePadding * 2;
+
+                if (paddedWidth > 0 && paddedHeight > 0) {
+                    candidates.push({
+                        x: Number(building.x ?? 0) + basePadding,
+                        y: Number(building.y ?? 0) + basePadding,
+                        width: paddedWidth,
+                        height: paddedHeight,
+                    });
+                }
+            }
+        }
+
+        for (const rect of candidates) {
+            obstacles.push({
+                x: rect.x - clearance,
+                y: rect.y - clearance,
+                width: rect.width + clearance * 2,
+                height: rect.height + clearance * 2,
+            });
+        }
+    }
+
+    return obstacles;
+};
+OverworldGame.prototype.projectPointToSidewalk = function (x, y, options = {}) {
+    const corridors = Array.isArray(this.sidewalkCorridors) ? this.sidewalkCorridors : [];
+
+    if (!corridors.length) {
+        return { x, y, inside: false };
+    }
+
+    const ignoreObstacles = options.ignoreObstacles === true;
+    const obstacles = (!ignoreObstacles && Array.isArray(this.sidewalkObstacles)) ? this.sidewalkObstacles : [];
+
+    const pointIsClear = (px, py) => {
+        if (!obstacles.length) {
+            return true;
+        }
+
+        for (const rect of obstacles) {
+            if (rect && this.isPointInsideRect(px, py, rect)) {
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    for (const rect of corridors) {
+        if (!rect || !this.isPointInsideRect(x, y, rect)) {
+            continue;
+        }
+
+        if (pointIsClear(x, y)) {
+            return { x, y, inside: true };
+        }
+
+        const pushed = this.pushPointOutOfObstacles({ x, y }, rect);
+        if (pointIsClear(pushed.x, pushed.y) && this.isPointInsideRect(pushed.x, pushed.y, rect)) {
+            return { x: pushed.x, y: pushed.y, inside: true };
+        }
+    }
+
+    let closest = { x, y, inside: false };
+    let closestCorridor = null;
+    let bestDist = Infinity;
+    let bestClear = null;
+    let bestClearDist = Infinity;
+
+    for (const rect of corridors) {
+        if (!rect) {
+            continue;
+        }
+
+        const clamped = this.clampPointToRect(x, y, rect);
+        const resolved = this.pushPointOutOfObstacles(clamped, rect);
+        const resolvedInside = this.isPointInsideRect(resolved.x, resolved.y, rect);
+        const isClear = pointIsClear(resolved.x, resolved.y);
+        const dx = x - resolved.x;
+        const dy = y - resolved.y;
+        const distSq = dx * dx + dy * dy;
+
+        if (distSq < bestDist) {
+            bestDist = distSq;
+            closest = { x: resolved.x, y: resolved.y, inside: resolvedInside && isClear };
+            closestCorridor = rect;
+        }
+
+        if (isClear && distSq < bestClearDist) {
+            bestClearDist = distSq;
+            bestClear = { x: resolved.x, y: resolved.y, inside: resolvedInside };
+        }
+    }
+
+    if (bestClear) {
+        return { x: bestClear.x, y: bestClear.y, inside: bestClear.inside };
+    }
+
+    if (!pointIsClear(closest.x, closest.y) && closestCorridor) {
+        const pushed = this.pushPointOutOfObstacles(closest, closestCorridor);
+        const stillClear = pointIsClear(pushed.x, pushed.y);
+        return {
+            x: pushed.x,
+            y: pushed.y,
+            inside: stillClear && this.isPointInsideRect(pushed.x, pushed.y, closestCorridor),
+        };
+    }
+
+    return closest;
+};
