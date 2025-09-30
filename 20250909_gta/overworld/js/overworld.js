@@ -167,6 +167,256 @@ class OverworldGame {
 
         this.streetDetails = this.createStreetDetails();
 
+        if (typeof this.initDayNightCycle === "function") {
+
+            this.dayNightCycle = this.initDayNightCycle();
+
+        } else {
+
+            const now = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+
+            const phases = [
+
+                { id: "day", duration: 300000 },
+
+                { id: "dusk", duration: 120000 },
+
+                { id: "night", duration: 300000 },
+
+                { id: "dawn", duration: 120000 }
+
+            ];
+
+            const createFallbackStars = (count = 160) => {
+
+                const total = Math.max(0, Math.floor(count));
+
+                const stars = [];
+
+                for (let i = 0; i < total; i++) {
+
+                    const randomness = Math.random();
+
+                    stars.push({
+
+                        x: Math.random(),
+
+                        y: Math.random() * 0.65,
+
+                        size: 0.6 + Math.random() * 1.4,
+
+                        twinkleOffset: Math.random() * Math.PI * 2,
+
+                        twinkleSpeed: 0.6 + Math.random() * 1.4,
+
+                        baseIntensity: 0.4 + randomness * 0.6
+
+                    });
+
+                }
+
+                return stars;
+
+            };
+
+            const starGenerator = (typeof this.generateNightSkyStars === "function")
+
+                ? (count) => this.generateNightSkyStars(count)
+
+                : createFallbackStars;
+
+            this.dayNightCycle = {
+
+                phases,
+
+                phaseIndex: 0,
+
+                phaseStart: now,
+
+                lastUpdate: now,
+
+                progress: 0,
+
+                currentPhase: phases[0],
+
+                lighting: {
+
+                    overlayAlpha: 0,
+
+                    overlayTop: "rgba(0, 0, 0, 0)",
+
+                    overlayBottom: "rgba(0, 0, 0, 0)",
+
+                    horizon: null,
+
+                    starAlpha: 0
+
+                },
+
+                starPhase: 0,
+
+                stars: starGenerator(160)
+
+            };
+
+        }
+
+        if (typeof this.computeDayNightLighting !== "function") {
+
+            this.computeDayNightLighting = function (phaseId) {
+
+                return {
+
+                    phaseId: phaseId || 'day',
+
+                    overlayAlpha: 0,
+
+                    overlayTop: 'rgba(0, 0, 0, 0)',
+
+                    overlayBottom: 'rgba(0, 0, 0, 0)',
+
+                    horizon: null,
+
+                    starAlpha: 0
+
+                };
+
+            };
+
+        }
+
+        if (typeof this.updateDayNightCycle !== "function") {
+
+            this.updateDayNightCycle = function (now) {
+
+                if (!this.dayNightCycle) {
+
+                    return;
+
+                }
+
+                const cycle = this.dayNightCycle;
+
+                const phases = Array.isArray(cycle.phases) && cycle.phases.length ? cycle.phases : [
+
+                    { id: 'day', duration: 300000 }
+
+                ];
+
+                if (!Number.isFinite(cycle.phaseIndex)) {
+
+                    cycle.phaseIndex = 0;
+
+                }
+
+                if (!Number.isFinite(cycle.phaseStart)) {
+
+                    cycle.phaseStart = now;
+
+                }
+
+                let phase = phases[Math.max(0, Math.min(cycle.phaseIndex, phases.length - 1))];
+
+                let elapsed = now - cycle.phaseStart;
+
+                if (!Number.isFinite(elapsed) || elapsed < 0) {
+
+                    elapsed = 0;
+
+                    cycle.phaseStart = now;
+
+                    cycle.phaseIndex = 0;
+
+                    phase = phases[0];
+
+                }
+
+                let duration = Math.max(1, Number(phase.duration) || 0);
+
+                while (elapsed >= duration) {
+
+                    elapsed -= duration;
+
+                    cycle.phaseIndex = (cycle.phaseIndex + 1) % phases.length;
+
+                    phase = phases[cycle.phaseIndex];
+
+                    duration = Math.max(1, Number(phase.duration) || 0);
+
+                    cycle.phaseStart = now - elapsed;
+
+                }
+
+                const progress = duration > 0 ? Math.min(1, Math.max(0, elapsed / duration)) : 0;
+
+                cycle.progress = progress;
+
+                cycle.currentPhase = phase;
+
+                const delta = now - (cycle.lastUpdate ?? now);
+
+                cycle.lastUpdate = now;
+
+                if (!Number.isFinite(cycle.starPhase)) {
+
+                    cycle.starPhase = 0;
+
+                }
+
+                if (Number.isFinite(delta) && delta > 0) {
+
+                    cycle.starPhase = (cycle.starPhase + delta * 0.0015) % (Math.PI * 2);
+
+                }
+
+                if (typeof this.computeDayNightLighting === 'function') {
+
+                    cycle.lighting = this.computeDayNightLighting(String(phase.id ?? ''), progress, cycle);
+
+                } else if (!cycle.lighting) {
+
+                    cycle.lighting = {
+
+                        phaseId: String(phase.id ?? ''),
+
+                        overlayAlpha: 0,
+
+                        overlayTop: 'rgba(0, 0, 0, 0)',
+
+                        overlayBottom: 'rgba(0, 0, 0, 0)',
+
+                        horizon: null,
+
+                        starAlpha: 0
+
+                    };
+
+                }
+
+            };
+
+        }
+
+        if (typeof this.drawNightSkyStars !== "function") {
+
+            this.drawNightSkyStars = function () {
+
+                return;
+
+            };
+
+        }
+
+        if (typeof this.drawDayNightLighting !== "function") {
+
+            this.drawDayNightLighting = function () {
+
+                return;
+
+            };
+
+        }
+
         this.dynamicAgents = this.createDynamicAgents();
 
         this.setupUI();
@@ -651,6 +901,12 @@ class OverworldGame {
 
         const now = performance.now();
 
+        if (typeof this.updateDayNightCycle === "function") {
+
+            this.updateDayNightCycle(now);
+
+        }
+
         if (!this.lastCasinoCreditSync || now - this.lastCasinoCreditSync >= 2000) {
 
             this.refreshCasinoCreditsCache();
@@ -710,6 +966,115 @@ class OverworldGame {
 
 
     }
+
+    updateDayNightCycle(now) {
+
+        if (!this.dayNightCycle) {
+
+            return;
+
+        }
+
+        const cycle = this.dayNightCycle;
+
+        if (!Array.isArray(cycle.phases) || cycle.phases.length === 0) {
+
+            return;
+
+        }
+
+        if (!Number.isFinite(cycle.phaseIndex)) {
+
+            cycle.phaseIndex = 0;
+
+        }
+
+        if (!Number.isFinite(cycle.phaseStart)) {
+
+            cycle.phaseStart = now;
+
+        }
+
+        let phase = cycle.phases[Math.max(0, Math.min(cycle.phaseIndex, cycle.phases.length - 1))];
+
+        let elapsed = now - cycle.phaseStart;
+
+        if (!Number.isFinite(elapsed) || elapsed < 0) {
+
+            elapsed = 0;
+
+            cycle.phaseStart = now;
+
+            phase = cycle.phases[0];
+
+            cycle.phaseIndex = 0;
+
+        }
+
+        let duration = Math.max(1, Number(phase.duration) || 0);
+
+        while (elapsed >= duration) {
+
+            elapsed -= duration;
+
+            cycle.phaseIndex = (cycle.phaseIndex + 1) % cycle.phases.length;
+
+            phase = cycle.phases[cycle.phaseIndex];
+
+            duration = Math.max(1, Number(phase.duration) || 0);
+
+            cycle.phaseStart = now - elapsed;
+
+        }
+
+        const progress = duration > 0 ? Math.min(1, Math.max(0, elapsed / duration)) : 0;
+
+        const delta = now - (cycle.lastUpdate ?? now);
+
+        cycle.lastUpdate = now;
+
+        if (!Number.isFinite(cycle.starPhase)) {
+
+            cycle.starPhase = 0;
+
+        }
+
+        if (Number.isFinite(delta) && delta > 0) {
+
+            cycle.starPhase = (cycle.starPhase + delta * 0.0015) % (Math.PI * 2);
+
+        }
+
+        cycle.progress = progress;
+
+        cycle.currentPhase = phase;
+
+        if (typeof this.computeDayNightLighting === 'function') {
+
+            cycle.lighting = this.computeDayNightLighting(String(phase.id ?? ''), progress, cycle);
+
+        } else if (!cycle.lighting) {
+
+            cycle.lighting = {
+
+                phaseId: String(phase.id ?? ''),
+
+                overlayAlpha: 0,
+
+                overlayTop: 'rgba(0, 0, 0, 0)',
+
+                overlayBottom: 'rgba(0, 0, 0, 0)',
+
+                horizon: null,
+
+                starAlpha: 0
+
+            };
+
+        }
+
+    }
+
 
     handleInput() {
 
@@ -1159,7 +1524,11 @@ class OverworldGame {
 
 
 
-        this.drawGoldenHourLighting();
+        if (typeof this.drawDayNightLighting === "function") {
+
+            this.drawDayNightLighting();
+
+        }
 
 
 
@@ -3110,6 +3479,44 @@ class OverworldGame {
 
         }
 
+        let buildingIdCounter = 1;
+
+        for (const building of buildings) {
+
+            if (!building) {
+
+                continue;
+
+            }
+
+            building.id = `building_${buildingIdCounter++}`;
+
+            if (building.type === "house") {
+
+                const metrics = this.computeHouseMetrics(building);
+
+                if (metrics) {
+
+                    building.metrics = metrics;
+
+                    building.entrance = metrics.entrance;
+
+                    building.approach = metrics.approach;
+
+                    building.interiorPoint = metrics.interior;
+
+                    if (!building.bounds) {
+
+                        building.bounds = metrics.bounds;
+
+                    }
+
+                }
+
+            }
+
+        }
+
         return buildings;
 
     }
@@ -3301,6 +3708,518 @@ class OverworldGame {
         return this.buildings;
 
     }
+
+    createHouseVisitorNPCs() {
+
+        if (!Array.isArray(this.buildings)) {
+
+            return [];
+
+        }
+
+        const houses = this.buildings.filter((building) => building && building.type === "house" && building.entrance && building.approach && building.interiorPoint);
+
+        if (!houses.length) {
+
+            return [];
+
+        }
+
+        const palettes = [
+
+            { head: "#f2d1b3", torso: "#355070", limbs: "#2a3d66", accent: "#b1e5f2", hair: "#2f1b25" },
+
+            { head: "#f8cbbb", torso: "#6d597a", limbs: "#463764", accent: "#ffb4a2", hair: "#2d142c" },
+
+            { head: "#f6d5a5", torso: "#588157", limbs: "#3a5a40", accent: "#a3b18a", hair: "#5b3711" },
+
+            { head: "#f1d3ce", torso: "#0081a7", limbs: "#005f73", accent: "#83c5be", hair: "#0d1b2a" },
+
+            { head: "#f7d6bf", torso: "#bc4749", limbs: "#6a040f", accent: "#fcbf49", hair: "#432818" },
+
+            { head: "#efd3b4", torso: "#2a9d8f", limbs: "#1d6f6a", accent: "#e9c46a", hair: "#264653" }
+
+        ];
+
+        const visitors = [];
+
+        const maxVisitors = Math.min(6, houses.length);
+
+        for (let i = 0; i < maxVisitors; i++) {
+
+            const house = houses[i];
+
+            const metrics = house.metrics ?? this.computeHouseMetrics(house);
+
+            if (!metrics) {
+
+                continue;
+
+            }
+
+            const approach = metrics.approach ?? house.approach;
+
+            const entrance = metrics.entrance ?? house.entrance;
+
+            const doorWorld = metrics.door?.world ?? null;
+
+            const interior = metrics.interior ?? house.interiorPoint;
+
+            if (!approach || !entrance || !doorWorld || !interior) {
+
+                continue;
+
+            }
+
+            const door = {
+
+                x: doorWorld.x,
+
+                y: doorWorld.insideY ?? doorWorld.y
+
+            };
+
+            const walkway = metrics.walkway ?? { width: 32, height: 18 };
+
+            const lateralOffset = (walkway.width ?? 32) * 0.35;
+
+            const offsetDirection = i % 2 === 0 ? 1 : -1;
+
+            const lingerSpot = {
+
+                x: entrance.x + lateralOffset * offsetDirection,
+
+                y: entrance.y + (walkway.height ?? 18) * 0.4,
+
+                wait: 18
+
+            };
+
+            const palette = palettes[i % palettes.length];
+
+            const waitOutside = 24 + (i % 3) * 12;
+
+            const waitInside = 180 + (i % 2) * 120;
+
+            const path = [
+
+                { x: approach.x, y: approach.y, wait: waitOutside },
+
+                { x: entrance.x, y: entrance.y, wait: 8 },
+
+                { x: door.x, y: door.y, wait: 4, action: 'enter', buildingId: house.id },
+
+                { x: interior.x, y: interior.y, wait: waitInside, interior: true, buildingId: house.id },
+
+                { x: door.x, y: door.y, wait: 4, action: 'exit', buildingId: house.id },
+
+                lingerSpot
+
+            ];
+
+            const bounds = house.bounds ?? metrics.bounds;
+
+            visitors.push(this.buildNPC({
+
+                palette,
+
+                speed: 1.02 + (i % 3) * 0.08,
+
+                stayOnSidewalks: false,
+
+                ignoreSidewalkObstacles: true,
+
+                waypoints: path,
+
+                bounds
+
+            }));
+
+        }
+
+        return visitors;
+
+    }
+
+    initDayNightCycle() {
+
+        const now = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+
+        const phases = [
+
+            { id: "day", duration: 300000 },
+
+            { id: "dusk", duration: 120000 },
+
+            { id: "night", duration: 300000 },
+
+            { id: "dawn", duration: 120000 }
+
+        ];
+
+        return {
+
+            phases,
+
+            phaseIndex: 0,
+
+            phaseStart: now,
+
+            lastUpdate: now,
+
+            progress: 0,
+
+            currentPhase: phases[0],
+
+            lighting: {
+
+                overlayAlpha: 0,
+
+                overlayTop: "rgba(0, 0, 0, 0)",
+
+                overlayBottom: "rgba(0, 0, 0, 0)",
+
+                horizon: null,
+
+                starAlpha: 0
+
+            },
+
+            starPhase: 0,
+
+            stars: this.generateNightSkyStars(160)
+
+        };
+
+    }
+
+    generateNightSkyStars(count = 160) {
+
+        const total = Math.max(0, Math.floor(count));
+
+        const stars = [];
+
+        for (let i = 0; i < total; i++) {
+
+            const randomness = Math.random();
+
+            stars.push({
+
+                x: Math.random(),
+
+                y: Math.random() * 0.65,
+
+                size: 0.6 + Math.random() * 1.4,
+
+                twinkleOffset: Math.random() * Math.PI * 2,
+
+                twinkleSpeed: 0.6 + Math.random() * 1.4,
+
+                baseIntensity: 0.4 + randomness * 0.6
+
+            });
+
+        }
+
+        return stars;
+
+    }
+
+
+    computeDayNightLighting(phaseId, progress, cycle) {
+
+        const t = Math.max(0, Math.min(1, Number(progress) || 0));
+
+        const sampleStops = (stops, value) => this.sampleColorStops(stops, Math.max(0, Math.min(1, value)));
+
+        const duskSkyStops = [
+
+            { at: 0, color: [68, 106, 196, 0.86] },
+
+            { at: 0.33, color: [255, 150, 90, 0.92] },
+
+            { at: 0.66, color: [186, 58, 48, 0.96] },
+
+            { at: 1, color: [8, 8, 20, 1] }
+
+        ];
+
+        const duskHorizonStops = [
+
+            { at: 0, color: [255, 210, 140, 0.85] },
+
+            { at: 0.4, color: [255, 142, 64, 0.9] },
+
+            { at: 0.75, color: [196, 52, 44, 0.92] },
+
+            { at: 1, color: [12, 10, 28, 0.96] }
+
+        ];
+
+        const nightSkyTop = [16, 24, 58, 0.92];
+
+        const nightSkyBottom = [6, 10, 24, 0.96];
+
+        const result = {
+
+            phaseId: phaseId || 'day',
+
+            overlayAlpha: 0,
+
+            overlayTop: 'rgba(0, 0, 0, 0)',
+
+            overlayBottom: 'rgba(0, 0, 0, 0)',
+
+            horizon: null,
+
+            starAlpha: 0
+
+        };
+
+        switch (phaseId) {
+
+            case 'dusk': {
+
+                const skyTop = sampleStops(duskSkyStops, t);
+
+                const skyBottom = sampleStops(duskHorizonStops, Math.min(1, t + 0.15));
+
+                const horizonTop = sampleStops(duskHorizonStops, Math.max(0, t - 0.15));
+
+                const horizonBottom = sampleStops(duskHorizonStops, t);
+
+                result.overlayAlpha = 0.35 + t * 0.35;
+
+                result.overlayTop = this.colorArrayToRgba(skyTop);
+
+                result.overlayBottom = this.colorArrayToRgba(skyBottom);
+
+                result.horizon = {
+
+                    alpha: 0.35 + t * 0.45,
+
+                    top: this.colorArrayToRgba(horizonTop),
+
+                    bottom: this.colorArrayToRgba(horizonBottom),
+
+                    offsetTop: 0.25
+
+                };
+
+                result.starAlpha = Math.max(0, t - 0.4) * 0.9;
+
+                break;
+
+            }
+
+            case 'night': {
+
+                result.overlayAlpha = 0.62;
+
+                result.overlayTop = this.colorArrayToRgba(nightSkyTop);
+
+                result.overlayBottom = this.colorArrayToRgba(nightSkyBottom);
+
+                result.horizon = {
+
+                    alpha: 0.25,
+
+                    top: this.colorArrayToRgba([32, 30, 60, 0.52]),
+
+                    bottom: this.colorArrayToRgba([12, 10, 22, 0.68]),
+
+                    offsetTop: 0.3
+
+                };
+
+                result.starAlpha = 0.75;
+
+                break;
+
+            }
+
+            case 'dawn': {
+
+                const reverse = 1 - t;
+
+                const skyTop = sampleStops(duskSkyStops, reverse);
+
+                const skyBottom = sampleStops(duskHorizonStops, Math.min(1, reverse + 0.1));
+
+                const horizonTop = sampleStops(duskHorizonStops, reverse);
+
+                const horizonBottom = sampleStops(duskHorizonStops, Math.max(0, reverse - 0.1));
+
+                result.overlayAlpha = 0.52 * reverse;
+
+                result.overlayTop = this.colorArrayToRgba(skyTop);
+
+                result.overlayBottom = this.colorArrayToRgba(skyBottom);
+
+                result.horizon = {
+
+                    alpha: 0.28 + reverse * 0.3,
+
+                    top: this.colorArrayToRgba(horizonTop),
+
+                    bottom: this.colorArrayToRgba(horizonBottom),
+
+                    offsetTop: 0.28
+
+                };
+
+                result.starAlpha = Math.max(0, reverse - 0.25) * 0.7;
+
+                break;
+
+            }
+
+            case 'day':
+
+            default: {
+
+                const warmFactor = Math.sin(t * Math.PI);
+
+                const top = this.lerpColor([255, 250, 238, 0.08], [255, 236, 204, 0.18], warmFactor);
+
+                const bottom = this.lerpColor([255, 236, 196, 0.1], [255, 220, 174, 0.18], warmFactor);
+
+                result.overlayAlpha = 0.18 + warmFactor * 0.05;
+
+                result.overlayTop = this.colorArrayToRgba(top);
+
+                result.overlayBottom = this.colorArrayToRgba(bottom);
+
+                result.horizon = {
+
+                    alpha: 0.2 + warmFactor * 0.12,
+
+                    top: this.colorArrayToRgba([255, 232, 188, 0.32 + warmFactor * 0.1]),
+
+                    bottom: this.colorArrayToRgba([255, 214, 162, 0.34 + warmFactor * 0.12]),
+
+                    offsetTop: 0.35
+
+                };
+
+                result.starAlpha = 0;
+
+                break;
+
+            }
+
+        }
+
+        return result;
+
+    }
+
+    sampleColorStops(stops, value) {
+
+        if (!Array.isArray(stops) || stops.length === 0) {
+
+            return [0, 0, 0, 0];
+
+        }
+
+        const t = Math.max(0, Math.min(1, Number(value) || 0));
+
+        let previous = stops[0];
+
+        for (let i = 1; i < stops.length; i++) {
+
+            const current = stops[i];
+
+            const prevAt = Number(previous?.at ?? 0);
+
+            const currAt = Number(current?.at ?? 1);
+
+            if (t <= currAt) {
+
+                const range = Math.max(1e-6, currAt - prevAt);
+
+                const localT = Math.max(0, Math.min(1, (t - prevAt) / range));
+
+                return this.lerpColor(previous?.color, current?.color, localT);
+
+            }
+
+            previous = current;
+
+        }
+
+        const lastColor = stops[stops.length - 1]?.color;
+
+        return Array.isArray(lastColor) ? lastColor.slice() : [0, 0, 0, 0];
+
+    }
+
+    lerpColor(colorA, colorB, t) {
+
+        const clampT = Math.max(0, Math.min(1, Number(t) || 0));
+
+        const getComponent = (arr, index) => {
+
+            if (!Array.isArray(arr) || arr.length === 0) {
+
+                return index === 3 ? 1 : 0;
+
+            }
+
+            if (index < arr.length) {
+
+                return Number(arr[index]);
+
+            }
+
+            if (index === 3) {
+
+                return arr.length > 3 ? Number(arr[3]) : 1;
+
+            }
+
+            return Number(arr[Math.min(index, arr.length - 1)]);
+
+        };
+
+        const result = [];
+
+        for (let i = 0; i < 4; i++) {
+
+            const compA = getComponent(colorA, i);
+
+            const compB = getComponent(colorB, i);
+
+            result[i] = compA + (compB - compA) * clampT;
+
+        }
+
+        return result;
+
+    }
+
+    colorArrayToRgba(color, alphaMultiplier = 1) {
+
+        if (!Array.isArray(color) || color.length === 0) {
+
+            return 'rgba(0, 0, 0, 0)';
+
+        }
+
+        const r = Math.round(Math.max(0, Math.min(255, Number(color[0]) || 0)));
+
+        const g = Math.round(Math.max(0, Math.min(255, Number(color[1] ?? color[0]) || 0)));
+
+        const b = Math.round(Math.max(0, Math.min(255, Number(color[2] ?? color[1] ?? color[0]) || 0)));
+
+        const aBase = color.length > 3 ? Number(color[3]) : 1;
+
+        const a = Math.max(0, Math.min(1, aBase * alphaMultiplier));
+
+        return `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`;
+
+    }
+
 
     createDynamicAgents() {
 
@@ -3644,6 +4563,14 @@ class OverworldGame {
 
         }
 
+        const houseVisitors = this.createHouseVisitorNPCs();
+
+        if (houseVisitors.length) {
+
+            npcs.push(...houseVisitors);
+
+        }
+
         const vehicles = [
 
             this.buildVehicle({
@@ -3791,6 +4718,10 @@ class OverworldGame {
             ignoreSidewalkObstacles,
 
             hitboxDisabled,
+
+            insideBuilding: null,
+
+            hidden: false,
 
             parts: this.buildNPCParts(config.palette ?? {}),
 
@@ -4295,6 +5226,26 @@ class OverworldGame {
                 npc.waitTimer = target.wait ?? 0;
 
                 npc.waitingForCrosswalk = target.crosswalkIndex ?? null;
+
+                if (target.action === 'enter') {
+
+                    npc.insideBuilding = target.buildingId ?? npc.insideBuilding ?? true;
+
+                    npc.hidden = true;
+
+                } else if (target.action === 'exit') {
+
+                    npc.insideBuilding = null;
+
+                    npc.hidden = false;
+
+                } else if (target.interior) {
+
+                    npc.insideBuilding = target.buildingId ?? npc.insideBuilding ?? true;
+
+                    npc.hidden = true;
+
+                }
 
                 npc.waypointIndex = (npc.waypointIndex + 1) % npc.path.length;
 
@@ -5538,6 +6489,12 @@ class OverworldGame {
 
     drawNPC(npc) {
 
+        if (!npc || npc.hidden) {
+
+            return;
+
+        }
+
         this.drawCharacterParts(npc);
 
     }
@@ -6262,6 +7219,848 @@ class OverworldGame {
 
     }
 
+    computeHouseMetrics(building) {
+
+        if (!building || building.type !== "house") {
+
+            return null;
+
+        }
+
+        const lotWidth = Number(building.width ?? 0);
+
+        const lotHeight = Number(building.height ?? 0);
+
+        if (!(lotWidth > 0 && lotHeight > 0)) {
+
+            return null;
+
+        }
+
+        const variant = building.variant ?? {};
+
+        const styleIndex = variant.styleIndex ?? building.colorIndex ?? 0;
+
+        const palettes = Array.isArray(this.houseStyles) ? this.houseStyles : [];
+
+        const palette = palettes.length > 0 ? palettes[styleIndex % palettes.length] : {};
+
+        const lotPaddingBase = building.lotPadding ?? Math.min(36, Math.min(lotWidth, lotHeight) * 0.22);
+
+        const sideMax = Math.max(12, (lotWidth - 140) / 2);
+
+        const sidePadding = Math.min(Math.max(14, lotPaddingBase), sideMax);
+
+        let rearPadding = Math.min(lotHeight * 0.22, Math.max(12, lotPaddingBase * 0.65));
+
+        const minHouseHeight = 120;
+
+        const maxFrontSpace = Math.max(20, lotHeight - rearPadding - minHouseHeight);
+
+        let desiredFront = Math.min(maxFrontSpace, Math.max(48, lotPaddingBase * 1.45, lotHeight * 0.26));
+
+        if (desiredFront < 32) {
+
+            desiredFront = Math.min(maxFrontSpace, Math.max(32, lotPaddingBase * 1.15));
+
+        }
+
+        let houseHeight = lotHeight - rearPadding - desiredFront;
+
+        if (houseHeight < minHouseHeight) {
+
+            houseHeight = minHouseHeight;
+
+            desiredFront = lotHeight - rearPadding - houseHeight;
+
+        }
+
+        const houseWidth = Math.max(120, lotWidth - sidePadding * 2);
+
+        const houseX = (lotWidth - houseWidth) / 2;
+
+        const houseY = Math.max(10, rearPadding);
+
+        const houseBottom = houseY + houseHeight;
+
+        const frontDepth = Math.max(10, desiredFront);
+
+        let roofDepth = Math.max(32, Math.min(houseHeight * 0.32, 88));
+
+        if (houseHeight - roofDepth < 96) {
+
+            roofDepth = Math.max(24, houseHeight - 96);
+
+        }
+
+        const facadeHeight = houseHeight - roofDepth;
+
+        const facadeTop = houseY + roofDepth;
+
+        const walkwayWidth = Math.min(48, houseWidth * 0.28);
+
+        const walkwayX = lotWidth / 2 - walkwayWidth / 2;
+
+        const walkwayY = houseBottom;
+
+        const walkwayHeight = frontDepth;
+
+        const doorWidth = Math.min(houseWidth * 0.26, 68);
+
+        const doorHeight = Math.max(58, Math.min(facadeHeight * 0.44, 104));
+
+        const doorX = houseX + houseWidth / 2 - doorWidth / 2;
+
+        const doorY = facadeTop + facadeHeight - doorHeight;
+
+        const houseWorldX = Number(building.x ?? 0);
+
+        const houseWorldY = Number(building.y ?? 0);
+
+        const doorWorldX = houseWorldX + doorX + doorWidth / 2;
+
+        const doorWorldBottom = houseWorldY + doorY + doorHeight;
+
+        const doorWorldCenterY = houseWorldY + doorY + doorHeight / 2;
+
+        const doorWorldInsideY = houseWorldY + doorY + doorHeight * 0.35;
+
+        const walkwayWorldBottom = doorWorldBottom + walkwayHeight;
+
+        const entranceY = doorWorldBottom + Math.max(6, walkwayHeight * 0.35);
+
+        const approachY = walkwayWorldBottom + Math.max(12, walkwayHeight * 0.4);
+
+        const interiorX = houseWorldX + houseX + houseWidth / 2;
+
+        const interiorY = houseWorldY + houseY + Math.max(40, facadeHeight * 0.45);
+
+        const boundsLeft = houseWorldX + houseX - Math.max(20, walkwayWidth * 0.6);
+
+        const boundsRight = houseWorldX + houseX + houseWidth + Math.max(20, walkwayWidth * 0.6);
+
+        const boundsTop = houseWorldY + houseY - Math.max(20, roofDepth * 0.4);
+
+        const minBoundsHeight = Math.max(60, facadeHeight * 0.5);
+
+        const boundsBottom = Math.max(boundsTop + minBoundsHeight, approachY + Math.max(16, walkwayHeight * 0.2));
+
+        return {
+
+            houseX,
+
+            houseY,
+
+            houseWidth,
+
+            houseHeight,
+
+            houseBottom,
+
+            roofDepth,
+
+            facadeTop,
+
+            facadeHeight,
+
+            frontDepth,
+
+            walkway: {
+
+                x: walkwayX,
+
+                y: walkwayY,
+
+                width: walkwayWidth,
+
+                height: walkwayHeight
+
+            },
+
+            door: {
+
+                x: doorX,
+
+                y: doorY,
+
+                width: doorWidth,
+
+                height: doorHeight,
+
+                world: {
+
+                    x: doorWorldX,
+
+                    y: doorWorldCenterY,
+
+                    bottom: doorWorldBottom,
+
+                    insideY: doorWorldInsideY
+
+                }
+
+            },
+
+            entrance: {
+
+                x: doorWorldX,
+
+                y: entranceY
+
+            },
+
+            approach: {
+
+                x: doorWorldX,
+
+                y: approachY
+
+            },
+
+            interior: {
+
+                x: interiorX,
+
+                y: interiorY
+
+            },
+
+            bounds: {
+
+                left: boundsLeft,
+
+                right: boundsRight,
+
+                top: boundsTop,
+
+                bottom: boundsBottom
+
+            },
+
+            palette
+
+        };
+
+    }
+
+    drawHouseWindowInterior(building, x, y, width, height, rowIndex, colIndex) {
+
+        if (!this.ctx) {
+
+            return;
+
+        }
+
+        this.ctx.save();
+
+        this.ctx.beginPath();
+
+        this.ctx.rect(x, y, width, height);
+
+        this.ctx.clip();
+
+        const base = this.ctx.createLinearGradient(x, y, x, y + height);
+
+        base.addColorStop(0, "rgba(30, 36, 48, 0.92)");
+
+        base.addColorStop(1, "rgba(16, 18, 28, 0.94)");
+
+        this.ctx.fillStyle = base;
+
+        this.ctx.fillRect(x, y, width, height);
+
+        const floorY = y + height * 0.85;
+
+        this.ctx.fillStyle = "rgba(52, 40, 36, 0.82)";
+
+        this.ctx.fillRect(x - width * 0.1, floorY, width * 1.2, height - (floorY - y));
+
+        const baseX = Number(building?.x ?? 0);
+
+        const baseY = Number(building?.y ?? 0);
+
+        const seedX = baseX * 0.013 + rowIndex * 0.37 + colIndex * 0.19;
+
+        const seedY = baseY * 0.017 + rowIndex * 0.29 + colIndex * 0.41;
+
+        const theme = this.pseudoRandom2D(seedX, seedY);
+
+        const glow = this.pseudoRandom2D(seedX + 4.71, seedY + 8.12);
+
+        if (glow > 0.32) {
+
+            const glowGradient = this.ctx.createRadialGradient(
+
+                x + width / 2,
+
+                y + height * 0.35,
+
+                width * 0.05,
+
+                x + width / 2,
+
+                y + height * 0.35,
+
+                width * 0.65
+
+            );
+
+            glowGradient.addColorStop(0, `rgba(255, 224, 170, ${0.32 + glow * 0.28})`);
+
+            glowGradient.addColorStop(1, "rgba(255, 224, 170, 0)");
+
+            this.ctx.fillStyle = glowGradient;
+
+            this.ctx.fillRect(x, y, width, height);
+
+        }
+
+        if (theme < 0.33) {
+
+            const potWidth = width * 0.32;
+
+            const potHeight = height * 0.18;
+
+            const potX = x + width * 0.5 - potWidth / 2 + (theme - 0.16) * width * 0.2;
+
+            const potY = floorY - potHeight;
+
+            this.ctx.fillStyle = "rgba(120, 72, 44, 0.9)";
+
+            this.ctx.fillRect(potX, potY, potWidth, potHeight);
+
+            const stemHeight = height * 0.42;
+
+            this.ctx.strokeStyle = "rgba(46, 104, 64, 0.9)";
+
+            this.ctx.lineWidth = Math.max(2, width * 0.06);
+
+            this.ctx.beginPath();
+
+            this.ctx.moveTo(potX + potWidth / 2, potY);
+
+            this.ctx.lineTo(potX + potWidth / 2, potY - stemHeight);
+
+            this.ctx.stroke();
+
+            const leafCount = 3;
+
+            for (let i = 0; i < leafCount; i++) {
+
+                const leafAngle = (i - 1) * 0.55;
+
+                const leafLength = width * (0.35 + i * 0.06);
+
+                this.ctx.fillStyle = "rgba(68, 128, 78, 0.85)";
+
+                this.ctx.beginPath();
+
+                const leafBaseY = potY - stemHeight * (0.35 + i * 0.22);
+
+                const leafBaseX = potX + potWidth / 2;
+
+                this.ctx.moveTo(leafBaseX, leafBaseY);
+
+                this.ctx.quadraticCurveTo(leafBaseX + Math.cos(leafAngle) * leafLength, leafBaseY - Math.sin(leafAngle) * height * 0.2, leafBaseX + Math.cos(leafAngle) * leafLength * 0.6, leafBaseY - Math.sin(leafAngle) * height * 0.1);
+
+                this.ctx.quadraticCurveTo(leafBaseX + Math.cos(leafAngle) * leafLength * 0.2, leafBaseY - Math.sin(leafAngle) * height * 0.05, leafBaseX, leafBaseY);
+
+                this.ctx.fill();
+
+            }
+
+        } else if (theme < 0.66) {
+
+            const shelfWidth = width * 0.6;
+
+            const shelfHeight = height * 0.7;
+
+            const shelfX = x + width * 0.2 + (theme - 0.5) * width * 0.1;
+
+            const shelfY = y + height * 0.22;
+
+            this.ctx.fillStyle = "rgba(70, 52, 42, 0.85)";
+
+            this.ctx.fillRect(shelfX, shelfY, shelfWidth, shelfHeight);
+
+            const shelfCount = 3;
+
+            for (let level = 1; level < shelfCount; level++) {
+
+                const shelfLineY = shelfY + (shelfHeight / shelfCount) * level;
+
+                this.ctx.fillStyle = "rgba(45, 32, 26, 0.9)";
+
+                this.ctx.fillRect(shelfX + 4, shelfLineY - 2, shelfWidth - 8, 4);
+
+            }
+
+            const bookSeed = this.pseudoRandom2D(seedX + 9.1, seedY + 3.7);
+
+            const bookCount = 5 + Math.round(bookSeed * 3);
+
+            for (let book = 0; book < bookCount; book++) {
+
+                const lane = book % shelfCount;
+
+                const sectionHeight = shelfHeight / shelfCount;
+
+                const bx = shelfX + 8 + (book / Math.max(1, bookCount - 1)) * (shelfWidth - 16 - width * 0.1);
+
+                const by = shelfY + lane * sectionHeight + 6;
+
+                const bh = sectionHeight - 12;
+
+                const bw = width * 0.1;
+
+                const hueSeed = this.pseudoRandom2D(seedX + book * 3.2, seedY + book * 4.4);
+
+                const color = hueSeed < 0.33 ? "rgba(180, 120, 90, 0.9)" : hueSeed < 0.66 ? "rgba(90, 120, 170, 0.9)" : "rgba(200, 180, 110, 0.9)";
+
+                this.ctx.fillStyle = color;
+
+                this.ctx.fillRect(bx, by, bw, bh);
+
+            }
+
+        } else {
+
+            const sofaWidth = width * 0.75;
+
+            const sofaHeight = height * 0.28;
+
+            const sofaX = x + width * 0.125;
+
+            const sofaY = floorY - sofaHeight;
+
+            this.ctx.fillStyle = "rgba(120, 64, 82, 0.85)";
+
+            this.ctx.fillRect(sofaX, sofaY, sofaWidth, sofaHeight);
+
+            this.ctx.fillStyle = "rgba(90, 42, 60, 0.9)";
+
+            this.ctx.fillRect(sofaX, sofaY - sofaHeight * 0.55, sofaWidth, sofaHeight * 0.55);
+
+            const cushionCount = 3;
+
+            const cushionWidth = sofaWidth / cushionCount - width * 0.04;
+
+            for (let cushion = 0; cushion < cushionCount; cushion++) {
+
+                const cx = sofaX + width * 0.02 + cushion * (cushionWidth + width * 0.02);
+
+                this.ctx.fillStyle = "rgba(220, 200, 200, 0.6)";
+
+                this.ctx.fillRect(cx, sofaY - sofaHeight * 0.4, cushionWidth, sofaHeight * 0.22);
+
+            }
+
+            const lampX = x + width * 0.82;
+
+            const lampBaseY = floorY - sofaHeight * 0.2;
+
+            this.ctx.strokeStyle = "rgba(180, 170, 150, 0.8)";
+
+            this.ctx.lineWidth = Math.max(1.5, width * 0.04);
+
+            this.ctx.beginPath();
+
+            this.ctx.moveTo(lampX, lampBaseY);
+
+            this.ctx.lineTo(lampX, y + height * 0.2);
+
+            this.ctx.stroke();
+
+            const shadeRadiusX = width * 0.18;
+
+            const shadeRadiusY = height * 0.12;
+
+            const shadeCenterY = y + height * 0.22;
+
+            const shadeCenterX = lampX;
+
+            this.ctx.fillStyle = "rgba(255, 220, 170, 0.78)";
+
+            this.ctx.beginPath();
+
+            this.ctx.ellipse(shadeCenterX, shadeCenterY, shadeRadiusX, shadeRadiusY, 0, 0, Math.PI * 2);
+
+            this.ctx.fill();
+
+        }
+
+        const occupantChance = this.pseudoRandom2D(seedX + 5.31, seedY + 12.77);
+
+        if (occupantChance > 0.82) {
+
+            const bodyWidth = width * 0.32;
+
+            const bodyX = x + width * 0.5 - bodyWidth / 2 + (occupantChance - 0.9) * width * 0.25;
+
+            const bodyY = y + height * 0.34;
+
+            const bodyHeight = height * 0.42;
+
+            this.ctx.fillStyle = "rgba(26, 30, 38, 0.75)";
+
+            this.ctx.fillRect(bodyX, bodyY, bodyWidth, bodyHeight);
+
+            this.ctx.beginPath();
+
+            this.ctx.ellipse(bodyX + bodyWidth / 2, bodyY - height * 0.16, bodyWidth * 0.38, height * 0.22, 0, 0, Math.PI * 2);
+
+            this.ctx.fill();
+
+        }
+
+        this.ctx.restore();
+
+    }
+
+    drawHouseWindowFrame(building, x, y, width, height, palette = {}) {
+
+        if (!this.ctx) {
+
+            return;
+
+        }
+
+        const frameThickness = Math.max(2, Math.min(6, width * 0.18));
+
+        const sillHeight = Math.max(3, height * 0.08);
+
+        const frameColor = palette.windowFrame ?? "rgba(28, 32, 40, 0.78)";
+
+        this.ctx.save();
+
+        this.ctx.fillStyle = frameColor;
+
+        this.ctx.fillRect(x - frameThickness, y - frameThickness, width + frameThickness * 2, frameThickness);
+
+        this.ctx.fillRect(x - frameThickness, y + height, width + frameThickness * 2, Math.max(2, frameThickness * 0.7));
+
+        this.ctx.fillRect(x - frameThickness, y, frameThickness, height);
+
+        this.ctx.fillRect(x + width, y, frameThickness, height);
+
+        this.ctx.fillStyle = "rgba(18, 20, 26, 0.65)";
+
+        this.ctx.fillRect(x - frameThickness, y + height - sillHeight, width + frameThickness * 2, sillHeight + Math.max(2, frameThickness * 0.5));
+
+        const highlight = this.ctx.createLinearGradient(x - frameThickness, y - frameThickness, x + width + frameThickness, y - frameThickness + frameThickness);
+
+        highlight.addColorStop(0, "rgba(255, 255, 255, 0.12)");
+
+        highlight.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+        this.ctx.fillStyle = highlight;
+
+        this.ctx.fillRect(x - frameThickness, y - frameThickness, width + frameThickness * 2, frameThickness);
+
+        this.ctx.restore();
+
+    }
+
+    drawHouseWindowDressing(building, x, y, width, height, rowIndex, colIndex, palette = {}) {
+
+        if (!this.ctx) {
+
+            return;
+
+        }
+
+        const baseX = Number(building?.x ?? 0);
+
+        const baseY = Number(building?.y ?? 0);
+
+        const seedA = baseX * 0.021 + rowIndex * 0.37 + colIndex * 0.13;
+
+        const seedB = baseY * 0.023 + rowIndex * 0.21 + colIndex * 0.29;
+
+        const curtainChoice = this.pseudoRandom2D(seedA, seedB);
+
+        const blindChoice = this.pseudoRandom2D(seedA + 2.71, seedB + 3.19);
+
+        const lampChoice = this.pseudoRandom2D(seedA + 1.37, seedB + 5.61);
+
+        this.ctx.save();
+
+        this.ctx.beginPath();
+
+        this.ctx.rect(x, y, width, height);
+
+        this.ctx.clip();
+
+        if (lampChoice > 0.78) {
+
+            const glow = this.ctx.createRadialGradient(x + width * 0.5, y + height * 0.45, width * 0.08, x + width * 0.5, y + height * 0.45, width * 0.9);
+
+            glow.addColorStop(0, "rgba(255, 214, 170, " + (0.2 + lampChoice * 0.25).toFixed(3) + ")");
+
+            glow.addColorStop(1, "rgba(255, 214, 170, 0)");
+
+            this.ctx.fillStyle = glow;
+
+            this.ctx.fillRect(x, y, width, height);
+
+        }
+
+        if (curtainChoice > 0.64) {
+
+            const curtainPalette = [
+
+                "rgba(224, 186, 176, 0.72)",
+
+                "rgba(188, 196, 220, 0.7)",
+
+                "rgba(216, 188, 210, 0.72)",
+
+                "rgba(210, 200, 166, 0.7)"
+
+            ];
+
+            const curtainIndex = Math.floor(curtainChoice * curtainPalette.length) % curtainPalette.length;
+
+            const curtainColor = curtainPalette[curtainIndex];
+
+            const curtainGradient = this.ctx.createLinearGradient(x, y, x, y + height);
+
+            curtainGradient.addColorStop(0, curtainColor);
+
+            curtainGradient.addColorStop(1, "rgba(48, 34, 30, 0.7)");
+
+            const curtainWidth = width * 0.36;
+
+            this.ctx.fillStyle = curtainGradient;
+
+            this.ctx.beginPath();
+
+            this.ctx.moveTo(x - width * 0.02, y);
+
+            this.ctx.lineTo(x + curtainWidth, y + height * 0.18);
+
+            this.ctx.lineTo(x + curtainWidth * 0.92, y + height);
+
+            this.ctx.lineTo(x - width * 0.02, y + height);
+
+            this.ctx.closePath();
+
+            this.ctx.fill();
+
+            this.ctx.beginPath();
+
+            const rightStart = x + width - curtainWidth;
+
+            this.ctx.moveTo(x + width + width * 0.02, y);
+
+            this.ctx.lineTo(rightStart, y + height * 0.18);
+
+            this.ctx.lineTo(rightStart + curtainWidth * 0.08, y + height);
+
+            this.ctx.lineTo(x + width + width * 0.02, y + height);
+
+            this.ctx.closePath();
+
+            this.ctx.fill();
+
+        } else if (blindChoice > 0.38) {
+
+            const slatCount = 5 + Math.round(blindChoice * 6);
+
+            const slatHeight = Math.max(2, height / (slatCount * 1.8));
+
+            for (let slat = 0; slat < slatCount; slat++) {
+
+                const t = slat / Math.max(1, slatCount - 1);
+
+                const tone = 0.28 + t * 0.18;
+
+                this.ctx.fillStyle = "rgba(214, 218, 228, " + tone.toFixed(3) + ")";
+
+                const slatY = y + t * (height - slatHeight);
+
+                this.ctx.fillRect(x, slatY, width, slatHeight);
+
+            }
+
+            this.ctx.strokeStyle = "rgba(120, 126, 138, 0.4)";
+
+            this.ctx.lineWidth = Math.max(1, width * 0.02);
+
+            this.ctx.beginPath();
+
+            this.ctx.moveTo(x + width - width * 0.12, y);
+
+            this.ctx.lineTo(x + width - width * 0.12, y + height);
+
+            this.ctx.stroke();
+
+        } else {
+
+            const sheer = this.ctx.createLinearGradient(x, y, x + width, y + height);
+
+            sheer.addColorStop(0, "rgba(238, 240, 248, 0.26)");
+
+            sheer.addColorStop(1, "rgba(198, 210, 226, 0.18)");
+
+            this.ctx.fillStyle = sheer;
+
+            this.ctx.fillRect(x, y, width, height);
+
+            this.ctx.fillStyle = "rgba(118, 132, 158, 0.15)";
+
+            this.ctx.fillRect(x + width * 0.44, y, width * 0.12, height);
+
+        }
+
+        const pelmetHeight = Math.max(2, height * 0.06);
+
+        this.ctx.fillStyle = "rgba(14, 14, 20, 0.45)";
+
+        this.ctx.fillRect(x, y, width, pelmetHeight);
+
+        this.ctx.restore();
+
+    }
+
+    drawHouseFacadeLighting(building, metrics, palette = {}) {
+
+        if (!this.ctx || !metrics) {
+
+            return;
+
+        }
+
+        const { houseX, houseWidth, facadeTop, facadeHeight, houseBottom } = metrics;
+
+        const baseX = Number(building?.x ?? 0);
+
+        const baseY = Number(building?.y ?? 0);
+
+        const highlightSeed = this.pseudoRandom2D(baseX * 0.0087 + facadeHeight * 0.0001, baseY * 0.0091 + houseWidth * 0.0001);
+
+        const floors = Math.max(2, Math.round(building?.variant?.floors ?? palette.floors ?? 4));
+
+        this.ctx.save();
+
+        const aoWidth = Math.max(16, houseWidth * 0.08);
+
+        const leftShade = this.ctx.createLinearGradient(houseX, facadeTop, houseX + aoWidth, facadeTop);
+
+        leftShade.addColorStop(0, "rgba(0, 0, 0, 0.28)");
+
+        leftShade.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+        this.ctx.fillStyle = leftShade;
+
+        this.ctx.fillRect(houseX, facadeTop, aoWidth, facadeHeight);
+
+        const highlightWidth = Math.max(12, houseWidth * 0.06);
+
+        const rightHighlight = this.ctx.createLinearGradient(houseX + houseWidth - highlightWidth, facadeTop, houseX + houseWidth, facadeTop);
+
+        rightHighlight.addColorStop(0, "rgba(255, 230, 200, 0.24)");
+
+        rightHighlight.addColorStop(1, "rgba(255, 230, 200, 0)");
+
+        this.ctx.fillStyle = rightHighlight;
+
+        this.ctx.fillRect(houseX + houseWidth - highlightWidth, facadeTop, highlightWidth, facadeHeight);
+
+        const baseShadowHeight = Math.max(18, facadeHeight * 0.12);
+
+        const baseShadow = this.ctx.createLinearGradient(houseX, houseBottom - baseShadowHeight, houseX, houseBottom);
+
+        baseShadow.addColorStop(0, "rgba(0, 0, 0, 0)");
+
+        baseShadow.addColorStop(1, "rgba(0, 0, 0, 0.25)");
+
+        this.ctx.fillStyle = baseShadow;
+
+        this.ctx.fillRect(houseX, houseBottom - baseShadowHeight, houseWidth, baseShadowHeight);
+
+        const floorSpacing = facadeHeight / floors;
+
+        this.ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+
+        this.ctx.lineWidth = 1;
+
+        for (let level = 1; level < floors; level++) {
+
+            const y = facadeTop + level * floorSpacing;
+
+            this.ctx.beginPath();
+
+            this.ctx.moveTo(houseX + 8, y);
+
+            this.ctx.lineTo(houseX + houseWidth - 8, y);
+
+            this.ctx.stroke();
+
+        }
+
+        const columnCount = Math.max(3, Math.floor(houseWidth / 70));
+
+        for (let column = 1; column < columnCount; column++) {
+
+            const columnX = houseX + column * (houseWidth / columnCount);
+
+            const columnSeed = this.pseudoRandom2D(highlightSeed + column * 1.7, highlightSeed + column * 2.5);
+
+            const intensity = 0.04 + columnSeed * 0.08;
+
+            this.ctx.fillStyle = "rgba(255, 255, 255, " + intensity.toFixed(3) + ")";
+
+            this.ctx.fillRect(columnX - 1, facadeTop + 6, 2, facadeHeight - 12);
+
+        }
+
+        const textureSeed = highlightSeed * 137.31;
+
+        const textureCount = Math.min(90, Math.round(houseWidth * facadeHeight / 550));
+
+        this.ctx.globalAlpha = 0.08;
+
+        this.ctx.fillStyle = "rgba(0, 0, 0, 1)";
+
+        for (let i = 0; i < textureCount; i++) {
+
+            const noiseX = this.pseudoRandom2D(textureSeed + i * 1.13, textureSeed + i * 2.19);
+
+            const noiseY = this.pseudoRandom2D(textureSeed + i * 3.17, textureSeed + i * 4.41);
+
+            const px = houseX + noiseX * houseWidth;
+
+            const py = facadeTop + noiseY * facadeHeight;
+
+            const sizeSeed = this.pseudoRandom2D(textureSeed + i * 5.23, textureSeed + i * 6.37);
+
+            const size = Math.max(1, Math.min(3, sizeSeed * 3));
+
+            this.ctx.fillRect(px, py, size, size * 0.6);
+
+        }
+
+        this.ctx.globalAlpha = 1;
+
+        const highlightCenterX = houseX + highlightSeed * houseWidth * 0.8 + houseWidth * 0.1;
+
+        const highlightCenterY = facadeTop + (0.2 + highlightSeed * 0.5) * facadeHeight;
+
+        const specular = this.ctx.createRadialGradient(highlightCenterX, highlightCenterY, houseWidth * 0.05, highlightCenterX, highlightCenterY, houseWidth * 0.45);
+
+        specular.addColorStop(0, "rgba(255, 235, 210, 0.12)");
+
+        specular.addColorStop(1, "rgba(255, 235, 210, 0)");
+
+        this.ctx.fillStyle = specular;
+
+        this.ctx.fillRect(houseX, facadeTop, houseWidth, facadeHeight);
+
+        this.ctx.restore();
+
+    }
+
     drawHouse(building) {
 
         const { x: lotOriginX, y: lotOriginY, width: lotWidth, height: lotHeight, variant = {} } = building;
@@ -6344,7 +8143,13 @@ class OverworldGame {
 
         const walkwayHeight = frontDepth;
 
-        this.ctx.fillStyle = "#d9d1c4";
+        const walkwayGradient = this.ctx.createLinearGradient(walkwayX, walkwayY, walkwayX, walkwayY + walkwayHeight);
+
+        walkwayGradient.addColorStop(0, "#e3dbd0");
+
+        walkwayGradient.addColorStop(1, "#c2b7a3");
+
+        this.ctx.fillStyle = walkwayGradient;
 
         this.ctx.fillRect(walkwayX, walkwayY, walkwayWidth, walkwayHeight);
 
@@ -6357,6 +8162,10 @@ class OverworldGame {
         this.ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
 
         this.ctx.fillRect(walkwayX + 4, walkwayY, walkwayWidth - 8, 2);
+
+        this.ctx.fillStyle = "rgba(0, 0, 0, 0.12)";
+
+        this.ctx.fillRect(walkwayX, walkwayY + Math.max(2, walkwayHeight - 3), walkwayWidth, 3);
 
         // Optional extra segment to tie the front path into the public sidewalk
 
@@ -6414,6 +8223,66 @@ class OverworldGame {
 
         }
 
+        const planterSeed = this.pseudoRandom2D(Number(building.x ?? 0) * 0.0127, Number(building.y ?? 0) * 0.0173);
+
+        if (planterSeed > 0.58 && walkwayWidth > 26) {
+
+            const planterWidth = Math.max(18, walkwayWidth * 0.32);
+
+            const planterHeight = Math.max(14, walkwayHeight * 0.55);
+
+            const planterY = walkwayY + walkwayHeight - planterHeight - Math.max(3, walkwayHeight * 0.1);
+
+            const soilHeight = Math.max(3, planterHeight * 0.28);
+
+            const drawPlanter = (baseX, seedOffset) => {
+
+                this.ctx.fillStyle = "rgba(70, 56, 42, 0.85)";
+
+                this.ctx.fillRect(baseX, planterY, planterWidth, planterHeight);
+
+                this.ctx.fillStyle = "rgba(26, 28, 22, 0.88)";
+
+                this.ctx.fillRect(baseX, planterY + planterHeight - soilHeight, planterWidth, soilHeight);
+
+                const foliageCount = 4 + Math.round(this.pseudoRandom2D(seedOffset + 0.77, seedOffset + 1.91) * 3);
+
+                for (let plant = 0; plant < foliageCount; plant++) {
+
+                    const t = (plant + 0.5) / foliageCount;
+
+                    const plantSeed = this.pseudoRandom2D(seedOffset + plant * 1.33, seedOffset + plant * 2.61);
+
+                    const plantHeight = planterHeight * (0.45 + plantSeed * 0.55);
+
+                    const plantX = baseX + 4 + t * (planterWidth - 8);
+
+                    const plantColor = plantSeed > 0.5 ? "rgba(58, 134, 82, 0.88)" : "rgba(88, 162, 102, 0.82)";
+
+                    this.ctx.fillStyle = plantColor;
+
+                    this.ctx.beginPath();
+
+                    this.ctx.moveTo(plantX, planterY + planterHeight - soilHeight);
+
+                    this.ctx.lineTo(plantX - 4, planterY + planterHeight - soilHeight - plantHeight * 0.5);
+
+                    this.ctx.lineTo(plantX + 4, planterY + planterHeight - soilHeight - plantHeight);
+
+                    this.ctx.closePath();
+
+                    this.ctx.fill();
+
+                }
+
+            };
+
+            drawPlanter(walkwayX - planterWidth - 8, planterSeed);
+
+            drawPlanter(walkwayX + walkwayWidth + 8, planterSeed + 1.37);
+
+        }
+
         const shadowHeight = Math.min(10, lawnHeight + 6);
 
         this.ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
@@ -6443,6 +8312,10 @@ class OverworldGame {
         this.ctx.fillStyle = coolGradient;
 
         this.ctx.fillRect(houseX, facadeTop, houseWidth, facadeHeight);
+
+        const facadeMetrics = { houseX, houseWidth, facadeTop, facadeHeight, houseBottom };
+
+        this.drawHouseFacadeLighting(building, facadeMetrics, palette);
 
         this.ctx.strokeStyle = palette.roof;
 
@@ -6664,41 +8537,60 @@ class OverworldGame {
 
                 const wy = windowStartY + row * (windowHeight + verticalSpacing);
 
+                this.drawHouseWindowFrame(building, wx, wy, windowWidth, windowHeight, palette);
+
+                this.drawHouseWindowInterior(building, wx, wy, windowWidth, windowHeight, row, col);
+
+                this.drawHouseWindowDressing(building, wx, wy, windowWidth, windowHeight, row, col, palette);
+
                 const glassGradient = this.ctx.createLinearGradient(wx, wy, wx, wy + windowHeight);
 
-                glassGradient.addColorStop(0, "rgba(220, 236, 255, 0.92)");
+                glassGradient.addColorStop(0, "rgba(220, 236, 255, 0.55)");
 
-                glassGradient.addColorStop(0.5, "rgba(120, 160, 200, 0.65)");
+                glassGradient.addColorStop(0.45, "rgba(140, 180, 210, 0.32)");
 
-                glassGradient.addColorStop(1, "rgba(60, 90, 130, 0.72)");
+                glassGradient.addColorStop(1, "rgba(40, 80, 120, 0.45)");
 
                 this.ctx.fillStyle = glassGradient;
 
                 this.ctx.fillRect(wx, wy, windowWidth, windowHeight);
 
-                this.ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+                const reflection = this.ctx.createLinearGradient(wx, wy, wx + windowWidth, wy + windowHeight);
+
+                reflection.addColorStop(0, "rgba(255, 255, 255, 0.18)");
+
+                reflection.addColorStop(0.5, "rgba(255, 255, 255, 0.06)");
+
+                reflection.addColorStop(1, "rgba(255, 255, 255, 0.12)");
+
+                this.ctx.fillStyle = reflection;
+
+                this.ctx.fillRect(wx, wy, windowWidth, windowHeight);
+
+                this.ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
 
                 this.ctx.lineWidth = 1;
 
                 this.ctx.strokeRect(wx, wy, windowWidth, windowHeight);
 
-                this.ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+                this.ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
 
                 this.ctx.beginPath();
 
-                this.ctx.moveTo(wx + windowWidth / 2, wy);
+                this.ctx.moveTo(wx + windowWidth / 2, wy + 1);
 
-                this.ctx.lineTo(wx + windowWidth / 2, wy + windowHeight);
+                this.ctx.lineTo(wx + windowWidth / 2, wy + windowHeight - 1);
 
-                this.ctx.moveTo(wx, wy + windowHeight / 2);
+                this.ctx.moveTo(wx + 1, wy + windowHeight / 2);
 
-                this.ctx.lineTo(wx + windowWidth, wy + windowHeight / 2);
+                this.ctx.lineTo(wx + windowWidth - 1, wy + windowHeight / 2);
 
                 this.ctx.stroke();
 
             }
 
         }
+
 
         const doorWidth = Math.min(houseWidth * 0.26, 68);
 
@@ -7500,57 +9392,152 @@ class OverworldGame {
 
     }
 
-    drawGoldenHourLighting() {
+    drawDayNightLighting() {
+
+        const cycle = this.dayNightCycle;
+
+        if (!cycle || !cycle.lighting) {
+
+            return;
+
+        }
+
+        const { overlayAlpha, overlayTop, overlayBottom, horizon, starAlpha } = cycle.lighting;
+
+        if (overlayAlpha > 0.001) {
+
+            const gradient = this.ctx.createLinearGradient(
+
+                this.camera.x,
+
+                this.camera.y,
+
+                this.camera.x,
+
+                this.camera.y + this.height
+
+            );
+
+            gradient.addColorStop(0, overlayTop ?? 'rgba(0, 0, 0, 0)');
+
+            gradient.addColorStop(1, overlayBottom ?? 'rgba(0, 0, 0, 0)');
+
+            this.ctx.save();
+
+            this.ctx.globalAlpha = Math.max(0, Math.min(1, Number(overlayAlpha) || 0));
+
+            this.ctx.fillStyle = gradient;
+
+            this.ctx.fillRect(this.camera.x, this.camera.y, this.width, this.height);
+
+            this.ctx.restore();
+
+        }
+
+        if (horizon && horizon.alpha > 0.001) {
+
+            const offset = Math.max(0, Math.min(0.9, Number(horizon.offsetTop) || 0.2));
+
+            const startY = this.camera.y + this.height * offset;
+
+            const gradient = this.ctx.createLinearGradient(
+
+                this.camera.x,
+
+                startY,
+
+                this.camera.x,
+
+                this.camera.y + this.height
+
+            );
+
+            gradient.addColorStop(0, horizon.top ?? 'rgba(0, 0, 0, 0)');
+
+            gradient.addColorStop(1, horizon.bottom ?? 'rgba(0, 0, 0, 0)');
+
+            this.ctx.save();
+
+            this.ctx.globalAlpha = Math.max(0, Math.min(1, Number(horizon.alpha) || 0));
+
+            this.ctx.fillStyle = gradient;
+
+            this.ctx.fillRect(this.camera.x, this.camera.y, this.width, this.height);
+
+            this.ctx.restore();
+
+        }
+
+        if (starAlpha > 0.001) {
+
+            this.drawNightSkyStars(cycle.stars, starAlpha);
+
+        }
+
+    }
+
+    drawNightSkyStars(stars, alpha) {
+
+        if (!Array.isArray(stars) || stars.length === 0) {
+
+            return;
+
+        }
+
+        const baseAlpha = Math.max(0, Math.min(1, Number(alpha) || 0));
+
+        if (baseAlpha <= 0) {
+
+            return;
+
+        }
+
+        const starPhase = this.dayNightCycle?.starPhase ?? 0;
 
         this.ctx.save();
 
-        this.ctx.globalAlpha = 0.22;
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 1)';
 
-        const warm = this.ctx.createLinearGradient(
+        for (const star of stars) {
 
-            this.camera.x - this.width * 0.2,
+            const twinkleSpeed = Math.max(0.2, Number(star?.twinkleSpeed) || 1);
 
-            this.camera.y,
+            const offset = Number(star?.twinkleOffset) || 0;
 
-            this.camera.x + this.width,
+            const baseIntensity = Math.max(0, Math.min(1, Number(star?.baseIntensity) || 0.7));
 
-            this.camera.y + this.height * 0.6
+            const twinkle = Math.sin(starPhase * twinkleSpeed + offset) * 0.5 + 0.5;
 
-        );
+            const intensity = baseIntensity * (0.6 + 0.4 * twinkle);
 
-        warm.addColorStop(0, "rgba(255, 184, 108, 0.6)");
+            const starAlpha = baseAlpha * Math.max(0, Math.min(1, intensity));
 
-        warm.addColorStop(1, "rgba(255, 184, 108, 0)");
+            if (starAlpha <= 0.02) {
 
-        this.ctx.fillStyle = warm;
+                continue;
 
-        this.ctx.fillRect(this.camera.x, this.camera.y, this.width, this.height);
+            }
 
-        this.ctx.globalAlpha = 0.12;
+            const x = this.camera.x + (Number(star?.x) || 0) * this.width;
 
-        const cool = this.ctx.createLinearGradient(
+            const y = this.camera.y + (Number(star?.y) || 0) * this.height;
 
-            this.camera.x + this.width,
+            const size = Math.max(0.4, Number(star?.size) || 1);
 
-            this.camera.y + this.height,
+            this.ctx.globalAlpha = starAlpha;
 
-            this.camera.x,
+            this.ctx.beginPath();
 
-            this.camera.y
+            this.ctx.arc(x, y, size, 0, Math.PI * 2);
 
-        );
+            this.ctx.fill();
 
-        cool.addColorStop(0, "rgba(60, 80, 110, 0.7)");
-
-        cool.addColorStop(1, "rgba(0, 0, 0, 0)");
-
-        this.ctx.fillStyle = cool;
-
-        this.ctx.fillRect(this.camera.x, this.camera.y, this.width, this.height);
+        }
 
         this.ctx.restore();
 
     }
+
 
     drawPlayer() {
 
@@ -7830,6 +9817,151 @@ class OverworldGame {
     }
 
 }
+
+if (typeof OverworldGame.prototype.computeDayNightLighting !== 'function') {
+
+    OverworldGame.prototype.computeDayNightLighting = function (phaseId, progress, cycle) {
+
+        const phaseName = String(phaseId ?? 'day');
+
+        if (cycle && cycle.lighting) {
+
+            cycle.lighting.phaseId = phaseName;
+            cycle.lighting.overlayAlpha = 0;
+            cycle.lighting.overlayTop = 'rgba(0, 0, 0, 0)';
+            cycle.lighting.overlayBottom = 'rgba(0, 0, 0, 0)';
+            cycle.lighting.horizon = null;
+            cycle.lighting.starAlpha = 0;
+            return cycle.lighting;
+
+        }
+
+        return {
+
+            phaseId: phaseName,
+            overlayAlpha: 0,
+            overlayTop: 'rgba(0, 0, 0, 0)',
+            overlayBottom: 'rgba(0, 0, 0, 0)',
+            horizon: null,
+            starAlpha: 0
+
+        };
+
+    };
+
+}
+
+if (typeof OverworldGame.prototype.updateDayNightCycle !== 'function') {
+
+    OverworldGame.prototype.updateDayNightCycle = function (now) {
+
+        if (!this.dayNightCycle) {
+
+            return;
+
+        }
+
+        const cycle = this.dayNightCycle;
+        const phases = Array.isArray(cycle.phases) && cycle.phases.length ? cycle.phases : [{ id: 'day', duration: 300000 }];
+
+        if (!Number.isFinite(cycle.phaseIndex)) {
+
+            cycle.phaseIndex = 0;
+
+        }
+
+        if (!Number.isFinite(cycle.phaseStart)) {
+
+            cycle.phaseStart = now;
+
+        }
+
+        let phase = phases[Math.max(0, Math.min(cycle.phaseIndex, phases.length - 1))];
+        let elapsed = now - cycle.phaseStart;
+
+        if (!Number.isFinite(elapsed) || elapsed < 0) {
+
+            elapsed = 0;
+            cycle.phaseStart = now;
+            cycle.phaseIndex = 0;
+            phase = phases[0];
+
+        }
+
+        let duration = Math.max(1, Number(phase.duration) || 0);
+
+        while (elapsed >= duration) {
+
+            elapsed -= duration;
+            cycle.phaseIndex = (cycle.phaseIndex + 1) % phases.length;
+            phase = phases[cycle.phaseIndex];
+            duration = Math.max(1, Number(phase.duration) || 0);
+            cycle.phaseStart = now - elapsed;
+
+        }
+
+        const progress = duration > 0 ? Math.min(1, Math.max(0, elapsed / duration)) : 0;
+        const delta = now - (cycle.lastUpdate ?? now);
+
+        cycle.lastUpdate = now;
+        cycle.progress = progress;
+        cycle.currentPhase = phase;
+
+        if (!Number.isFinite(cycle.starPhase)) {
+
+            cycle.starPhase = 0;
+
+        }
+
+        if (Number.isFinite(delta) && delta > 0) {
+
+            cycle.starPhase = (cycle.starPhase + delta * 0.0015) % (Math.PI * 2);
+
+        }
+
+        if (typeof this.computeDayNightLighting === 'function') {
+
+            cycle.lighting = this.computeDayNightLighting(String(phase.id ?? ''), progress, cycle);
+
+        } else if (!cycle.lighting) {
+
+            cycle.lighting = {
+
+                phaseId: String(phase.id ?? ''),
+                overlayAlpha: 0,
+                overlayTop: 'rgba(0, 0, 0, 0)',
+                overlayBottom: 'rgba(0, 0, 0, 0)',
+                horizon: null,
+                starAlpha: 0
+
+            };
+
+        }
+
+    };
+
+}
+
+if (typeof OverworldGame.prototype.drawDayNightLighting !== 'function') {
+
+    OverworldGame.prototype.drawDayNightLighting = function () {
+
+        return;
+
+    };
+
+}
+
+if (typeof OverworldGame.prototype.drawNightSkyStars !== 'function') {
+
+    OverworldGame.prototype.drawNightSkyStars = function () {
+
+        return;
+
+    };
+
+}
+
 
 document.addEventListener("DOMContentLoaded", () => {
 
