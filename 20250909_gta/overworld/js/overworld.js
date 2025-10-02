@@ -162,6 +162,8 @@ class OverworldGame {
         this.buildings = this.createCityBuildings();
 
         this.sidewalkObstacles = this.createSidewalkObstacles(this.buildings);
+        this.buildingColliders = this.createBuildingColliders(this.buildings);
+        this.roadAreas = this.createRoadAreas(this.roadLayout);
 
         console.log("Buildings prepared", Array.isArray(this.buildings) ? this.buildings.length : this.buildings);
 
@@ -5199,7 +5201,9 @@ class OverworldGame {
 
         let movingThisFrame = false;
 
-
+        const originX = npc.x;
+        const originY = npc.y;
+        npc._lastCollision = null;
 
         if (npc.waitTimer > 0) {
 
@@ -5253,11 +5257,19 @@ class OverworldGame {
 
                 const ratio = npc.speed / dist;
 
-                npc.x += dx * ratio;
+                const nextX = npc.x + dx * ratio;
 
-                npc.y += dy * ratio;
+                const nextY = npc.y + dy * ratio;
 
-                movingThisFrame = true;
+                const movement = this.resolveNpcMovement(npc, nextX, nextY, originX, originY);
+
+                npc.x = movement.x;
+
+                npc.y = movement.y;
+
+                movingThisFrame = movement.moved;
+
+                npc._lastCollision = movement.collisionInfo;
 
             }
 
@@ -5274,6 +5286,48 @@ class OverworldGame {
             npc.x = Math.max(npc.bounds.left, Math.min(npc.x, npc.bounds.right));
 
             npc.y = Math.max(npc.bounds.top, Math.min(npc.y, npc.bounds.bottom));
+
+        }
+
+
+
+        const now = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+
+        const stepDistance = Math.hypot(npc.x - originX, npc.y - originY);
+
+        const tracker = this.updateNpcMovementTracker(npc, stepDistance, now);
+
+        const insideBuildingNow = this.isPointInsideAnyCollider(npc.x, npc.y, this.buildingColliders);
+
+        const wantsTeleportInside = insideBuildingNow && !npc.hidden && !npc.insideBuilding;
+
+        let teleported = false;
+
+        if (wantsTeleportInside && this.teleportNpcToNearestRoad(npc, 'building', now)) {
+
+            teleported = true;
+
+        } else if (tracker && npc.waitTimer === 0) {
+
+            const idleThreshold = tracker.idleThreshold ?? 3500;
+
+            const maxStuckSamples = tracker.maxStuckSamples ?? 2;
+
+            const idleTooLong = tracker.idleTime >= idleThreshold;
+
+            const stuckTooOften = (tracker.stuckSamples ?? 0) >= maxStuckSamples;
+
+            if ((idleTooLong || stuckTooOften) && this.teleportNpcToNearestRoad(npc, 'idle', now)) {
+
+                teleported = true;
+
+            }
+
+        }
+
+        if (teleported) {
+
+            movingThisFrame = false;
 
         }
 
@@ -5308,6 +5362,721 @@ class OverworldGame {
     }
 
 
+    resolveNpcMovement(npc, targetX, targetY, originX, originY) {
+
+        const safeOriginX = Number.isFinite(originX) ? originX : 0;
+
+        const safeOriginY = Number.isFinite(originY) ? originY : 0;
+
+        let x = Number.isFinite(targetX) ? targetX : safeOriginX;
+
+        let y = Number.isFinite(targetY) ? targetY : safeOriginY;
+
+        const radius = Math.max(8, Number(npc?.hitRadius) || 14);
+
+        let collidedWithBuilding = false;
+
+        let collidedWithVehicle = false;
+
+        const buildingColliders = Array.isArray(this.buildingColliders) ? this.buildingColliders : [];
+
+        for (const collider of buildingColliders) {
+
+            const result = this.resolveCircleRectCollision(x, y, radius, collider);
+
+            if (result.collided) {
+
+                x = result.x;
+
+                y = result.y;
+
+                collidedWithBuilding = true;
+
+            }
+
+        }
+
+        const vehicleColliders = this.collectVehicleColliders();
+
+        for (const collider of vehicleColliders) {
+
+            const result = this.resolveCircleRectCollision(x, y, radius, collider);
+
+            if (result.collided) {
+
+                x = result.x;
+
+                y = result.y;
+
+                collidedWithVehicle = true;
+
+            }
+
+        }
+
+        const moved = Math.hypot(x - safeOriginX, y - safeOriginY) > 0.01;
+
+        if (!moved) {
+
+            x = safeOriginX;
+
+            y = safeOriginY;
+
+        }
+
+        const insideBuilding = this.isPointInsideAnyCollider(x, y, buildingColliders);
+
+        let collisionInfo = null;
+
+        if (collidedWithBuilding || collidedWithVehicle || insideBuilding) {
+
+            collisionInfo = {
+
+                building: collidedWithBuilding,
+
+                vehicle: collidedWithVehicle,
+
+                insideBuilding,
+
+            };
+
+        }
+
+        return {
+
+            x,
+
+            y,
+
+            moved,
+
+            collisionInfo,
+
+        };
+
+    }
+    collectVehicleColliders() {
+
+        const vehicles = (this.dynamicAgents && Array.isArray(this.dynamicAgents.vehicles))
+            ? this.dynamicAgents.vehicles
+            : [];
+
+        const colliders = [];
+
+        for (const vehicle of vehicles) {
+
+            if (!vehicle) {
+
+                continue;
+
+            }
+
+            const width = Number(vehicle.width ?? 0);
+
+            const height = Number(vehicle.height ?? 0);
+
+            if (!(width > 0 && height > 0)) {
+
+                continue;
+
+            }
+
+            const halfWidth = width / 2;
+
+            const halfHeight = height / 2;
+
+            const centerX = Number(vehicle.x);
+
+            const centerY = Number(vehicle.y);
+
+            if (!Number.isFinite(centerX) || !Number.isFinite(centerY)) {
+
+                continue;
+
+            }
+
+            colliders.push({
+
+                type: 'vehicle',
+
+                left: centerX - halfWidth,
+
+                right: centerX + halfWidth,
+
+                top: centerY - halfHeight,
+
+                bottom: centerY + halfHeight,
+
+            });
+
+        }
+
+        return colliders;
+
+    }
+
+    resolveCircleRectCollision(x, y, radius, rect) {
+
+        if (!rect) {
+
+            return { x, y, collided: false };
+
+        }
+
+        const padding = Number(rect.padding ?? 0) || 0;
+
+        const baseLeft = Number(rect.left ?? rect.x ?? 0);
+
+        const baseRight = Number(rect.right ?? ((rect.width != null) ? baseLeft + Number(rect.width) : baseLeft));
+
+        const baseTop = Number(rect.top ?? rect.y ?? 0);
+
+        const baseBottom = Number(rect.bottom ?? ((rect.height != null) ? baseTop + Number(rect.height) : baseTop));
+
+        if (!Number.isFinite(baseLeft) || !Number.isFinite(baseRight) || !Number.isFinite(baseTop) || !Number.isFinite(baseBottom)) {
+
+            return { x, y, collided: false };
+
+        }
+
+        let left = baseLeft - padding;
+
+        let right = baseRight + padding;
+
+        let top = baseTop - padding;
+
+        let bottom = baseBottom + padding;
+
+        if (left > right) {
+
+            const swap = left;
+
+            left = right;
+
+            right = swap;
+
+        }
+
+        if (top > bottom) {
+
+            const swap = top;
+
+            top = bottom;
+
+            bottom = swap;
+
+        }
+
+        const insideRect = x >= left && x <= right && y >= top && y <= bottom;
+
+        if (insideRect) {
+
+            const distanceLeft = x - left;
+
+            const distanceRight = right - x;
+
+            const distanceTop = y - top;
+
+            const distanceBottom = bottom - y;
+
+            const minDistance = Math.min(distanceLeft, distanceRight, distanceTop, distanceBottom);
+
+            if (minDistance === distanceLeft) {
+
+                x = left - radius;
+
+            } else if (minDistance === distanceRight) {
+
+                x = right + radius;
+
+            } else if (minDistance === distanceTop) {
+
+                y = top - radius;
+
+            } else {
+
+                y = bottom + radius;
+
+            }
+
+            return { x, y, collided: true };
+
+        }
+
+        const nearestX = Math.max(left, Math.min(x, right));
+
+        const nearestY = Math.max(top, Math.min(y, bottom));
+
+        const dx = x - nearestX;
+
+        const dy = y - nearestY;
+
+        const distSq = dx * dx + dy * dy;
+
+        const radiusSq = radius * radius;
+
+        if (distSq === 0) {
+
+            const distanceLeft = Math.abs(x - left);
+
+            const distanceRight = Math.abs(x - right);
+
+            const distanceTop = Math.abs(y - top);
+
+            const distanceBottom = Math.abs(y - bottom);
+
+            const minDistance = Math.min(distanceLeft, distanceRight, distanceTop, distanceBottom);
+
+            if (minDistance === distanceLeft) {
+
+                x = left - radius;
+
+            } else if (minDistance === distanceRight) {
+
+                x = right + radius;
+
+            } else if (minDistance === distanceTop) {
+
+                y = top - radius;
+
+            } else {
+
+                y = bottom + radius;
+
+            }
+
+            return { x, y, collided: true };
+
+        }
+
+        if (distSq >= radiusSq || radius <= 0) {
+
+            return { x, y, collided: false };
+
+        }
+
+        const dist = Math.sqrt(distSq);
+
+        if (!Number.isFinite(dist) || dist === 0) {
+
+            return { x, y, collided: false };
+
+        }
+
+        const overlap = radius - dist;
+
+        if (overlap <= 0) {
+
+            return { x, y, collided: false };
+
+        }
+
+        const nx = dx / dist;
+
+        const ny = dy / dist;
+
+        x += nx * overlap;
+
+        y += ny * overlap;
+
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+
+            return { x: nearestX, y: nearestY, collided: true };
+
+        }
+
+        return { x, y, collided: true };
+
+    }
+
+    isPointInsideAnyCollider(x, y, colliders) {
+
+        if (!Array.isArray(colliders) || colliders.length === 0) {
+
+            return false;
+
+        }
+
+        for (const rect of colliders) {
+
+            if (!rect) {
+
+                continue;
+
+            }
+
+            const left = Number(rect.left ?? rect.x ?? 0);
+
+            const right = Number(rect.right ?? ((rect.width != null) ? left + Number(rect.width) : left));
+
+            const top = Number(rect.top ?? rect.y ?? 0);
+
+            const bottom = Number(rect.bottom ?? ((rect.height != null) ? top + Number(rect.height) : top));
+
+            if (!Number.isFinite(left) || !Number.isFinite(right) || !Number.isFinite(top) || !Number.isFinite(bottom)) {
+
+                continue;
+
+            }
+
+            if (left > right || top > bottom) {
+
+                continue;
+
+            }
+
+            if (x >= left && x <= right && y >= top && y <= bottom) {
+
+                return true;
+
+            }
+
+        }
+
+        return false;
+
+    }
+
+
+    ensureNpcMovementTracker(npc, timestamp) {
+
+        if (!npc) {
+
+            return null;
+
+        }
+
+        const time = Number.isFinite(timestamp) ? timestamp : ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now());
+
+        if (!npc._movementTracker) {
+
+            npc._movementTracker = {
+
+                samplePosition: { x: npc.x, y: npc.y },
+
+                sampleTime: time,
+
+                lastUpdateTime: time,
+
+                idleTime: 0,
+
+                motionThreshold: 0.45,
+
+                idleThreshold: 3500,
+
+                sampleWindow: 4000,
+
+                minDisplacement: 12,
+
+                stuckSamples: 0,
+
+                maxStuckSamples: 2,
+
+                teleportCooldown: 4000,
+
+                lastTeleportAt: -Infinity,
+
+            };
+
+        } else {
+
+            const tracker = npc._movementTracker;
+
+            if (typeof tracker.motionThreshold !== 'number') {
+
+                tracker.motionThreshold = 0.45;
+
+            }
+
+            if (typeof tracker.idleThreshold !== 'number') {
+
+                tracker.idleThreshold = 3500;
+
+            }
+
+            if (typeof tracker.sampleWindow !== 'number') {
+
+                tracker.sampleWindow = 4000;
+
+            }
+
+            if (typeof tracker.minDisplacement !== 'number') {
+
+                tracker.minDisplacement = 12;
+
+            }
+
+            if (typeof tracker.maxStuckSamples !== 'number') {
+
+                tracker.maxStuckSamples = 2;
+
+            }
+
+            if (typeof tracker.teleportCooldown !== 'number') {
+
+                tracker.teleportCooldown = 4000;
+
+            }
+
+            if (typeof tracker.stuckSamples !== 'number') {
+
+                tracker.stuckSamples = 0;
+
+            }
+
+            if (typeof tracker.lastTeleportAt !== 'number') {
+
+                tracker.lastTeleportAt = -Infinity;
+
+            }
+
+        }
+
+        return npc._movementTracker;
+
+    }
+
+    updateNpcMovementTracker(npc, stepDistance, timestamp) {
+
+        const tracker = this.ensureNpcMovementTracker(npc, timestamp);
+
+        if (!tracker) {
+
+            return null;
+
+        }
+
+        const time = Number.isFinite(timestamp) ? timestamp : tracker.lastUpdateTime;
+
+        const delta = Math.max(0, time - tracker.lastUpdateTime);
+
+        tracker.lastUpdateTime = time;
+
+        const motionThreshold = tracker.motionThreshold ?? 0.45;
+
+        if (npc.waitTimer > 0) {
+
+            tracker.idleTime = 0;
+
+        } else if (stepDistance <= motionThreshold) {
+
+            tracker.idleTime += delta;
+
+        } else {
+
+            tracker.idleTime = 0;
+
+        }
+
+        if (!tracker.samplePosition) {
+
+            tracker.samplePosition = { x: npc.x, y: npc.y };
+
+            tracker.sampleTime = time;
+
+        }
+
+        const sampleWindow = tracker.sampleWindow ?? 4000;
+
+        if (time - tracker.sampleTime >= sampleWindow) {
+
+            const displacement = Math.hypot(npc.x - tracker.samplePosition.x, npc.y - tracker.samplePosition.y);
+
+            tracker.samplePosition = { x: npc.x, y: npc.y };
+
+            tracker.sampleTime = time;
+
+            if (npc.waitTimer === 0 && displacement < (tracker.minDisplacement ?? 12)) {
+
+                tracker.stuckSamples = Math.min((tracker.stuckSamples ?? 0) + 1, tracker.maxStuckSamples ?? 2);
+
+            } else {
+
+                tracker.stuckSamples = Math.max(0, (tracker.stuckSamples ?? 0) - 1);
+
+            }
+
+        }
+
+        return tracker;
+
+    }
+
+    findNearestRoadSpot(x, y) {
+
+        const roads = Array.isArray(this.roadAreas) ? this.roadAreas : [];
+
+        if (!roads.length) {
+
+            return null;
+
+        }
+
+        let best = null;
+
+        let bestDist = Infinity;
+
+        const buildingColliders = this.buildingColliders;
+
+        const vehicleColliders = this.collectVehicleColliders();
+
+        for (const area of roads) {
+
+            if (!area) {
+
+                continue;
+
+            }
+
+            const left = Number(area.left);
+
+            const right = Number(area.right);
+
+            const top = Number(area.top);
+
+            const bottom = Number(area.bottom);
+
+            if (!Number.isFinite(left) || !Number.isFinite(right) || !Number.isFinite(top) || !Number.isFinite(bottom)) {
+
+                continue;
+
+            }
+
+            const width = Math.max(0, right - left);
+
+            const height = Math.max(0, bottom - top);
+
+            const marginX = Math.min(width / 2, Math.max(2, width * 0.05));
+
+            const marginY = Math.min(height / 2, Math.max(2, height * 0.05));
+
+            let candidateX = Math.max(left + marginX, Math.min(x, right - marginX));
+
+            let candidateY = Math.max(top + marginY, Math.min(y, bottom - marginY));
+
+            if (area.orientation === 'horizontal') {
+
+                candidateY = top + height / 2;
+
+            } else if (area.orientation === 'vertical') {
+
+                candidateX = left + width / 2;
+
+            }
+
+            if (this.isPointInsideAnyCollider(candidateX, candidateY, buildingColliders)) {
+
+                continue;
+
+            }
+
+            let collidingVehicle = false;
+
+            for (const vehicle of vehicleColliders) {
+
+                if (!vehicle) {
+
+                    continue;
+
+                }
+
+                if (candidateX >= vehicle.left && candidateX <= vehicle.right && candidateY >= vehicle.top && candidateY <= vehicle.bottom) {
+
+                    collidingVehicle = true;
+
+                    break;
+
+                }
+
+            }
+
+            if (collidingVehicle) {
+
+                continue;
+
+            }
+
+            const dx = candidateX - x;
+
+            const dy = candidateY - y;
+
+            const distSq = dx * dx + dy * dy;
+
+            if (distSq < bestDist) {
+
+                bestDist = distSq;
+
+                best = { x: candidateX, y: candidateY, area };
+
+            }
+
+        }
+
+        return best;
+
+    }
+
+    teleportNpcToNearestRoad(npc, reason, timestamp) {
+
+        if (!npc) {
+
+            return false;
+
+        }
+
+        const tracker = this.ensureNpcMovementTracker(npc, timestamp);
+
+        if (!tracker) {
+
+            return false;
+
+        }
+
+        const time = Number.isFinite(timestamp) ? timestamp : tracker.lastUpdateTime ?? ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now());
+
+        const cooldown = Number(tracker.teleportCooldown) || 4000;
+
+        if (time - tracker.lastTeleportAt < cooldown) {
+
+            return false;
+
+        }
+
+        const candidate = this.findNearestRoadSpot(npc.x, npc.y);
+
+        if (!candidate) {
+
+            return false;
+
+        }
+
+        const resolved = this.resolveNpcMovement(npc, candidate.x, candidate.y, candidate.x, candidate.y);
+
+        npc.x = resolved.x;
+
+        npc.y = resolved.y;
+
+        npc.waitTimer = 0;
+
+        npc.hidden = false;
+
+        npc.insideBuilding = null;
+
+        npc._lastCollision = null;
+
+        tracker.lastTeleportAt = time;
+
+        tracker.idleTime = 0;
+
+        tracker.stuckSamples = 0;
+
+        tracker.samplePosition = { x: npc.x, y: npc.y };
+
+        tracker.sampleTime = time;
+
+        return true;
+
+    }
 
     updateNpcPanicMovement(npc) {
 
@@ -10199,6 +10968,224 @@ OverworldGame.prototype.createSidewalkCorridors = function () {
 
     return corridors;
 };
+OverworldGame.prototype.createBuildingColliders = function (buildings) {
+
+    if (!Array.isArray(buildings)) {
+
+        return [];
+
+    }
+
+    const colliders = [];
+
+    for (const building of buildings) {
+
+        if (!building) {
+
+            continue;
+
+        }
+
+        const rects = [];
+
+        if (Array.isArray(building.collisionRects) && building.collisionRects.length > 0) {
+
+            for (const rect of building.collisionRects) {
+
+                if (!rect) {
+
+                    continue;
+
+                }
+
+                const width = Number(rect.width ?? 0);
+
+                const height = Number(rect.height ?? 0);
+
+                if (!(width > 0 && height > 0)) {
+
+                    continue;
+
+                }
+
+                const left = Number(rect.x ?? building.x ?? 0);
+
+                const top = Number(rect.y ?? building.y ?? 0);
+
+                if (!Number.isFinite(left) || !Number.isFinite(top)) {
+
+                    continue;
+
+                }
+
+                rects.push({
+
+                    left: left,
+
+                    right: left + width,
+
+                    top: top,
+
+                    bottom: top + height,
+
+                });
+
+            }
+
+        }
+
+        if (rects.length === 0) {
+
+            const width = Number(building.width ?? 0);
+
+            const height = Number(building.height ?? 0);
+
+            const left = Number(building.x ?? 0);
+
+            const top = Number(building.y ?? 0);
+
+            if (width > 0 && height > 0 && Number.isFinite(left) && Number.isFinite(top)) {
+
+                rects.push({
+
+                    left,
+
+                    right: left + width,
+
+                    top,
+
+                    bottom: top + height,
+
+                });
+
+            }
+
+        }
+
+        for (const rect of rects) {
+
+            colliders.push({
+
+                type: 'building',
+
+                id: building.id ?? building.name ?? null,
+
+                left: rect.left,
+
+                right: rect.right,
+
+                top: rect.top,
+
+                bottom: rect.bottom,
+
+            });
+
+        }
+
+    }
+
+    return colliders;
+
+};
+
+OverworldGame.prototype.createRoadAreas = function (roadLayout) {
+
+    const roads = Array.isArray(roadLayout) ? roadLayout : [];
+
+    if (!roads.length) {
+
+        return [];
+
+    }
+
+    const halfRoad = this.roadHalfWidth ?? ((this.roadWidth ?? 70) / 2);
+
+    const areas = [];
+
+    for (const road of roads) {
+
+        if (!road) {
+
+            continue;
+
+        }
+
+        if (road.type === "horizontal") {
+
+            const startRaw = Number(road.startX ?? road.x ?? 0);
+
+            const endRaw = Number(road.endX ?? startRaw);
+
+            const y = Number(road.y ?? 0);
+
+            if (!Number.isFinite(startRaw) || !Number.isFinite(endRaw) || !Number.isFinite(y)) {
+
+                continue;
+
+            }
+
+            const left = Math.min(startRaw, endRaw);
+
+            const right = Math.max(startRaw, endRaw);
+
+            areas.push({
+
+                type: 'road',
+
+                orientation: 'horizontal',
+
+                left,
+
+                right,
+
+                top: y - halfRoad,
+
+                bottom: y + halfRoad,
+
+            });
+
+        } else if (road.type === "vertical") {
+
+            const startRaw = Number(road.startY ?? road.y ?? 0);
+
+            const endRaw = Number(road.endY ?? startRaw);
+
+            const x = Number(road.x ?? 0);
+
+            if (!Number.isFinite(startRaw) || !Number.isFinite(endRaw) || !Number.isFinite(x)) {
+
+                continue;
+
+            }
+
+            const top = Math.min(startRaw, endRaw);
+
+            const bottom = Math.max(startRaw, endRaw);
+
+            areas.push({
+
+                type: 'road',
+
+                orientation: 'vertical',
+
+                left: x - halfRoad,
+
+                right: x + halfRoad,
+
+                top,
+
+                bottom,
+
+            });
+
+        }
+
+    }
+
+    return areas;
+
+};
+
 OverworldGame.prototype.createSidewalkObstacles = function (buildings) {
     if (!Array.isArray(buildings)) {
         return [];
