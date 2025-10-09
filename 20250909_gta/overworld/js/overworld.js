@@ -164,6 +164,12 @@ class OverworldGame {
         this.sidewalkObstacles = this.createSidewalkObstacles(this.buildings);
         this.buildingColliders = this.createBuildingColliders(this.buildings);
         this.roadAreas = this.createRoadAreas(this.roadLayout);
+        this.houseWalkwayCorridors = this.createHouseWalkwayCorridors(this.buildings);
+        if (Array.isArray(this.sidewalkCorridors) && Array.isArray(this.houseWalkwayCorridors) && this.houseWalkwayCorridors.length) {
+            this.sidewalkCorridors.push(...this.houseWalkwayCorridors);
+        }
+
+        this.walkableAreas = this.computeWalkableAreas();
 
         console.log("Buildings prepared", Array.isArray(this.buildings) ? this.buildings.length : this.buildings);
 
@@ -1499,6 +1505,10 @@ class OverworldGame {
 
 
         this.drawSidewalks();
+
+
+
+        this.drawWalkableAreasOverlay();
 
 
 
@@ -3827,7 +3837,7 @@ class OverworldGame {
 
                 speed: 1.02 + (i % 3) * 0.08,
 
-                stayOnSidewalks: false,
+                stayOnSidewalks: true,
 
                 ignoreSidewalkObstacles: true,
 
@@ -4321,7 +4331,7 @@ class OverworldGame {
 
                 ],
 
-                stayOnSidewalks: false,
+                stayOnSidewalks: true,
 
                 speed: 1.25
 
@@ -4345,7 +4355,7 @@ class OverworldGame {
 
                 ],
 
-                stayOnSidewalks: false,
+                stayOnSidewalks: true,
 
                 speed: 1.05
 
@@ -4371,7 +4381,7 @@ class OverworldGame {
 
                 ],
 
-                stayOnSidewalks: false,
+                stayOnSidewalks: true,
 
                 speed: 1.35
 
@@ -4395,7 +4405,7 @@ class OverworldGame {
 
                 ],
 
-                stayOnSidewalks: false,
+                stayOnSidewalks: true,
 
                 speed: 1.18
 
@@ -4419,7 +4429,7 @@ class OverworldGame {
 
                 ],
 
-                stayOnSidewalks: false,
+                stayOnSidewalks: true,
 
                 speed: 1.08
 
@@ -4443,7 +4453,7 @@ class OverworldGame {
 
                 ],
 
-                stayOnSidewalks: false,
+                stayOnSidewalks: true,
 
                 speed: 1.12
 
@@ -4467,7 +4477,7 @@ class OverworldGame {
 
                 ],
 
-                stayOnSidewalks: false,
+                stayOnSidewalks: true,
 
                 speed: 1.22
 
@@ -4491,7 +4501,7 @@ class OverworldGame {
 
                 ],
 
-                stayOnSidewalks: false,
+                stayOnSidewalks: true,
 
                 speed: 1.14
 
@@ -4515,7 +4525,7 @@ class OverworldGame {
 
                 ],
 
-                stayOnSidewalks: false,
+                stayOnSidewalks: true,
 
                 speed: 1.02
 
@@ -4539,7 +4549,7 @@ class OverworldGame {
 
                 ],
 
-                stayOnSidewalks: false,
+                stayOnSidewalks: true,
 
                 speed: 1.35
 
@@ -4559,7 +4569,7 @@ class OverworldGame {
 
                 speed: 1.08,
 
-                stayOnSidewalks: false
+                stayOnSidewalks: true
 
             }));
 
@@ -4673,7 +4683,7 @@ class OverworldGame {
 
             for (const wp of path) {
 
-                if (!wp) {
+                if (!wp || wp.interior === true || wp.allowOffSidewalk === true) {
 
                     continue;
 
@@ -4724,6 +4734,8 @@ class OverworldGame {
             insideBuilding: null,
 
             hidden: false,
+
+            lastBuildingId: null,
 
             parts: this.buildNPCParts(config.palette ?? {}),
 
@@ -5233,11 +5245,23 @@ class OverworldGame {
 
                 if (target.action === 'enter') {
 
-                    npc.insideBuilding = target.buildingId ?? npc.insideBuilding ?? true;
+                    if (target.buildingId) {
+
+                        npc.lastBuildingId = target.buildingId;
+
+                    }
+
+                    npc.insideBuilding = target.buildingId ?? npc.insideBuilding ?? npc.lastBuildingId ?? true;
 
                     npc.hidden = true;
 
                 } else if (target.action === 'exit') {
+
+                    if (target.buildingId) {
+
+                        npc.lastBuildingId = target.buildingId;
+
+                    }
 
                     npc.insideBuilding = null;
 
@@ -5245,7 +5269,13 @@ class OverworldGame {
 
                 } else if (target.interior) {
 
-                    npc.insideBuilding = target.buildingId ?? npc.insideBuilding ?? true;
+                    if (target.buildingId) {
+
+                        npc.lastBuildingId = target.buildingId;
+
+                    }
+
+                    npc.insideBuilding = target.buildingId ?? npc.insideBuilding ?? npc.lastBuildingId ?? true;
 
                     npc.hidden = true;
 
@@ -5270,6 +5300,12 @@ class OverworldGame {
                 movingThisFrame = movement.moved;
 
                 npc._lastCollision = movement.collisionInfo;
+
+                if (npc._lastCollision && npc._lastCollision.buildingId) {
+
+                    npc.lastBuildingId = npc._lastCollision.buildingId;
+
+                }
 
             }
 
@@ -5303,7 +5339,7 @@ class OverworldGame {
 
         let teleported = false;
 
-        if (wantsTeleportInside && this.teleportNpcToNearestRoad(npc, 'building', now)) {
+        if (wantsTeleportInside && this.teleportNpcToNearestSidewalk(npc, 'building', now)) {
 
             teleported = true;
 
@@ -5317,7 +5353,7 @@ class OverworldGame {
 
             const stuckTooOften = (tracker.stuckSamples ?? 0) >= maxStuckSamples;
 
-            if ((idleTooLong || stuckTooOften) && this.teleportNpcToNearestRoad(npc, 'idle', now)) {
+            if ((idleTooLong || stuckTooOften) && this.teleportNpcToNearestSidewalk(npc, 'idle', now)) {
 
                 teleported = true;
 
@@ -5376,6 +5412,8 @@ class OverworldGame {
 
         let collidedWithBuilding = false;
 
+        let collidedBuildingId = null;
+
         let collidedWithVehicle = false;
 
         const buildingColliders = Array.isArray(this.buildingColliders) ? this.buildingColliders : [];
@@ -5391,6 +5429,12 @@ class OverworldGame {
                 y = result.y;
 
                 collidedWithBuilding = true;
+
+                if (!collidedBuildingId && collider && collider.id) {
+
+                    collidedBuildingId = collider.id;
+
+                }
 
             }
 
@@ -5426,6 +5470,38 @@ class OverworldGame {
 
         const insideBuilding = this.isPointInsideAnyCollider(x, y, buildingColliders);
 
+        let buildingId = collidedBuildingId;
+
+        if (insideBuilding && !buildingId) {
+
+            for (const collider of buildingColliders) {
+
+                if (!collider) {
+
+                    continue;
+
+                }
+
+                const bounds = resolveRectBounds(collider);
+
+                if (!bounds) {
+
+                    continue;
+
+                }
+
+                if (x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom) {
+
+                    buildingId = collider.id ?? buildingId;
+
+                    break;
+
+                }
+
+            }
+
+        }
+
         let collisionInfo = null;
 
         if (collidedWithBuilding || collidedWithVehicle || insideBuilding) {
@@ -5437,6 +5513,8 @@ class OverworldGame {
                 vehicle: collidedWithVehicle,
 
                 insideBuilding,
+
+                buildingId: buildingId ?? null,
 
             };
 
@@ -5902,75 +5980,33 @@ class OverworldGame {
 
     }
 
-    findNearestRoadSpot(x, y) {
+    findNearestSidewalkSpot(x, y, options = {}) {
 
-        const roads = Array.isArray(this.roadAreas) ? this.roadAreas : [];
-
-        if (!roads.length) {
-
-            return null;
-
-        }
-
-        let best = null;
-
-        let bestDist = Infinity;
+        const walkableRects = this.getWalkableRectangles();
 
         const buildingColliders = this.buildingColliders;
 
         const vehicleColliders = this.collectVehicleColliders();
 
-        for (const area of roads) {
+        const minDistance = Math.max(0, Number(options.minDistance) || 0);
 
-            if (!area) {
+        const minDistSq = minDistance * minDistance;
 
-                continue;
+        const candidates = [];
 
-            }
+        const addCandidate = (px, py) => {
 
-            const left = Number(area.left);
+            if (!Number.isFinite(px) || !Number.isFinite(py)) {
 
-            const right = Number(area.right);
-
-            const top = Number(area.top);
-
-            const bottom = Number(area.bottom);
-
-            if (!Number.isFinite(left) || !Number.isFinite(right) || !Number.isFinite(top) || !Number.isFinite(bottom)) {
-
-                continue;
+                return;
 
             }
 
-            const width = Math.max(0, right - left);
+            if (this.isPointInsideAnyCollider(px, py, buildingColliders)) {
 
-            const height = Math.max(0, bottom - top);
-
-            const marginX = Math.min(width / 2, Math.max(2, width * 0.05));
-
-            const marginY = Math.min(height / 2, Math.max(2, height * 0.05));
-
-            let candidateX = Math.max(left + marginX, Math.min(x, right - marginX));
-
-            let candidateY = Math.max(top + marginY, Math.min(y, bottom - marginY));
-
-            if (area.orientation === 'horizontal') {
-
-                candidateY = top + height / 2;
-
-            } else if (area.orientation === 'vertical') {
-
-                candidateX = left + width / 2;
+                return;
 
             }
-
-            if (this.isPointInsideAnyCollider(candidateX, candidateY, buildingColliders)) {
-
-                continue;
-
-            }
-
-            let collidingVehicle = false;
 
             for (const vehicle of vehicleColliders) {
 
@@ -5980,35 +6016,89 @@ class OverworldGame {
 
                 }
 
-                if (candidateX >= vehicle.left && candidateX <= vehicle.right && candidateY >= vehicle.top && candidateY <= vehicle.bottom) {
+                if (px >= vehicle.left - 6 && px <= vehicle.right + 6 && py >= vehicle.top - 6 && py <= vehicle.bottom + 6) {
 
-                    collidingVehicle = true;
-
-                    break;
+                    return;
 
                 }
 
             }
 
-            if (collidingVehicle) {
+            candidates.push({ x: px, y: py });
+
+        };
+
+        const projection = this.projectPointToSidewalk(x, y);
+
+        if (projection && projection.inside) {
+
+            addCandidate(projection.x, projection.y);
+
+        }
+
+        if (walkableRects.length) {
+
+            for (const rect of walkableRects) {
+
+                if (!rect) {
+
+                    continue;
+
+                }
+
+                const clamped = this.clampPointToRect(x, y, rect);
+
+                const resolved = this.pushPointOutOfObstacles(clamped, rect);
+
+                addCandidate(resolved.x, resolved.y);
+
+                const bounds = resolveRectBounds(rect);
+
+                if (bounds) {
+
+                    addCandidate(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
+
+                }
+
+            }
+
+        } else if (projection) {
+
+            addCandidate(projection.x, projection.y);
+
+        }
+
+        let best = null;
+
+        let bestDistSq = Infinity;
+
+        for (const candidate of candidates) {
+
+            const dx = candidate.x - x;
+
+            const dy = candidate.y - y;
+
+            const distSq = dx * dx + dy * dy;
+
+            if (distSq < minDistSq) {
 
                 continue;
 
             }
 
-            const dx = candidateX - x;
+            if (distSq < bestDistSq) {
 
-            const dy = candidateY - y;
+                bestDistSq = distSq;
 
-            const distSq = dx * dx + dy * dy;
-
-            if (distSq < bestDist) {
-
-                bestDist = distSq;
-
-                best = { x: candidateX, y: candidateY, area };
+                best = candidate;
 
             }
+
+        }
+
+        if (!best && minDistance > 0) {
+
+            return this.findNearestSidewalkSpot(x, y, { ...options, minDistance: 0 });
 
         }
 
@@ -6016,7 +6106,75 @@ class OverworldGame {
 
     }
 
-    teleportNpcToNearestRoad(npc, reason, timestamp) {
+    getBuildingSidewalkExit(buildingId) {
+
+        if (!buildingId) {
+
+            return null;
+
+        }
+
+        const buildings = Array.isArray(this.buildings) ? this.buildings : [];
+
+        const building = buildings.find((entry) => entry && (entry.id === buildingId || entry.name === buildingId));
+
+        if (!building) {
+
+            return null;
+
+        }
+
+        const metrics = building.metrics ?? (typeof this.computeHouseMetrics === 'function' ? this.computeHouseMetrics(building) : null);
+
+        if (metrics && metrics.approach) {
+
+            return { x: metrics.approach.x, y: metrics.approach.y };
+
+        }
+
+        if (metrics && metrics.entrance) {
+
+            return { x: metrics.entrance.x, y: metrics.entrance.y + 6 };
+
+        }
+
+        if (metrics && metrics.bounds) {
+
+            const bounds = metrics.bounds;
+
+            if (bounds && Number.isFinite(bounds.left) && Number.isFinite(bounds.right) && Number.isFinite(bounds.bottom)) {
+
+                return { x: (bounds.left + bounds.right) / 2, y: bounds.bottom + 12 };
+
+            }
+
+        }
+
+        if (building.bounds && Number.isFinite(building.bounds.left) && Number.isFinite(building.bounds.right) && Number.isFinite(building.bounds.bottom)) {
+
+            return { x: (building.bounds.left + building.bounds.right) / 2, y: building.bounds.bottom + 12 };
+
+        }
+
+        const baseX = Number(building.x);
+
+        const baseY = Number(building.y);
+
+        const width = Number(building.width);
+
+        const height = Number(building.height);
+
+        if (Number.isFinite(baseX) && Number.isFinite(baseY) && Number.isFinite(width) && Number.isFinite(height)) {
+
+            return { x: baseX + width / 2, y: baseY + height + 12 };
+
+        }
+
+        return null;
+
+    }
+
+    teleportNpcToNearestSidewalk(npc, reason, timestamp) {
 
         if (!npc) {
 
@@ -6042,7 +6200,39 @@ class OverworldGame {
 
         }
 
-        const candidate = this.findNearestRoadSpot(npc.x, npc.y);
+        let searchX = npc.x;
+
+        let searchY = npc.y;
+
+        let minDistance = reason === 'idle' ? 26 : 14;
+
+        let buildingIdForTeleport = null;
+
+        if (reason === 'building') {
+
+            buildingIdForTeleport = npc.insideBuilding || npc._lastCollision?.buildingId || npc.lastBuildingId || null;
+
+            const exit = this.getBuildingSidewalkExit(buildingIdForTeleport);
+
+            if (exit) {
+
+                searchX = exit.x;
+
+                searchY = exit.y;
+
+                minDistance = Math.max(minDistance, 22);
+
+            }
+
+        }
+
+        let candidate = this.findNearestSidewalkSpot(searchX, searchY, { minDistance });
+
+        if (!candidate) {
+
+            candidate = this.findNearestSidewalkSpot(npc.x, npc.y, { minDistance: 0 });
+
+        }
 
         if (!candidate) {
 
@@ -6063,6 +6253,12 @@ class OverworldGame {
         npc.insideBuilding = null;
 
         npc._lastCollision = null;
+
+        if (buildingIdForTeleport) {
+
+            npc.lastBuildingId = buildingIdForTeleport;
+
+        }
 
         tracker.lastTeleportAt = time;
 
@@ -6086,15 +6282,15 @@ class OverworldGame {
 
         }
 
+        const originX = npc.x;
 
+        const originY = npc.y;
 
         let awayX = npc.x - this.player.x;
 
         let awayY = npc.y - this.player.y;
 
         let length = Math.hypot(awayX, awayY);
-
-
 
         if (length < 1) {
 
@@ -6108,35 +6304,33 @@ class OverworldGame {
 
         }
 
-
-
         const baseSpeed = npc.speed ?? 1.2;
 
         const panicSpeed = baseSpeed * 2.2;
 
+        const targetX = originX + (awayX / length) * panicSpeed;
 
+        const targetY = originY + (awayY / length) * panicSpeed;
 
-        npc.x += (awayX / length) * panicSpeed;
+        const movement = this.resolveNpcMovement(npc, targetX, targetY, originX, originY);
 
-        npc.y += (awayY / length) * panicSpeed;
+        npc.x = movement.x;
 
+        npc.y = movement.y;
 
+        npc._lastCollision = movement.collisionInfo;
 
-        npc.moving = true;
+        if (npc._lastCollision && npc._lastCollision.buildingId) {
 
-        npc.waitTimer = 0;
+            npc.lastBuildingId = npc._lastCollision.buildingId;
 
-        npc.isCrossing = false;
+        }
 
-        npc.waitingForCrosswalk = null;
+        if (typeof this.applySidewalkConstraint === "function") {
 
+            this.applySidewalkConstraint(npc);
 
-
-        npc.x = Math.max(0, Math.min(npc.x, 3600));
-
-        npc.y = Math.max(0, Math.min(npc.y, 3000));
-
-
+        }
 
         if (npc.bounds) {
 
@@ -6146,13 +6340,33 @@ class OverworldGame {
 
         }
 
+        let moved = Boolean(movement.moved);
 
+        const collisionInfo = movement.collisionInfo;
+
+        if (!moved || (collisionInfo && collisionInfo.insideBuilding)) {
+
+            const now = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+
+            if (this.teleportNpcToNearestSidewalk(npc, (collisionInfo && collisionInfo.insideBuilding) ? "building" : "idle", now)) {
+
+                moved = true;
+
+            }
+
+        }
+
+        npc.moving = moved;
+
+        npc.waitTimer = 0;
+
+        npc.isCrossing = false;
+
+        npc.waitingForCrosswalk = null;
 
         npc.animationPhase = (npc.animationPhase + panicSpeed * 0.07) % (Math.PI * 2);
 
         npc.panicTimer = Math.max(0, (npc.panicTimer ?? 0) - 1);
-
-
 
         if (npc.panicTimer === 0) {
 
@@ -6161,9 +6375,6 @@ class OverworldGame {
         }
 
     }
-
-
-
     updateVehicle(vehicle, npcs) {
 
         if (!vehicle || !vehicle.path || vehicle.path.length < 2) {
@@ -6827,6 +7038,44 @@ class OverworldGame {
             }
 
         }
+
+    }
+
+    drawWalkableAreasOverlay() {
+
+        const areas = Array.isArray(this.walkableAreas) ? this.walkableAreas : [];
+
+        if (!areas.length) {
+
+            return;
+
+        }
+
+        this.ctx.save();
+
+        this.ctx.fillStyle = "rgba(255, 120, 120, 0.2)";
+
+        this.ctx.strokeStyle = "rgba(255, 120, 120, 0.25)";
+
+        this.ctx.lineWidth = 1;
+
+        for (const area of areas) {
+
+            const bounds = resolveRectBounds(area);
+
+            if (!bounds) {
+
+                continue;
+
+            }
+
+            this.ctx.fillRect(bounds.left, bounds.top, bounds.width, bounds.height);
+
+            this.ctx.strokeRect(bounds.left, bounds.top, bounds.width, bounds.height);
+
+        }
+
+        this.ctx.restore();
 
     }
 
@@ -10968,6 +11217,77 @@ OverworldGame.prototype.createSidewalkCorridors = function () {
 
     return corridors;
 };
+
+OverworldGame.prototype.computeWalkableAreas = function () {
+
+    const source = Array.isArray(this.sidewalkCorridors) ? this.sidewalkCorridors : [];
+
+    if (!source.length) {
+
+        return [];
+
+    }
+
+    const areas = [];
+
+    const seen = new Set();
+
+    for (const rect of source) {
+
+        const bounds = resolveRectBounds(rect);
+
+        if (!bounds || bounds.width <= 0 || bounds.height <= 0) {
+
+            continue;
+
+        }
+
+        const key = `${Math.round(bounds.left)}:${Math.round(bounds.top)}:${Math.round(bounds.right)}:${Math.round(bounds.bottom)}`;
+
+        if (seen.has(key)) {
+
+            continue;
+
+        }
+
+        areas.push({
+
+            x: bounds.left,
+
+            y: bounds.top,
+
+            width: bounds.width,
+
+            height: bounds.height,
+
+        });
+
+        seen.add(key);
+
+    }
+
+    return areas;
+
+};
+
+OverworldGame.prototype.getWalkableRectangles = function () {
+
+    if (Array.isArray(this.walkableAreas) && this.walkableAreas.length) {
+
+        return this.walkableAreas;
+
+    }
+
+    if (Array.isArray(this.sidewalkCorridors) && this.sidewalkCorridors.length) {
+
+        return this.sidewalkCorridors;
+
+    }
+
+    return [];
+
+};
+
 OverworldGame.prototype.createBuildingColliders = function (buildings) {
 
     if (!Array.isArray(buildings)) {
@@ -11186,6 +11506,118 @@ OverworldGame.prototype.createRoadAreas = function (roadLayout) {
 
 };
 
+OverworldGame.prototype.createHouseWalkwayCorridors = function (buildings) {
+
+    if (!Array.isArray(buildings)) {
+
+        return [];
+
+    }
+
+    const corridors = [];
+
+    for (const building of buildings) {
+
+        if (!building || building.type !== "house") {
+
+            continue;
+
+        }
+
+        const metrics = building.metrics ?? null;
+
+        if (!metrics || !metrics.entrance || !metrics.approach) {
+
+            continue;
+
+        }
+
+        const entrance = metrics.entrance;
+
+        const approach = metrics.approach;
+
+        const walkway = metrics.walkway ?? null;
+
+        const variant = building.variant ?? {};
+
+        const walkwayWidth = Math.max(20, Number(walkway?.width ?? 30));
+
+        const lateralMargin = Math.max(6, walkwayWidth * 0.35);
+
+        const halfWidth = walkwayWidth / 2 + lateralMargin;
+
+        const startY = Math.min(entrance.y, approach.y);
+
+        const endY = Math.max(entrance.y, approach.y);
+
+        const extension = Math.max(0, Number(variant.walkwayExtension ?? 0));
+
+        const spurLength = Math.max(0, Number(variant.walkwaySpurLength ?? 0));
+
+        const spurWidth = Math.max(0, Number(variant.walkwaySpurWidth ?? 0));
+
+        const paddingY = Math.max(8, (walkway?.height ?? 18) * 0.25);
+
+        const left = entrance.x - halfWidth;
+
+        const right = entrance.x + halfWidth;
+
+        const top = Math.min(startY, endY) - paddingY;
+
+        const bottom = endY + extension + paddingY;
+
+        corridors.push({
+
+            x: left,
+
+            y: top,
+
+            width: Math.max(8, right - left),
+
+            height: Math.max(8, bottom - top),
+
+        });
+
+        if (spurLength > 0 && spurWidth > 0) {
+
+            const spurHalfWidth = Math.max(6, spurWidth / 2 + 6);
+
+            const spurTop = bottom - Math.max(spurWidth, 12) - 2;
+
+            const spurBottom = spurTop + Math.max(spurWidth, 12);
+
+            corridors.push({
+
+                x: entrance.x - spurLength - spurHalfWidth,
+
+                y: spurTop,
+
+                width: spurLength + spurHalfWidth * 2,
+
+                height: Math.max(8, spurBottom - spurTop),
+
+            });
+
+            corridors.push({
+
+                x: entrance.x,
+
+                y: spurTop,
+
+                width: spurLength + spurHalfWidth * 2,
+
+                height: Math.max(8, spurBottom - spurTop),
+
+            });
+
+        }
+
+    }
+
+    return corridors;
+
+};
+
 OverworldGame.prototype.createSidewalkObstacles = function (buildings) {
     if (!Array.isArray(buildings)) {
         return [];
@@ -11267,9 +11699,9 @@ OverworldGame.prototype.createSidewalkObstacles = function (buildings) {
     return obstacles;
 };
 OverworldGame.prototype.projectPointToSidewalk = function (x, y, options = {}) {
-    const corridors = Array.isArray(this.sidewalkCorridors) ? this.sidewalkCorridors : [];
+    const walkableRects = this.getWalkableRectangles();
 
-    if (!corridors.length) {
+    if (!walkableRects.length) {
         return { x, y, inside: false };
     }
 
@@ -11290,7 +11722,7 @@ OverworldGame.prototype.projectPointToSidewalk = function (x, y, options = {}) {
         return true;
     };
 
-    for (const rect of corridors) {
+    for (const rect of walkableRects) {
         if (!rect || !this.isPointInsideRect(x, y, rect)) {
             continue;
         }
@@ -11306,12 +11738,12 @@ OverworldGame.prototype.projectPointToSidewalk = function (x, y, options = {}) {
     }
 
     let closest = { x, y, inside: false };
-    let closestCorridor = null;
+    let closestRect = null;
     let bestDist = Infinity;
     let bestClear = null;
     let bestClearDist = Infinity;
 
-    for (const rect of corridors) {
+    for (const rect of walkableRects) {
         if (!rect) {
             continue;
         }
@@ -11327,7 +11759,7 @@ OverworldGame.prototype.projectPointToSidewalk = function (x, y, options = {}) {
         if (distSq < bestDist) {
             bestDist = distSq;
             closest = { x: resolved.x, y: resolved.y, inside: resolvedInside && isClear };
-            closestCorridor = rect;
+            closestRect = rect;
         }
 
         if (isClear && distSq < bestClearDist) {
@@ -11340,13 +11772,13 @@ OverworldGame.prototype.projectPointToSidewalk = function (x, y, options = {}) {
         return { x: bestClear.x, y: bestClear.y, inside: bestClear.inside };
     }
 
-    if (!pointIsClear(closest.x, closest.y) && closestCorridor) {
-        const pushed = this.pushPointOutOfObstacles(closest, closestCorridor);
+    if (!pointIsClear(closest.x, closest.y) && closestRect) {
+        const pushed = this.pushPointOutOfObstacles(closest, closestRect);
         const stillClear = pointIsClear(pushed.x, pushed.y);
         return {
             x: pushed.x,
             y: pushed.y,
-            inside: stillClear && this.isPointInsideRect(pushed.x, pushed.y, closestCorridor),
+            inside: stillClear && this.isPointInsideRect(pushed.x, pushed.y, closestRect),
         };
     }
 
