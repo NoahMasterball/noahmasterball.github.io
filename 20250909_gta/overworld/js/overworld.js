@@ -97,6 +97,8 @@ class OverworldGame {
         this.nearBuilding = null;
         this.pendingInteractionBuilding = null;
 
+        this.enableHouseResidents = false;
+
         this.interactionUI = document.getElementById("buildingInteraction");
         this.isInteractionVisible = false;
         this.interactionRequiresKeyRelease = false;
@@ -3781,6 +3783,12 @@ class OverworldGame {
 
     createHouseVisitorNPCs() {
 
+        if (this.enableHouseResidents === false) {
+
+            return [];
+
+        }
+
         if (!Array.isArray(this.buildings)) {
 
             return [];
@@ -5081,7 +5089,7 @@ class OverworldGame {
 
         };
 
-        if (npc.stayOnSidewalks && !startInside) {
+        if (npc.stayOnSidewalks) {
 
             const projectedStart = this.projectPointToSidewalk(npc.x, npc.y, { ignoreObstacles: npc.ignoreSidewalkObstacles });
 
@@ -6514,6 +6522,72 @@ class OverworldGame {
 
     }
 
+    redirectNpcOnWalkwayEdge(npc, timestamp) {
+
+        if (!npc || !Array.isArray(npc.path) || npc.path.length < 2) {
+
+            return false;
+
+        }
+
+        const turnOptions = [1, 2, -1];
+
+        const choice = turnOptions[Math.floor(Math.random() * turnOptions.length)];
+
+        let nextIndex = npc.waypointIndex;
+
+        if (!Number.isFinite(nextIndex)) {
+
+            nextIndex = 0;
+
+        }
+
+        if (choice === -1) {
+
+            nextIndex = (nextIndex - 1 + npc.path.length) % npc.path.length;
+
+        } else {
+
+            nextIndex = (nextIndex + choice + npc.path.length) % npc.path.length;
+
+        }
+
+        npc.waypointIndex = nextIndex;
+
+        npc.waitTimer = Math.max(8, Math.round(8 + Math.random() * 24));
+
+        const projection = this.projectPointToSidewalk(npc.x, npc.y, { ignoreObstacles: npc.ignoreSidewalkObstacles });
+
+        if (projection && Number.isFinite(projection.x) && Number.isFinite(projection.y)) {
+
+            npc.x = projection.x;
+
+            npc.y = projection.y;
+
+        }
+
+        const tracker = this.ensureNpcMovementTracker(npc, timestamp);
+
+        if (tracker) {
+
+            const time = Number.isFinite(timestamp) ? timestamp : tracker.lastUpdateTime ?? ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now());
+
+            tracker.lastTeleportAt = time;
+
+            tracker.idleTime = 0;
+
+            tracker.stuckSamples = 0;
+
+            tracker.samplePosition = { x: npc.x, y: npc.y };
+
+            tracker.sampleTime = time;
+
+        }
+
+        return true;
+
+    }
+
     teleportNpcToNearestSidewalk(npc, reason, timestamp) {
 
         if (!npc) {
@@ -6531,6 +6605,18 @@ class OverworldGame {
         }
 
         const time = Number.isFinite(timestamp) ? timestamp : tracker.lastUpdateTime ?? ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now());
+
+        if (reason === 'idle') {
+
+            const redirected = this.redirectNpcOnWalkwayEdge(npc, time);
+
+            if (redirected) {
+
+                return false;
+
+            }
+
+        }
 
         const cooldown = Number(tracker.teleportCooldown) || 4000;
 
