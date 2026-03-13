@@ -87,12 +87,3 @@ export function pseudoRandom2D(x, y) {
     return value - Math.floor(value);
 }
 
-export default {
-    distanceBetween,
-    clamp,
-    lerp,
-    pointInRect,
-    circleIntersectsRect,
-    resolveCircleRectOverlap,
-    pseudoRandom2D,
-};
