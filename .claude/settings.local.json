@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(d:/OneDrive/Documents/GitHub/noahmasterball.github.io/20260813_spiel/**)",
+      "Write(d:/OneDrive/Documents/GitHub/noahmasterball.github.io/20260813_spiel/**)",
+      "Edit(d:/OneDrive/Documents/GitHub/noahmasterball.github.io/20260813_spiel/**)",
+      "Glob(d:/OneDrive/Documents/GitHub/noahmasterball.github.io/20260813_spiel/**)",
+      "Grep(d:/OneDrive/Documents/GitHub/noahmasterball.github.io/20260813_spiel/**)",
+      "Bash"
+    ]
+  }
+}

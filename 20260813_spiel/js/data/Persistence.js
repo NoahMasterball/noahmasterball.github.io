@@ -1,0 +1,291 @@
+/**
+ * Persistence - Alle localStorage-Operationen als reine Funktionen.
+ * SSOT fuer Speichern/Laden von Spielstand-Daten.
+ *
+ * Portiert aus gta_old/overworld/js/overworld.js:
+ *   loadWeaponInventory()      (Z.2789-2817)
+ *   persistWeaponInventory()   (Z.2819-2830)
+ *   loadWeaponLoadout()        (Z.2832-2890)
+ *   persistWeaponLoadout()     (Z.2892-2905)
+ *   loadCurrentWeaponId()      (Z.2907-2929)
+ *   persistCurrentWeaponId()   (Z.2931-2945)
+ *   loadCasinoCredits()        (Z.2657-2679)
+ *   storeCasinoCredits()       (Z.2681-2694)
+ *   loadPlayerMoney()          (neu, war im Originalcode nicht persistiert)
+ *   persistPlayerMoney()       (neu)
+ */
+
+import { WEAPON_ORDER } from './WeaponCatalog.js';
+
+// ───────────────────── Hilfsfunktionen ─────────────────────
+
+/** @returns {boolean} true wenn localStorage verfuegbar */
+function hasStorage() {
+    return typeof window !== 'undefined' && !!window.localStorage;
+}
+
+/**
+ * Sicheres Lesen aus localStorage.
+ * @param {string} key
+ * @returns {string|null}
+ */
+function readItem(key) {
+    if (!hasStorage()) return null;
+    try {
+        return window.localStorage.getItem(key);
+    } catch (err) {
+        console.warn(`[Persistence] Lesen von "${key}" fehlgeschlagen:`, err);
+        return null;
+    }
+}
+
+/**
+ * Sicheres Schreiben in localStorage.
+ * @param {string} key
+ * @param {string} value
+ */
+function writeItem(key, value) {
+    if (!hasStorage()) return;
+    try {
+        window.localStorage.setItem(key, value);
+    } catch (err) {
+        console.warn(`[Persistence] Schreiben von "${key}" fehlgeschlagen:`, err);
+    }
+}
+
+/**
+ * Sicheres Entfernen aus localStorage.
+ * @param {string} key
+ */
+function removeItem(key) {
+    if (!hasStorage()) return;
+    try {
+        window.localStorage.removeItem(key);
+    } catch (err) {
+        console.warn(`[Persistence] Loeschen von "${key}" fehlgeschlagen:`, err);
+    }
+}
+
+// ───────────────────── Waffen-Inventar ─────────────────────
+
+const KEY_WEAPON_INVENTORY = 'overworldWeaponInventory';
+
+/**
+ * Laedt das Waffeninventar aus localStorage.
+ * Standard-Waffe "pistol" ist immer enthalten.
+ *
+ * @returns {Set<string>} Besessene Waffen-IDs
+ */
+export function loadWeaponInventory() {
+    const defaults = ['pistol'];
+    const validIds = new Set(WEAPON_ORDER);
+    const owned = new Set();
+
+    for (const id of defaults) {
+        owned.add(id);
+    }
+
+    const raw = readItem(KEY_WEAPON_INVENTORY);
+    if (raw) {
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                for (const id of parsed) {
+                    if (typeof id === 'string' && validIds.has(id)) {
+                        owned.add(id);
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('Waffeninventar konnte nicht geladen werden', error);
+        }
+    }
+
+    return owned;
+}
+
+/**
+ * Speichert das Waffeninventar in localStorage.
+ * @param {Set<string>} weaponInventory
+ */
+export function persistWeaponInventory(weaponInventory) {
+    const owned = Array.from(weaponInventory).filter((id) => WEAPON_ORDER.includes(id));
+    writeItem(KEY_WEAPON_INVENTORY, JSON.stringify(owned));
+}
+
+// ───────────────────── Waffen-Loadout ─────────────────────
+
+const KEY_WEAPON_LOADOUT = 'overworldWeaponLoadout';
+const MAX_LOADOUT_SLOTS = 3;
+
+/**
+ * Laedt das Waffen-Loadout (bis zu 3 Slots) aus localStorage.
+ *
+ * @param {Set<string>} weaponInventory - Aktuelle besessene Waffen
+ * @returns {Array<string>} Loadout-Slot-IDs
+ */
+export function loadWeaponLoadout(weaponInventory) {
+    const fallback = WEAPON_ORDER.filter((id) => weaponInventory.has(id));
+    const slots = [];
+    const seen = new Set();
+
+    const raw = readItem(KEY_WEAPON_LOADOUT);
+    if (raw) {
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                for (const id of parsed) {
+                    if (typeof id !== 'string') continue;
+                    if (!WEAPON_ORDER.includes(id)) continue;
+                    if (!weaponInventory.has(id)) continue;
+                    if (seen.has(id)) continue;
+                    slots.push(id);
+                    seen.add(id);
+                    if (slots.length >= MAX_LOADOUT_SLOTS) break;
+                }
+            }
+        } catch (error) {
+            console.warn('Waffen-Slots konnten nicht geladen werden', error);
+        }
+    }
+
+    if (!slots.length) {
+        for (const id of fallback) {
+            if (seen.has(id)) continue;
+            slots.push(id);
+            seen.add(id);
+            if (slots.length >= MAX_LOADOUT_SLOTS) break;
+        }
+    }
+
+    if (!slots.length) {
+        slots.push('pistol');
+    }
+
+    return slots;
+}
+
+/**
+ * Speichert das Waffen-Loadout in localStorage.
+ * @param {Array<string>} weaponLoadout
+ * @param {Set<string>} weaponInventory
+ */
+export function persistWeaponLoadout(weaponLoadout, weaponInventory) {
+    const slots = Array.isArray(weaponLoadout)
+        ? weaponLoadout.filter((id) => WEAPON_ORDER.includes(id) && weaponInventory.has(id))
+        : [];
+    writeItem(KEY_WEAPON_LOADOUT, JSON.stringify(slots));
+}
+
+// ───────────────────── Aktuelle Waffe ─────────────────────
+
+const KEY_CURRENT_WEAPON = 'overworldCurrentWeaponId';
+
+/**
+ * Laedt die aktuell ausgeruestete Waffen-ID aus localStorage.
+ *
+ * @param {Set<string>} weaponInventory
+ * @param {Array<string>} weaponLoadout
+ * @returns {string} Waffen-ID
+ */
+export function loadCurrentWeaponId(weaponInventory, weaponLoadout) {
+    const fallback = Array.isArray(weaponLoadout) && weaponLoadout.length
+        ? weaponLoadout[0]
+        : 'pistol';
+
+    const stored = readItem(KEY_CURRENT_WEAPON);
+    if (stored && weaponInventory.has(stored)) {
+        return stored;
+    }
+
+    if (weaponInventory.has(fallback)) {
+        return fallback;
+    }
+
+    const owned = WEAPON_ORDER.find((id) => weaponInventory.has(id));
+    return owned ?? 'pistol';
+}
+
+/**
+ * Speichert die aktuell ausgeruestete Waffen-ID in localStorage.
+ * @param {string} currentWeaponId
+ * @param {Set<string>} weaponInventory
+ */
+export function persistCurrentWeaponId(currentWeaponId, weaponInventory) {
+    if (weaponInventory.has(currentWeaponId)) {
+        writeItem(KEY_CURRENT_WEAPON, currentWeaponId);
+    } else {
+        removeItem(KEY_CURRENT_WEAPON);
+    }
+}
+
+// ───────────────────── Casino-Credits ─────────────────────
+
+const KEY_CASINO_CREDITS = 'casinoCredits';
+
+/**
+ * Laedt Casino-Credits aus localStorage.
+ * @param {number} [fallback=0] - Rueckgabewert wenn nichts gespeichert
+ * @returns {number}
+ */
+export function loadCasinoCredits(fallback = 0) {
+    const raw = readItem(KEY_CASINO_CREDITS);
+    if (raw == null) {
+        return fallback;
+    }
+
+    const parsed = parseInt(raw, 10);
+
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        return 0;
+    }
+
+    return parsed;
+}
+
+/**
+ * Speichert Casino-Credits in localStorage.
+ * @param {number} amount
+ * @returns {number} Der tatsaechlich gespeicherte Wert
+ */
+export function storeCasinoCredits(amount) {
+    const value = Math.max(0, Math.floor(Number(amount) || 0));
+    writeItem(KEY_CASINO_CREDITS, String(value));
+    return value;
+}
+
+// ───────────────────── Spieler-Geld ─────────────────────
+
+const KEY_PLAYER_MONEY = 'overworldPlayerMoney';
+const DEFAULT_PLAYER_MONEY = 1500;
+
+/**
+ * Laedt das Spielergeld aus localStorage.
+ * @param {number} [fallback=1500] - Standardwert
+ * @returns {number}
+ */
+export function loadPlayerMoney(fallback = DEFAULT_PLAYER_MONEY) {
+    const raw = readItem(KEY_PLAYER_MONEY);
+    if (raw == null) {
+        return fallback;
+    }
+
+    const parsed = parseInt(raw, 10);
+
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        return fallback;
+    }
+
+    return parsed;
+}
+
+/**
+ * Speichert das Spielergeld in localStorage.
+ * @param {number} amount
+ * @returns {number} Der tatsaechlich gespeicherte Wert
+ */
+export function persistPlayerMoney(amount) {
+    const value = Math.max(0, Math.floor(Number(amount) || 0));
+    writeItem(KEY_PLAYER_MONEY, String(value));
+    return value;
+}

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command \"Get-CimInstance Win32_StartupCommand | Where-Object { $_Name -like ''*Armoury*'' -or $_Name -like ''*ASUS*'' -or $_Command -like ''*Armoury*'' -or $_Command -like ''*ArmouryCrate*'' } | Format-List Name, Command, Location\")",
+      "Bash(powershell -Command \"Get-ItemProperty ''HKCU:\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run'' 2>$null | Format-List; Get-ItemProperty ''HKLM:\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run'' 2>$null | Format-List\")",
+      "Bash(powershell.exe -NoProfile -Command \"Get-ItemProperty ''HKCU:\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run''\")",
+      "Bash(powershell.exe -NoProfile -Command \"Get-ItemProperty ''HKLM:\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run''\")",
+      "Bash(powershell.exe -NoProfile -Command \"Get-ScheduledTask | Where-Object {$_.TaskName -like ''*Armoury*'' -or $_.TaskName -like ''*ASUS*''} | Format-Table TaskName, State -AutoSize\")",
+      "Bash(powershell.exe -NoProfile -Command \"Disable-ScheduledTask -TaskName ''ArmourySocketServer''\")"
+    ]
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "name": "overworld-engine",
+  "version": "1.0.0",
+  "description": "A modular game development framework for creating immersive open-world experiences",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "docs": "typedoc src/index.ts --out docs/api",
+    "clean": "rimraf dist",
+    "start": "node dist/index.js",
+    "example:basic": "ts-node examples/basic-world.ts",
+    "example:ai": "ts-node examples/ai-demo.ts",
+    "example:rendering": "ts-node examples/rendering-demo.ts"
+  },
+  "keywords": [
+    "game-engine",
+    "open-world",
+    "procedural-generation",
+    "ai",
+    "webgl",
+    "typescript",
+    "ecs",
+    "game-development"
+  ],
+  "author": "Overworld Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "jest": "^29.5.0",
+    "rimraf": "^5.0.0",
+    "ts-jest": "^29.1.0",
+    "ts-node": "^10.9.0",
+    "typedoc": "^0.24.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "gl-matrix": "^3.4.0",
+    "perlin-noise": "^1.0.0",
+    "uuid": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/overworld-engine.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/overworld-engine/issues"
+  },
+  "homepage": "https://github.com/your-username/overworld-engine#readme"
+} 
