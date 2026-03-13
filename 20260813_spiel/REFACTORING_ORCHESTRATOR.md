@@ -521,9 +521,9 @@ Lies den alten Code. ES-Module verwenden.
 ## ORCHESTRATOR 3: Rendering & Integration
 
 ### Checkliste (abhaken wenn erledigt)
-- [ ] Batch 9: Rendering System
-- [ ] Batch 10: Day/Night + UI + Interaction
-- [ ] Batch 11: Game.js Integration + index.html
+- [x] Batch 9: Rendering System
+- [x] Batch 10: Day/Night + UI + Interaction
+- [x] Batch 11: Game.js Integration + index.html
 
 **Wenn alle 3 Batches erledigt sind:** In dieser Datei alle Checkboxen abhaken. Refactoring abgeschlossen.
 
