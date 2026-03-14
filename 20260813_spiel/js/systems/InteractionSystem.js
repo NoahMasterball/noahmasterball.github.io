@@ -126,6 +126,9 @@ export class InteractionSystem {
      * Prueft Proximity zu interaktiven Gebaeuden und steuert die UI.
      * Wird jeden Frame aufgerufen.
      *
+     * Die UI erscheint NICHT automatisch bei Annaeherung, sondern erst
+     * wenn der Spieler E drueckt und vor dem Eingang (Suedseite) steht.
+     *
      * WICHTIG: Veraendert KEINE Positionen.
      *
      * @param {object} player - Spieler-Entity
@@ -141,16 +144,11 @@ export class InteractionSystem {
             return;
         }
 
-        // Naechstes interaktives Gebaeude suchen
-        const nearest = this._findNearestInteractiveBuilding(player);
+        // Gebaeude am Eingang (Suedseite) suchen
+        const nearest = this._findBuildingAtEntrance(player);
         this.nearBuilding = nearest;
 
         if (nearest) {
-            // In Reichweite -> UI zeigen (falls nicht schon sichtbar fuer dieses Gebaeude)
-            if (this.pendingInteractionBuilding !== nearest) {
-                this.showInteractionUI(nearest, player);
-            }
-
             // Key-Release-Tracking: E muss erst losgelassen werden
             if (this.interactionRequiresKeyRelease) {
                 if (!inputSystem.isKeyDown('e')) {
@@ -158,12 +156,17 @@ export class InteractionSystem {
                 }
             }
 
-            // E gedrueckt -> Eintritt
             if (!this.interactionRequiresKeyRelease && inputSystem.isKeyPressed('e')) {
-                this.performEntry(nearest, player);
+                if (!this.isInteractionVisible) {
+                    // Erstes E: Menue oeffnen
+                    this.showInteractionUI(nearest, player);
+                } else {
+                    // Zweites E: Gebaeude betreten
+                    this.performEntry(nearest, player);
+                }
             }
         } else {
-            // Nicht in Reichweite -> UI verstecken
+            // Nicht am Eingang -> UI verstecken
             if (this.isInteractionVisible) {
                 this.hideInteractionUI();
             }
@@ -171,18 +174,18 @@ export class InteractionSystem {
     }
 
     // ===================================================================
-    //  Proximity-Erkennung
-    //  Portiert aus checkBuildingCollisions() Zeilen 1391-1419
+    //  Proximity-Erkennung (nur Suedseite / Eingang)
     // ===================================================================
 
     /**
-     * Findet das naechste interaktive Gebaeude in Reichweite.
+     * Findet ein interaktives Gebaeude, vor dessen Eingang (Suedseite)
+     * der Spieler steht. Nur die Unterkante des Gebaeudes wird geprueft.
      *
      * @param {object} player
      * @returns {object|null}
      * @private
      */
-    _findNearestInteractiveBuilding(player) {
+    _findBuildingAtEntrance(player) {
         const buildings = this.buildings;
         if (!Array.isArray(buildings) || buildings.length === 0) {
             return null;
@@ -200,31 +203,51 @@ export class InteractionSystem {
                 continue;
             }
 
-            const colliders = building.colliders ?? building.rects;
-            if (!colliders) {
-                continue;
-            }
+            const rects = this._getBuildingRects(building);
 
-            for (let j = 0; j < colliders.length; j++) {
-                const rect = colliders[j];
+            for (let j = 0; j < rects.length; j++) {
+                const rect = rects[j];
                 const bx = rect.x;
                 const by = rect.y;
                 const bw = rect.width;
                 const bh = rect.height;
+                const bottomEdge = by + bh;
 
-                const near =
-                    px < bx + bw + range &&
-                    px + pw > bx - range &&
-                    py < by + bh + range &&
-                    py + ph > by - range;
+                // Spieler muss horizontal im Bereich des Gebaeudes sein
+                const xOverlap = px + pw > bx && px < bx + bw;
 
-                if (near) {
+                // Spieler muss an der Suedseite stehen (unterhalb der Unterkante)
+                const atSouth = py > bottomEdge - 4 && py < bottomEdge + range;
+
+                if (xOverlap && atSouth) {
                     return building;
                 }
             }
         }
 
         return null;
+    }
+
+    /**
+     * Ermittelt die Collision-Rects eines Gebaeudes fuer Proximity-Erkennung.
+     * Nutzt collisionRects falls vorhanden, sonst Fallback auf Basis-Geometrie.
+     *
+     * @param {object} building
+     * @returns {Array<{x: number, y: number, width: number, height: number}>}
+     * @private
+     */
+    _getBuildingRects(building) {
+        if (Array.isArray(building.collisionRects) && building.collisionRects.length > 0) {
+            return building.collisionRects;
+        }
+
+        const width = Number(building.width ?? 0);
+        const height = Number(building.height ?? 0);
+        if (width > 0 && height > 0) {
+            return [{ x: building.x, y: building.y, width, height }];
+        }
+
+        return [];
     }
 
     // ===================================================================

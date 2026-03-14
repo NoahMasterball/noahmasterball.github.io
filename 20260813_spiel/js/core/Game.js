@@ -48,6 +48,8 @@ import {
     loadCasinoCredits,
     loadPlayerMoney,
     persistPlayerMoney,
+    saveReturnPosition,
+    loadReturnPosition,
 } from '../data/Persistence.js';
 
 // ---------------------------------------------------------------------------
@@ -168,9 +170,10 @@ export class Game {
         const casinoCredits = loadCasinoCredits();
 
         // ── Spieler ──────────────────────────────────────────────────────
+        const returnPos = loadReturnPosition();
         this.player = new Player({
-            x: 400,
-            y: 300,
+            x: returnPos ? returnPos.px : 400,
+            y: returnPos ? returnPos.py : 300,
             money: playerMoney,
             casinoCredits,
             currentWeaponId,
@@ -192,6 +195,10 @@ export class Game {
         this.vehicleSystem = new VehicleSystem(this.entityMover, this.collisionSystem, this.roadNetwork);
         this.combatSystem = new CombatSystem(eventBus, this.weaponCatalog);
         this.cameraSystem = new CameraSystem(this.renderer.width, this.renderer.height);
+        if (returnPos) {
+            this.cameraSystem.x = returnPos.cx || 0;
+            this.cameraSystem.y = returnPos.cy || 0;
+        }
         this.dayNightSystem = new DayNightSystem();
 
         // ── Interiors ────────────────────────────────────────────────────
@@ -252,6 +259,10 @@ export class Game {
         // Casino Eintritt (navigiert zur Casino-Seite)
         this.eventBus.on('interaction:enterCasino', (data) => {
             persistPlayerMoney(this.player.money);
+            saveReturnPosition(
+                this.player.x, this.player.y,
+                this.cameraSystem.x, this.cameraSystem.y
+            );
             const url = this.casino.getCasinoGameUrl();
             window.location.href = url;
         });

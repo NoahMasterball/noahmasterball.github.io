@@ -67,6 +67,10 @@ export class NPC extends Entity {
         this.hitboxDisabled = config.hitboxDisabled !== false;
         this.currentSidewalkSegment = null;
 
+        // Dynamische Navigation (statt fester Wegpunkt-Schleife)
+        this.dynamicNavigation = config.dynamicNavigation ?? false;
+        this._lastNavDir = null;
+
         // Crosswalk-Zustand
         this.waitingForCrosswalk = start.crosswalkIndex ?? null;
         this.isCrossing = false;

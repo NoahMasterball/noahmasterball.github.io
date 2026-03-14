@@ -203,9 +203,7 @@ export class RoadNetwork {
             { orientation: "vertical", x: 950, y: 900, span: 300 },
             { orientation: "vertical", x: 1700, y: 900, span: 300 },
             { orientation: "vertical", x: 2050, y: 1700, span: 300 },
-            { orientation: "vertical", x: 1700, y: 2100, span: 280 },
             { orientation: "horizontal", x: 2950, y: 1100, span: 260 },
-            { orientation: "vertical", x: 1330, y: 1700, span: 240 },
             { orientation: "horizontal", x: 3040, y: 1500, span: 280 },
         ];
     }
@@ -229,8 +227,6 @@ export class RoadNetwork {
         }
 
         roads.push({ type: "horizontal", startX: 950, endX: 1700, y: 1260 });
-        roads.push({ type: "horizontal", startX: 950, endX: 1700, y: 2100 });
-        roads.push({ type: "vertical", x: 1330, startY: 1700, endY: 2400 });
         roads.push({ type: "vertical", x: 2050, startY: 900, endY: 1700 });
 
         return roads;

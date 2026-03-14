@@ -1,4 +1,4 @@
-// Auto-generated bundle — 2026-03-13T23:32:42.630Z
+// Auto-generated bundle — 2026-03-14T11:01:01.493Z
 (function() {
 'use strict';
 
@@ -423,6 +423,38 @@ function removeItem(key) {
     } catch (err) {
         console.warn(`[Persistence] Loeschen von "${key}" fehlgeschlagen:`, err);
     }
+}
+
+// ───────────────────── Spieler-Position (Rueckkehr aus Gebaeude) ────
+
+const KEY_RETURN_POSITION = 'overworldReturnPosition';
+
+/**
+ * Speichert die Spielerposition und Kamera fuer die Rueckkehr aus einem Gebaeude.
+ * @param {number} px - Spieler X
+ * @param {number} py - Spieler Y
+ * @param {number} cx - Kamera X
+ * @param {number} cy - Kamera Y
+ */
+function saveReturnPosition(px, py, cx, cy) {
+    writeItem(KEY_RETURN_POSITION, JSON.stringify({ px, py, cx, cy }));
+}
+
+/**
+ * Laedt und entfernt die gespeicherte Rueckkehr-Position.
+ * @returns {{ px: number, py: number, cx: number, cy: number }|null}
+ */
+function loadReturnPosition() {
+    const raw = readItem(KEY_RETURN_POSITION);
+    if (!raw) return null;
+    removeItem(KEY_RETURN_POSITION);
+    try {
+        const data = JSON.parse(raw);
+        if (Number.isFinite(data.px) && Number.isFinite(data.py)) {
+            return data;
+        }
+    } catch (err) { /* ignorieren */ }
+    return null;
 }
 
 // ───────────────────── Waffen-Inventar ─────────────────────
@@ -1086,6 +1118,10 @@ class NPC extends Entity {
         this.hitboxDisabled = config.hitboxDisabled !== false;
         this.currentSidewalkSegment = null;
 
+        // Dynamische Navigation (statt fester Wegpunkt-Schleife)
+        this.dynamicNavigation = config.dynamicNavigation ?? false;
+        this._lastNavDir = null;
+
         // Crosswalk-Zustand
         this.waitingForCrosswalk = start.crosswalkIndex ?? null;
         this.isCrossing = false;
@@ -1723,9 +1759,7 @@ class RoadNetwork {
             { orientation: "vertical", x: 950, y: 900, span: 300 },
             { orientation: "vertical", x: 1700, y: 900, span: 300 },
             { orientation: "vertical", x: 2050, y: 1700, span: 300 },
-            { orientation: "vertical", x: 1700, y: 2100, span: 280 },
             { orientation: "horizontal", x: 2950, y: 1100, span: 260 },
-            { orientation: "vertical", x: 1330, y: 1700, span: 240 },
             { orientation: "horizontal", x: 3040, y: 1500, span: 280 },
         ];
     }
@@ -1749,8 +1783,6 @@ class RoadNetwork {
         }
 
         roads.push({ type: "horizontal", startX: 950, endX: 1700, y: 1260 });
-        roads.push({ type: "horizontal", startX: 950, endX: 1700, y: 2100 });
-        roads.push({ type: "vertical", x: 1330, startY: 1700, endY: 2400 });
         roads.push({ type: "vertical", x: 2050, startY: 900, endY: 1700 });
 
         return roads;
@@ -3526,10 +3558,14 @@ class AISystem {
                 npc.waitTimer = target.wait ?? 0;
                 npc.waitingForCrosswalk = target.crosswalkIndex ?? null;
 
-                // Gebaeude-Aktionen
-                this._handleWaypointAction(npc, target);
-
-                npc.advanceWaypoint();
+                // Dynamische Navigation: neuen Wegpunkt generieren
+                if (npc.dynamicNavigation) {
+                    this._generateDynamicWaypoint(npc);
+                } else {
+                    // Gebaeude-Aktionen
+                    this._handleWaypointAction(npc, target);
+                    npc.advanceWaypoint();
+                }
             } else if (dist > 0) {
                 const ratio = npc.speed / dist;
                 const nextX = npc.x + dx * ratio;
@@ -3890,6 +3926,96 @@ class AISystem {
         }
 
         return true;
+    }
+
+    // -------------------------------------------------------------------
+    //  Dynamische Wegpunkt-Generierung
+    // -------------------------------------------------------------------
+
+    /**
+     * Generiert dynamisch den naechsten Wegpunkt basierend auf verfuegbaren
+     * Buergersteig-Korridoren. NPC waehlt an Kreuzungen zufaellig eine
+     * neue Richtung und vermeidet Umkehr.
+     *
+     * @param {import('../entities/NPC.js').NPC} npc
+     */
+    _generateDynamicWaypoint(npc) {
+        if (!this.roadNetwork) {
+            return;
+        }
+
+        const corridors = this.roadNetwork.sidewalkCorridors;
+        if (!Array.isArray(corridors) || !corridors.length) {
+            return;
+        }
+
+        // Korridore finden die den NPC enthalten
+        const margin = 10;
+        const nearby = [];
+        for (const c of corridors) {
+            if (!c || !(c.width > 0) || !(c.height > 0)) {
+                continue;
+            }
+            if (npc.x >= c.x - margin && npc.x <= c.x + c.width + margin &&
+                npc.y >= c.y - margin && npc.y <= c.y + c.height + margin) {
+                nearby.push(c);
+            }
+        }
+
+        if (!nearby.length) {
+            return;
+        }
+
+        // Endpunkte der Korridore als Kandidaten sammeln
+        const candidates = [];
+        const edgePad = 12;
+
+        for (const c of nearby) {
+            const isHorizontal = c.width > c.height * 1.5;
+            const isVertical = c.height > c.width * 1.5;
+            const centerX = c.x + c.width / 2;
+            const centerY = c.y + c.height / 2;
+
+            if (isHorizontal || (!isHorizontal && !isVertical)) {
+                candidates.push({ x: c.x + edgePad, y: centerY, dir: 'left' });
+                candidates.push({ x: c.x + c.width - edgePad, y: centerY, dir: 'right' });
+            }
+            if (isVertical || (!isHorizontal && !isVertical)) {
+                candidates.push({ x: centerX, y: c.y + edgePad, dir: 'up' });
+                candidates.push({ x: centerX, y: c.y + c.height - edgePad, dir: 'down' });
+            }
+        }
+
+        // Nur Kandidaten die weit genug entfernt sind
+        const minDist = 40;
+        let valid = candidates.filter(
+            (c) => Math.hypot(c.x - npc.x, c.y - npc.y) > minDist
+        );
+
+        // Umkehr vermeiden (nicht zurueck woher wir kamen)
+        if (valid.length > 1 && npc._lastNavDir) {
+            const opposite = { left: 'right', right: 'left', up: 'down', down: 'up' };
+            const notBack = valid.filter((c) => c.dir !== opposite[npc._lastNavDir]);
+            if (notBack.length > 0) {
+                valid = notBack;
+            }
+        }
+
+        if (!valid.length) {
+            valid = candidates;
+        }
+        if (!valid.length) {
+            return;
+        }
+
+        const target = valid[Math.floor(Math.random() * valid.length)];
+        npc._lastNavDir = target.dir;
+
+        // Pfad auf 2 Punkte setzen: aktuelle Position + Ziel
+        npc.path[0] = { x: npc.x, y: npc.y, wait: 0 };
+        npc.path[1] = { x: target.x, y: target.y, wait: 4 + Math.floor(Math.random() * 20) };
+        npc.path.length = 2;
+        npc.waypointIndex = 1;
     }
 
     // -------------------------------------------------------------------
@@ -5404,17 +5530,15 @@ class WorldGenerator {
     /**
      * Generiert die komplette Spielwelt.
      *
-     * @param {object} [options={}]
-     * @param {Array}  [options.crosswalks] - Zebrastreifen (fuer NPC-Crosswalk-Referenzen)
      * @returns {{ buildings: Array, streetDetails: object, dynamicAgents: { npcs: Array<NPC>, vehicles: Array<Vehicle> } }}
      */
-    generateWorld(options = {}) {
+    generateWorld() {
         const buildings = this._createCityBuildings();
         const streetDetails = createStreetDetails({
             roadHalfWidth: 35,
             sidewalkWidth: this.sidewalkWidth,
         });
-        const dynamicAgents = this._createDynamicAgents(buildings, options.crosswalks ?? []);
+        const dynamicAgents = this._createDynamicAgents(buildings);
 
         return { buildings, streetDetails, dynamicAgents };
     }
@@ -5459,7 +5583,7 @@ class WorldGenerator {
 
         // Mixed-Use Block
         buildings.push({
-            x: 1080, y: 1820, width: 600, height: 420,
+            x: 1000, y: 1820, width: 600, height: 420,
             name: "Aurora Quartier", type: "mixedUse", interactive: true,
             subUnits: [
                 { label: "Aurora Restaurant", accent: "#f78f5c" },
@@ -5566,22 +5690,9 @@ class WorldGenerator {
 
     /**
      * @param {Array} buildings
-     * @param {Array} crosswalks
      * @returns {{ npcs: Array<NPC>, vehicles: Array<Vehicle> }}
      */
-    _createDynamicAgents(buildings, crosswalks) {
-        // Crosswalk-Index-Helfer
-        const resolveCrosswalk = (matcher) => {
-            if (!Array.isArray(crosswalks)) return -1;
-            return crosswalks.findIndex(matcher);
-        };
-
-        const mainHorizontal = resolveCrosswalk(
-            (cw) => cw.orientation === "horizontal" && cw.y === 1700 && cw.x === 1100
-        );
-        const safeIndex = (index) => (index >= 0 ? index : null);
-        const crosswalkMain = safeIndex(mainHorizontal);
-
+    _createDynamicAgents(buildings) {
         // Casino-Podium Pfad berechnen
         const casinoTower = Array.isArray(buildings) ? buildings.find((b) => b && b.type === "casino") : null;
         let casinoPodiumPlan = null;
@@ -5618,126 +5729,93 @@ class WorldGenerator {
         const npcConfigs = [
             {
                 palette: { head: "#f1d2b6", torso: "#3c6e71", limbs: "#284b52", accent: "#f7ede2", hair: '#3b2c1e' },
-                bounds: { left: 960, right: 1320, top: 1640, bottom: 1760 },
-                spawnPoint: { x: 1140, y: 1700 },
+                spawnPoint: { x: 1140, y: 1647 },
                 waypoints: [
-                    { x: 980, y: 1660, wait: 12 },
-                    { x: 1100, y: 1660, wait: 18, crosswalkIndex: crosswalkMain },
-                    { x: 1100, y: 1740, wait: 0 },
-                    { x: 1280, y: 1740, wait: 10 },
-                    { x: 1100, y: 1740, wait: 6 },
-                    { x: 1100, y: 1660, wait: 16, crosswalkIndex: crosswalkMain },
+                    { x: 1140, y: 1647, wait: 0 },
+                    { x: 1300, y: 1647, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.25,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.25,
             },
             {
                 palette: { head: "#f8cfd2", torso: "#6a4c93", limbs: "#413c58", accent: "#ffb5a7", hair: '#2e1f36' },
-                bounds: { left: 2920, right: 3200, top: 1180, bottom: 1460 },
-                spawnPoint: { x: 3060, y: 1320 },
+                spawnPoint: { x: 3060, y: 1647 },
                 waypoints: [
-                    { x: 2960, y: 1220, wait: 12 },
-                    { x: 3120, y: 1220, wait: 10 },
-                    { x: 3120, y: 1400, wait: 12 },
-                    { x: 2960, y: 1400, wait: 10 },
+                    { x: 3060, y: 1647, wait: 0 },
+                    { x: 3200, y: 1647, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.05,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.05,
             },
             {
                 palette: { head: "#fbe2b4", torso: "#ff914d", limbs: "#583101", accent: "#ffd166", hair: '#3c2a1f' },
-                bounds: { left: 540, right: 780, top: 1660, bottom: 1880 },
-                spawnPoint: { x: 660, y: 1770 },
+                spawnPoint: { x: 660, y: 1753 },
                 waypoints: [
-                    { x: 600, y: 1820, wait: 14 },
-                    { x: 560, y: 1680, wait: 12 },
-                    { x: 720, y: 1680, wait: 10 },
-                    { x: 760, y: 1840, wait: 16 },
-                    { x: 600, y: 1840, wait: 12 },
+                    { x: 660, y: 1753, wait: 0 },
+                    { x: 500, y: 1753, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.35,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.35,
             },
             {
                 palette: { head: "#f0cfa0", torso: "#264653", limbs: "#1d3557", accent: "#f4a261", hair: '#2a1d13' },
-                bounds: { left: 1050, right: 1620, top: 1800, bottom: 2100 },
-                spawnPoint: { x: 1335, y: 1950 },
+                spawnPoint: { x: 1335, y: 1753 },
                 waypoints: [
-                    { x: 1100, y: 1860, wait: 8 },
-                    { x: 1580, y: 1860, wait: 6 },
-                    { x: 1580, y: 2040, wait: 8 },
-                    { x: 1100, y: 2040, wait: 10 },
+                    { x: 1335, y: 1753, wait: 0 },
+                    { x: 1500, y: 1753, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.18,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.18,
             },
             {
                 palette: { head: "#f3d7c6", torso: "#274060", limbs: "#1b2845", accent: "#7dbad1", hair: '#0f1c2c' },
-                bounds: { left: 2480, right: 3360, top: 940, bottom: 1240 },
-                spawnPoint: { x: 2920, y: 1090 },
+                spawnPoint: { x: 2920, y: 847 },
                 waypoints: [
-                    { x: 2520, y: 980, wait: 6 },
-                    { x: 3320, y: 980, wait: 8 },
-                    { x: 3320, y: 1180, wait: 10 },
-                    { x: 2520, y: 1180, wait: 8 },
+                    { x: 2920, y: 847, wait: 0 },
+                    { x: 2700, y: 847, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.08,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.08,
             },
             {
                 palette: { head: "#f2d0b5", torso: "#7a8b99", limbs: "#45525f", accent: "#d9ed92", hair: '#2f1d18' },
-                bounds: { left: 320, right: 820, top: 320, bottom: 720 },
-                spawnPoint: { x: 570, y: 520 },
+                spawnPoint: { x: 570, y: 847 },
                 waypoints: [
-                    { x: 360, y: 360, wait: 12 },
-                    { x: 780, y: 360, wait: 8 },
-                    { x: 780, y: 680, wait: 10 },
-                    { x: 360, y: 680, wait: 8 },
+                    { x: 570, y: 847, wait: 0 },
+                    { x: 400, y: 847, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.12,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.12,
             },
             {
                 palette: { head: "#f9d6c1", torso: "#bc4749", limbs: "#6a040f", accent: "#ffb703", hair: '#311019' },
-                bounds: { left: 1680, right: 2140, top: 1280, bottom: 1700 },
-                spawnPoint: { x: 1910, y: 1490 },
+                spawnPoint: { x: 1910, y: 1647 },
                 waypoints: [
-                    { x: 1720, y: 1320, wait: 10 },
-                    { x: 2100, y: 1320, wait: 6 },
-                    { x: 2100, y: 1640, wait: 12 },
-                    { x: 1720, y: 1640, wait: 6 },
+                    { x: 1910, y: 1647, wait: 0 },
+                    { x: 2100, y: 1647, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.22,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.22,
             },
             {
                 palette: { head: "#f5ccb2", torso: "#457b9d", limbs: "#1d3557", accent: "#a8dadc", hair: '#16324f' },
-                bounds: { left: 2200, right: 2620, top: 1820, bottom: 2280 },
-                spawnPoint: { x: 2410, y: 2050 },
+                spawnPoint: { x: 2410, y: 2347 },
                 waypoints: [
-                    { x: 2240, y: 1880, wait: 8 },
-                    { x: 2580, y: 1880, wait: 6 },
-                    { x: 2580, y: 2220, wait: 10 },
-                    { x: 2240, y: 2220, wait: 6 },
+                    { x: 2410, y: 2347, wait: 0 },
+                    { x: 2600, y: 2347, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.14,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.14,
             },
             {
                 palette: { head: "#f4ceb8", torso: "#2a9d8f", limbs: "#1f6f78", accent: "#e9c46a", hair: '#274046' },
-                bounds: { left: 260, right: 760, top: 2000, bottom: 2400 },
-                spawnPoint: { x: 510, y: 2200 },
+                spawnPoint: { x: 510, y: 2453 },
                 waypoints: [
-                    { x: 300, y: 2060, wait: 8 },
-                    { x: 720, y: 2060, wait: 6 },
-                    { x: 720, y: 2340, wait: 10 },
-                    { x: 300, y: 2340, wait: 6 },
+                    { x: 510, y: 2453, wait: 0 },
+                    { x: 700, y: 2453, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.02,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.02,
             },
             {
                 palette: { head: "#f7d6bf", torso: "#1b263b", limbs: "#0d1b2a", accent: "#415a77", hair: '#0b132b' },
-                bounds: { left: 2980, right: 3330, top: 1500, bottom: 1620 },
-                spawnPoint: { x: 3155, y: 1560 },
+                spawnPoint: { x: 3155, y: 1753 },
                 waypoints: [
-                    { x: 3000, y: 1520, wait: 4 },
-                    { x: 3310, y: 1520, wait: 4 },
-                    { x: 3310, y: 1600, wait: 6 },
-                    { x: 3000, y: 1600, wait: 6 },
+                    { x: 3155, y: 1753, wait: 0 },
+                    { x: 3300, y: 1753, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.35,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.35,
             },
         ];
 
@@ -6996,6 +7074,9 @@ class InteractionSystem {
      * Prueft Proximity zu interaktiven Gebaeuden und steuert die UI.
      * Wird jeden Frame aufgerufen.
      *
+     * Die UI erscheint NICHT automatisch bei Annaeherung, sondern erst
+     * wenn der Spieler E drueckt und vor dem Eingang (Suedseite) steht.
+     *
      * WICHTIG: Veraendert KEINE Positionen.
      *
      * @param {object} player - Spieler-Entity
@@ -7011,16 +7092,11 @@ class InteractionSystem {
             return;
         }
 
-        // Naechstes interaktives Gebaeude suchen
-        const nearest = this._findNearestInteractiveBuilding(player);
+        // Gebaeude am Eingang (Suedseite) suchen
+        const nearest = this._findBuildingAtEntrance(player);
         this.nearBuilding = nearest;
 
         if (nearest) {
-            // In Reichweite -> UI zeigen (falls nicht schon sichtbar fuer dieses Gebaeude)
-            if (this.pendingInteractionBuilding !== nearest) {
-                this.showInteractionUI(nearest, player);
-            }
-
             // Key-Release-Tracking: E muss erst losgelassen werden
             if (this.interactionRequiresKeyRelease) {
                 if (!inputSystem.isKeyDown('e')) {
@@ -7028,12 +7104,17 @@ class InteractionSystem {
                 }
             }
 
-            // E gedrueckt -> Eintritt
             if (!this.interactionRequiresKeyRelease && inputSystem.isKeyPressed('e')) {
-                this.performEntry(nearest, player);
+                if (!this.isInteractionVisible) {
+                    // Erstes E: Menue oeffnen
+                    this.showInteractionUI(nearest, player);
+                } else {
+                    // Zweites E: Gebaeude betreten
+                    this.performEntry(nearest, player);
+                }
             }
         } else {
-            // Nicht in Reichweite -> UI verstecken
+            // Nicht am Eingang -> UI verstecken
             if (this.isInteractionVisible) {
                 this.hideInteractionUI();
             }
@@ -7041,18 +7122,18 @@ class InteractionSystem {
     }
 
     // ===================================================================
-    //  Proximity-Erkennung
-    //  Portiert aus checkBuildingCollisions() Zeilen 1391-1419
+    //  Proximity-Erkennung (nur Suedseite / Eingang)
     // ===================================================================
 
     /**
-     * Findet das naechste interaktive Gebaeude in Reichweite.
+     * Findet ein interaktives Gebaeude, vor dessen Eingang (Suedseite)
+     * der Spieler steht. Nur die Unterkante des Gebaeudes wird geprueft.
      *
      * @param {object} player
      * @returns {object|null}
      * @private
      */
-    _findNearestInteractiveBuilding(player) {
+    _findBuildingAtEntrance(player) {
         const buildings = this.buildings;
         if (!Array.isArray(buildings) || buildings.length === 0) {
             return null;
@@ -7070,31 +7151,51 @@ class InteractionSystem {
                 continue;
             }
 
-            const colliders = building.colliders ?? building.rects;
-            if (!colliders) {
-                continue;
-            }
+            const rects = this._getBuildingRects(building);
 
-            for (let j = 0; j < colliders.length; j++) {
-                const rect = colliders[j];
+            for (let j = 0; j < rects.length; j++) {
+                const rect = rects[j];
                 const bx = rect.x;
                 const by = rect.y;
                 const bw = rect.width;
                 const bh = rect.height;
+                const bottomEdge = by + bh;
 
-                const near =
-                    px < bx + bw + range &&
-                    px + pw > bx - range &&
-                    py < by + bh + range &&
-                    py + ph > by - range;
+                // Spieler muss horizontal im Bereich des Gebaeudes sein
+                const xOverlap = px + pw > bx && px < bx + bw;
 
-                if (near) {
+                // Spieler muss an der Suedseite stehen (unterhalb der Unterkante)
+                const atSouth = py > bottomEdge - 4 && py < bottomEdge + range;
+
+                if (xOverlap && atSouth) {
                     return building;
                 }
             }
         }
 
         return null;
+    }
+
+    /**
+     * Ermittelt die Collision-Rects eines Gebaeudes fuer Proximity-Erkennung.
+     * Nutzt collisionRects falls vorhanden, sonst Fallback auf Basis-Geometrie.
+     *
+     * @param {object} building
+     * @returns {Array<{x: number, y: number, width: number, height: number}>}
+     * @private
+     */
+    _getBuildingRects(building) {
+        if (Array.isArray(building.collisionRects) && building.collisionRects.length > 0) {
+            return building.collisionRects;
+        }
+
+        const width = Number(building.width ?? 0);
+        const height = Number(building.height ?? 0);
+        if (width > 0 && height > 0) {
+            return [{ x: building.x, y: building.y, width, height }];
+        }
+
+        return [];
     }
 
     // ===================================================================
@@ -10585,9 +10686,10 @@ class Game {
         const casinoCredits = loadCasinoCredits();
 
         // ── Spieler ──────────────────────────────────────────────────────
+        const returnPos = loadReturnPosition();
         this.player = new Player({
-            x: 400,
-            y: 300,
+            x: returnPos ? returnPos.px : 400,
+            y: returnPos ? returnPos.py : 300,
             money: playerMoney,
             casinoCredits,
             currentWeaponId,
@@ -10609,6 +10711,10 @@ class Game {
         this.vehicleSystem = new VehicleSystem(this.entityMover, this.collisionSystem, this.roadNetwork);
         this.combatSystem = new CombatSystem(eventBus, this.weaponCatalog);
         this.cameraSystem = new CameraSystem(this.renderer.width, this.renderer.height);
+        if (returnPos) {
+            this.cameraSystem.x = returnPos.cx || 0;
+            this.cameraSystem.y = returnPos.cy || 0;
+        }
         this.dayNightSystem = new DayNightSystem();
 
         // ── Interiors ────────────────────────────────────────────────────
@@ -10669,6 +10775,10 @@ class Game {
         // Casino Eintritt (navigiert zur Casino-Seite)
         this.eventBus.on('interaction:enterCasino', (data) => {
             persistPlayerMoney(this.player.money);
+            saveReturnPosition(
+                this.player.x, this.player.y,
+                this.cameraSystem.x, this.cameraSystem.y
+            );
             const url = this.casino.getCasinoGameUrl();
             window.location.href = url;
         });

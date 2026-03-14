@@ -144,10 +144,14 @@ export class AISystem {
                 npc.waitTimer = target.wait ?? 0;
                 npc.waitingForCrosswalk = target.crosswalkIndex ?? null;
 
-                // Gebaeude-Aktionen
-                this._handleWaypointAction(npc, target);
-
-                npc.advanceWaypoint();
+                // Dynamische Navigation: neuen Wegpunkt generieren
+                if (npc.dynamicNavigation) {
+                    this._generateDynamicWaypoint(npc);
+                } else {
+                    // Gebaeude-Aktionen
+                    this._handleWaypointAction(npc, target);
+                    npc.advanceWaypoint();
+                }
             } else if (dist > 0) {
                 const ratio = npc.speed / dist;
                 const nextX = npc.x + dx * ratio;
@@ -508,6 +512,96 @@ export class AISystem {
         }
 
         return true;
+    }
+
+    // -------------------------------------------------------------------
+    //  Dynamische Wegpunkt-Generierung
+    // -------------------------------------------------------------------
+
+    /**
+     * Generiert dynamisch den naechsten Wegpunkt basierend auf verfuegbaren
+     * Buergersteig-Korridoren. NPC waehlt an Kreuzungen zufaellig eine
+     * neue Richtung und vermeidet Umkehr.
+     *
+     * @param {import('../entities/NPC.js').NPC} npc
+     */
+    _generateDynamicWaypoint(npc) {
+        if (!this.roadNetwork) {
+            return;
+        }
+
+        const corridors = this.roadNetwork.sidewalkCorridors;
+        if (!Array.isArray(corridors) || !corridors.length) {
+            return;
+        }
+
+        // Korridore finden die den NPC enthalten
+        const margin = 10;
+        const nearby = [];
+        for (const c of corridors) {
+            if (!c || !(c.width > 0) || !(c.height > 0)) {
+                continue;
+            }
+            if (npc.x >= c.x - margin && npc.x <= c.x + c.width + margin &&
+                npc.y >= c.y - margin && npc.y <= c.y + c.height + margin) {
+                nearby.push(c);
+            }
+        }
+
+        if (!nearby.length) {
+            return;
+        }
+
+        // Endpunkte der Korridore als Kandidaten sammeln
+        const candidates = [];
+        const edgePad = 12;
+
+        for (const c of nearby) {
+            const isHorizontal = c.width > c.height * 1.5;
+            const isVertical = c.height > c.width * 1.5;
+            const centerX = c.x + c.width / 2;
+            const centerY = c.y + c.height / 2;
+
+            if (isHorizontal || (!isHorizontal && !isVertical)) {
+                candidates.push({ x: c.x + edgePad, y: centerY, dir: 'left' });
+                candidates.push({ x: c.x + c.width - edgePad, y: centerY, dir: 'right' });
+            }
+            if (isVertical || (!isHorizontal && !isVertical)) {
+                candidates.push({ x: centerX, y: c.y + edgePad, dir: 'up' });
+                candidates.push({ x: centerX, y: c.y + c.height - edgePad, dir: 'down' });
+            }
+        }
+
+        // Nur Kandidaten die weit genug entfernt sind
+        const minDist = 40;
+        let valid = candidates.filter(
+            (c) => Math.hypot(c.x - npc.x, c.y - npc.y) > minDist
+        );
+
+        // Umkehr vermeiden (nicht zurueck woher wir kamen)
+        if (valid.length > 1 && npc._lastNavDir) {
+            const opposite = { left: 'right', right: 'left', up: 'down', down: 'up' };
+            const notBack = valid.filter((c) => c.dir !== opposite[npc._lastNavDir]);
+            if (notBack.length > 0) {
+                valid = notBack;
+            }
+        }
+
+        if (!valid.length) {
+            valid = candidates;
+        }
+        if (!valid.length) {
+            return;
+        }
+
+        const target = valid[Math.floor(Math.random() * valid.length)];
+        npc._lastNavDir = target.dir;
+
+        // Pfad auf 2 Punkte setzen: aktuelle Position + Ziel
+        npc.path[0] = { x: npc.x, y: npc.y, wait: 0 };
+        npc.path[1] = { x: target.x, y: target.y, wait: 4 + Math.floor(Math.random() * 20) };
+        npc.path.length = 2;
+        npc.waypointIndex = 1;
     }
 
     // -------------------------------------------------------------------

@@ -66,6 +66,38 @@ function removeItem(key) {
     }
 }
 
+// ───────────────────── Spieler-Position (Rueckkehr aus Gebaeude) ────
+
+const KEY_RETURN_POSITION = 'overworldReturnPosition';
+
+/**
+ * Speichert die Spielerposition und Kamera fuer die Rueckkehr aus einem Gebaeude.
+ * @param {number} px - Spieler X
+ * @param {number} py - Spieler Y
+ * @param {number} cx - Kamera X
+ * @param {number} cy - Kamera Y
+ */
+export function saveReturnPosition(px, py, cx, cy) {
+    writeItem(KEY_RETURN_POSITION, JSON.stringify({ px, py, cx, cy }));
+}
+
+/**
+ * Laedt und entfernt die gespeicherte Rueckkehr-Position.
+ * @returns {{ px: number, py: number, cx: number, cy: number }|null}
+ */
+export function loadReturnPosition() {
+    const raw = readItem(KEY_RETURN_POSITION);
+    if (!raw) return null;
+    removeItem(KEY_RETURN_POSITION);
+    try {
+        const data = JSON.parse(raw);
+        if (Number.isFinite(data.px) && Number.isFinite(data.py)) {
+            return data;
+        }
+    } catch (err) { /* ignorieren */ }
+    return null;
+}
+
 // ───────────────────── Waffen-Inventar ─────────────────────
 
 const KEY_WEAPON_INVENTORY = 'overworldWeaponInventory';

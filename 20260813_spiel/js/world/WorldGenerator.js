@@ -100,17 +100,15 @@ export class WorldGenerator {
     /**
      * Generiert die komplette Spielwelt.
      *
-     * @param {object} [options={}]
-     * @param {Array}  [options.crosswalks] - Zebrastreifen (fuer NPC-Crosswalk-Referenzen)
      * @returns {{ buildings: Array, streetDetails: object, dynamicAgents: { npcs: Array<NPC>, vehicles: Array<Vehicle> } }}
      */
-    generateWorld(options = {}) {
+    generateWorld() {
         const buildings = this._createCityBuildings();
         const streetDetails = createStreetDetails({
             roadHalfWidth: 35,
             sidewalkWidth: this.sidewalkWidth,
         });
-        const dynamicAgents = this._createDynamicAgents(buildings, options.crosswalks ?? []);
+        const dynamicAgents = this._createDynamicAgents(buildings);
 
         return { buildings, streetDetails, dynamicAgents };
     }
@@ -155,7 +153,7 @@ export class WorldGenerator {
 
         // Mixed-Use Block
         buildings.push({
-            x: 1080, y: 1820, width: 600, height: 420,
+            x: 1000, y: 1820, width: 600, height: 420,
             name: "Aurora Quartier", type: "mixedUse", interactive: true,
             subUnits: [
                 { label: "Aurora Restaurant", accent: "#f78f5c" },
@@ -262,22 +260,9 @@ export class WorldGenerator {
 
     /**
      * @param {Array} buildings
-     * @param {Array} crosswalks
      * @returns {{ npcs: Array<NPC>, vehicles: Array<Vehicle> }}
      */
-    _createDynamicAgents(buildings, crosswalks) {
-        // Crosswalk-Index-Helfer
-        const resolveCrosswalk = (matcher) => {
-            if (!Array.isArray(crosswalks)) return -1;
-            return crosswalks.findIndex(matcher);
-        };
-
-        const mainHorizontal = resolveCrosswalk(
-            (cw) => cw.orientation === "horizontal" && cw.y === 1700 && cw.x === 1100
-        );
-        const safeIndex = (index) => (index >= 0 ? index : null);
-        const crosswalkMain = safeIndex(mainHorizontal);
-
+    _createDynamicAgents(buildings) {
         // Casino-Podium Pfad berechnen
         const casinoTower = Array.isArray(buildings) ? buildings.find((b) => b && b.type === "casino") : null;
         let casinoPodiumPlan = null;
@@ -314,126 +299,93 @@ export class WorldGenerator {
         const npcConfigs = [
             {
                 palette: { head: "#f1d2b6", torso: "#3c6e71", limbs: "#284b52", accent: "#f7ede2", hair: '#3b2c1e' },
-                bounds: { left: 960, right: 1320, top: 1640, bottom: 1760 },
-                spawnPoint: { x: 1140, y: 1700 },
+                spawnPoint: { x: 1140, y: 1647 },
                 waypoints: [
-                    { x: 980, y: 1660, wait: 12 },
-                    { x: 1100, y: 1660, wait: 18, crosswalkIndex: crosswalkMain },
-                    { x: 1100, y: 1740, wait: 0 },
-                    { x: 1280, y: 1740, wait: 10 },
-                    { x: 1100, y: 1740, wait: 6 },
-                    { x: 1100, y: 1660, wait: 16, crosswalkIndex: crosswalkMain },
+                    { x: 1140, y: 1647, wait: 0 },
+                    { x: 1300, y: 1647, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.25,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.25,
             },
             {
                 palette: { head: "#f8cfd2", torso: "#6a4c93", limbs: "#413c58", accent: "#ffb5a7", hair: '#2e1f36' },
-                bounds: { left: 2920, right: 3200, top: 1180, bottom: 1460 },
-                spawnPoint: { x: 3060, y: 1320 },
+                spawnPoint: { x: 3060, y: 1647 },
                 waypoints: [
-                    { x: 2960, y: 1220, wait: 12 },
-                    { x: 3120, y: 1220, wait: 10 },
-                    { x: 3120, y: 1400, wait: 12 },
-                    { x: 2960, y: 1400, wait: 10 },
+                    { x: 3060, y: 1647, wait: 0 },
+                    { x: 3200, y: 1647, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.05,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.05,
             },
             {
                 palette: { head: "#fbe2b4", torso: "#ff914d", limbs: "#583101", accent: "#ffd166", hair: '#3c2a1f' },
-                bounds: { left: 540, right: 780, top: 1660, bottom: 1880 },
-                spawnPoint: { x: 660, y: 1770 },
+                spawnPoint: { x: 660, y: 1753 },
                 waypoints: [
-                    { x: 600, y: 1820, wait: 14 },
-                    { x: 560, y: 1680, wait: 12 },
-                    { x: 720, y: 1680, wait: 10 },
-                    { x: 760, y: 1840, wait: 16 },
-                    { x: 600, y: 1840, wait: 12 },
+                    { x: 660, y: 1753, wait: 0 },
+                    { x: 500, y: 1753, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.35,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.35,
             },
             {
                 palette: { head: "#f0cfa0", torso: "#264653", limbs: "#1d3557", accent: "#f4a261", hair: '#2a1d13' },
-                bounds: { left: 1050, right: 1620, top: 1800, bottom: 2100 },
-                spawnPoint: { x: 1335, y: 1950 },
+                spawnPoint: { x: 1335, y: 1753 },
                 waypoints: [
-                    { x: 1100, y: 1860, wait: 8 },
-                    { x: 1580, y: 1860, wait: 6 },
-                    { x: 1580, y: 2040, wait: 8 },
-                    { x: 1100, y: 2040, wait: 10 },
+                    { x: 1335, y: 1753, wait: 0 },
+                    { x: 1500, y: 1753, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.18,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.18,
             },
             {
                 palette: { head: "#f3d7c6", torso: "#274060", limbs: "#1b2845", accent: "#7dbad1", hair: '#0f1c2c' },
-                bounds: { left: 2480, right: 3360, top: 940, bottom: 1240 },
-                spawnPoint: { x: 2920, y: 1090 },
+                spawnPoint: { x: 2920, y: 847 },
                 waypoints: [
-                    { x: 2520, y: 980, wait: 6 },
-                    { x: 3320, y: 980, wait: 8 },
-                    { x: 3320, y: 1180, wait: 10 },
-                    { x: 2520, y: 1180, wait: 8 },
+                    { x: 2920, y: 847, wait: 0 },
+                    { x: 2700, y: 847, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.08,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.08,
             },
             {
                 palette: { head: "#f2d0b5", torso: "#7a8b99", limbs: "#45525f", accent: "#d9ed92", hair: '#2f1d18' },
-                bounds: { left: 320, right: 820, top: 320, bottom: 720 },
-                spawnPoint: { x: 570, y: 520 },
+                spawnPoint: { x: 570, y: 847 },
                 waypoints: [
-                    { x: 360, y: 360, wait: 12 },
-                    { x: 780, y: 360, wait: 8 },
-                    { x: 780, y: 680, wait: 10 },
-                    { x: 360, y: 680, wait: 8 },
+                    { x: 570, y: 847, wait: 0 },
+                    { x: 400, y: 847, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.12,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.12,
             },
             {
                 palette: { head: "#f9d6c1", torso: "#bc4749", limbs: "#6a040f", accent: "#ffb703", hair: '#311019' },
-                bounds: { left: 1680, right: 2140, top: 1280, bottom: 1700 },
-                spawnPoint: { x: 1910, y: 1490 },
+                spawnPoint: { x: 1910, y: 1647 },
                 waypoints: [
-                    { x: 1720, y: 1320, wait: 10 },
-                    { x: 2100, y: 1320, wait: 6 },
-                    { x: 2100, y: 1640, wait: 12 },
-                    { x: 1720, y: 1640, wait: 6 },
+                    { x: 1910, y: 1647, wait: 0 },
+                    { x: 2100, y: 1647, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.22,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.22,
             },
             {
                 palette: { head: "#f5ccb2", torso: "#457b9d", limbs: "#1d3557", accent: "#a8dadc", hair: '#16324f' },
-                bounds: { left: 2200, right: 2620, top: 1820, bottom: 2280 },
-                spawnPoint: { x: 2410, y: 2050 },
+                spawnPoint: { x: 2410, y: 2347 },
                 waypoints: [
-                    { x: 2240, y: 1880, wait: 8 },
-                    { x: 2580, y: 1880, wait: 6 },
-                    { x: 2580, y: 2220, wait: 10 },
-                    { x: 2240, y: 2220, wait: 6 },
+                    { x: 2410, y: 2347, wait: 0 },
+                    { x: 2600, y: 2347, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.14,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.14,
             },
             {
                 palette: { head: "#f4ceb8", torso: "#2a9d8f", limbs: "#1f6f78", accent: "#e9c46a", hair: '#274046' },
-                bounds: { left: 260, right: 760, top: 2000, bottom: 2400 },
-                spawnPoint: { x: 510, y: 2200 },
+                spawnPoint: { x: 510, y: 2453 },
                 waypoints: [
-                    { x: 300, y: 2060, wait: 8 },
-                    { x: 720, y: 2060, wait: 6 },
-                    { x: 720, y: 2340, wait: 10 },
-                    { x: 300, y: 2340, wait: 6 },
+                    { x: 510, y: 2453, wait: 0 },
+                    { x: 700, y: 2453, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.02,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.02,
             },
             {
                 palette: { head: "#f7d6bf", torso: "#1b263b", limbs: "#0d1b2a", accent: "#415a77", hair: '#0b132b' },
-                bounds: { left: 2980, right: 3330, top: 1500, bottom: 1620 },
-                spawnPoint: { x: 3155, y: 1560 },
+                spawnPoint: { x: 3155, y: 1753 },
                 waypoints: [
-                    { x: 3000, y: 1520, wait: 4 },
-                    { x: 3310, y: 1520, wait: 4 },
-                    { x: 3310, y: 1600, wait: 6 },
-                    { x: 3000, y: 1600, wait: 6 },
+                    { x: 3155, y: 1753, wait: 0 },
+                    { x: 3300, y: 1753, wait: 6 },
                 ],
-                stayOnSidewalks: true, speed: 1.35,
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.35,
             },
         ];
 
