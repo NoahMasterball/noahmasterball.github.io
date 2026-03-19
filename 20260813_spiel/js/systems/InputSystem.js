@@ -147,8 +147,9 @@ export class InputSystem {
             this.mouse.worldY = this.mouse.y - interiorOffset.originY;
             return;
         }
-        this.mouse.worldX = this.mouse.x + camera.x;
-        this.mouse.worldY = this.mouse.y + camera.y;
+        const zoom = camera.zoom || 1;
+        this.mouse.worldX = this.mouse.x / zoom + camera.x;
+        this.mouse.worldY = this.mouse.y / zoom + camera.y;
     }
 
     /**

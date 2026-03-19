@@ -97,6 +97,18 @@ export class AISystem {
                 continue;
             }
 
+            // a2) Sofort-Check: NPC steckt in Gebaeude-Collider (z.B. nach Spawn)
+            if (!npc._spawnChecked) {
+                npc._spawnChecked = true;
+                if (this._isInsideAnyBuilding(npc.x, npc.y)) {
+                    const now = this._getTimestamp();
+                    if (this._teleportToNearestSidewalk(npc, 'building', now)) {
+                        npc.moving = false;
+                    }
+                    continue;
+                }
+            }
+
             // b) Panik-Modus
             if (npc.panicTimer > 0) {
                 this._handlePanic(npc, player);
@@ -587,6 +599,17 @@ export class AISystem {
             }
         }
 
+        // Kandidaten die in Gebaeude-Collidern liegen herausfiltern
+        if (this.collisionSystem) {
+            valid = valid.filter(c => !this.collisionSystem.isPointInsideAnyCollider(c.x, c.y));
+        }
+
+        if (!valid.length) {
+            // Fallback auf ungefilterte Kandidaten (ohne Gebaeude-Check)
+            valid = candidates.filter(c =>
+                !this.collisionSystem || !this.collisionSystem.isPointInsideAnyCollider(c.x, c.y)
+            );
+        }
         if (!valid.length) {
             valid = candidates;
         }

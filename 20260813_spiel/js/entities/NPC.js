@@ -91,6 +91,9 @@ export class NPC extends Entity {
         this.hidden = startHidden;
         this.lastBuildingId = startBuildingId;
 
+        // Taschenlampe (zufaellig ~40% der NPCs)
+        this.hasFlashlight = Math.random() < 0.4;
+
         // Zustand
         this.animationPhase = 0;
         this.panicTimer = 0;

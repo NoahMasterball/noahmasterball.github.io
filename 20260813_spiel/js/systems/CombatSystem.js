@@ -42,6 +42,14 @@ export class CombatSystem {
     // ───────────────────── Public API ─────────────────────
 
     /**
+     * Setzt die Polizei-Referenz fuer Projektil-Kollision.
+     * @param {Array<object>} policeOfficers
+     */
+    setPoliceOfficers(policeOfficers) {
+        this._policeOfficers = policeOfficers;
+    }
+
+    /**
      * Haupt-Update pro Frame.
      * @param {import('../entities/Player.js').Player} player
      * @param {Array<import('../entities/NPC.js').NPC>} npcs
@@ -181,6 +189,13 @@ export class CombatSystem {
                 }
             }
 
+            // Polizei-Treffer pruefen
+            if (!expired && Array.isArray(this._policeOfficers)) {
+                if (this._checkProjectilePoliceCollision(projectile, this._policeOfficers)) {
+                    expired = true;
+                }
+            }
+
             if (!expired) {
                 survivors.push(projectile);
             }
@@ -221,6 +236,53 @@ export class CombatSystem {
         }
 
         return false;
+    }
+
+    // ───────────────────── Polizei-Kollision ─────────────────────
+
+    /**
+     * Prueft ob ein Projektil einen Polizisten trifft.
+     * @param {object} projectile
+     * @param {Array<object>} officers
+     * @returns {boolean}
+     * @private
+     */
+    _checkProjectilePoliceCollision(projectile, officers) {
+        for (const cop of officers) {
+            if (!cop || cop.dead) continue;
+
+            const radius = cop.hitRadius ?? 14;
+            const dx = projectile.x - cop.x;
+            const dy = projectile.y - cop.y;
+
+            if (dx * dx + dy * dy <= radius * radius) {
+                this._onPoliceHit(cop, projectile);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Verarbeitet einen Treffer auf einen Polizisten.
+     * @param {object} cop
+     * @param {object} projectile
+     * @private
+     */
+    _onPoliceHit(cop, projectile) {
+        cop.health = Math.max(0, cop.health - projectile.damage);
+
+        this.eventBus.emit('police:hit', { cop, damage: projectile.damage });
+
+        if (cop.health <= 0) {
+            cop.dead = true;
+            cop.health = 0;
+            cop.moving = false;
+            cop.animationPhase = 0;
+            cop.deathRotation = (Math.random() * Math.PI) - Math.PI / 2;
+            this.spawnBloodDecal(cop.x, cop.y);
+            this.eventBus.emit('police:killed', { cop });
+        }
     }
 
     // ───────────────────── Treffer-Verarbeitung ─────────────────────

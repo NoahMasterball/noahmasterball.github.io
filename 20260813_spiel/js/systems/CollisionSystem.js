@@ -90,36 +90,39 @@ export class CollisionSystem {
     // ---------------------------------------------------------------
 
     isPointInsideAnyCollider(x, y, colliders) {
-        const list = colliders ?? this.buildingColliders;
-
-        if (!Array.isArray(list) || list.length === 0) {
+        if (colliders) {
+            // Legacy-Pfad: explizite Collider-Liste (Rects mit left/right/top/bottom oder x/y/width/height)
+            if (!Array.isArray(colliders) || colliders.length === 0) {
+                return false;
+            }
+            for (const rect of colliders) {
+                if (!rect) continue;
+                const left = Number(rect.left ?? rect.x ?? 0);
+                const right = Number(rect.right ?? ((rect.width != null) ? left + Number(rect.width) : left));
+                const top = Number(rect.top ?? rect.y ?? 0);
+                const bottom = Number(rect.bottom ?? ((rect.height != null) ? top + Number(rect.height) : top));
+                if (!Number.isFinite(left) || !Number.isFinite(right) ||
+                    !Number.isFinite(top) || !Number.isFinite(bottom)) continue;
+                if (left > right || top > bottom) continue;
+                if (x >= left && x <= right && y >= top && y <= bottom) return true;
+            }
             return false;
         }
 
-        for (const rect of list) {
-            if (!rect) {
-                continue;
-            }
-
-            const left = Number(rect.left ?? rect.x ?? 0);
-            const right = Number(rect.right ?? ((rect.width != null) ? left + Number(rect.width) : left));
-            const top = Number(rect.top ?? rect.y ?? 0);
-            const bottom = Number(rect.bottom ?? ((rect.height != null) ? top + Number(rect.height) : top));
-
-            if (!Number.isFinite(left) || !Number.isFinite(right) ||
-                !Number.isFinite(top) || !Number.isFinite(bottom)) {
-                continue;
-            }
-
-            if (left > right || top > bottom) {
-                continue;
-            }
-
-            if (x >= left && x <= right && y >= top && y <= bottom) {
-                return true;
+        // Standard-Pfad: echte Gebaeude-Collider via _getCollisionRects nutzen
+        const buildings = this.buildingColliders;
+        if (!Array.isArray(buildings) || buildings.length === 0) {
+            return false;
+        }
+        for (const building of buildings) {
+            const rects = this._getCollisionRects(building);
+            for (const rect of rects) {
+                if (x >= rect.x && x <= rect.x + rect.width &&
+                    y >= rect.y && y <= rect.y + rect.height) {
+                    return true;
+                }
             }
         }
-
         return false;
     }
 

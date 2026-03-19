@@ -20,6 +20,8 @@ import { VehicleSystem } from '../systems/VehicleSystem.js';
 import { CameraSystem } from '../systems/CameraSystem.js';
 import { DayNightSystem } from '../systems/DayNightSystem.js';
 import { InteractionSystem } from '../systems/InteractionSystem.js';
+import { RealEstateSystem } from '../systems/RealEstateSystem.js';
+import { PoliceSystem, POLICE_STATION_POS, STUN_DURATION, SLOW_DURATION, SLOW_FACTOR } from '../systems/PoliceSystem.js';
 
 import { WorldGenerator } from '../world/WorldGenerator.js';
 import { createBuildingColliders } from '../world/BuildingFactory.js';
@@ -31,6 +33,7 @@ import { BuildingRenderer } from '../rendering/BuildingRenderer.js';
 import { EntityRenderer } from '../rendering/EntityRenderer.js';
 import { EffectsRenderer } from '../rendering/EffectsRenderer.js';
 import { UIRenderer } from '../rendering/UIRenderer.js';
+import { PhoneUI } from '../rendering/PhoneUI.js';
 
 import { InteriorManager } from '../interiors/InteriorManager.js';
 import { WeaponShop } from '../interiors/WeaponShop.js';
@@ -50,6 +53,10 @@ import {
     persistPlayerMoney,
     saveReturnPosition,
     loadReturnPosition,
+    loadOwnedProperties,
+    persistOwnedProperties,
+    loadHomeProperty,
+    persistHomeProperty,
 } from '../data/Persistence.js';
 
 // ---------------------------------------------------------------------------
@@ -60,6 +67,7 @@ const WORLD_HEIGHT = 2800;
 const ROAD_WIDTH = 70;
 const ROAD_HALF_WIDTH = 35;
 const SIDEWALK_WIDTH = 36;
+const CAMERA_ZOOM = 2;
 
 // ---------------------------------------------------------------------------
 // Animations-Konstanten
@@ -168,6 +176,8 @@ export class Game {
         const currentWeaponId = loadCurrentWeaponId(weaponInventory, weaponLoadout);
         const playerMoney = loadPlayerMoney();
         const casinoCredits = loadCasinoCredits();
+        const ownedProperties = loadOwnedProperties();
+        const homePropertyId = loadHomeProperty();
 
         // ── Spieler ──────────────────────────────────────────────────────
         const returnPos = loadReturnPosition();
@@ -179,6 +189,8 @@ export class Game {
             currentWeaponId,
             weaponInventory,
             weaponLoadout,
+            ownedProperties,
+            homePropertyId,
         });
 
         // ── NPCs und Fahrzeuge ───────────────────────────────────────────
@@ -194,7 +206,9 @@ export class Game {
         });
         this.vehicleSystem = new VehicleSystem(this.entityMover, this.collisionSystem, this.roadNetwork);
         this.combatSystem = new CombatSystem(eventBus, this.weaponCatalog);
-        this.cameraSystem = new CameraSystem(this.renderer.width, this.renderer.height);
+        this.policeSystem = new PoliceSystem(eventBus, this.entityMover, this.weaponCatalog);
+        this.combatSystem.setPoliceOfficers(this.policeSystem.officers);
+        this.cameraSystem = new CameraSystem(this.renderer.width, this.renderer.height, CAMERA_ZOOM);
         if (returnPos) {
             this.cameraSystem.x = returnPos.cx || 0;
             this.cameraSystem.y = returnPos.cy || 0;
@@ -206,9 +220,13 @@ export class Game {
         this.weaponShop = new WeaponShop({ weaponOrder: [...WEAPON_ORDER] });
         this.casino = new Casino();
 
+        // ── Immobilien-System ──────────────────────────────────────────────
+        this.realEstateSystem = new RealEstateSystem(eventBus);
+
         // ── Interaction-System ───────────────────────────────────────────
         this.interactionSystem = new InteractionSystem(eventBus, this.interiorManager, this.buildings);
         this.interactionSystem.setCasino(this.casino);
+        this.interactionSystem.setRealEstateSystem(this.realEstateSystem);
 
         // ── Renderer ─────────────────────────────────────────────────────
         this.worldRenderer = new WorldRenderer(this.renderer);
@@ -221,8 +239,15 @@ export class Game {
             fpsEl: document.getElementById('fps'),
         });
 
+        // ── Handy-UI ───────────────────────────────────────────────────────
+        this.phoneUI = new PhoneUI();
+
         // ── Welt-Bounds ──────────────────────────────────────────────────
         this.worldBounds = { width: WORLD_WIDTH, height: WORLD_HEIGHT };
+
+        // ── Wasted-Zustand ─────────────────────────────────────────────────
+        this.wastedState = null; // null oder { reason: 'arrested'|'killed' }
+        this._wastedButtonRect = null;
 
         // ── Game-Loop Timing ─────────────────────────────────────────────
         this._lastTimestamp = 0;
@@ -283,15 +308,49 @@ export class Game {
             this._persistState();
         });
 
+        // Immobilie kaufen/verkaufen
+        this.eventBus.on('interaction:buyProperty', () => {
+            this.interactionSystem.handleBuyProperty(this.player);
+            this._persistState();
+        });
+
+        this.eventBus.on('interaction:sellProperty', () => {
+            this.interactionSystem.handleSellProperty(this.player);
+            this._persistState();
+        });
+
+        this.eventBus.on('interaction:moveIn', () => {
+            this.interactionSystem.handleMoveIn(this.player);
+            this._persistState();
+        });
+
         // Interior verlassen
         this.eventBus.on('interior:exit', () => {
             this._persistState();
         });
 
-        // NPC getoetet -> Geld droppen
+        // NPC getoetet -> Geld droppen + Polizei rufen
         this.eventBus.on('npc:killed', (data) => {
             const drop = 10 + Math.floor(Math.random() * 40);
             this.player.money += drop;
+            this.policeSystem.setWanted(performance.now());
+        });
+
+        // Polizist getroffen -> Polizei schiesst zurueck
+        this.eventBus.on('police:hit', () => {
+            this.policeSystem.onPoliceShot(performance.now());
+        });
+
+        // Wasted-Respawn per Mausklick
+        this.canvas.addEventListener('click', (e) => {
+            if (!this.wastedState || !this._wastedButtonRect) return;
+            const rect = this.canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            const btn = this._wastedButtonRect;
+            if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
+                this._respawnPlayer();
+            }
         });
     }
 
@@ -306,6 +365,9 @@ export class Game {
         const cancelButton = document.getElementById('cancelInteraction');
         const buyCredits = document.getElementById('buyCasinoCredits');
         const cashOut = document.getElementById('cashOutCasinoCredits');
+        const buyProperty = document.getElementById('buyProperty');
+        const sellProperty = document.getElementById('sellProperty');
+        const moveInButton = document.getElementById('moveInProperty');
 
         if (container) {
             this.interactionSystem.initUI({
@@ -315,6 +377,9 @@ export class Game {
                 enterButton,
                 buyCredits,
                 cashOut,
+                buyProperty,
+                sellProperty,
+                moveInButton,
             });
 
             // Cancel-Button
@@ -327,6 +392,44 @@ export class Game {
     }
 
     // =====================================================================
+    //  Respawn
+    // =====================================================================
+
+    _respawnPlayer() {
+        // Strafe abziehen: 250$ bei Verhaftung, 500$ bei Tod
+        const fine = this.wastedState?.reason === 'killed' ? 500 : 250;
+        this.player.money = Math.max(0, this.player.money - fine);
+
+        this.wastedState = null;
+        this._wastedButtonRect = null;
+
+        // Respawn-Position: Wohnsitz oder Polizeistation
+        let respawnX = POLICE_STATION_POS.x;
+        let respawnY = POLICE_STATION_POS.y;
+
+        if (this.player.homePropertyId) {
+            const homeBuilding = this.buildings.find(
+                (b) => b && b.id === this.player.homePropertyId
+            );
+            if (homeBuilding) {
+                respawnX = homeBuilding.x + homeBuilding.width / 2;
+                respawnY = homeBuilding.y + homeBuilding.height + 30;
+            }
+        }
+
+        this.entityMover.teleport(this.player, respawnX, respawnY);
+        this.player.health = this.player.maxHealth;
+        this.player.stunTimer = 0;
+        this.player.slowTimer = 0;
+
+        this.cameraSystem.x = respawnX - this.renderer.width / (2 * CAMERA_ZOOM);
+        this.cameraSystem.y = respawnY - this.renderer.height / (2 * CAMERA_ZOOM);
+
+        this.policeSystem.reset();
+        this.combatSystem.setPoliceOfficers(this.policeSystem.officers);
+    }
+
+    // =====================================================================
     //  Persistence
     // =====================================================================
 
@@ -335,6 +438,8 @@ export class Game {
         persistWeaponLoadout(this.player.weaponLoadout, this.player.weaponInventory);
         persistCurrentWeaponId(this.player.currentWeaponId, this.player.weaponInventory);
         persistPlayerMoney(this.player.money);
+        persistOwnedProperties(this.player.ownedProperties);
+        persistHomeProperty(this.player.homePropertyId);
     }
 
     // =====================================================================
@@ -346,6 +451,9 @@ export class Game {
      * @param {number} now - performance.now() Zeitstempel
      */
     update(deltaTime, now) {
+        // Wasted-Zustand: kein Gameplay-Update
+        if (this.wastedState) return;
+
         const scene = this.interiorManager.scene;
 
         if (scene === 'overworld') {
@@ -365,16 +473,36 @@ export class Game {
      */
     _updateOverworld(deltaTime, now) {
         const player = this.player;
+        const deltaMs = deltaTime * 1000;
 
         // Maus-Weltposition aktualisieren
         this.inputSystem.updateMouseWorldPosition(this.cameraSystem);
 
-        // Spieler-Bewegung
-        const { dx, dy } = this.inputSystem.getMovementVector();
-        const sprinting = this.inputSystem.isSprinting();
-        const speed = sprinting ? player.baseSpeed * player.sprintMultiplier : player.baseSpeed;
+        // Stun/Slow-Timer aktualisieren
+        if (player.stunTimer > 0) {
+            player.stunTimer = Math.max(0, player.stunTimer - deltaMs);
+            if (player.stunTimer === 0 && player.slowTimer > 0) {
+                // Slow startet erst nach Stun
+            }
+        } else if (player.slowTimer > 0) {
+            player.slowTimer = Math.max(0, player.slowTimer - deltaMs);
+        }
 
-        if (dx !== 0 || dy !== 0) {
+        // Spieler-Bewegung (blockiert bei Stun)
+        const isStunned = player.stunTimer > 0;
+        const isSlowed = player.slowTimer > 0;
+
+        const { dx, dy } = this.inputSystem.getMovementVector();
+        const isMoving = dx !== 0 || dy !== 0;
+        const sprinting = player.trySprintAndUpdateStamina(this.inputSystem.isSprinting(), isMoving, deltaTime);
+
+        let speed = sprinting ? player.baseSpeed * player.sprintMultiplier : player.baseSpeed;
+
+        if (isSlowed) {
+            speed *= SLOW_FACTOR;
+        }
+
+        if (!isStunned && (dx !== 0 || dy !== 0)) {
             const targetX = player.x + dx * speed;
             const targetY = player.y + dy * speed;
             this.entityMover.move(player, targetX, targetY);
@@ -392,23 +520,57 @@ export class Game {
         // Fahrzeug-Collider aktualisieren
         this.collisionSystem.updateVehicleColliders(this.vehicles);
 
+        // Handy togglen (Q-Taste) — vor Combat, damit Klicks abgefangen werden
+        if (this.inputSystem.isKeyPressed('q')) {
+            this.phoneUI.toggle();
+        }
+
+        // Handy-Klick pruefen (konsumiert isFirePressed wenn auf Handy)
+        const phoneConsumedClick = this.phoneUI.open && this.phoneUI._slideProgress > 0.9
+            && this.phoneUI.isClickOnPhone(this.inputSystem.mouse.x, this.inputSystem.mouse.y);
+
+        if (phoneConsumedClick) {
+            // Klick ans Handy weiterleiten
+            this.phoneUI.update(deltaTime, this.dayNightSystem, this.inputSystem.mouse, this.inputSystem.isFirePressed());
+        } else {
+            this.phoneUI.update(deltaTime, this.dayNightSystem, this.inputSystem.mouse, false);
+        }
+
         // Kampf-System
+        this.combatSystem.setPoliceOfficers(this.policeSystem.officers);
         this.combatSystem.update(player, this.npcs, deltaTime);
 
-        // Schuss verarbeiten
-        const mouseWorld = this.inputSystem.getMouseWorldPosition();
-        this.combatSystem.fireWeapon(
-            player,
-            mouseWorld,
-            { justPressed: this.inputSystem.isFirePressed(), active: this.inputSystem.isFireDown() },
-            now
-        );
+        // Schuss verarbeiten (blockiert bei Stun oder wenn Handy den Klick hat)
+        if (!isStunned && !phoneConsumedClick) {
+            const mouseWorld = this.inputSystem.getMouseWorldPosition();
+            this.combatSystem.fireWeapon(
+                player,
+                mouseWorld,
+                { justPressed: this.inputSystem.isFirePressed(), active: this.inputSystem.isFireDown() },
+                now
+            );
+        }
+
+        // Polizei-System
+        const policeResult = this.policeSystem.update(player, deltaTime, now);
+        if (policeResult.wasted) {
+            this.wastedState = { reason: policeResult.reason ?? 'arrested' };
+            return;
+        }
+
+        // Immobilien-System (passives Einkommen pro Ingame-Tag)
+        this.realEstateSystem.update(player, this.buildings, deltaTime, this.dayNightSystem);
 
         // Interaktions-System (Gebaeude-Proximity)
         this.interactionSystem.update(player, this.inputSystem);
 
         // Waffenwechsel per Zahlentasten
         this._handleWeaponSwitch();
+
+        // Taschenlampe togglen (F-Taste)
+        if (this.inputSystem.isKeyPressed('f')) {
+            player.flashlightOn = !player.flashlightOn;
+        }
 
         // Kamera
         this.cameraSystem.update(player, this.worldBounds);
@@ -440,8 +602,8 @@ export class Game {
             originY: interior.originY,
         });
 
-        // Bewegung
-        this.weaponShop.handleMovement(interior, this.player, this.inputSystem);
+        // Bewegung (Stamina wird in handleMovement via Player.trySprintAndUpdateStamina aktualisiert)
+        this.weaponShop.handleMovement(interior, this.player, this.inputSystem, deltaTime);
 
         // Zustand aktualisieren
         this.weaponShop.updateState(interior, this.player);
@@ -556,6 +718,7 @@ export class Game {
         const ctx = this.renderer.getContext();
 
         this.renderer.save();
+        ctx.scale(camera.zoom, camera.zoom);
         this.renderer.translate(-camera.x, -camera.y);
 
         // Welt
@@ -574,6 +737,13 @@ export class Game {
         this.entityRenderer.drawVehicles(this.vehicles);
         this.entityRenderer.drawNPCs(this.npcs);
 
+        // Polizisten
+        this.entityRenderer.drawPoliceOfficers(
+            this.policeSystem.officers,
+            this.player,
+            this.weaponCatalog
+        );
+
         // Spieler
         const currentWeapon = getWeaponDefinition(this.weaponCatalog, this.player.currentWeaponId);
         this.entityRenderer.drawPlayer(
@@ -583,18 +753,60 @@ export class Game {
             this.interactionSystem.nearBuilding
         );
 
-        // Projektile (Overworld)
+        // Projektile (Overworld) - Spieler + Polizei
         this.effectsRenderer.drawProjectiles(this.combatSystem.projectiles, 'overworld');
+        this.effectsRenderer.drawProjectiles(this.policeSystem.projectiles, 'overworld');
 
         // Tag/Nacht-Overlay
         const lighting = this.dayNightSystem.getCurrentLighting();
-        this.uiRenderer.drawDayNightOverlay(
-            lighting,
-            camera.x, camera.y,
-            this.renderer.width, this.renderer.height,
-            this.dayNightSystem.stars,
-            this.dayNightSystem.starPhase
-        );
+        const viewW = this.renderer.width / camera.zoom;
+        const viewH = this.renderer.height / camera.zoom;
+
+        // Taschenlampen sammeln
+        const flashlights = [];
+        const overlayAlpha = lighting ? lighting.overlayAlpha : 0;
+
+        if (overlayAlpha > 0.3) {
+            // Spieler-Taschenlampe
+            if (this.player.flashlightOn) {
+                const pc = this.player.getCenter();
+                const mouse = this.inputSystem.getMouseWorldPosition();
+                const angle = Math.atan2(mouse.y - pc.y, mouse.x - pc.x);
+                flashlights.push({ x: pc.x, y: pc.y, angle, spread: 0.4, range: 250 });
+            }
+
+            // NPC-Taschenlampen (Richtung = Laufrichtung zum Waypoint)
+            for (const npc of this.npcs) {
+                if (npc.dead || npc.hidden || !npc.hasFlashlight || !npc.moving) continue;
+                const wp = npc.getCurrentWaypoint();
+                if (!wp) continue;
+                const angle = Math.atan2(wp.y - npc.y, wp.x - npc.x);
+                flashlights.push({
+                    x: npc.x + (npc.width || 32) / 2,
+                    y: npc.y + (npc.height || 32) / 2,
+                    angle, spread: 0.35, range: 180
+                });
+            }
+        }
+
+        if (flashlights.length > 0 && overlayAlpha > 0.3) {
+            // Nacht-Overlay mit Taschenlampen-Ausschnitten
+            this.uiRenderer.drawDayNightOverlay(
+                { ...lighting, overlayAlpha: 0, starAlpha: 0 },
+                camera.x, camera.y, viewW, viewH,
+                [], 0
+            );
+            this.uiRenderer.drawNightWithFlashlights(
+                overlayAlpha, camera.x, camera.y, viewW, viewH, flashlights
+            );
+        } else {
+            this.uiRenderer.drawDayNightOverlay(
+                lighting,
+                camera.x, camera.y, viewW, viewH,
+                this.dayNightSystem.stars,
+                this.dayNightSystem.starPhase
+            );
+        }
 
         this.renderer.restore();
 
@@ -608,11 +820,51 @@ export class Game {
             WEAPON_ORDER,
             this.player.money,
             this.player.casinoCredits,
-            this.casino.creditRate
+            this.casino.creditRate,
+            this.player.ownedProperties.size
         );
 
+        // Handy-Overlay
+        this.phoneUI.draw(
+            this.renderer.getContext(),
+            this.renderer.width,
+            this.renderer.height,
+            {
+                dayNight: this.dayNightSystem,
+                player: this.player,
+                buildings: this.buildings,
+                roadLayout: this.roadLayout,
+                worldBounds: this.worldBounds,
+            }
+        );
+
+        // Polizei-UI
+        const now = performance.now();
+        if (this.policeSystem.wanted) {
+            this.uiRenderer.drawWantedIndicator(true, this.policeSystem.policeShootBack, now);
+            this.uiRenderer.drawArrestProgress(this.policeSystem.getArrestProgress());
+        }
+
+        // Spieler-Gesundheit
+        this.uiRenderer.drawPlayerHealth(this.player.health, this.player.maxHealth);
+
+        // Stamina-Bar
+        this.uiRenderer.drawStaminaBar(this.player.stamina);
+
+        // Stun/Slow-Effekte
+        this.uiRenderer.drawStunEffect(this.player.stunTimer, now);
+        this.uiRenderer.drawSlowEffect(this.player.slowTimer);
+
+        // Wasted-Screen
+        if (this.wastedState) {
+            const result = this.uiRenderer.drawWastedScreen(this.wastedState.reason);
+            this._wastedButtonRect = result.buttonRect;
+        }
+
         // Crosshair
-        this.uiRenderer.drawCrosshair(this.inputSystem.mouse);
+        if (!this.wastedState) {
+            this.uiRenderer.drawCrosshair(this.inputSystem.mouse);
+        }
     }
 
     _renderWeaponShop() {

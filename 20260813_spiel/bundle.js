@@ -1,6 +1,7 @@
-// Auto-generated bundle — 2026-03-14T11:06:30.086Z
+// Auto-generated bundle — 2026-03-19T20:18:18.207Z
 (function() {
 'use strict';
+
 
 
 // ═══════════════════════════════════════════════════════
@@ -165,6 +166,1022 @@ class EventBus {
 
 /** Singleton-Instanz */
 const eventBus = new EventBus();
+
+
+// ═══════════════════════════════════════════════════════
+// js/core/EntityMover.js
+// ═══════════════════════════════════════════════════════
+/**
+ * EntityMover - SSOT (Single Source of Truth) fuer alle Entity-Bewegungen.
+ *
+ * KRITISCH: Dies ist die EINZIGE Stelle im gesamten Code, die entity.x/y setzen darf.
+ * Alle Bewegungen muessen durch move() oder teleport() laufen.
+ *
+ * Pipeline: Kollision -> Sidewalk-Constraint -> Entity-Bounds -> World-Bounds -> entity.x/y setzen
+ */
+
+class EntityMover {
+    /**
+     * @param {Object|null} collisionSystem - System fuer Gebaeude-Kollision (muss .resolve(entity, x, y) haben)
+     * @param {import('../world/RoadNetwork.js').RoadNetwork|null} roadNetwork - Strassennetz fuer Buergersteig-Constraints
+     */
+    constructor(collisionSystem, roadNetwork) {
+        this.collisionSystem = collisionSystem || null;
+        this.roadNetwork = roadNetwork || null;
+        this.worldWidth = Infinity;
+        this.worldHeight = Infinity;
+    }
+
+    /**
+     * Bewegt eine Entity zur Zielposition durch die komplette Pipeline.
+     * EINZIGE oeffentliche Methode fuer regulaere Bewegung.
+     *
+     * @param {Object} entity - Entity mit x, y und optionalen Properties:
+     *   - stayOnSidewalks {boolean}       - ob Buergersteig-Constraint aktiv ist
+     *   - currentSidewalkSegment {Object}  - letztes Segment (fuer Tracking)
+     *   - bounds {{ left, right, top, bottom }} - optionale Entity-spezifische Bounds
+     * @param {number} targetX - gewuenschte X-Position
+     * @param {number} targetY - gewuenschte Y-Position
+     * @param {Object} [options]
+     * @param {boolean} [options.ignoreSidewalk=false] - Buergersteig-Constraint ignorieren
+     * @param {boolean} [options.ignoreCollision=false] - Kollision ignorieren
+     * @param {boolean} [options.ignoreWorldBounds=false] - World-Bounds ignorieren
+     * @returns {{ x: number, y: number, moved: boolean }}
+     */
+    move(entity, targetX, targetY, options = {}) {
+        let newX = targetX;
+        let newY = targetY;
+
+        // 1. Kollision mit Gebaeuden aufloesen
+        if (this.collisionSystem && !options.ignoreCollision) {
+            const resolved = this.collisionSystem.resolve(entity, newX, newY);
+            newX = resolved.x;
+            newY = resolved.y;
+        }
+
+        // 2. Buergersteig-Constraint (nur wenn entity.stayOnSidewalks)
+        if (entity.stayOnSidewalks && !options.ignoreSidewalk && this.roadNetwork) {
+            const sidewalk = this.roadNetwork.constrainToSidewalk(
+                newX, newY, entity.currentSidewalkSegment
+            );
+            newX = sidewalk.x;
+            newY = sidewalk.y;
+            entity.currentSidewalkSegment = sidewalk.segment;
+        }
+
+        // 3. Entity-spezifische Bounds
+        if (entity.bounds) {
+            newX = Math.max(entity.bounds.left, Math.min(newX, entity.bounds.right));
+            newY = Math.max(entity.bounds.top, Math.min(newY, entity.bounds.bottom));
+        }
+
+        // 4. World-Bounds
+        if (!options.ignoreWorldBounds) {
+            newX = Math.max(0, Math.min(newX, this.worldWidth));
+            newY = Math.max(0, Math.min(newY, this.worldHeight));
+        }
+
+        // 5. Position setzen (EINZIGE STELLE!)
+        const moved = newX !== entity.x || newY !== entity.y;
+        entity.x = newX;
+        entity.y = newY;
+
+        return { x: newX, y: newY, moved };
+    }
+
+    /**
+     * Teleportiert eine Entity direkt an eine Position.
+     * Umgeht alle Constraints - nur fuer stuck-NPCs oder Spawn verwenden.
+     *
+     * @param {Object} entity
+     * @param {number} x
+     * @param {number} y
+     */
+    teleport(entity, x, y) {
+        entity.x = x;
+        entity.y = y;
+    }
+
+    /**
+     * Setzt die Weltgrenzen.
+     *
+     * @param {number} width
+     * @param {number} height
+     */
+    setWorldBounds(width, height) {
+        this.worldWidth = width;
+        this.worldHeight = height;
+    }
+}
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/entities/Entity.js
+// ═══════════════════════════════════════════════════════
+/**
+ * Entity - Basisklasse fuer alle Spielobjekte (Spieler, NPCs, Objekte).
+ *
+ * WICHTIG: Entity setzt x/y nicht direkt.
+ * Bewegung und Positionsaenderungen werden ausschliesslich ueber EntityMover gesteuert.
+ */
+
+let _nextEntityId = 1;
+
+class Entity {
+    /**
+     * @param {object} [options]
+     * @param {number} [options.x=0]
+     * @param {number} [options.y=0]
+     * @param {number} [options.width=32]
+     * @param {number} [options.height=32]
+     * @param {number} [options.speed=2]
+     * @param {number} [options.health=100]
+     */
+    constructor(options = {}) {
+        this.id = _nextEntityId++;
+        this.x = options.x ?? 0;
+        this.y = options.y ?? 0;
+        this.width = options.width ?? 32;
+        this.height = options.height ?? 32;
+        this.speed = options.speed ?? 2;
+        this.moving = false;
+
+        /** @type {{minX: number, minY: number, maxX: number, maxY: number} | null} */
+        this.bounds = options.bounds ?? null;
+
+        this.maxHealth = options.health ?? 100;
+        this.health = this.maxHealth;
+        this.dead = false;
+        this.hidden = false;
+    }
+
+    /**
+     * Gibt true zurueck wenn die Entity lebt (health > 0, nicht dead).
+     */
+    isAlive() {
+        return !this.dead && this.health > 0;
+    }
+
+    /**
+     * Gibt die Bounding-Box als {x, y, width, height} zurueck.
+     */
+    getBounds() {
+        return {
+            x: this.x - this.width / 2,
+            y: this.y - this.height / 2,
+            width: this.width,
+            height: this.height,
+        };
+    }
+
+    /**
+     * Gibt das Zentrum als {x, y} zurueck.
+     */
+    getCenter() {
+        return { x: this.x, y: this.y };
+    }
+
+    /**
+     * Berechnet die Distanz zu einer anderen Entity.
+     * @param {Entity} other
+     * @returns {number}
+     */
+    distanceTo(other) {
+        const dx = this.x - other.x;
+        const dy = this.y - other.y;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+}
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/entities/buildHumanoidParts.js
+// ═══════════════════════════════════════════════════════
+/**
+ * buildHumanoidParts - SSOT fuer die visuellen Koerperteile
+ * aller humanoiden Entities (Spieler, NPCs).
+ *
+ * Wird von Player und NPC gemeinsam genutzt.
+ *
+ * @param {object} [palette={}]
+ * @param {string} [palette.head]
+ * @param {string} [palette.torso]
+ * @param {string} [palette.limbs]
+ * @param {string} [palette.accent]
+ * @param {string} [palette.hair]
+ * @param {string} [palette.eyes]
+ * @param {string} [palette.pupil]
+ * @returns {Array<object>}
+ */
+function buildHumanoidParts(palette = {}) {
+    const headColor = palette.head ?? '#f2d6c1';
+    const torsoColor = palette.torso ?? '#2b6777';
+    const limbColor = palette.limbs ?? '#1b3a4b';
+    const accentColor = palette.accent ?? '#f2f2f2';
+    const hairColor = palette.hair ?? '#2b2118';
+    const eyeColor = palette.eyes ?? '#ffffff';
+    const pupilColor = palette.pupil ?? '#1b1b1b';
+
+    return [
+        { id: 'shadow', type: 'circle', radius: 10, offsetX: 0, offsetY: 12, color: 'rgba(0, 0, 0, 0.15)', damaged: false },
+        { id: 'torso', type: 'rect', width: 14, height: 18, offsetX: -7, offsetY: -12, color: torsoColor, damaged: false },
+        { id: 'leftArm', type: 'rect', width: 4, height: 16, offsetX: -11, offsetY: -10, color: limbColor, damaged: false },
+        { id: 'rightArm', type: 'rect', width: 4, height: 16, offsetX: 7, offsetY: -10, color: limbColor, damaged: false },
+        { id: 'leftLeg', type: 'rect', width: 4, height: 18, offsetX: -4, offsetY: 6, color: accentColor, damaged: false },
+        { id: 'rightLeg', type: 'rect', width: 4, height: 18, offsetX: 0, offsetY: 6, color: accentColor, damaged: false },
+        { id: 'hairBack', type: 'circle', radius: 8, offsetX: 0, offsetY: -24, color: hairColor, damaged: false },
+        { id: 'head', type: 'circle', radius: 6, offsetX: 0, offsetY: -20, color: headColor, damaged: false },
+        { id: 'hairFringe', type: 'rect', width: 16, height: 3, offsetX: -8, offsetY: -22, color: hairColor, damaged: false },
+        { id: 'leftEye', type: 'circle', radius: 1.8, offsetX: -3, offsetY: -17, color: eyeColor, damaged: false },
+        { id: 'rightEye', type: 'circle', radius: 1.8, offsetX: 3, offsetY: -17, color: eyeColor, damaged: false },
+        { id: 'leftPupil', type: 'circle', radius: 0.9, offsetX: -3, offsetY: -17, color: pupilColor, damaged: false },
+        { id: 'rightPupil', type: 'circle', radius: 0.9, offsetX: 3, offsetY: -17, color: pupilColor, damaged: false },
+    ];
+}
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/entities/Player.js
+// ═══════════════════════════════════════════════════════
+/**
+ * Player - Spieler-Entity.
+ *
+ * WICHTIG: Setzt NIEMALS this.x/this.y direkt (ausser Initialisierung im Constructor).
+ * Alle Positionsaenderungen gehen durch EntityMover.move().
+ */
+
+
+/** Standard-Palette fuer den Spieler */
+const DEFAULT_PLAYER_PALETTE = {
+    head: '#f6d7c4',
+    torso: '#1b4965',
+    limbs: '#16324f',
+    accent: '#5fa8d3',
+    hair: '#2b2118',
+    eyes: '#ffffff',
+    pupil: '#1b1b1b',
+};
+
+class Player extends Entity {
+    /**
+     * @param {object} [options]
+     * @param {number} [options.x=400]
+     * @param {number} [options.y=300]
+     * @param {number} [options.width=30]
+     * @param {number} [options.height=30]
+     * @param {number} [options.speed=1.5]
+     * @param {number} [options.sprintMultiplier=2]
+     * @param {object} [options.palette] - Farbpalette fuer Spieler-Teile
+     * @param {number} [options.money=1500]
+     * @param {number} [options.casinoCredits=0]
+     * @param {string|null} [options.currentWeaponId=null]
+     * @param {Set|null} [options.weaponInventory=null]
+     * @param {Array|null} [options.weaponLoadout=null]
+     * @param {Set|null} [options.ownedProperties=null]
+     * @param {string|null} [options.homePropertyId=null]
+     */
+    constructor(options = {}) {
+        super({
+            x: options.x ?? 400,
+            y: options.y ?? 300,
+            width: options.width ?? 30,
+            height: options.height ?? 30,
+            speed: options.speed ?? 1.5,
+            health: options.health ?? 100,
+        });
+
+        this.baseSpeed = this.speed;
+        this.sprintMultiplier = options.sprintMultiplier ?? 2;
+
+        this.animationPhase = 0;
+        this.color = options.color ?? '#FF0000';
+
+        // Waffen-Zustand
+        this.currentWeaponId = options.currentWeaponId ?? null;
+        this.weaponInventory = options.weaponInventory ?? new Set();
+        this.weaponLoadout = options.weaponLoadout ?? [];
+
+        // Taschenlampe
+        this.flashlightOn = false;
+
+        // Geld
+        this.money = options.money ?? 1500;
+        this.casinoCredits = options.casinoCredits ?? 0;
+
+        // Immobilien-Besitz
+        this.ownedProperties = options.ownedProperties ?? new Set();
+        this.homePropertyId = options.homePropertyId ?? null;
+
+        // Stamina (Sprint-Ausdauer)
+        this.stamina = 1;          // 0-1, startet voll
+        this.maxStaminaDuration = 5; // Sekunden Sprint
+        this.staminaRegenDelay = 1;  // Sekunden bis Regen startet
+        this.staminaRegenRate = 0.25; // pro Sekunde (4s fuer volle Regen)
+        this._staminaCooldown = 0;   // Sekunden seit Sprint-Ende
+
+        // Polizei-Effekte (Stun/Slow)
+        this.stunTimer = 0;
+        this.slowTimer = 0;
+
+        // Visuelle Teile
+        const palette = options.palette ?? DEFAULT_PLAYER_PALETTE;
+        this.parts = buildHumanoidParts(palette);
+    }
+
+    /**
+     * Prueft ob Sprint moeglich ist und aktualisiert Stamina.
+     * SSOT fuer Sprint-Bedingung und Stamina-Verbrauch/-Regeneration.
+     *
+     * @param {boolean} wantsSprint - Shift gedrueckt?
+     * @param {boolean} isMoving - Bewegt sich der Spieler?
+     * @param {number} deltaTime - Vergangene Zeit in Sekunden
+     * @returns {boolean} Ob tatsaechlich gesprintet wird
+     */
+    trySprintAndUpdateStamina(wantsSprint, isMoving, deltaTime) {
+        const sprinting = wantsSprint && isMoving && this.stamina > 0;
+        if (sprinting) {
+            this.stamina = Math.max(0, this.stamina - deltaTime / this.maxStaminaDuration);
+            this._staminaCooldown = 0;
+        } else {
+            this._staminaCooldown += deltaTime;
+            if (this._staminaCooldown >= this.staminaRegenDelay) {
+                this.stamina = Math.min(1, this.stamina + deltaTime * this.staminaRegenRate);
+            }
+        }
+        return sprinting;
+    }
+
+    /**
+     * Gibt das Zentrum des Spielers zurueck.
+     * Beruecksichtigt die halbe Breite/Hoehe (Top-Down-Ansicht).
+     * @returns {{ x: number, y: number }}
+     */
+    getCenter() {
+        return {
+            x: this.x + this.width / 2,
+            y: this.y + this.height / 2,
+        };
+    }
+
+    /**
+     * Gibt die Muendungsposition fuer die aktuelle Waffe zurueck.
+     * @returns {{ x: number, y: number }}
+     */
+    getMuzzlePosition() {
+        const center = this.getCenter();
+        return { x: center.x, y: center.y };
+    }
+
+    /**
+     * Delegiert an die gemeinsame buildHumanoidParts-Funktion (SSOT).
+     * @param {object} palette
+     * @returns {Array<object>}
+     */
+    static buildParts(palette) {
+        return buildHumanoidParts(palette);
+    }
+}
+
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/entities/NPC.js
+// ═══════════════════════════════════════════════════════
+/**
+ * NPC - Nicht-Spieler-Charakter-Entity.
+ *
+ * WICHTIG: Setzt NIEMALS this.x/this.y direkt (ausser Initialisierung im Constructor).
+ * Alle Positionsaenderungen gehen durch EntityMover.move().
+ *
+ * Diese Klasse definiert nur Zustand und Logik-Daten.
+ * Bewegung wird von MovementSystem / EntityMover gesteuert.
+ */
+
+
+/** Standard-Werte fuer den Movement-Tracker */
+const TRACKER_DEFAULTS = {
+    motionThreshold: 0.45,
+    idleThreshold: 3500,
+    sampleWindow: 4000,
+    minDisplacement: 12,
+    maxStuckSamples: 2,
+    teleportCooldown: 4000,
+};
+
+class NPC extends Entity {
+    /**
+     * @param {object} config - Konfiguration aus buildNPC-Daten
+     * @param {Array<object>} config.waypoints - Pfad-Wegpunkte (mind. 2)
+     * @param {object} [config.spawnPoint] - Optionaler fester Spawnpunkt
+     * @param {boolean} [config.useBoundsSpawn=false] - Spawn in Bounds-Mitte
+     * @param {object} [config.bounds] - Entity-spezifische Bewegungsgrenzen
+     * @param {number} [config.speed=1.2]
+     * @param {boolean} [config.stayOnSidewalks=true]
+     * @param {boolean} [config.ignoreSidewalkObstacles=true]
+     * @param {boolean} [config.hitboxDisabled=true]
+     * @param {boolean} [config.fixedSpawn]
+     * @param {object} [config.palette] - Farbpalette fuer NPC-Teile
+     * @param {number} [config.maxHealth=100]
+     * @param {number} [config.hitRadius=14]
+     */
+    constructor(config = {}) {
+        const path = NPC._buildPath(config);
+
+        if (path.length < 2) {
+            throw new Error('NPC needs at least two waypoints to move.');
+        }
+
+        const spawnPoint = NPC._resolveSpawnPoint(config, path);
+        const start = path[0];
+        const initialX = spawnPoint ? spawnPoint.x : start.x;
+        const initialY = spawnPoint ? spawnPoint.y : start.y;
+
+        super({
+            x: initialX,
+            y: initialY,
+            speed: config.speed ?? 1.2,
+            health: config.maxHealth ?? 100,
+        });
+
+        // Pfad und Navigation
+        this.path = path;
+        this.waypointIndex = path.length > 1 ? 1 : 0;
+        this.waitTimer = start.wait ?? 0;
+
+        // Buergersteig-Verhalten
+        this.stayOnSidewalks = config.stayOnSidewalks !== false;
+        this.ignoreSidewalkObstacles = config.ignoreSidewalkObstacles !== false;
+        this.hitboxDisabled = config.hitboxDisabled !== false;
+        this.currentSidewalkSegment = null;
+
+        // Dynamische Navigation (statt fester Wegpunkt-Schleife)
+        this.dynamicNavigation = config.dynamicNavigation ?? false;
+        this._lastNavDir = null;
+
+        // Crosswalk-Zustand
+        this.waitingForCrosswalk = start.crosswalkIndex ?? null;
+        this.isCrossing = false;
+
+        // Spawn
+        this.fixedSpawn = (config.fixedSpawn != null)
+            ? Boolean(config.fixedSpawn)
+            : Boolean(spawnPoint);
+        this.spawnPoint = spawnPoint
+            ? { x: spawnPoint.x, y: spawnPoint.y }
+            : null;
+
+        // Gebaeude-Zustand
+        const startBuildingId = start?.buildingId ?? null;
+        const startInside = Boolean(start?.interior === true || start?.action === 'enter');
+        const startHidden = startInside || Boolean(start?.hidden);
+        this.insideBuilding = startInside ? (startBuildingId ?? true) : null;
+        this.hidden = startHidden;
+        this.lastBuildingId = startBuildingId;
+
+        // Taschenlampe (zufaellig ~40% der NPCs)
+        this.hasFlashlight = Math.random() < 0.4;
+
+        // Zustand
+        this.animationPhase = 0;
+        this.panicTimer = 0;
+        this.deathRotation = 0;
+        this.hitRadius = config.hitRadius ?? 14;
+
+        // Bounds
+        this.bounds = config.bounds ?? null;
+
+        // Visuelle Teile
+        this.palette = config.palette ?? null;
+        this.parts = buildHumanoidParts(config.palette ?? {});
+
+        // Movement-Tracker (lazy-init via ensureMovementTracker)
+        this.movementTracker = null;
+    }
+
+    // ---- Waypoint-Methoden ----
+
+    /**
+     * Gibt den aktuellen Ziel-Wegpunkt zurueck.
+     * @returns {object|null}
+     */
+    getCurrentWaypoint() {
+        return this.path[this.waypointIndex] ?? null;
+    }
+
+    /**
+     * Setzt den Wegpunkt-Index auf den naechsten Punkt (zyklisch).
+     */
+    advanceWaypoint() {
+        this.waypointIndex = (this.waypointIndex + 1) % this.path.length;
+    }
+
+    /**
+     * Prueft ob der NPC nah genug am aktuellen Wegpunkt ist.
+     * @param {number} [threshold=2] - Entfernung in Pixeln
+     * @returns {boolean}
+     */
+    isAtWaypoint(threshold = 2) {
+        const wp = this.getCurrentWaypoint();
+        if (!wp) return false;
+        const dx = this.x - wp.x;
+        const dy = this.y - wp.y;
+        return (dx * dx + dy * dy) <= threshold * threshold;
+    }
+
+    // ---- Zustandsabfragen ----
+
+    /**
+     * Gibt true zurueck wenn der NPC in Panik ist.
+     * @returns {boolean}
+     */
+    isPanicking() {
+        return this.panicTimer > 0;
+    }
+
+    /**
+     * Gibt true zurueck wenn der NPC wartet (idle).
+     * @returns {boolean}
+     */
+    isIdle() {
+        return this.waitTimer > 0 && !this.moving;
+    }
+
+    // ---- Movement-Tracker ----
+
+    /**
+     * Stellt sicher, dass der movementTracker initialisiert ist.
+     * Portiert von ensureNpcMovementTracker() aus dem alten Code.
+     *
+     * @param {number} [timestamp] - Aktueller Zeitstempel
+     * @returns {object} Der movementTracker
+     */
+    ensureMovementTracker(timestamp) {
+        const time = Number.isFinite(timestamp)
+            ? timestamp
+            : (typeof performance !== 'undefined' && performance.now
+                ? performance.now()
+                : Date.now());
+
+        if (!this.movementTracker) {
+            this.movementTracker = {
+                samplePosition: { x: this.x, y: this.y },
+                sampleTime: time,
+                lastUpdateTime: time,
+                idleTime: 0,
+                stuckSamples: 0,
+                lastTeleportAt: -Infinity,
+                ...TRACKER_DEFAULTS,
+            };
+        } else {
+            // Sicherstellen dass alle Felder vorhanden sind (Migrationssicherheit)
+            const t = this.movementTracker;
+            for (const [key, val] of Object.entries(TRACKER_DEFAULTS)) {
+                if (typeof t[key] !== 'number') {
+                    t[key] = val;
+                }
+            }
+            if (typeof t.stuckSamples !== 'number') t.stuckSamples = 0;
+            if (typeof t.lastTeleportAt !== 'number') t.lastTeleportAt = -Infinity;
+        }
+
+        return this.movementTracker;
+    }
+
+    // ---- Statische Hilfsmethoden ----
+
+    /**
+     * Baut den Pfad aus der Konfiguration.
+     * @param {object} config
+     * @returns {Array<object>}
+     * @private
+     */
+    static _buildPath(config) {
+        return (config.waypoints ?? []).map((wp) => ({ ...wp }));
+    }
+
+    /**
+     * Ermittelt den Spawnpunkt aus der Konfiguration.
+     * @param {object} config
+     * @param {Array<object>} path - bereits aufgebauter Pfad
+     * @returns {object|null}
+     * @private
+     */
+    static _resolveSpawnPoint(config, path) {
+        const hasFiniteNumber = (value) =>
+            value !== null && value !== undefined && Number.isFinite(Number(value));
+
+        let spawnPoint = null;
+
+        if (config.spawnPoint
+            && hasFiniteNumber(config.spawnPoint.x)
+            && hasFiniteNumber(config.spawnPoint.y)) {
+            const spawnX = Number(config.spawnPoint.x);
+            const spawnY = Number(config.spawnPoint.y);
+            spawnPoint = {
+                x: spawnX,
+                y: spawnY,
+                wait: hasFiniteNumber(config.spawnPoint.wait)
+                    ? Number(config.spawnPoint.wait) : null,
+                allowOffSidewalk: config.spawnPoint.allowOffSidewalk !== false,
+            };
+        } else if (config.useBoundsSpawn === true && config.bounds) {
+            const left = Number(config.bounds.left);
+            const right = Number(config.bounds.right);
+            const top = Number(config.bounds.top);
+            const bottom = Number(config.bounds.bottom);
+            if (hasFiniteNumber(left) && hasFiniteNumber(right)
+                && hasFiniteNumber(top) && hasFiniteNumber(bottom)) {
+                spawnPoint = {
+                    x: (left + right) / 2,
+                    y: (top + bottom) / 2,
+                    wait: null,
+                    allowOffSidewalk: true,
+                };
+            }
+        }
+
+        // Spawnpunkt in Pfad einarbeiten
+        if (spawnPoint) {
+            if (path.length === 0) {
+                path.push({
+                    x: spawnPoint.x,
+                    y: spawnPoint.y,
+                    wait: spawnPoint.wait ?? 0,
+                    allowOffSidewalk: spawnPoint.allowOffSidewalk,
+                });
+            } else {
+                path[0].x = spawnPoint.x;
+                path[0].y = spawnPoint.y;
+                if (spawnPoint.wait != null) {
+                    path[0].wait = spawnPoint.wait;
+                }
+                if (spawnPoint.allowOffSidewalk) {
+                    path[0].allowOffSidewalk = true;
+                }
+            }
+        }
+
+        return spawnPoint;
+    }
+
+    /**
+     * Delegiert an die gemeinsame buildHumanoidParts-Funktion (SSOT).
+     * @param {object} palette
+     * @returns {Array<object>}
+     */
+    static buildParts(palette) {
+        return buildHumanoidParts(palette);
+    }
+}
+
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/entities/Vehicle.js
+// ═══════════════════════════════════════════════════════
+/**
+ * Vehicle - Fahrzeug-Entity.
+ *
+ * WICHTIG: Setzt NIEMALS this.x/this.y direkt (ausser Initialisierung im Constructor).
+ * Alle Positionsaenderungen gehen durch EntityMover.move().
+ */
+
+
+class Vehicle extends Entity {
+    /**
+     * @param {object} config
+     * @param {Array<object>} config.path - Pfad-Wegpunkte (mind. 2)
+     * @param {number} [config.width=96]
+     * @param {number} [config.height=44]
+     * @param {number} [config.speed=2.2]
+     * @param {string} [config.baseColor='#555555']
+     * @param {string} [config.accentColor='#888888']
+     */
+    constructor(config = {}) {
+        const path = (config.path ?? []).map((wp) => ({ ...wp }));
+
+        if (path.length < 2) {
+            throw new Error('Vehicle needs at least two waypoints to move.');
+        }
+
+        const start = path[0];
+        const width = config.width ?? 96;
+        const height = config.height ?? 44;
+
+        super({
+            x: start.x,
+            y: start.y,
+            width,
+            height,
+            speed: config.speed ?? 2.2,
+        });
+
+        // Pfad und Navigation
+        this.path = path;
+        this.waypointIndex = path.length > 1 ? 1 : 0;
+        this.waitTimer = start.wait ?? 0;
+        this.stopTimer = 0;
+        this.rotation = 0;
+
+        // Farben
+        this.baseColor = config.baseColor ?? '#555555';
+        this.accentColor = config.accentColor ?? '#888888';
+
+        // Yield-Verhalten (Vorfahrt gewaehren)
+        this.yielding = false;
+        this.yieldTimer = 0;
+
+        // Visuelle Teile
+        this.parts = Vehicle.buildParts({
+            baseColor: this.baseColor,
+            accentColor: this.accentColor,
+            width: this.width,
+            height: this.height,
+        });
+    }
+
+    // ---- Waypoint-Methoden ----
+
+    /**
+     * Gibt den aktuellen Ziel-Wegpunkt zurueck.
+     * @returns {object|null}
+     */
+    getCurrentWaypoint() {
+        return this.path[this.waypointIndex] ?? null;
+    }
+
+    /**
+     * Setzt den Wegpunkt-Index auf den naechsten Punkt (zyklisch).
+     */
+    advanceWaypoint() {
+        this.waypointIndex = (this.waypointIndex + 1) % this.path.length;
+    }
+
+    /**
+     * Prueft ob das Fahrzeug nah genug am aktuellen Wegpunkt ist.
+     * @param {number} [threshold=2] - Entfernung in Pixeln
+     * @returns {boolean}
+     */
+    isAtWaypoint(threshold = 2) {
+        const wp = this.getCurrentWaypoint();
+        if (!wp) return false;
+        const dx = this.x - wp.x;
+        const dy = this.y - wp.y;
+        return (dx * dx + dy * dy) <= threshold * threshold;
+    }
+
+    // ---- Statische Factory-Methoden ----
+
+    /**
+     * Baut die visuellen Fahrzeug-Teile.
+     * Portiert von buildVehicleParts() aus dem alten Code.
+     *
+     * @param {object} config
+     * @param {string} config.baseColor
+     * @param {string} config.accentColor
+     * @param {number} config.width
+     * @param {number} config.height
+     * @returns {Array<object>}
+     */
+    static buildParts(config) {
+        const width = config.width;
+        const height = config.height;
+        const halfWidth = width / 2;
+        const halfHeight = height / 2;
+        const wheelRadius = Math.max(5, Math.floor(height * 0.24));
+
+        const windowColor = 'rgba(132, 188, 226, 0.9)';
+        const rearWindowColor = 'rgba(96, 140, 180, 0.85)';
+        const trimColor = '#1f2a36';
+        const lightFront = '#ffe8a3';
+        const lightRear = '#ff6464';
+
+        const parts = [];
+
+        const addRect = (id, centerX, centerY, rectWidth, rectHeight, color, extra = {}) => {
+            parts.push({
+                id,
+                type: 'rect',
+                width: rectWidth,
+                height: rectHeight,
+                offsetX: centerX - rectWidth / 2,
+                offsetY: centerY - rectHeight / 2,
+                color,
+                damaged: false,
+                ...extra,
+            });
+        };
+
+        const addCircle = (id, centerX, centerY, radius, color, extra = {}) => {
+            parts.push({
+                id,
+                type: 'circle',
+                radius,
+                offsetX: centerX,
+                offsetY: centerY,
+                color,
+                damaged: false,
+                ...extra,
+            });
+        };
+
+        // Chassis
+        addRect('chassis', 0, 0, width, height, config.baseColor);
+
+        // Streifen
+        const stripeHeight = height * 0.22;
+        addRect('stripe', 0, 0, width * 0.86, stripeHeight, config.accentColor);
+
+        // Dach
+        const roofWidth = width * 0.58;
+        const roofHeight = height * 0.5;
+        addRect('roof', 0, 0, roofWidth, roofHeight, config.accentColor);
+
+        // Windschutzscheibe
+        const windshieldWidth = width * 0.32;
+        const windshieldHeight = height * 0.46;
+        const windshieldCenterX = halfWidth - windshieldWidth * 0.6;
+        addRect('windshield', windshieldCenterX, 0, windshieldWidth, windshieldHeight, windowColor);
+
+        // Heckscheibe
+        const rearGlassWidth = width * 0.3;
+        const rearGlassHeight = height * 0.42;
+        const rearGlassCenterX = -halfWidth + rearGlassWidth * 0.6;
+        addRect('rearGlass', rearGlassCenterX, 0, rearGlassWidth, rearGlassHeight, rearWindowColor);
+
+        // Stossstangen
+        const bumperWidth = width * 0.08;
+        const bumperHeight = height * 0.74;
+        addRect('trimFront', halfWidth - bumperWidth / 2, 0, bumperWidth, bumperHeight, trimColor);
+        addRect('trimRear', -halfWidth + bumperWidth / 2, 0, bumperWidth, bumperHeight, trimColor);
+
+        // Lichter
+        const lightWidth = width * 0.06;
+        const lightHeight = height * 0.22;
+        const lateralOffset = halfHeight - lightHeight * 0.6;
+        const lightInset = width * 0.04 + bumperWidth;
+        const frontLightCenterX = halfWidth - lightInset - lightWidth / 2;
+        const rearLightCenterX = -frontLightCenterX;
+
+        addRect('frontLightLeft', frontLightCenterX, -lateralOffset, lightWidth, lightHeight, lightFront);
+        addRect('frontLightRight', frontLightCenterX, lateralOffset, lightWidth, lightHeight, lightFront);
+        addRect('rearLightLeft', rearLightCenterX, -lateralOffset, lightWidth, lightHeight, lightRear);
+        addRect('rearLightRight', rearLightCenterX, lateralOffset, lightWidth, lightHeight, lightRear);
+
+        // Seitenpanele
+        const sidePanelHeight = height * 0.12;
+        const sidePanelOffsetY = halfHeight - sidePanelHeight / 2;
+        addRect('sidePanelTop', 0, -sidePanelOffsetY, width * 0.78, sidePanelHeight, config.accentColor);
+        addRect('sidePanelBottom', 0, sidePanelOffsetY, width * 0.78, sidePanelHeight, config.accentColor);
+
+        // Raeder
+        addCircle('wheelFrontLeft', halfWidth * 0.45, halfHeight - wheelRadius, wheelRadius, trimColor, { visible: false });
+        addCircle('wheelFrontRight', halfWidth * 0.45, -halfHeight + wheelRadius, wheelRadius, trimColor, { visible: false });
+        addCircle('wheelRearLeft', -halfWidth * 0.45, halfHeight - wheelRadius, wheelRadius, trimColor, { visible: false });
+        addCircle('wheelRearRight', -halfWidth * 0.45, -halfHeight + wheelRadius, wheelRadius, trimColor, { visible: false });
+
+        return parts;
+    }
+}
+
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/data/WeaponCatalog.js
+// ═══════════════════════════════════════════════════════
+/**
+ * WeaponCatalog - Zentrale Waffendefinitionen (reine Daten, keine Logik).
+ * Portiert aus gta_old/overworld/js/overworld.js createWeaponCatalog() (Z.2553-2655)
+ * und getWeaponDefinition() (Z.2535-2546).
+ */
+
+/**
+ * Kanonische Waffenreihenfolge - SSOT fuer alle Module die Waffen sortieren.
+ * @type {ReadonlyArray<string>}
+ */
+const WEAPON_ORDER = Object.freeze([
+    'pistol',
+    'smg',
+    'assaultRifle',
+    'shotgun',
+    'sniperRifle',
+    'lmg',
+]);
+
+/**
+ * Erstellt den Waffenkatalog als Map.
+ * @returns {Map<string, object>}
+ */
+function createWeaponCatalog() {
+    const catalog = new Map();
+
+    catalog.set('pistol', {
+        id: 'pistol',
+        name: '9mm Dienstpistole',
+        damage: 24,
+        fireRate: 420,
+        projectileSpeed: 11,
+        spread: 0.02,
+        automatic: false,
+        range: 660,
+        displayColor: '#fca311',
+        price: 250,
+        shortLabel: '9mm',
+    });
+
+    catalog.set('smg', {
+        id: 'smg',
+        name: 'MP5 Maschinenpistole',
+        damage: 26,
+        fireRate: 120,
+        projectileSpeed: 12,
+        spread: 0.06,
+        automatic: true,
+        range: 640,
+        displayColor: '#00f5d4',
+        price: 650,
+        shortLabel: 'MP5',
+    });
+
+    catalog.set('assaultRifle', {
+        id: 'assaultRifle',
+        name: 'AR-15 Sturmgewehr',
+        damage: 48,
+        fireRate: 180,
+        projectileSpeed: 14,
+        spread: 0.04,
+        automatic: true,
+        range: 860,
+        displayColor: '#ef476f',
+        price: 1400,
+        shortLabel: 'AR-15',
+    });
+
+    catalog.set('shotgun', {
+        id: 'shotgun',
+        name: 'Pump-Action Schrotflinte',
+        damage: 22,
+        fireRate: 1900,
+        projectileSpeed: 10,
+        spread: 0.18,
+        automatic: false,
+        pellets: 6,
+        range: 360,
+        displayColor: '#7209b7',
+        price: 900,
+        shortLabel: 'Shotgun',
+    });
+
+    catalog.set('sniperRifle', {
+        id: 'sniperRifle',
+        name: 'AX-50 Scharfschuetzengewehr',
+        damage: 160,
+        fireRate: 1700,
+        projectileSpeed: 18,
+        spread: 0.004,
+        automatic: false,
+        range: 1400,
+        displayColor: '#3f37c9',
+        price: 3200,
+        shortLabel: 'Sniper',
+    });
+
+    catalog.set('lmg', {
+        id: 'lmg',
+        name: 'M249 Leichtes MG',
+        damage: 44,
+        fireRate: 140,
+        projectileSpeed: 13,
+        spread: 0.07,
+        automatic: true,
+        range: 900,
+        displayColor: '#06d6a0',
+        price: 2600,
+        shortLabel: 'M249',
+    });
+
+    return catalog;
+}
+
+/**
+ * Gibt die Waffendefinition fuer eine ID zurueck.
+ * @param {Map<string, object>} catalog - Der Waffenkatalog
+ * @param {string} id - Waffen-ID
+ * @returns {object|null}
+ */
+function getWeaponDefinition(catalog, id) {
+    if (!id) {
+        return null;
+    }
+    return catalog.get(id) ?? null;
+}
+
 
 
 // ═══════════════════════════════════════════════════════
@@ -681,873 +1698,492 @@ function persistPlayerMoney(amount) {
     return value;
 }
 
+// ───────────────────── Immobilien-Besitz ─────────────────────
 
-
-// ═══════════════════════════════════════════════════════
-// js/data/WeaponCatalog.js
-// ═══════════════════════════════════════════════════════
-/**
- * WeaponCatalog - Zentrale Waffendefinitionen (reine Daten, keine Logik).
- * Portiert aus gta_old/overworld/js/overworld.js createWeaponCatalog() (Z.2553-2655)
- * und getWeaponDefinition() (Z.2535-2546).
- */
+const KEY_OWNED_PROPERTIES = 'overworldOwnedProperties';
 
 /**
- * Kanonische Waffenreihenfolge - SSOT fuer alle Module die Waffen sortieren.
- * @type {ReadonlyArray<string>}
+ * Laedt die besessenen Immobilien aus localStorage.
+ * @returns {Set<string>} Set von Building-IDs
  */
-const WEAPON_ORDER = Object.freeze([
-    'pistol',
-    'smg',
-    'assaultRifle',
-    'shotgun',
-    'sniperRifle',
-    'lmg',
-]);
-
-/**
- * Erstellt den Waffenkatalog als Map.
- * @returns {Map<string, object>}
- */
-function createWeaponCatalog() {
-    const catalog = new Map();
-
-    catalog.set('pistol', {
-        id: 'pistol',
-        name: '9mm Dienstpistole',
-        damage: 24,
-        fireRate: 420,
-        projectileSpeed: 11,
-        spread: 0.02,
-        automatic: false,
-        range: 660,
-        displayColor: '#fca311',
-        price: 250,
-        shortLabel: '9mm',
-    });
-
-    catalog.set('smg', {
-        id: 'smg',
-        name: 'MP5 Maschinenpistole',
-        damage: 26,
-        fireRate: 120,
-        projectileSpeed: 12,
-        spread: 0.06,
-        automatic: true,
-        range: 640,
-        displayColor: '#00f5d4',
-        price: 650,
-        shortLabel: 'MP5',
-    });
-
-    catalog.set('assaultRifle', {
-        id: 'assaultRifle',
-        name: 'AR-15 Sturmgewehr',
-        damage: 48,
-        fireRate: 180,
-        projectileSpeed: 14,
-        spread: 0.04,
-        automatic: true,
-        range: 860,
-        displayColor: '#ef476f',
-        price: 1400,
-        shortLabel: 'AR-15',
-    });
-
-    catalog.set('shotgun', {
-        id: 'shotgun',
-        name: 'Pump-Action Schrotflinte',
-        damage: 22,
-        fireRate: 1900,
-        projectileSpeed: 10,
-        spread: 0.18,
-        automatic: false,
-        pellets: 6,
-        range: 360,
-        displayColor: '#7209b7',
-        price: 900,
-        shortLabel: 'Shotgun',
-    });
-
-    catalog.set('sniperRifle', {
-        id: 'sniperRifle',
-        name: 'AX-50 Scharfschuetzengewehr',
-        damage: 160,
-        fireRate: 1700,
-        projectileSpeed: 18,
-        spread: 0.004,
-        automatic: false,
-        range: 1400,
-        displayColor: '#3f37c9',
-        price: 3200,
-        shortLabel: 'Sniper',
-    });
-
-    catalog.set('lmg', {
-        id: 'lmg',
-        name: 'M249 Leichtes MG',
-        damage: 44,
-        fireRate: 140,
-        projectileSpeed: 13,
-        spread: 0.07,
-        automatic: true,
-        range: 900,
-        displayColor: '#06d6a0',
-        price: 2600,
-        shortLabel: 'M249',
-    });
-
-    return catalog;
-}
-
-/**
- * Gibt die Waffendefinition fuer eine ID zurueck.
- * @param {Map<string, object>} catalog - Der Waffenkatalog
- * @param {string} id - Waffen-ID
- * @returns {object|null}
- */
-function getWeaponDefinition(catalog, id) {
-    if (!id) {
-        return null;
+function loadOwnedProperties() {
+    const owned = new Set();
+    const raw = readItem(KEY_OWNED_PROPERTIES);
+    if (raw) {
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                for (const id of parsed) {
+                    if (typeof id === 'string') {
+                        owned.add(id);
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('Immobilien konnten nicht geladen werden', error);
+        }
     }
-    return catalog.get(id) ?? null;
+    return owned;
+}
+
+/**
+ * Speichert die besessenen Immobilien in localStorage.
+ * @param {Set<string>} ownedProperties
+ */
+function persistOwnedProperties(ownedProperties) {
+    const ids = Array.from(ownedProperties).filter((id) => typeof id === 'string');
+    writeItem(KEY_OWNED_PROPERTIES, JSON.stringify(ids));
+}
+
+// ───────────────────── Wohnsitz (Home Property) ─────────────────────
+
+const KEY_HOME_PROPERTY = 'overworldHomeProperty';
+
+/**
+ * Laedt die Wohnsitz-Building-ID aus localStorage.
+ * @returns {string|null}
+ */
+function loadHomeProperty() {
+    const raw = readItem(KEY_HOME_PROPERTY);
+    if (raw && typeof raw === 'string' && raw.length > 0) {
+        return raw;
+    }
+    return null;
+}
+
+/**
+ * Speichert die Wohnsitz-Building-ID in localStorage.
+ * @param {string|null} buildingId
+ */
+function persistHomeProperty(buildingId) {
+    if (buildingId && typeof buildingId === 'string') {
+        writeItem(KEY_HOME_PROPERTY, buildingId);
+    } else {
+        removeItem(KEY_HOME_PROPERTY);
+    }
 }
 
 
 
 // ═══════════════════════════════════════════════════════
-// js/entities/Entity.js
+// js/systems/RealEstateSystem.js
 // ═══════════════════════════════════════════════════════
 /**
- * Entity - Basisklasse fuer alle Spielobjekte (Spieler, NPCs, Objekte).
+ * RealEstateSystem - Immobilienmarkt: Kauf und Verwaltung von Gebaeuden.
  *
- * WICHTIG: Entity setzt x/y nicht direkt.
- * Bewegung und Positionsaenderungen werden ausschliesslich ueber EntityMover gesteuert.
+ * SSOT: Alle Immobilien-Preise, Einkuenfte und Kauf-Logik hier zentralisiert.
+ * Einkommen wird pro Ingame-Tag ausgezahlt (1 voller Tag/Nacht-Zyklus).
  */
 
-let _nextEntityId = 1;
+// ---------------------------------------------------------------------------
+// Immobilien-Katalog (SSOT fuer alle kaufbaren Immobilien)
+// ---------------------------------------------------------------------------
 
-class Entity {
+/**
+ * Gibt den Immobilien-Katalog zurueck.
+ * Schluessel = Building-Type, Wert = Kauf-Details.
+ * income = Einkommen pro Ingame-Tag.
+ */
+/** Verkaufsrate: Anteil des Kaufpreises bei Verkauf (SSOT) */
+const PROPERTY_SELL_RATE = 0.5;
+
+const PROPERTY_CATALOG = {
+    motel: {
+        name: 'Sunrise Motel',
+        price: 8000,
+        income: 200,
+        description: 'Ein kleines Motel am Stadtrand. Generiert taegliches Einkommen.',
+    },
+    apartmentComplex: {
+        name: 'Parkview Apartments',
+        price: 25000,
+        income: 750,
+        description: 'Ein Apartmentkomplex mit mehreren Einheiten. Hohe Mieteinnahmen.',
+    },
+};
+
+class RealEstateSystem {
+
     /**
-     * @param {object} [options]
-     * @param {number} [options.x=0]
-     * @param {number} [options.y=0]
-     * @param {number} [options.width=32]
-     * @param {number} [options.height=32]
-     * @param {number} [options.speed=2]
-     * @param {number} [options.health=100]
+     * @param {import('../core/EventBus.js').EventBus} eventBus
      */
-    constructor(options = {}) {
-        this.id = _nextEntityId++;
-        this.x = options.x ?? 0;
-        this.y = options.y ?? 0;
-        this.width = options.width ?? 32;
-        this.height = options.height ?? 32;
-        this.speed = options.speed ?? 2;
-        this.moving = false;
+    constructor(eventBus) {
+        this.eventBus = eventBus;
 
-        /** @type {{minX: number, minY: number, maxX: number, maxY: number} | null} */
-        this.bounds = options.bounds ?? null;
+        /** @type {number} Letzter bekannter phaseIndex des DayNightSystem */
+        this._lastPhaseIndex = -1;
 
-        this.maxHealth = options.health ?? 100;
-        this.health = this.maxHealth;
-        this.dead = false;
-        this.hidden = false;
+        /** @type {number} Zaehlt wie oft phaseIndex auf 0 zurueckspringt (= neuer Tag) */
+        this._dayCount = 0;
+
+        /** @type {number} Letzter Tag an dem Einkommen gezahlt wurde */
+        this._lastIncomeDay = 0;
     }
 
-    /**
-     * Gibt true zurueck wenn die Entity lebt (health > 0, nicht dead).
-     */
-    isAlive() {
-        return !this.dead && this.health > 0;
-    }
+    // ===================================================================
+    //  Kauf / Verkauf
+    // ===================================================================
 
     /**
-     * Gibt die Bounding-Box als {x, y, width, height} zurueck.
+     * Versucht eine Immobilie zu kaufen.
+     *
+     * @param {object} player - Spieler-Entity
+     * @param {object} building - Gebaeude-Objekt
+     * @returns {{ success: boolean, reason?: string, property?: object }}
      */
-    getBounds() {
+    buyProperty(player, building) {
+        if (!building || !building.id) {
+            return { success: false, reason: 'invalidBuilding' };
+        }
+
+        const catalog = PROPERTY_CATALOG[building.type];
+        if (!catalog) {
+            return { success: false, reason: 'notForSale' };
+        }
+
+        if (player.ownedProperties.has(building.id)) {
+            return { success: false, reason: 'alreadyOwned' };
+        }
+
+        if (player.money < catalog.price) {
+            return { success: false, reason: 'noMoney' };
+        }
+
+        player.money -= catalog.price;
+        player.ownedProperties.add(building.id);
+
+        this.eventBus.emit('realEstate:purchased', {
+            buildingId: building.id,
+            type: building.type,
+            price: catalog.price,
+        });
+
         return {
-            x: this.x - this.width / 2,
-            y: this.y - this.height / 2,
-            width: this.width,
-            height: this.height,
+            success: true,
+            property: catalog,
         };
     }
 
     /**
-     * Gibt das Zentrum als {x, y} zurueck.
+     * Verkauft eine Immobilie (50% des Kaufpreises).
+     *
+     * @param {object} player
+     * @param {object} building
+     * @returns {{ success: boolean, reason?: string, refund?: number }}
      */
-    getCenter() {
-        return { x: this.x, y: this.y };
+    sellProperty(player, building) {
+        if (!building || !building.id) {
+            return { success: false, reason: 'invalidBuilding' };
+        }
+
+        if (!player.ownedProperties.has(building.id)) {
+            return { success: false, reason: 'notOwned' };
+        }
+
+        const catalog = PROPERTY_CATALOG[building.type];
+        if (!catalog) {
+            return { success: false, reason: 'notForSale' };
+        }
+
+        const refund = RealEstateSystem.getSellRefund(catalog.price);
+        player.money += refund;
+        player.ownedProperties.delete(building.id);
+
+        // Falls der Spieler dort wohnt, Wohnsitz entfernen
+        if (player.homePropertyId === building.id) {
+            player.homePropertyId = null;
+        }
+
+        this.eventBus.emit('realEstate:sold', {
+            buildingId: building.id,
+            type: building.type,
+            refund,
+        });
+
+        return { success: true, refund };
+    }
+
+    // ===================================================================
+    //  Einziehen (Wohnsitz setzen)
+    // ===================================================================
+
+    /**
+     * Setzt eine eigene Immobilie als Wohnsitz (Respawn-Punkt).
+     *
+     * @param {object} player
+     * @param {object} building
+     * @returns {{ success: boolean, reason?: string }}
+     */
+    moveIn(player, building) {
+        if (!building || !building.id) {
+            return { success: false, reason: 'invalidBuilding' };
+        }
+
+        if (!player.ownedProperties.has(building.id)) {
+            return { success: false, reason: 'notOwned' };
+        }
+
+        player.homePropertyId = building.id;
+
+        this.eventBus.emit('realEstate:movedIn', {
+            buildingId: building.id,
+        });
+
+        return { success: true };
+    }
+
+    // ===================================================================
+    //  Passives Einkommen (pro Ingame-Tag)
+    // ===================================================================
+
+    /**
+     * Aktualisiert das passive Einkommen aus besessenen Immobilien.
+     * Einkommen wird einmal pro Ingame-Tag ausgezahlt.
+     *
+     * @param {object} player
+     * @param {Array} buildings - Alle Gebaeude der Welt
+     * @param {number} deltaTime - Sekunden seit letztem Frame (unused, Tageswechsel-basiert)
+     * @param {object} dayNightSystem - DayNightSystem-Instanz
+     */
+    update(player, buildings, deltaTime, dayNightSystem) {
+        if (!player.ownedProperties || player.ownedProperties.size === 0) {
+            return;
+        }
+
+        if (!dayNightSystem) {
+            return;
+        }
+
+        // Tag-Wechsel erkennen: phaseIndex springt auf 0 (Tag beginnt)
+        const currentPhaseIndex = dayNightSystem.phaseIndex ?? 0;
+
+        if (this._lastPhaseIndex < 0) {
+            // Erster Frame: initialisieren
+            this._lastPhaseIndex = currentPhaseIndex;
+            return;
+        }
+
+        // Tageswechsel: Phase springt von letzter Phase (dawn=3) auf erste (day=0)
+        if (currentPhaseIndex === 0 && this._lastPhaseIndex !== 0) {
+            this._dayCount++;
+
+            // Einkommen auszahlen
+            if (this._dayCount > this._lastIncomeDay) {
+                let totalIncome = 0;
+                for (const buildingId of player.ownedProperties) {
+                    const building = buildings.find((b) => b && b.id === buildingId);
+                    if (!building) continue;
+                    const catalog = PROPERTY_CATALOG[building.type];
+                    if (!catalog) continue;
+                    totalIncome += catalog.income;
+                }
+
+                if (totalIncome > 0) {
+                    player.money += totalIncome;
+                    this._lastIncomeDay = this._dayCount;
+
+                    this.eventBus.emit('realEstate:income', {
+                        amount: totalIncome,
+                        day: this._dayCount,
+                    });
+                }
+            }
+        }
+
+        this._lastPhaseIndex = currentPhaseIndex;
+    }
+
+    // ===================================================================
+    //  Hilfsfunktionen
+    // ===================================================================
+
+    /**
+     * Gibt die Katalog-Infos fuer einen Gebaeudetyp zurueck.
+     * @param {string} type
+     * @returns {object|null}
+     */
+    static getCatalogEntry(type) {
+        return PROPERTY_CATALOG[type] ?? null;
     }
 
     /**
-     * Berechnet die Distanz zu einer anderen Entity.
-     * @param {Entity} other
+     * Prueft ob ein Gebaeudetyp kaufbar ist.
+     * @param {string} type
+     * @returns {boolean}
+     */
+    static isPropertyType(type) {
+        return type in PROPERTY_CATALOG;
+    }
+
+    /**
+     * Berechnet den Verkaufserloes einer Immobilie (SSOT).
+     * @param {number} price - Kaufpreis
      * @returns {number}
      */
-    distanceTo(other) {
-        const dx = this.x - other.x;
-        const dy = this.y - other.y;
-        return Math.sqrt(dx * dx + dy * dy);
+    static getSellRefund(price) {
+        return Math.floor(price * PROPERTY_SELL_RATE);
+    }
+
+    /**
+     * Formatiert einen Geldbetrag.
+     * @param {number} amount
+     * @returns {string}
+     */
+    static formatMoney(amount) {
+        return Math.floor(amount).toLocaleString('de-DE') + '$';
     }
 }
 
-Entity;
+
 
 
 // ═══════════════════════════════════════════════════════
-// js/entities/buildHumanoidParts.js
+// js/world/BuildingFactory.js
 // ═══════════════════════════════════════════════════════
 /**
- * buildHumanoidParts - SSOT fuer die visuellen Koerperteile
- * aller humanoiden Entities (Spieler, NPCs).
+ * BuildingFactory - Erstellt Gebaeude-Objekte und Collider.
  *
- * Wird von Player und NPC gemeinsam genutzt.
+ * Portiert aus gta_old/overworld/js/overworld.js:
+ *   createBuildingColliders() Zeilen 12025-12142
  *
- * @param {object} [palette={}]
- * @param {string} [palette.head]
- * @param {string} [palette.torso]
- * @param {string} [palette.limbs]
- * @param {string} [palette.accent]
- * @param {string} [palette.hair]
- * @param {string} [palette.eyes]
- * @param {string} [palette.pupil]
- * @returns {Array<object>}
+ * SSOT: Alle Gebaeude-Erstellung und Collider-Logik hier zentralisiert.
  */
-function buildHumanoidParts(palette = {}) {
-    const headColor = palette.head ?? '#f2d6c1';
-    const torsoColor = palette.torso ?? '#2b6777';
-    const limbColor = palette.limbs ?? '#1b3a4b';
-    const accentColor = palette.accent ?? '#f2f2f2';
-    const hairColor = palette.hair ?? '#2b2118';
-    const eyeColor = palette.eyes ?? '#ffffff';
-    const pupilColor = palette.pupil ?? '#1b1b1b';
 
-    return [
-        { id: 'shadow', type: 'circle', radius: 10, offsetX: 0, offsetY: 12, color: 'rgba(0, 0, 0, 0.15)', damaged: false },
-        { id: 'torso', type: 'rect', width: 14, height: 18, offsetX: -7, offsetY: -12, color: torsoColor, damaged: false },
-        { id: 'leftArm', type: 'rect', width: 4, height: 16, offsetX: -11, offsetY: -10, color: limbColor, damaged: false },
-        { id: 'rightArm', type: 'rect', width: 4, height: 16, offsetX: 7, offsetY: -10, color: limbColor, damaged: false },
-        { id: 'leftLeg', type: 'rect', width: 4, height: 18, offsetX: -4, offsetY: 6, color: accentColor, damaged: false },
-        { id: 'rightLeg', type: 'rect', width: 4, height: 18, offsetX: 0, offsetY: 6, color: accentColor, damaged: false },
-        { id: 'hairBack', type: 'circle', radius: 8, offsetX: 0, offsetY: -24, color: hairColor, damaged: false },
-        { id: 'head', type: 'circle', radius: 6, offsetX: 0, offsetY: -20, color: headColor, damaged: false },
-        { id: 'hairFringe', type: 'rect', width: 16, height: 3, offsetX: -8, offsetY: -22, color: hairColor, damaged: false },
-        { id: 'leftEye', type: 'circle', radius: 1.8, offsetX: -3, offsetY: -17, color: eyeColor, damaged: false },
-        { id: 'rightEye', type: 'circle', radius: 1.8, offsetX: 3, offsetY: -17, color: eyeColor, damaged: false },
-        { id: 'leftPupil', type: 'circle', radius: 0.9, offsetX: -3, offsetY: -17, color: pupilColor, damaged: false },
-        { id: 'rightPupil', type: 'circle', radius: 0.9, offsetX: 3, offsetY: -17, color: pupilColor, damaged: false },
-    ];
+/**
+ * Erstellt ein Gebaeude-Objekt mit den gegebenen Parametern.
+ *
+ * @param {string} type - Gebaeudetyp (z.B. 'house', 'police', 'casino', 'weaponShop')
+ * @param {number} x
+ * @param {number} y
+ * @param {number} width
+ * @param {number} height
+ * @param {object} [options={}]
+ * @param {string} [options.name]
+ * @param {boolean} [options.interactive=false]
+ * @param {object} [options.variant]
+ * @param {number} [options.colorIndex]
+ * @param {number} [options.lotPadding]
+ * @param {number} [options.collisionPadding]
+ * @param {Array}  [options.subUnits]
+ * @param {Array}  [options.collisionRects]
+ * @returns {object} Gebaeude-Objekt
+ */
+function createBuilding(type, x, y, width, height, options = {}) {
+    const building = {
+        x,
+        y,
+        width,
+        height,
+        type,
+        name: options.name ?? type,
+        interactive: options.interactive ?? false,
+    };
+
+    if (options.variant !== undefined) {
+        building.variant = options.variant;
+    }
+    if (options.colorIndex !== undefined) {
+        building.colorIndex = options.colorIndex;
+    }
+    if (options.lotPadding !== undefined) {
+        building.lotPadding = options.lotPadding;
+    }
+    if (options.collisionPadding !== undefined) {
+        building.collisionPadding = options.collisionPadding;
+    }
+    if (options.subUnits !== undefined) {
+        building.subUnits = options.subUnits;
+    }
+    if (options.collisionRects !== undefined) {
+        building.collisionRects = options.collisionRects;
+    }
+
+    return building;
 }
 
-
-
-// ═══════════════════════════════════════════════════════
-// js/entities/Player.js
-// ═══════════════════════════════════════════════════════
 /**
- * Player - Spieler-Entity.
+ * Erstellt Collider-Objekte aus einer Liste von Gebaeuden.
+ * Jedes Gebaeude kann eigene collisionRects haben, andernfalls
+ * wird die Basisgeometrie als Collider verwendet.
  *
- * WICHTIG: Setzt NIEMALS this.x/this.y direkt (ausser Initialisierung im Constructor).
- * Alle Positionsaenderungen gehen durch EntityMover.move().
+ * Portiert aus createBuildingColliders() Zeilen 12025-12142.
+ *
+ * @param {Array} buildings
+ * @returns {Array<{type: string, id: string|null, left: number, right: number, top: number, bottom: number}>}
  */
-
-
-
-/** Standard-Palette fuer den Spieler */
-const DEFAULT_PLAYER_PALETTE = {
-    head: '#f6d7c4',
-    torso: '#1b4965',
-    limbs: '#16324f',
-    accent: '#5fa8d3',
-    hair: '#2b2118',
-    eyes: '#ffffff',
-    pupil: '#1b1b1b',
-};
-
-class Player extends Entity {
-    /**
-     * @param {object} [options]
-     * @param {number} [options.x=400]
-     * @param {number} [options.y=300]
-     * @param {number} [options.width=30]
-     * @param {number} [options.height=30]
-     * @param {number} [options.speed=1.5]
-     * @param {number} [options.sprintMultiplier=2]
-     * @param {object} [options.palette] - Farbpalette fuer Spieler-Teile
-     * @param {number} [options.money=1500]
-     * @param {number} [options.casinoCredits=0]
-     * @param {string|null} [options.currentWeaponId=null]
-     * @param {Set|null} [options.weaponInventory=null]
-     * @param {Array|null} [options.weaponLoadout=null]
-     */
-    constructor(options = {}) {
-        super({
-            x: options.x ?? 400,
-            y: options.y ?? 300,
-            width: options.width ?? 30,
-            height: options.height ?? 30,
-            speed: options.speed ?? 1.5,
-            health: options.health ?? 100,
-        });
-
-        this.baseSpeed = this.speed;
-        this.sprintMultiplier = options.sprintMultiplier ?? 2;
-
-        this.animationPhase = 0;
-        this.color = options.color ?? '#FF0000';
-
-        // Waffen-Zustand
-        this.currentWeaponId = options.currentWeaponId ?? null;
-        this.weaponInventory = options.weaponInventory ?? new Set();
-        this.weaponLoadout = options.weaponLoadout ?? [];
-
-        // Geld
-        this.money = options.money ?? 1500;
-        this.casinoCredits = options.casinoCredits ?? 0;
-
-        // Visuelle Teile
-        const palette = options.palette ?? DEFAULT_PLAYER_PALETTE;
-        this.parts = buildHumanoidParts(palette);
+function createBuildingColliders(buildings) {
+    if (!Array.isArray(buildings)) {
+        return [];
     }
 
-    /**
-     * Gibt das Zentrum des Spielers zurueck.
-     * Beruecksichtigt die halbe Breite/Hoehe (Top-Down-Ansicht).
-     * @returns {{ x: number, y: number }}
-     */
-    getCenter() {
-        return {
-            x: this.x + this.width / 2,
-            y: this.y + this.height / 2,
-        };
-    }
+    const colliders = [];
 
-    /**
-     * Gibt die Muendungsposition fuer die aktuelle Waffe zurueck.
-     * @returns {{ x: number, y: number }}
-     */
-    getMuzzlePosition() {
-        const center = this.getCenter();
-        return { x: center.x, y: center.y };
-    }
-
-    /**
-     * Delegiert an die gemeinsame buildHumanoidParts-Funktion (SSOT).
-     * @param {object} palette
-     * @returns {Array<object>}
-     */
-    static buildParts(palette) {
-        return buildHumanoidParts(palette);
-    }
-}
-
-Player;
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/entities/NPC.js
-// ═══════════════════════════════════════════════════════
-/**
- * NPC - Nicht-Spieler-Charakter-Entity.
- *
- * WICHTIG: Setzt NIEMALS this.x/this.y direkt (ausser Initialisierung im Constructor).
- * Alle Positionsaenderungen gehen durch EntityMover.move().
- *
- * Diese Klasse definiert nur Zustand und Logik-Daten.
- * Bewegung wird von MovementSystem / EntityMover gesteuert.
- */
-
-
-
-/** Standard-Werte fuer den Movement-Tracker */
-const TRACKER_DEFAULTS = {
-    motionThreshold: 0.45,
-    idleThreshold: 3500,
-    sampleWindow: 4000,
-    minDisplacement: 12,
-    maxStuckSamples: 2,
-    teleportCooldown: 4000,
-};
-
-class NPC extends Entity {
-    /**
-     * @param {object} config - Konfiguration aus buildNPC-Daten
-     * @param {Array<object>} config.waypoints - Pfad-Wegpunkte (mind. 2)
-     * @param {object} [config.spawnPoint] - Optionaler fester Spawnpunkt
-     * @param {boolean} [config.useBoundsSpawn=false] - Spawn in Bounds-Mitte
-     * @param {object} [config.bounds] - Entity-spezifische Bewegungsgrenzen
-     * @param {number} [config.speed=1.2]
-     * @param {boolean} [config.stayOnSidewalks=true]
-     * @param {boolean} [config.ignoreSidewalkObstacles=true]
-     * @param {boolean} [config.hitboxDisabled=true]
-     * @param {boolean} [config.fixedSpawn]
-     * @param {object} [config.palette] - Farbpalette fuer NPC-Teile
-     * @param {number} [config.maxHealth=100]
-     * @param {number} [config.hitRadius=14]
-     */
-    constructor(config = {}) {
-        const path = NPC._buildPath(config);
-
-        if (path.length < 2) {
-            throw new Error('NPC needs at least two waypoints to move.');
+    for (const building of buildings) {
+        if (!building) {
+            continue;
         }
 
-        const spawnPoint = NPC._resolveSpawnPoint(config, path);
-        const start = path[0];
-        const initialX = spawnPoint ? spawnPoint.x : start.x;
-        const initialY = spawnPoint ? spawnPoint.y : start.y;
+        const rects = [];
 
-        super({
-            x: initialX,
-            y: initialY,
-            speed: config.speed ?? 1.2,
-            health: config.maxHealth ?? 100,
-        });
-
-        // Pfad und Navigation
-        this.path = path;
-        this.waypointIndex = path.length > 1 ? 1 : 0;
-        this.waitTimer = start.wait ?? 0;
-
-        // Buergersteig-Verhalten
-        this.stayOnSidewalks = config.stayOnSidewalks !== false;
-        this.ignoreSidewalkObstacles = config.ignoreSidewalkObstacles !== false;
-        this.hitboxDisabled = config.hitboxDisabled !== false;
-        this.currentSidewalkSegment = null;
-
-        // Dynamische Navigation (statt fester Wegpunkt-Schleife)
-        this.dynamicNavigation = config.dynamicNavigation ?? false;
-        this._lastNavDir = null;
-
-        // Crosswalk-Zustand
-        this.waitingForCrosswalk = start.crosswalkIndex ?? null;
-        this.isCrossing = false;
-
-        // Spawn
-        this.fixedSpawn = (config.fixedSpawn != null)
-            ? Boolean(config.fixedSpawn)
-            : Boolean(spawnPoint);
-        this.spawnPoint = spawnPoint
-            ? { x: spawnPoint.x, y: spawnPoint.y }
-            : null;
-
-        // Gebaeude-Zustand
-        const startBuildingId = start?.buildingId ?? null;
-        const startInside = Boolean(start?.interior === true || start?.action === 'enter');
-        const startHidden = startInside || Boolean(start?.hidden);
-        this.insideBuilding = startInside ? (startBuildingId ?? true) : null;
-        this.hidden = startHidden;
-        this.lastBuildingId = startBuildingId;
-
-        // Zustand
-        this.animationPhase = 0;
-        this.panicTimer = 0;
-        this.deathRotation = 0;
-        this.hitRadius = config.hitRadius ?? 14;
-
-        // Bounds
-        this.bounds = config.bounds ?? null;
-
-        // Visuelle Teile
-        this.palette = config.palette ?? null;
-        this.parts = buildHumanoidParts(config.palette ?? {});
-
-        // Movement-Tracker (lazy-init via ensureMovementTracker)
-        this.movementTracker = null;
-    }
-
-    // ---- Waypoint-Methoden ----
-
-    /**
-     * Gibt den aktuellen Ziel-Wegpunkt zurueck.
-     * @returns {object|null}
-     */
-    getCurrentWaypoint() {
-        return this.path[this.waypointIndex] ?? null;
-    }
-
-    /**
-     * Setzt den Wegpunkt-Index auf den naechsten Punkt (zyklisch).
-     */
-    advanceWaypoint() {
-        this.waypointIndex = (this.waypointIndex + 1) % this.path.length;
-    }
-
-    /**
-     * Prueft ob der NPC nah genug am aktuellen Wegpunkt ist.
-     * @param {number} [threshold=2] - Entfernung in Pixeln
-     * @returns {boolean}
-     */
-    isAtWaypoint(threshold = 2) {
-        const wp = this.getCurrentWaypoint();
-        if (!wp) return false;
-        const dx = this.x - wp.x;
-        const dy = this.y - wp.y;
-        return (dx * dx + dy * dy) <= threshold * threshold;
-    }
-
-    // ---- Zustandsabfragen ----
-
-    /**
-     * Gibt true zurueck wenn der NPC in Panik ist.
-     * @returns {boolean}
-     */
-    isPanicking() {
-        return this.panicTimer > 0;
-    }
-
-    /**
-     * Gibt true zurueck wenn der NPC wartet (idle).
-     * @returns {boolean}
-     */
-    isIdle() {
-        return this.waitTimer > 0 && !this.moving;
-    }
-
-    // ---- Movement-Tracker ----
-
-    /**
-     * Stellt sicher, dass der movementTracker initialisiert ist.
-     * Portiert von ensureNpcMovementTracker() aus dem alten Code.
-     *
-     * @param {number} [timestamp] - Aktueller Zeitstempel
-     * @returns {object} Der movementTracker
-     */
-    ensureMovementTracker(timestamp) {
-        const time = Number.isFinite(timestamp)
-            ? timestamp
-            : (typeof performance !== 'undefined' && performance.now
-                ? performance.now()
-                : Date.now());
-
-        if (!this.movementTracker) {
-            this.movementTracker = {
-                samplePosition: { x: this.x, y: this.y },
-                sampleTime: time,
-                lastUpdateTime: time,
-                idleTime: 0,
-                stuckSamples: 0,
-                lastTeleportAt: -Infinity,
-                ...TRACKER_DEFAULTS,
-            };
-        } else {
-            // Sicherstellen dass alle Felder vorhanden sind (Migrationssicherheit)
-            const t = this.movementTracker;
-            for (const [key, val] of Object.entries(TRACKER_DEFAULTS)) {
-                if (typeof t[key] !== 'number') {
-                    t[key] = val;
+        if (Array.isArray(building.collisionRects) && building.collisionRects.length > 0) {
+            for (const rect of building.collisionRects) {
+                if (!rect) {
+                    continue;
                 }
-            }
-            if (typeof t.stuckSamples !== 'number') t.stuckSamples = 0;
-            if (typeof t.lastTeleportAt !== 'number') t.lastTeleportAt = -Infinity;
-        }
 
-        return this.movementTracker;
-    }
+                const width = Number(rect.width ?? 0);
+                const height = Number(rect.height ?? 0);
 
-    // ---- Statische Hilfsmethoden ----
+                if (!(width > 0 && height > 0)) {
+                    continue;
+                }
 
-    /**
-     * Baut den Pfad aus der Konfiguration.
-     * @param {object} config
-     * @returns {Array<object>}
-     * @private
-     */
-    static _buildPath(config) {
-        return (config.waypoints ?? []).map((wp) => ({ ...wp }));
-    }
+                const left = Number(rect.x ?? building.x ?? 0);
+                const top = Number(rect.y ?? building.y ?? 0);
 
-    /**
-     * Ermittelt den Spawnpunkt aus der Konfiguration.
-     * @param {object} config
-     * @param {Array<object>} path - bereits aufgebauter Pfad
-     * @returns {object|null}
-     * @private
-     */
-    static _resolveSpawnPoint(config, path) {
-        const hasFiniteNumber = (value) =>
-            value !== null && value !== undefined && Number.isFinite(Number(value));
+                if (!Number.isFinite(left) || !Number.isFinite(top)) {
+                    continue;
+                }
 
-        let spawnPoint = null;
-
-        if (config.spawnPoint
-            && hasFiniteNumber(config.spawnPoint.x)
-            && hasFiniteNumber(config.spawnPoint.y)) {
-            const spawnX = Number(config.spawnPoint.x);
-            const spawnY = Number(config.spawnPoint.y);
-            spawnPoint = {
-                x: spawnX,
-                y: spawnY,
-                wait: hasFiniteNumber(config.spawnPoint.wait)
-                    ? Number(config.spawnPoint.wait) : null,
-                allowOffSidewalk: config.spawnPoint.allowOffSidewalk !== false,
-            };
-        } else if (config.useBoundsSpawn === true && config.bounds) {
-            const left = Number(config.bounds.left);
-            const right = Number(config.bounds.right);
-            const top = Number(config.bounds.top);
-            const bottom = Number(config.bounds.bottom);
-            if (hasFiniteNumber(left) && hasFiniteNumber(right)
-                && hasFiniteNumber(top) && hasFiniteNumber(bottom)) {
-                spawnPoint = {
-                    x: (left + right) / 2,
-                    y: (top + bottom) / 2,
-                    wait: null,
-                    allowOffSidewalk: true,
-                };
-            }
-        }
-
-        // Spawnpunkt in Pfad einarbeiten
-        if (spawnPoint) {
-            if (path.length === 0) {
-                path.push({
-                    x: spawnPoint.x,
-                    y: spawnPoint.y,
-                    wait: spawnPoint.wait ?? 0,
-                    allowOffSidewalk: spawnPoint.allowOffSidewalk,
+                rects.push({
+                    left,
+                    right: left + width,
+                    top,
+                    bottom: top + height,
                 });
-            } else {
-                path[0].x = spawnPoint.x;
-                path[0].y = spawnPoint.y;
-                if (spawnPoint.wait != null) {
-                    path[0].wait = spawnPoint.wait;
-                }
-                if (spawnPoint.allowOffSidewalk) {
-                    path[0].allowOffSidewalk = true;
-                }
             }
         }
 
-        return spawnPoint;
-    }
+        if (rects.length === 0) {
+            const width = Number(building.width ?? 0);
+            const height = Number(building.height ?? 0);
+            const left = Number(building.x ?? 0);
+            const top = Number(building.y ?? 0);
 
-    /**
-     * Delegiert an die gemeinsame buildHumanoidParts-Funktion (SSOT).
-     * @param {object} palette
-     * @returns {Array<object>}
-     */
-    static buildParts(palette) {
-        return buildHumanoidParts(palette);
-    }
-}
-
-NPC;
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/entities/Vehicle.js
-// ═══════════════════════════════════════════════════════
-/**
- * Vehicle - Fahrzeug-Entity.
- *
- * WICHTIG: Setzt NIEMALS this.x/this.y direkt (ausser Initialisierung im Constructor).
- * Alle Positionsaenderungen gehen durch EntityMover.move().
- */
-
-
-class Vehicle extends Entity {
-    /**
-     * @param {object} config
-     * @param {Array<object>} config.path - Pfad-Wegpunkte (mind. 2)
-     * @param {number} [config.width=96]
-     * @param {number} [config.height=44]
-     * @param {number} [config.speed=2.2]
-     * @param {string} [config.baseColor='#555555']
-     * @param {string} [config.accentColor='#888888']
-     */
-    constructor(config = {}) {
-        const path = (config.path ?? []).map((wp) => ({ ...wp }));
-
-        if (path.length < 2) {
-            throw new Error('Vehicle needs at least two waypoints to move.');
+            if (width > 0 && height > 0 && Number.isFinite(left) && Number.isFinite(top)) {
+                rects.push({
+                    left,
+                    right: left + width,
+                    top,
+                    bottom: top + height,
+                });
+            }
         }
 
-        const start = path[0];
-        const width = config.width ?? 96;
-        const height = config.height ?? 44;
-
-        super({
-            x: start.x,
-            y: start.y,
-            width,
-            height,
-            speed: config.speed ?? 2.2,
-        });
-
-        // Pfad und Navigation
-        this.path = path;
-        this.waypointIndex = path.length > 1 ? 1 : 0;
-        this.waitTimer = start.wait ?? 0;
-        this.stopTimer = 0;
-        this.rotation = 0;
-
-        // Farben
-        this.baseColor = config.baseColor ?? '#555555';
-        this.accentColor = config.accentColor ?? '#888888';
-
-        // Yield-Verhalten (Vorfahrt gewaehren)
-        this.yielding = false;
-        this.yieldTimer = 0;
-
-        // Visuelle Teile
-        this.parts = Vehicle.buildParts({
-            baseColor: this.baseColor,
-            accentColor: this.accentColor,
-            width: this.width,
-            height: this.height,
-        });
-    }
-
-    // ---- Waypoint-Methoden ----
-
-    /**
-     * Gibt den aktuellen Ziel-Wegpunkt zurueck.
-     * @returns {object|null}
-     */
-    getCurrentWaypoint() {
-        return this.path[this.waypointIndex] ?? null;
-    }
-
-    /**
-     * Setzt den Wegpunkt-Index auf den naechsten Punkt (zyklisch).
-     */
-    advanceWaypoint() {
-        this.waypointIndex = (this.waypointIndex + 1) % this.path.length;
-    }
-
-    /**
-     * Prueft ob das Fahrzeug nah genug am aktuellen Wegpunkt ist.
-     * @param {number} [threshold=2] - Entfernung in Pixeln
-     * @returns {boolean}
-     */
-    isAtWaypoint(threshold = 2) {
-        const wp = this.getCurrentWaypoint();
-        if (!wp) return false;
-        const dx = this.x - wp.x;
-        const dy = this.y - wp.y;
-        return (dx * dx + dy * dy) <= threshold * threshold;
-    }
-
-    // ---- Statische Factory-Methoden ----
-
-    /**
-     * Baut die visuellen Fahrzeug-Teile.
-     * Portiert von buildVehicleParts() aus dem alten Code.
-     *
-     * @param {object} config
-     * @param {string} config.baseColor
-     * @param {string} config.accentColor
-     * @param {number} config.width
-     * @param {number} config.height
-     * @returns {Array<object>}
-     */
-    static buildParts(config) {
-        const width = config.width;
-        const height = config.height;
-        const halfWidth = width / 2;
-        const halfHeight = height / 2;
-        const wheelRadius = Math.max(5, Math.floor(height * 0.24));
-
-        const windowColor = 'rgba(132, 188, 226, 0.9)';
-        const rearWindowColor = 'rgba(96, 140, 180, 0.85)';
-        const trimColor = '#1f2a36';
-        const lightFront = '#ffe8a3';
-        const lightRear = '#ff6464';
-
-        const parts = [];
-
-        const addRect = (id, centerX, centerY, rectWidth, rectHeight, color, extra = {}) => {
-            parts.push({
-                id,
-                type: 'rect',
-                width: rectWidth,
-                height: rectHeight,
-                offsetX: centerX - rectWidth / 2,
-                offsetY: centerY - rectHeight / 2,
-                color,
-                damaged: false,
-                ...extra,
+        for (const rect of rects) {
+            colliders.push({
+                type: 'building',
+                id: building.id ?? building.name ?? null,
+                left: rect.left,
+                right: rect.right,
+                top: rect.top,
+                bottom: rect.bottom,
             });
-        };
-
-        const addCircle = (id, centerX, centerY, radius, color, extra = {}) => {
-            parts.push({
-                id,
-                type: 'circle',
-                radius,
-                offsetX: centerX,
-                offsetY: centerY,
-                color,
-                damaged: false,
-                ...extra,
-            });
-        };
-
-        // Chassis
-        addRect('chassis', 0, 0, width, height, config.baseColor);
-
-        // Streifen
-        const stripeHeight = height * 0.22;
-        addRect('stripe', 0, 0, width * 0.86, stripeHeight, config.accentColor);
-
-        // Dach
-        const roofWidth = width * 0.58;
-        const roofHeight = height * 0.5;
-        addRect('roof', 0, 0, roofWidth, roofHeight, config.accentColor);
-
-        // Windschutzscheibe
-        const windshieldWidth = width * 0.32;
-        const windshieldHeight = height * 0.46;
-        const windshieldCenterX = halfWidth - windshieldWidth * 0.6;
-        addRect('windshield', windshieldCenterX, 0, windshieldWidth, windshieldHeight, windowColor);
-
-        // Heckscheibe
-        const rearGlassWidth = width * 0.3;
-        const rearGlassHeight = height * 0.42;
-        const rearGlassCenterX = -halfWidth + rearGlassWidth * 0.6;
-        addRect('rearGlass', rearGlassCenterX, 0, rearGlassWidth, rearGlassHeight, rearWindowColor);
-
-        // Stossstangen
-        const bumperWidth = width * 0.08;
-        const bumperHeight = height * 0.74;
-        addRect('trimFront', halfWidth - bumperWidth / 2, 0, bumperWidth, bumperHeight, trimColor);
-        addRect('trimRear', -halfWidth + bumperWidth / 2, 0, bumperWidth, bumperHeight, trimColor);
-
-        // Lichter
-        const lightWidth = width * 0.06;
-        const lightHeight = height * 0.22;
-        const lateralOffset = halfHeight - lightHeight * 0.6;
-        const lightInset = width * 0.04 + bumperWidth;
-        const frontLightCenterX = halfWidth - lightInset - lightWidth / 2;
-        const rearLightCenterX = -frontLightCenterX;
-
-        addRect('frontLightLeft', frontLightCenterX, -lateralOffset, lightWidth, lightHeight, lightFront);
-        addRect('frontLightRight', frontLightCenterX, lateralOffset, lightWidth, lightHeight, lightFront);
-        addRect('rearLightLeft', rearLightCenterX, -lateralOffset, lightWidth, lightHeight, lightRear);
-        addRect('rearLightRight', rearLightCenterX, lateralOffset, lightWidth, lightHeight, lightRear);
-
-        // Seitenpanele
-        const sidePanelHeight = height * 0.12;
-        const sidePanelOffsetY = halfHeight - sidePanelHeight / 2;
-        addRect('sidePanelTop', 0, -sidePanelOffsetY, width * 0.78, sidePanelHeight, config.accentColor);
-        addRect('sidePanelBottom', 0, sidePanelOffsetY, width * 0.78, sidePanelHeight, config.accentColor);
-
-        // Raeder
-        addCircle('wheelFrontLeft', halfWidth * 0.45, halfHeight - wheelRadius, wheelRadius, trimColor, { visible: false });
-        addCircle('wheelFrontRight', halfWidth * 0.45, -halfHeight + wheelRadius, wheelRadius, trimColor, { visible: false });
-        addCircle('wheelRearLeft', -halfWidth * 0.45, halfHeight - wheelRadius, wheelRadius, trimColor, { visible: false });
-        addCircle('wheelRearRight', -halfWidth * 0.45, -halfHeight + wheelRadius, wheelRadius, trimColor, { visible: false });
-
-        return parts;
+        }
     }
+
+    return colliders;
 }
-
-Vehicle;
 
 
 
@@ -2469,2817 +3105,6 @@ class RoadNetwork {
 
 
 // ═══════════════════════════════════════════════════════
-// js/systems/CollisionSystem.js
-// ═══════════════════════════════════════════════════════
-/**
- * CollisionSystem - Verwaltet alle Kollisionspruefungen und -aufloesungen.
- * Portiert aus OverworldGame: checkBuildingCollisions, resolveCircleRectCollision,
- * isPointInsideAnyCollider, collectVehicleColliders.
- */
-
-
-class CollisionSystem {
-
-    /**
-     * @param {Array} buildingColliders - Liste der Gebaeude-Collider
-     * @param {Array} vehicleColliders  - Liste der Fahrzeug-Collider
-     */
-    constructor(buildingColliders = [], vehicleColliders = []) {
-        this.buildingColliders = buildingColliders;
-        this.vehicleColliders = vehicleColliders;
-    }
-
-    // ---------------------------------------------------------------
-    //  resolve  -  Entity an Position (newX, newY) gegen alle
-    //              Gebaeude-Collider pruefen und ggf. herausschieben.
-    //              Gibt { x, y } zurueck.
-    //              Portiert aus checkBuildingCollisions() Zeilen 1225-1424.
-    // ---------------------------------------------------------------
-
-    resolve(entity, newX, newY) {
-        const buildings = this.buildingColliders;
-
-        if (!Array.isArray(buildings) || buildings.length === 0) {
-            return { x: newX, y: newY };
-        }
-
-        const epsilon = 0.1;
-
-        const eWidth = Number(entity.width ?? 0);
-        const eHeight = Number(entity.height ?? 0);
-
-        let ex = newX;
-        let ey = newY;
-
-        for (const building of buildings) {
-            const collisionRects = this._getCollisionRects(building);
-
-            for (const rect of collisionRects) {
-                const bx = rect.x;
-                const by = rect.y;
-                const bw = rect.width;
-                const bh = rect.height;
-
-                const intersects =
-                    ex < bx + bw &&
-                    ex + eWidth > bx &&
-                    ey < by + bh &&
-                    ey + eHeight > by;
-
-                if (intersects) {
-                    const overlapLeft = ex + eWidth - bx;
-                    const overlapRight = bx + bw - ex;
-                    const overlapTop = ey + eHeight - by;
-                    const overlapBottom = by + bh - ey;
-
-                    const minOverlapX = Math.min(overlapLeft, overlapRight);
-                    const minOverlapY = Math.min(overlapTop, overlapBottom);
-
-                    if (minOverlapX < minOverlapY) {
-                        if (overlapLeft < overlapRight) {
-                            ex = bx - eWidth - epsilon;
-                        } else {
-                            ex = bx + bw + epsilon;
-                        }
-                    } else {
-                        if (overlapTop < overlapBottom) {
-                            ey = by - eHeight - epsilon;
-                        } else {
-                            ey = by + bh + epsilon;
-                        }
-                    }
-                }
-            }
-        }
-
-        return { x: ex, y: ey };
-    }
-
-    // ---------------------------------------------------------------
-    //  isPointInsideAnyCollider  -  Prueft ob (x, y) in irgendeinem
-    //                               Collider liegt.
-    //  Portiert aus Zeilen 6196-6244.
-    // ---------------------------------------------------------------
-
-    isPointInsideAnyCollider(x, y, colliders) {
-        const list = colliders ?? this.buildingColliders;
-
-        if (!Array.isArray(list) || list.length === 0) {
-            return false;
-        }
-
-        for (const rect of list) {
-            if (!rect) {
-                continue;
-            }
-
-            const left = Number(rect.left ?? rect.x ?? 0);
-            const right = Number(rect.right ?? ((rect.width != null) ? left + Number(rect.width) : left));
-            const top = Number(rect.top ?? rect.y ?? 0);
-            const bottom = Number(rect.bottom ?? ((rect.height != null) ? top + Number(rect.height) : top));
-
-            if (!Number.isFinite(left) || !Number.isFinite(right) ||
-                !Number.isFinite(top) || !Number.isFinite(bottom)) {
-                continue;
-            }
-
-            if (left > right || top > bottom) {
-                continue;
-            }
-
-            if (x >= left && x <= right && y >= top && y <= bottom) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // ---------------------------------------------------------------
-    //  circleHitsBuilding  -  Prueft ob ein Kreis (cx, cy, radius)
-    //                         ein Gebaeude trifft. Gibt das Gebaeude
-    //                         oder null zurueck.
-    // ---------------------------------------------------------------
-
-    circleHitsBuilding(cx, cy, radius) {
-        const buildings = this.buildingColliders;
-
-        if (!Array.isArray(buildings) || buildings.length === 0) {
-            return null;
-        }
-
-        for (const building of buildings) {
-            const rects = this._getCollisionRects(building);
-
-            for (const rect of rects) {
-                const nearestX = clamp(cx, rect.x, rect.x + rect.width);
-                const nearestY = clamp(cy, rect.y, rect.y + rect.height);
-                const dx = cx - nearestX;
-                const dy = cy - nearestY;
-
-                if (dx * dx + dy * dy <= radius * radius) {
-                    return building;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    // ---------------------------------------------------------------
-    //  getEntityCollisions  -  Gibt alle Collider zurueck, mit denen
-    //                          die Entity gerade kollidiert.
-    // ---------------------------------------------------------------
-
-    getEntityCollisions(entity) {
-        const result = [];
-
-        const eWidth = Number(entity.width ?? 0);
-        const eHeight = Number(entity.height ?? 0);
-        const ex = Number(entity.x ?? 0);
-        const ey = Number(entity.y ?? 0);
-
-        const allColliders = this._getAllColliderRects();
-
-        for (const rect of allColliders) {
-            const intersects =
-                ex < rect.x + rect.width &&
-                ex + eWidth > rect.x &&
-                ey < rect.y + rect.height &&
-                ey + eHeight > rect.y;
-
-            if (intersects) {
-                result.push(rect);
-            }
-        }
-
-        return result;
-    }
-
-    // ---------------------------------------------------------------
-    //  updateVehicleColliders  -  Fahrzeug-Collider pro Frame
-    //                             aktualisieren.
-    //  Portiert aus collectVehicleColliders() Zeilen 5962-6021.
-    // ---------------------------------------------------------------
-
-    updateVehicleColliders(vehicles) {
-        if (!Array.isArray(vehicles)) {
-            this.vehicleColliders = [];
-            return;
-        }
-
-        const colliders = [];
-
-        for (const vehicle of vehicles) {
-            if (!vehicle) {
-                continue;
-            }
-
-            const width = Number(vehicle.width ?? 0);
-            const height = Number(vehicle.height ?? 0);
-
-            if (!(width > 0 && height > 0)) {
-                continue;
-            }
-
-            const halfWidth = width / 2;
-            const halfHeight = height / 2;
-
-            const centerX = Number(vehicle.x);
-            const centerY = Number(vehicle.y);
-
-            if (!Number.isFinite(centerX) || !Number.isFinite(centerY)) {
-                continue;
-            }
-
-            colliders.push({
-                type: 'vehicle',
-                source: vehicle,
-                left: centerX - halfWidth,
-                right: centerX + halfWidth,
-                top: centerY - halfHeight,
-                bottom: centerY + halfHeight,
-                // Auch als x/y/width/height fuer einheitlichen Zugriff
-                x: centerX - halfWidth,
-                y: centerY - halfHeight,
-                width: width,
-                height: height,
-            });
-        }
-
-        this.vehicleColliders = colliders;
-    }
-
-    // ---------------------------------------------------------------
-    //  resolveCircleRectCollision  -  Kreis-Rechteck-Kollision
-    //                                 aufloesen.
-    //  Portiert aus Zeilen 6022-6195.
-    // ---------------------------------------------------------------
-
-    resolveCircleRectCollision(x, y, radius, rect) {
-        if (!rect) {
-            return { x, y, collided: false };
-        }
-
-        const padding = Number(rect.padding ?? 0) || 0;
-
-        const baseLeft = Number(rect.left ?? rect.x ?? 0);
-        const baseRight = Number(rect.right ?? ((rect.width != null) ? baseLeft + Number(rect.width) : baseLeft));
-        const baseTop = Number(rect.top ?? rect.y ?? 0);
-        const baseBottom = Number(rect.bottom ?? ((rect.height != null) ? baseTop + Number(rect.height) : baseTop));
-
-        if (!Number.isFinite(baseLeft) || !Number.isFinite(baseRight) ||
-            !Number.isFinite(baseTop) || !Number.isFinite(baseBottom)) {
-            return { x, y, collided: false };
-        }
-
-        let left = baseLeft - padding;
-        let right = baseRight + padding;
-        let top = baseTop - padding;
-        let bottom = baseBottom + padding;
-
-        if (left > right) {
-            const swap = left;
-            left = right;
-            right = swap;
-        }
-
-        if (top > bottom) {
-            const swap = top;
-            top = bottom;
-            bottom = swap;
-        }
-
-        // Fall 1: Kreismitte liegt innerhalb des Rechtecks
-        const insideRect = x >= left && x <= right && y >= top && y <= bottom;
-
-        if (insideRect) {
-            const distanceLeft = x - left;
-            const distanceRight = right - x;
-            const distanceTop = y - top;
-            const distanceBottom = bottom - y;
-
-            const minDistance = Math.min(distanceLeft, distanceRight, distanceTop, distanceBottom);
-
-            if (minDistance === distanceLeft) {
-                x = left - radius;
-            } else if (minDistance === distanceRight) {
-                x = right + radius;
-            } else if (minDistance === distanceTop) {
-                y = top - radius;
-            } else {
-                y = bottom + radius;
-            }
-
-            return { x, y, collided: true };
-        }
-
-        // Fall 2: Kreismitte ausserhalb - naechsten Punkt auf Rechteck finden
-        const nearestX = Math.max(left, Math.min(x, right));
-        const nearestY = Math.max(top, Math.min(y, bottom));
-
-        const dx = x - nearestX;
-        const dy = y - nearestY;
-        const distSq = dx * dx + dy * dy;
-        const radiusSq = radius * radius;
-
-        // Sonderfall: Punkt liegt genau auf der Kante
-        if (distSq === 0) {
-            const distanceLeft = Math.abs(x - left);
-            const distanceRight = Math.abs(x - right);
-            const distanceTop = Math.abs(y - top);
-            const distanceBottom = Math.abs(y - bottom);
-
-            const minDistance = Math.min(distanceLeft, distanceRight, distanceTop, distanceBottom);
-
-            if (minDistance === distanceLeft) {
-                x = left - radius;
-            } else if (minDistance === distanceRight) {
-                x = right + radius;
-            } else if (minDistance === distanceTop) {
-                y = top - radius;
-            } else {
-                y = bottom + radius;
-            }
-
-            return { x, y, collided: true };
-        }
-
-        // Keine Kollision wenn Abstand >= Radius
-        if (distSq >= radiusSq || radius <= 0) {
-            return { x, y, collided: false };
-        }
-
-        const dist = Math.sqrt(distSq);
-
-        if (!Number.isFinite(dist) || dist === 0) {
-            return { x, y, collided: false };
-        }
-
-        const overlap = radius - dist;
-
-        if (overlap <= 0) {
-            return { x, y, collided: false };
-        }
-
-        const nx = dx / dist;
-        const ny = dy / dist;
-
-        x += nx * overlap;
-        y += ny * overlap;
-
-        if (!Number.isFinite(x) || !Number.isFinite(y)) {
-            return { x: nearestX, y: nearestY, collided: true };
-        }
-
-        return { x, y, collided: true };
-    }
-
-    // ---------------------------------------------------------------
-    //  Private Hilfsmethoden
-    // ---------------------------------------------------------------
-
-    /**
-     * Extrahiert die effektiven Kollisions-Rechtecke aus einem
-     * Gebaeude-Objekt (collisionRects oder Fallback auf Basis-Rect).
-     */
-    _getCollisionRects(building) {
-        if (!building) {
-            return [];
-        }
-
-        const basePadding = Math.max(0, building.collisionPadding ?? 0);
-
-        const baseX = Number(building.x ?? 0);
-        const baseY = Number(building.y ?? 0);
-        const baseWidth = Math.max(0, Number(building.width ?? 0));
-        const baseHeight = Math.max(0, Number(building.height ?? 0));
-
-        const baseRect = {
-            x: baseX + basePadding,
-            y: baseY + basePadding,
-            width: Math.max(0, baseWidth - basePadding * 2),
-            height: Math.max(0, baseHeight - basePadding * 2),
-        };
-
-        const rects = [];
-
-        if (Array.isArray(building.collisionRects) && building.collisionRects.length > 0) {
-            for (const rect of building.collisionRects) {
-                if (!rect) {
-                    continue;
-                }
-
-                const rawWidth = Number(rect.width ?? 0);
-                const rawHeight = Number(rect.height ?? 0);
-
-                if (!(rawWidth > 0 && rawHeight > 0)) {
-                    continue;
-                }
-
-                const rectPadding = Math.max(0, rect.padding ?? 0);
-                const paddedWidth = rawWidth - rectPadding * 2;
-                const paddedHeight = rawHeight - rectPadding * 2;
-
-                if (!(paddedWidth > 0 && paddedHeight > 0)) {
-                    continue;
-                }
-
-                const resolvedX = Number(rect.x ?? baseX);
-                const resolvedY = Number(rect.y ?? baseY);
-
-                rects.push({
-                    x: resolvedX + rectPadding,
-                    y: resolvedY + rectPadding,
-                    width: paddedWidth,
-                    height: paddedHeight,
-                    source: building,
-                });
-            }
-        }
-
-        if (rects.length === 0 && baseRect.width > 0 && baseRect.height > 0) {
-            baseRect.source = building;
-            rects.push(baseRect);
-        }
-
-        return rects;
-    }
-
-    /**
-     * Sammelt alle Collider-Rects (Gebaeude + Fahrzeuge) als
-     * einheitliche {x, y, width, height} Objekte.
-     */
-    _getAllColliderRects() {
-        const rects = [];
-
-        // Gebaeude
-        if (Array.isArray(this.buildingColliders)) {
-            for (const building of this.buildingColliders) {
-                const bRects = this._getCollisionRects(building);
-                for (const r of bRects) {
-                    rects.push(r);
-                }
-            }
-        }
-
-        // Fahrzeuge
-        if (Array.isArray(this.vehicleColliders)) {
-            for (const vc of this.vehicleColliders) {
-                if (!vc) {
-                    continue;
-                }
-                rects.push({
-                    x: Number(vc.x ?? vc.left ?? 0),
-                    y: Number(vc.y ?? vc.top ?? 0),
-                    width: Number(vc.width ?? (Number(vc.right ?? 0) - Number(vc.left ?? 0))),
-                    height: Number(vc.height ?? (Number(vc.bottom ?? 0) - Number(vc.top ?? 0))),
-                    type: 'vehicle',
-                    source: vc.source ?? vc,
-                });
-            }
-        }
-
-        return rects;
-    }
-}
-
-CollisionSystem;
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/core/EntityMover.js
-// ═══════════════════════════════════════════════════════
-/**
- * EntityMover - SSOT (Single Source of Truth) fuer alle Entity-Bewegungen.
- *
- * KRITISCH: Dies ist die EINZIGE Stelle im gesamten Code, die entity.x/y setzen darf.
- * Alle Bewegungen muessen durch move() oder teleport() laufen.
- *
- * Pipeline: Kollision -> Sidewalk-Constraint -> Entity-Bounds -> World-Bounds -> entity.x/y setzen
- */
-
-class EntityMover {
-    /**
-     * @param {Object|null} collisionSystem - System fuer Gebaeude-Kollision (muss .resolve(entity, x, y) haben)
-     * @param {import('../world/RoadNetwork.js').RoadNetwork|null} roadNetwork - Strassennetz fuer Buergersteig-Constraints
-     */
-    constructor(collisionSystem, roadNetwork) {
-        this.collisionSystem = collisionSystem || null;
-        this.roadNetwork = roadNetwork || null;
-        this.worldWidth = Infinity;
-        this.worldHeight = Infinity;
-    }
-
-    /**
-     * Bewegt eine Entity zur Zielposition durch die komplette Pipeline.
-     * EINZIGE oeffentliche Methode fuer regulaere Bewegung.
-     *
-     * @param {Object} entity - Entity mit x, y und optionalen Properties:
-     *   - stayOnSidewalks {boolean}       - ob Buergersteig-Constraint aktiv ist
-     *   - currentSidewalkSegment {Object}  - letztes Segment (fuer Tracking)
-     *   - bounds {{ left, right, top, bottom }} - optionale Entity-spezifische Bounds
-     * @param {number} targetX - gewuenschte X-Position
-     * @param {number} targetY - gewuenschte Y-Position
-     * @param {Object} [options]
-     * @param {boolean} [options.ignoreSidewalk=false] - Buergersteig-Constraint ignorieren
-     * @param {boolean} [options.ignoreCollision=false] - Kollision ignorieren
-     * @param {boolean} [options.ignoreWorldBounds=false] - World-Bounds ignorieren
-     * @returns {{ x: number, y: number, moved: boolean }}
-     */
-    move(entity, targetX, targetY, options = {}) {
-        let newX = targetX;
-        let newY = targetY;
-
-        // 1. Kollision mit Gebaeuden aufloesen
-        if (this.collisionSystem && !options.ignoreCollision) {
-            const resolved = this.collisionSystem.resolve(entity, newX, newY);
-            newX = resolved.x;
-            newY = resolved.y;
-        }
-
-        // 2. Buergersteig-Constraint (nur wenn entity.stayOnSidewalks)
-        if (entity.stayOnSidewalks && !options.ignoreSidewalk && this.roadNetwork) {
-            const sidewalk = this.roadNetwork.constrainToSidewalk(
-                newX, newY, entity.currentSidewalkSegment
-            );
-            newX = sidewalk.x;
-            newY = sidewalk.y;
-            entity.currentSidewalkSegment = sidewalk.segment;
-        }
-
-        // 3. Entity-spezifische Bounds
-        if (entity.bounds) {
-            newX = Math.max(entity.bounds.left, Math.min(newX, entity.bounds.right));
-            newY = Math.max(entity.bounds.top, Math.min(newY, entity.bounds.bottom));
-        }
-
-        // 4. World-Bounds
-        if (!options.ignoreWorldBounds) {
-            newX = Math.max(0, Math.min(newX, this.worldWidth));
-            newY = Math.max(0, Math.min(newY, this.worldHeight));
-        }
-
-        // 5. Position setzen (EINZIGE STELLE!)
-        const moved = newX !== entity.x || newY !== entity.y;
-        entity.x = newX;
-        entity.y = newY;
-
-        return { x: newX, y: newY, moved };
-    }
-
-    /**
-     * Teleportiert eine Entity direkt an eine Position.
-     * Umgeht alle Constraints - nur fuer stuck-NPCs oder Spawn verwenden.
-     *
-     * @param {Object} entity
-     * @param {number} x
-     * @param {number} y
-     */
-    teleport(entity, x, y) {
-        entity.x = x;
-        entity.y = y;
-    }
-
-    /**
-     * Setzt die Weltgrenzen.
-     *
-     * @param {number} width
-     * @param {number} height
-     */
-    setWorldBounds(width, height) {
-        this.worldWidth = width;
-        this.worldHeight = height;
-    }
-}
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/systems/MovementSystem.js
-// ═══════════════════════════════════════════════════════
-/**
- * MovementSystem - Verarbeitet Entity-Bewegung pro Frame.
- *
- * Berechnet Zielpositionen basierend auf Velocity/Target und delegiert
- * die tatsaechliche Positionsaenderung an EntityMover.
- *
- * WICHTIG: Dieses System setzt NIEMALS entity.x/y direkt.
- * Alle Positionsaenderungen laufen ueber EntityMover.move().
- */
-
-
-class MovementSystem {
-    /**
-     * @param {import('../core/EntityMover.js').EntityMover} entityMover
-     */
-    constructor(entityMover) {
-        this.entityMover = entityMover;
-    }
-
-    /**
-     * Aktualisiert alle Entities fuer diesen Frame.
-     *
-     * @param {Array} entities - Liste aller beweglichen Entities
-     * @param {number} deltaTime - Zeit seit letztem Frame in Sekunden
-     */
-    update(entities, deltaTime) {
-        if (!Array.isArray(entities) || !entities.length || !deltaTime) {
-            return;
-        }
-
-        for (const entity of entities) {
-            if (!entity) {
-                continue;
-            }
-
-            // Entities die eingefroren/inaktiv sind ueberspringen
-            if (entity.frozen || entity.inactive) {
-                continue;
-            }
-
-            this._updateEntity(entity, deltaTime);
-        }
-    }
-
-    /**
-     * Berechnet die Zielposition einer Entity und bewegt sie ueber EntityMover.
-     *
-     * Unterstuetzt zwei Bewegungsmodi:
-     * 1. Velocity-basiert: entity hat vx/vy (Pixel pro Sekunde)
-     * 2. Target-basiert:   entity hat targetX/targetY und speed
-     *
-     * @param {Object} entity
-     * @param {number} deltaTime
-     */
-    _updateEntity(entity, deltaTime) {
-        let targetX = entity.x;
-        let targetY = entity.y;
-
-        // Modus 1: Direkte Velocity (vx/vy in Pixel/Sekunde)
-        if (entity.vx !== undefined || entity.vy !== undefined) {
-            const vx = Number(entity.vx) || 0;
-            const vy = Number(entity.vy) || 0;
-
-            if (vx === 0 && vy === 0) {
-                return; // Keine Bewegung noetig
-            }
-
-            targetX = entity.x + vx * deltaTime;
-            targetY = entity.y + vy * deltaTime;
-        }
-        // Modus 2: Target-basiert (bewege dich Richtung targetX/targetY)
-        else if (entity.targetX !== undefined && entity.targetY !== undefined) {
-            const speed = Number(entity.speed) || 0;
-
-            if (speed <= 0) {
-                return;
-            }
-
-            const dist = distanceBetween(entity.x, entity.y, entity.targetX, entity.targetY);
-
-            if (dist < 1) {
-                // Ziel erreicht
-                entity.targetX = undefined;
-                entity.targetY = undefined;
-                return;
-            }
-
-            const step = Math.min(speed * deltaTime, dist);
-            const ratio = step / dist;
-
-            targetX = entity.x + (entity.targetX - entity.x) * ratio;
-            targetY = entity.y + (entity.targetY - entity.y) * ratio;
-        } else {
-            // Keine Bewegungsdaten - nichts tun
-            return;
-        }
-
-        // Delegiere an EntityMover (SSOT fuer Positionsaenderungen)
-        this.entityMover.move(entity, targetX, targetY, {
-            ignoreSidewalk: entity.ignoreSidewalkConstraint || false,
-        });
-    }
-}
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/systems/InputSystem.js
-// ═══════════════════════════════════════════════════════
-/**
- * InputSystem — Keyboard- und Maus-Eingaben
- * Portiert aus gta_old/overworld/js/overworld.js setupInput() (Z.456-687)
- * und updateMouseWorldPosition() (Z.2517-2532)
- */
-class InputSystem {
-
-    /**
-     * @param {HTMLCanvasElement} canvas
-     */
-    constructor(canvas) {
-        this.canvas = canvas;
-
-        // Keyboard-State
-        this.keys = {};           // aktuelle Taste gedrückt
-        this._justPressed = {};   // einmalig pro Frame true
-        this._justPressedConsumed = {}; // schon abgefragt in diesem Frame
-
-        // Maus-State
-        this.mouse = { x: 0, y: 0, worldX: 0, worldY: 0, down: false };
-        this._fireJustPressed = false;
-        this._fireJustPressedConsumed = false;
-
-        this._bindEvents();
-    }
-
-    // ───────────────────── Event-Bindings ─────────────────────
-
-    _bindEvents() {
-        document.addEventListener("keydown", (e) => {
-            const key = e.key.toLowerCase();
-            if (!this.keys[key]) {
-                // Taste war vorher nicht gedrückt → justPressed setzen
-                this._justPressed[key] = true;
-                this._justPressedConsumed[key] = false;
-            }
-            this.keys[key] = true;
-        });
-
-        document.addEventListener("keyup", (e) => {
-            const key = e.key.toLowerCase();
-            this.keys[key] = false;
-            this._justPressed[key] = false;
-        });
-
-        this.canvas.addEventListener("mousemove", (e) => {
-            const rect = this.canvas.getBoundingClientRect();
-            this.mouse.x = e.clientX - rect.left;
-            this.mouse.y = e.clientY - rect.top;
-        });
-
-        this.canvas.addEventListener("mousedown", (e) => {
-            if (e.button === 0) {
-                this.mouse.down = true;
-                this._fireJustPressed = true;
-                this._fireJustPressedConsumed = false;
-            }
-        });
-
-        document.addEventListener("mouseup", (e) => {
-            if (e.button === 0) {
-                this.mouse.down = false;
-                this._fireJustPressed = false;
-            }
-        });
-    }
-
-    // ───────────────────── Abfragen ─────────────────────
-
-    /** Taste momentan gehalten? */
-    isKeyDown(key) {
-        return !!this.keys[key.toLowerCase()];
-    }
-
-    /** Taste in diesem Frame erstmals gedrückt? (nur einmal true pro Tastendruck) */
-    isKeyPressed(key) {
-        const k = key.toLowerCase();
-        if (this._justPressed[k] && !this._justPressedConsumed[k]) {
-            this._justPressedConsumed[k] = true;
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Bewegungsvektor aus WASD / Pfeiltasten, normalisiert.
-     * @returns {{dx: number, dy: number}}
-     */
-    getMovementVector() {
-        let dx = 0;
-        let dy = 0;
-
-        if (this.keys["w"] || this.keys["arrowup"])    dy -= 1;
-        if (this.keys["s"] || this.keys["arrowdown"])  dy += 1;
-        if (this.keys["a"] || this.keys["arrowleft"])  dx -= 1;
-        if (this.keys["d"] || this.keys["arrowright"]) dx += 1;
-
-        // Normalisieren bei Diagonalbewegung
-        if (dx !== 0 && dy !== 0) {
-            const len = Math.sqrt(dx * dx + dy * dy);
-            dx /= len;
-            dy /= len;
-        }
-
-        return { dx, dy };
-    }
-
-    /** Shift gedrückt → Sprint */
-    isSprinting() {
-        return !!this.keys["shift"];
-    }
-
-    /**
-     * Maus-Weltposition (erfordert vorheriges updateMouseWorldPosition).
-     * @returns {{x: number, y: number}}
-     */
-    getMouseWorldPosition() {
-        return { x: this.mouse.worldX, y: this.mouse.worldY };
-    }
-
-    /** Linke Maustaste in diesem Frame erstmals gedrückt? */
-    isFirePressed() {
-        if (this._fireJustPressed && !this._fireJustPressedConsumed) {
-            this._fireJustPressedConsumed = true;
-            return true;
-        }
-        return false;
-    }
-
-    /** Linke Maustaste gehalten? */
-    isFireDown() {
-        return this.mouse.down;
-    }
-
-    // ───────────────────── Frame-Update ─────────────────────
-
-    /**
-     * Maus-Weltkoordinaten aktualisieren.
-     * Portiert aus updateMouseWorldPosition() (Z.2517-2532).
-     *
-     * @param {object} camera  - CameraSystem-Instanz (braucht x, y)
-     * @param {object} [interiorOffset] - optional {originX, originY} für Interior-Szenen
-     */
-    updateMouseWorldPosition(camera, interiorOffset) {
-        if (interiorOffset) {
-            this.mouse.worldX = this.mouse.x - interiorOffset.originX;
-            this.mouse.worldY = this.mouse.y - interiorOffset.originY;
-            return;
-        }
-        this.mouse.worldX = this.mouse.x + camera.x;
-        this.mouse.worldY = this.mouse.y + camera.y;
-    }
-
-    /**
-     * Am Ende jedes Frames aufrufen — setzt justPressed-Flags zurück.
-     */
-    update() {
-        // Alle justPressed-Flags löschen
-        for (const key in this._justPressed) {
-            this._justPressed[key] = false;
-            this._justPressedConsumed[key] = false;
-        }
-        this._fireJustPressed = false;
-        this._fireJustPressedConsumed = false;
-    }
-}
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/systems/CameraSystem.js
-// ═══════════════════════════════════════════════════════
-/**
- * CameraSystem — Kamera folgt dem Spieler, clampt an Weltgrenzen.
- * Portiert aus gta_old/overworld/js/overworld.js updateCamera() (Z.1205-1223)
- */
-class CameraSystem {
-
-    /**
-     * @param {number} viewportWidth  - Canvas-Breite
-     * @param {number} viewportHeight - Canvas-Höhe
-     * @param {number} [zoom=1]       - Zoom-Faktor (1 = kein Zoom)
-     */
-    constructor(viewportWidth, viewportHeight, zoom = 1) {
-        this.x = 0;
-        this.y = 0;
-        this.width = viewportWidth;
-        this.height = viewportHeight;
-        this.zoom = zoom;
-    }
-
-    /**
-     * Kamera auf Ziel-Entity zentrieren und an Weltgrenzen clampen.
-     * Portiert aus updateCamera() (Z.1205-1223).
-     *
-     * @param {object} targetEntity - Objekt mit {x, y}
-     * @param {object} worldBounds  - {width, height} der Welt
-     */
-    update(targetEntity, worldBounds) {
-        // Effektive Viewport-Größe (berücksichtigt Zoom)
-        const vw = this.width / this.zoom;
-        const vh = this.height / this.zoom;
-
-        // Kamera zentriert auf Entity
-        this.x = targetEntity.x - vw / 2;
-        this.y = targetEntity.y - vh / 2;
-
-        // An Weltgrenzen clampen
-        this.x = Math.max(0, Math.min(this.x, worldBounds.width - vw));
-        this.y = Math.max(0, Math.min(this.y, worldBounds.height - vh));
-    }
-
-    /**
-     * Weltkoordinaten → Bildschirmkoordinaten.
-     * @param {number} wx
-     * @param {number} wy
-     * @returns {{sx: number, sy: number}}
-     */
-    worldToScreen(wx, wy) {
-        return {
-            sx: (wx - this.x) * this.zoom,
-            sy: (wy - this.y) * this.zoom
-        };
-    }
-
-    /**
-     * Bildschirmkoordinaten → Weltkoordinaten.
-     * @param {number} sx
-     * @param {number} sy
-     * @returns {{wx: number, wy: number}}
-     */
-    screenToWorld(sx, sy) {
-        return {
-            wx: sx / this.zoom + this.x,
-            wy: sy / this.zoom + this.y
-        };
-    }
-}
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/systems/AISystem.js
-// ═══════════════════════════════════════════════════════
-/**
- * AISystem - NPC-KI: Wegpunkt-Navigation, Panik-Flucht, Stuck-Detection.
- *
- * KRITISCH: Alle Positionsaenderungen NUR ueber this.entityMover.move() oder .teleport()!
- * Niemals npc.x = ... direkt setzen!
- *
- * Portiert aus gta_old/overworld/js/overworld.js:
- *   updateNPC()                    (Zeilen 5598-5820)
- *   updateNpcPanicMovement()       (Zeilen 6787-6886)
- *   updateNpcMovementTracker()     (Zeilen 6343-6408)
- *   redirectNpcOnWalkwayEdge()     (Zeilen 6603-6668)
- *   teleportNpcToNearestSidewalk() (Zeilen 6669-6786)
- *   findNearestSidewalkSpot()      (Zeilen 6409-6534)
- *   getBuildingSidewalkExit()      (Zeilen 6535-6602)
- */
-
-/** Panik-Geschwindigkeitsfaktor relativ zur Basis-Geschwindigkeit */
-const PANIC_SPEED_MULTIPLIER = 2.2;
-
-/** Animations-Geschwindigkeitsfaktor beim normalen Gehen */
-const WALK_ANIM_FACTOR = 0.08;
-
-/** Animations-Geschwindigkeitsfaktor bei Panik */
-const PANIC_ANIM_FACTOR = 0.07;
-
-/** Abkling-Faktor fuer die Animation im Stehen */
-const ANIM_DECAY = 0.85;
-
-/** Mindest-Wartezeit nach Panik-Ende */
-const POST_PANIC_WAIT = 45;
-
-/** Mindest-Wartezeit bei Richtungswechsel */
-const REDIRECT_MIN_WAIT = 8;
-
-/** Maximale zufaellige Wartezeit bei Richtungswechsel */
-const REDIRECT_RANDOM_WAIT = 24;
-
-/** Abstand-Padding um Fahrzeug-Collider */
-const VEHICLE_CLEAR_PADDING = 6;
-
-/** Mindest-Teleport-Abstand bei 'idle' */
-const IDLE_MIN_TELEPORT_DISTANCE = 26;
-
-/** Mindest-Teleport-Abstand bei 'building' */
-const BUILDING_MIN_TELEPORT_DISTANCE = 14;
-
-/** Mindest-Teleport-Abstand bei Building-Exit */
-const BUILDING_EXIT_MIN_DISTANCE = 22;
-
-class AISystem {
-    /**
-     * @param {import('../core/EntityMover.js').EntityMover} entityMover
-     * @param {import('../world/RoadNetwork.js').RoadNetwork} roadNetwork
-     * @param {import('../core/EventBus.js').EventBus} eventBus
-     * @param {Object} [deps] - Optionale Abhaengigkeiten
-     * @param {import('./CollisionSystem.js').CollisionSystem} [deps.collisionSystem]
-     * @param {Array} [deps.buildings] - Gebaeude-Liste fuer getBuildingSidewalkExit
-     */
-    constructor(entityMover, roadNetwork, eventBus, deps = {}) {
-        this.entityMover = entityMover;
-        this.roadNetwork = roadNetwork;
-        this.eventBus = eventBus;
-        this.collisionSystem = deps.collisionSystem ?? null;
-        this.buildings = deps.buildings ?? [];
-    }
-
-    // -------------------------------------------------------------------
-    //  Haupt-Update
-    // -------------------------------------------------------------------
-
-    /**
-     * Aktualisiert alle NPCs fuer diesen Frame.
-     *
-     * @param {Array<import('../entities/NPC.js').NPC>} npcs
-     * @param {import('../entities/Player.js').default} player
-     * @param {number} deltaTime - Zeit seit letztem Frame (wird fuer Timestamps genutzt)
-     */
-    update(npcs, player, deltaTime) {
-        if (!Array.isArray(npcs) || !npcs.length) {
-            return;
-        }
-
-        for (const npc of npcs) {
-            if (!npc || !npc.path || npc.path.length < 2) {
-                continue;
-            }
-
-            // a) Skip wenn dead/hidden/insideBuilding
-            if (npc.dead) {
-                npc.moving = false;
-                npc.waitTimer = 0;
-                npc.animationPhase *= ANIM_DECAY;
-                continue;
-            }
-
-            if (npc.hidden || npc.insideBuilding) {
-                continue;
-            }
-
-            // b) Panik-Modus
-            if (npc.panicTimer > 0) {
-                this._handlePanic(npc, player);
-                continue;
-            }
-
-            // c) Normale Wegpunkt-Navigation
-            this._handleWaypointNavigation(npc);
-
-            // d) Stuck-Detection
-            this._updateStuckDetection(npc);
-
-            // e) Animation
-            this._updateAnimation(npc);
-        }
-    }
-
-    // -------------------------------------------------------------------
-    //  Wegpunkt-Navigation  (portiert aus updateNPC Zeilen 5634-5818)
-    // -------------------------------------------------------------------
-
-    /**
-     * @param {import('../entities/NPC.js').NPC} npc
-     */
-    _handleWaypointNavigation(npc) {
-        let movingThisFrame = false;
-
-        if (npc.waitTimer > 0) {
-            npc.waitTimer -= 1;
-        } else {
-            const target = npc.getCurrentWaypoint();
-
-            if (!target) {
-                return;
-            }
-
-            const dx = target.x - npc.x;
-            const dy = target.y - npc.y;
-            const dist = Math.hypot(dx, dy);
-
-            if (dist <= npc.speed) {
-                // Wegpunkt erreicht - per entityMover an exakte Position setzen
-                this.entityMover.teleport(npc, target.x, target.y);
-
-                npc.waitTimer = target.wait ?? 0;
-                npc.waitingForCrosswalk = target.crosswalkIndex ?? null;
-
-                // Dynamische Navigation: neuen Wegpunkt generieren
-                if (npc.dynamicNavigation) {
-                    this._generateDynamicWaypoint(npc);
-                } else {
-                    // Gebaeude-Aktionen
-                    this._handleWaypointAction(npc, target);
-                    npc.advanceWaypoint();
-                }
-            } else if (dist > 0) {
-                const ratio = npc.speed / dist;
-                const nextX = npc.x + dx * ratio;
-                const nextY = npc.y + dy * ratio;
-
-                const result = this.entityMover.move(npc, nextX, nextY);
-                movingThisFrame = result.moved;
-            }
-        }
-
-        // Crossing-Status (vereinfacht - wird vom RoadNetwork gehandelt)
-        npc.isCrossing = this._isOnCrosswalk(npc.x, npc.y);
-
-        npc.moving = movingThisFrame && npc.waitTimer === 0;
-
-        if (!npc.isCrossing && npc.waitTimer === 0 && !npc.moving) {
-            npc.waitingForCrosswalk = null;
-        }
-    }
-
-    /**
-     * Verarbeitet Gebaeude-bezogene Aktionen bei Wegpunkt-Ankunft.
-     *
-     * @param {import('../entities/NPC.js').NPC} npc
-     * @param {Object} target - Der erreichte Wegpunkt
-     */
-    _handleWaypointAction(npc, target) {
-        if (target.action === 'enter') {
-            if (target.buildingId) {
-                npc.lastBuildingId = target.buildingId;
-            }
-            npc.insideBuilding = target.buildingId ?? npc.insideBuilding ?? npc.lastBuildingId ?? true;
-            npc.hidden = true;
-        } else if (target.action === 'exit') {
-            if (target.buildingId) {
-                npc.lastBuildingId = target.buildingId;
-            }
-            npc.insideBuilding = null;
-            npc.hidden = false;
-        } else if (target.interior) {
-            if (target.buildingId) {
-                npc.lastBuildingId = target.buildingId;
-            }
-            npc.insideBuilding = target.buildingId ?? npc.insideBuilding ?? npc.lastBuildingId ?? true;
-            npc.hidden = true;
-        }
-    }
-
-    // -------------------------------------------------------------------
-    //  Panik-Bewegung  (portiert aus updateNpcPanicMovement Zeilen 6787-6886)
-    // -------------------------------------------------------------------
-
-    /**
-     * @param {import('../entities/NPC.js').NPC} npc
-     * @param {Object} player - Spieler-Entity mit x/y
-     */
-    _handlePanic(npc, player) {
-        if (!player) {
-            return;
-        }
-
-        let awayX = npc.x - player.x;
-        let awayY = npc.y - player.y;
-        let length = Math.hypot(awayX, awayY);
-
-        if (length < 1) {
-            const angle = Math.random() * Math.PI * 2;
-            awayX = Math.cos(angle);
-            awayY = Math.sin(angle);
-            length = 1;
-        }
-
-        const baseSpeed = npc.speed ?? 1.2;
-        const panicSpeed = baseSpeed * PANIC_SPEED_MULTIPLIER;
-
-        const targetX = npc.x + (awayX / length) * panicSpeed;
-        const targetY = npc.y + (awayY / length) * panicSpeed;
-
-        const result = this.entityMover.move(npc, targetX, targetY);
-
-        let moved = result.moved;
-
-        // Wenn nicht bewegt oder im Gebaeude: teleportieren
-        if (!moved) {
-            const insideBuilding = this._isInsideAnyBuilding(npc.x, npc.y);
-            const now = this._getTimestamp();
-            if (this._teleportToNearestSidewalk(npc, insideBuilding ? 'building' : 'idle', now)) {
-                moved = true;
-            }
-        }
-
-        npc.moving = moved;
-        npc.waitTimer = 0;
-        npc.isCrossing = false;
-        npc.waitingForCrosswalk = null;
-
-        npc.animationPhase = (npc.animationPhase + panicSpeed * PANIC_ANIM_FACTOR) % (Math.PI * 2);
-
-        npc.panicTimer = Math.max(0, (npc.panicTimer ?? 0) - 1);
-
-        if (npc.panicTimer === 0) {
-            npc.waitTimer = POST_PANIC_WAIT;
-        }
-    }
-
-    // -------------------------------------------------------------------
-    //  Stuck-Detection  (portiert aus updateNPC Zeilen 5750-5788 +
-    //                     updateNpcMovementTracker Zeilen 6343-6408)
-    // -------------------------------------------------------------------
-
-    /**
-     * @param {import('../entities/NPC.js').NPC} npc
-     */
-    _updateStuckDetection(npc) {
-        const now = this._getTimestamp();
-        const stepDistance = Math.hypot(npc.x - (npc._prevX ?? npc.x), npc.y - (npc._prevY ?? npc.y));
-
-        // Position fuer naechsten Frame merken (kein direktes Setzen von x/y!)
-        npc._prevX = npc.x;
-        npc._prevY = npc.y;
-
-        const tracker = this._updateMovementTracker(npc, stepDistance, now);
-
-        // Pruefe ob NPC im Gebaeude steckt
-        const insideBuilding = this._isInsideAnyBuilding(npc.x, npc.y);
-        const wantsTeleportInside = insideBuilding && !npc.hidden && !npc.insideBuilding;
-
-        if (wantsTeleportInside) {
-            if (this._teleportToNearestSidewalk(npc, 'building', now)) {
-                npc.moving = false;
-            }
-            return;
-        }
-
-        // Stuck/Idle-Teleport
-        if (tracker && npc.waitTimer === 0) {
-            const idleThreshold = tracker.idleThreshold ?? 3500;
-            const maxStuckSamples = tracker.maxStuckSamples ?? 2;
-            const idleTooLong = tracker.idleTime >= idleThreshold;
-            const stuckTooOften = (tracker.stuckSamples ?? 0) >= maxStuckSamples;
-
-            if (idleTooLong || stuckTooOften) {
-                if (this._teleportToNearestSidewalk(npc, 'idle', now)) {
-                    npc.moving = false;
-                }
-            }
-        }
-    }
-
-    /**
-     * Aktualisiert den Movement-Tracker eines NPC.
-     * Portiert aus updateNpcMovementTracker() (Zeilen 6343-6408).
-     *
-     * @param {import('../entities/NPC.js').NPC} npc
-     * @param {number} stepDistance - Bewegungsdistanz in diesem Frame
-     * @param {number} timestamp
-     * @returns {Object|null} Der Tracker
-     */
-    _updateMovementTracker(npc, stepDistance, timestamp) {
-        const tracker = npc.ensureMovementTracker(timestamp);
-
-        if (!tracker) {
-            return null;
-        }
-
-        const time = Number.isFinite(timestamp) ? timestamp : tracker.lastUpdateTime;
-        const delta = Math.max(0, time - tracker.lastUpdateTime);
-        tracker.lastUpdateTime = time;
-
-        const motionThreshold = tracker.motionThreshold ?? 0.45;
-
-        if (npc.waitTimer > 0) {
-            tracker.idleTime = 0;
-        } else if (stepDistance <= motionThreshold) {
-            tracker.idleTime += delta;
-        } else {
-            tracker.idleTime = 0;
-        }
-
-        if (!tracker.samplePosition) {
-            tracker.samplePosition = { x: npc.x, y: npc.y };
-            tracker.sampleTime = time;
-        }
-
-        const sampleWindow = tracker.sampleWindow ?? 4000;
-
-        if (time - tracker.sampleTime >= sampleWindow) {
-            const displacement = Math.hypot(
-                npc.x - tracker.samplePosition.x,
-                npc.y - tracker.samplePosition.y
-            );
-
-            tracker.samplePosition = { x: npc.x, y: npc.y };
-            tracker.sampleTime = time;
-
-            if (npc.waitTimer === 0 && displacement < (tracker.minDisplacement ?? 12)) {
-                tracker.stuckSamples = Math.min(
-                    (tracker.stuckSamples ?? 0) + 1,
-                    tracker.maxStuckSamples ?? 2
-                );
-            } else {
-                tracker.stuckSamples = Math.max(0, (tracker.stuckSamples ?? 0) - 1);
-            }
-        }
-
-        return tracker;
-    }
-
-    // -------------------------------------------------------------------
-    //  Animation  (portiert aus updateNPC Zeilen 5796-5808)
-    // -------------------------------------------------------------------
-
-    /**
-     * @param {import('../entities/NPC.js').NPC} npc
-     */
-    _updateAnimation(npc) {
-        if (npc.moving && npc.waitTimer === 0) {
-            npc.animationPhase = (npc.animationPhase + npc.speed * WALK_ANIM_FACTOR) % (Math.PI * 2);
-        } else {
-            npc.animationPhase *= ANIM_DECAY;
-        }
-    }
-
-    // -------------------------------------------------------------------
-    //  Teleport zum naechsten Buergersteig
-    //  (portiert aus teleportNpcToNearestSidewalk Zeilen 6669-6786)
-    // -------------------------------------------------------------------
-
-    /**
-     * @param {import('../entities/NPC.js').NPC} npc
-     * @param {string} reason - 'building' oder 'idle'
-     * @param {number} timestamp
-     * @returns {boolean} Ob teleportiert wurde
-     */
-    _teleportToNearestSidewalk(npc, reason, timestamp) {
-        if (!npc || npc.fixedSpawn) {
-            return false;
-        }
-
-        const tracker = npc.ensureMovementTracker(timestamp);
-
-        if (!tracker) {
-            return false;
-        }
-
-        const time = Number.isFinite(timestamp) ? timestamp : tracker.lastUpdateTime;
-
-        // Bei Idle zuerst Richtungswechsel versuchen
-        if (reason === 'idle') {
-            if (this._redirectOnWalkwayEdge(npc, time)) {
-                return false;
-            }
-        }
-
-        // Cooldown pruefen
-        const cooldown = Number(tracker.teleportCooldown) || 4000;
-        if (time - tracker.lastTeleportAt < cooldown) {
-            return false;
-        }
-
-        let searchX = npc.x;
-        let searchY = npc.y;
-        let minDistance = reason === 'idle' ? IDLE_MIN_TELEPORT_DISTANCE : BUILDING_MIN_TELEPORT_DISTANCE;
-
-        // Bei Gebaeude: Exit-Punkt als Startpunkt
-        let buildingIdForTeleport = null;
-        if (reason === 'building') {
-            buildingIdForTeleport = npc.insideBuilding || npc.lastBuildingId || null;
-            const exit = this._getBuildingSidewalkExit(buildingIdForTeleport);
-            if (exit) {
-                searchX = exit.x;
-                searchY = exit.y;
-                minDistance = Math.max(minDistance, BUILDING_EXIT_MIN_DISTANCE);
-            }
-        }
-
-        let candidate = this._findNearestSidewalkSpot(searchX, searchY, { minDistance });
-
-        if (!candidate) {
-            candidate = this._findNearestSidewalkSpot(npc.x, npc.y, { minDistance: 0 });
-        }
-
-        if (!candidate) {
-            return false;
-        }
-
-        // Teleportiere via EntityMover
-        this.entityMover.teleport(npc, candidate.x, candidate.y);
-
-        npc.waitTimer = 0;
-        npc.hidden = false;
-        npc.insideBuilding = null;
-
-        if (buildingIdForTeleport) {
-            npc.lastBuildingId = buildingIdForTeleport;
-        }
-
-        // Tracker zuruecksetzen
-        tracker.lastTeleportAt = time;
-        tracker.idleTime = 0;
-        tracker.stuckSamples = 0;
-        tracker.samplePosition = { x: npc.x, y: npc.y };
-        tracker.sampleTime = time;
-
-        return true;
-    }
-
-    // -------------------------------------------------------------------
-    //  Richtungswechsel am Gehweg-Rand
-    //  (portiert aus redirectNpcOnWalkwayEdge Zeilen 6603-6668)
-    // -------------------------------------------------------------------
-
-    /**
-     * @param {import('../entities/NPC.js').NPC} npc
-     * @param {number} timestamp
-     * @returns {boolean} Ob umgeleitet wurde
-     */
-    _redirectOnWalkwayEdge(npc, timestamp) {
-        if (!npc || !Array.isArray(npc.path) || npc.path.length < 2) {
-            return false;
-        }
-
-        const turnOptions = [1, 2, -1];
-        const choice = turnOptions[Math.floor(Math.random() * turnOptions.length)];
-
-        let nextIndex = npc.waypointIndex;
-
-        if (!Number.isFinite(nextIndex)) {
-            nextIndex = 0;
-        }
-
-        if (choice === -1) {
-            nextIndex = (nextIndex - 1 + npc.path.length) % npc.path.length;
-        } else {
-            nextIndex = (nextIndex + choice + npc.path.length) % npc.path.length;
-        }
-
-        npc.waypointIndex = nextIndex;
-        npc.waitTimer = Math.max(REDIRECT_MIN_WAIT, Math.round(REDIRECT_MIN_WAIT + Math.random() * REDIRECT_RANDOM_WAIT));
-
-        // Auf naechsten Buergersteig projizieren via entityMover
-        if (this.roadNetwork) {
-            const spot = this.roadNetwork.findNearestSidewalkSpot(npc.x, npc.y);
-            if (spot && Number.isFinite(spot.x) && Number.isFinite(spot.y)) {
-                this.entityMover.teleport(npc, spot.x, spot.y);
-            }
-        }
-
-        // Tracker zuruecksetzen
-        const tracker = npc.ensureMovementTracker(timestamp);
-        if (tracker) {
-            const time = Number.isFinite(timestamp) ? timestamp : tracker.lastUpdateTime;
-            tracker.lastTeleportAt = time;
-            tracker.idleTime = 0;
-            tracker.stuckSamples = 0;
-            tracker.samplePosition = { x: npc.x, y: npc.y };
-            tracker.sampleTime = time;
-        }
-
-        return true;
-    }
-
-    // -------------------------------------------------------------------
-    //  Dynamische Wegpunkt-Generierung
-    // -------------------------------------------------------------------
-
-    /**
-     * Generiert dynamisch den naechsten Wegpunkt basierend auf verfuegbaren
-     * Buergersteig-Korridoren. NPC waehlt an Kreuzungen zufaellig eine
-     * neue Richtung und vermeidet Umkehr.
-     *
-     * @param {import('../entities/NPC.js').NPC} npc
-     */
-    _generateDynamicWaypoint(npc) {
-        if (!this.roadNetwork) {
-            return;
-        }
-
-        const corridors = this.roadNetwork.sidewalkCorridors;
-        if (!Array.isArray(corridors) || !corridors.length) {
-            return;
-        }
-
-        // Korridore finden die den NPC enthalten
-        const margin = 10;
-        const nearby = [];
-        for (const c of corridors) {
-            if (!c || !(c.width > 0) || !(c.height > 0)) {
-                continue;
-            }
-            if (npc.x >= c.x - margin && npc.x <= c.x + c.width + margin &&
-                npc.y >= c.y - margin && npc.y <= c.y + c.height + margin) {
-                nearby.push(c);
-            }
-        }
-
-        if (!nearby.length) {
-            return;
-        }
-
-        // Endpunkte der Korridore als Kandidaten sammeln
-        const candidates = [];
-        const edgePad = 12;
-
-        for (const c of nearby) {
-            const isHorizontal = c.width > c.height * 1.5;
-            const isVertical = c.height > c.width * 1.5;
-            const centerX = c.x + c.width / 2;
-            const centerY = c.y + c.height / 2;
-
-            if (isHorizontal || (!isHorizontal && !isVertical)) {
-                candidates.push({ x: c.x + edgePad, y: centerY, dir: 'left' });
-                candidates.push({ x: c.x + c.width - edgePad, y: centerY, dir: 'right' });
-            }
-            if (isVertical || (!isHorizontal && !isVertical)) {
-                candidates.push({ x: centerX, y: c.y + edgePad, dir: 'up' });
-                candidates.push({ x: centerX, y: c.y + c.height - edgePad, dir: 'down' });
-            }
-        }
-
-        // Nur Kandidaten die weit genug entfernt sind
-        const minDist = 40;
-        let valid = candidates.filter(
-            (c) => Math.hypot(c.x - npc.x, c.y - npc.y) > minDist
-        );
-
-        // Umkehr vermeiden (nicht zurueck woher wir kamen)
-        if (valid.length > 1 && npc._lastNavDir) {
-            const opposite = { left: 'right', right: 'left', up: 'down', down: 'up' };
-            const notBack = valid.filter((c) => c.dir !== opposite[npc._lastNavDir]);
-            if (notBack.length > 0) {
-                valid = notBack;
-            }
-        }
-
-        if (!valid.length) {
-            valid = candidates;
-        }
-        if (!valid.length) {
-            return;
-        }
-
-        const target = valid[Math.floor(Math.random() * valid.length)];
-        npc._lastNavDir = target.dir;
-
-        // Pfad auf 2 Punkte setzen: aktuelle Position + Ziel
-        npc.path[0] = { x: npc.x, y: npc.y, wait: 0 };
-        npc.path[1] = { x: target.x, y: target.y, wait: 4 + Math.floor(Math.random() * 20) };
-        npc.path.length = 2;
-        npc.waypointIndex = 1;
-    }
-
-    // -------------------------------------------------------------------
-    //  Naechsten Buergersteig-Spot finden
-    //  (portiert aus findNearestSidewalkSpot Zeilen 6409-6534)
-    // -------------------------------------------------------------------
-
-    /**
-     * @param {number} x
-     * @param {number} y
-     * @param {Object} [options]
-     * @param {number} [options.minDistance=0]
-     * @returns {{ x: number, y: number }|null}
-     */
-    _findNearestSidewalkSpot(x, y, options = {}) {
-        if (!this.roadNetwork) {
-            return null;
-        }
-
-        const minDistance = Math.max(0, Number(options.minDistance) || 0);
-        const minDistSq = minDistance * minDistance;
-
-        const candidates = [];
-
-        const collisionSystem = this.collisionSystem;
-
-        const addCandidate = (px, py) => {
-            if (!Number.isFinite(px) || !Number.isFinite(py)) {
-                return;
-            }
-
-            // Nicht in Gebaeude
-            if (collisionSystem && collisionSystem.isPointInsideAnyCollider(px, py)) {
-                return;
-            }
-
-            // Nicht in Fahrzeug
-            if (collisionSystem && Array.isArray(collisionSystem.vehicleColliders)) {
-                for (const vehicle of collisionSystem.vehicleColliders) {
-                    if (!vehicle) {
-                        continue;
-                    }
-                    if (
-                        px >= vehicle.left - VEHICLE_CLEAR_PADDING &&
-                        px <= vehicle.right + VEHICLE_CLEAR_PADDING &&
-                        py >= vehicle.top - VEHICLE_CLEAR_PADDING &&
-                        py <= vehicle.bottom + VEHICLE_CLEAR_PADDING
-                    ) {
-                        return;
-                    }
-                }
-            }
-
-            candidates.push({ x: px, y: py });
-        };
-
-        // Projektion auf naechsten Buergersteig
-        const spot = this.roadNetwork.findNearestSidewalkSpot(x, y);
-        if (spot) {
-            addCandidate(spot.x, spot.y);
-        }
-
-        // Walkable-Areas Zentren als Kandidaten
-        const walkableAreas = this.roadNetwork.walkableAreas;
-        if (Array.isArray(walkableAreas) && walkableAreas.length) {
-            for (const rect of walkableAreas) {
-                if (!rect) {
-                    continue;
-                }
-                const rw = Number(rect.width ?? 0);
-                const rh = Number(rect.height ?? 0);
-                const rx = Number(rect.x ?? 0);
-                const ry = Number(rect.y ?? 0);
-
-                if (rw > 0 && rh > 0) {
-                    addCandidate(rx + rw / 2, ry + rh / 2);
-                }
-            }
-        }
-
-        // Besten Kandidaten waehlen (naechster mit Mindestabstand)
-        let best = null;
-        let bestDistSq = Infinity;
-
-        for (const candidate of candidates) {
-            const dx = candidate.x - x;
-            const dy = candidate.y - y;
-            const distSq = dx * dx + dy * dy;
-
-            if (distSq < minDistSq) {
-                continue;
-            }
-
-            if (distSq < bestDistSq) {
-                bestDistSq = distSq;
-                best = candidate;
-            }
-        }
-
-        // Fallback: Ohne Mindestabstand wiederholen
-        if (!best && minDistance > 0) {
-            return this._findNearestSidewalkSpot(x, y, { ...options, minDistance: 0 });
-        }
-
-        return best;
-    }
-
-    // -------------------------------------------------------------------
-    //  Gebaeude-Buergersteig-Exit finden
-    //  (portiert aus getBuildingSidewalkExit Zeilen 6535-6602)
-    // -------------------------------------------------------------------
-
-    /**
-     * @param {*} buildingId
-     * @returns {{ x: number, y: number }|null}
-     */
-    _getBuildingSidewalkExit(buildingId) {
-        if (!buildingId) {
-            return null;
-        }
-
-        const buildings = Array.isArray(this.buildings) ? this.buildings : [];
-        const building = buildings.find(
-            (entry) => entry && (entry.id === buildingId || entry.name === buildingId)
-        );
-
-        if (!building) {
-            return null;
-        }
-
-        const metrics = building.metrics ?? null;
-
-        if (metrics && metrics.approach) {
-            return { x: metrics.approach.x, y: metrics.approach.y };
-        }
-
-        if (metrics && metrics.entrance) {
-            return { x: metrics.entrance.x, y: metrics.entrance.y + 6 };
-        }
-
-        if (metrics && metrics.bounds) {
-            const bounds = metrics.bounds;
-            if (bounds && Number.isFinite(bounds.left) && Number.isFinite(bounds.right) && Number.isFinite(bounds.bottom)) {
-                return { x: (bounds.left + bounds.right) / 2, y: bounds.bottom + 12 };
-            }
-        }
-
-        if (building.bounds && Number.isFinite(building.bounds.left) && Number.isFinite(building.bounds.right) && Number.isFinite(building.bounds.bottom)) {
-            return { x: (building.bounds.left + building.bounds.right) / 2, y: building.bounds.bottom + 12 };
-        }
-
-        const baseX = Number(building.x);
-        const baseY = Number(building.y);
-        const width = Number(building.width);
-        const height = Number(building.height);
-
-        if (Number.isFinite(baseX) && Number.isFinite(baseY) && Number.isFinite(width) && Number.isFinite(height)) {
-            return { x: baseX + width / 2, y: baseY + height + 12 };
-        }
-
-        return null;
-    }
-
-    // -------------------------------------------------------------------
-    //  Hilfsfunktionen
-    // -------------------------------------------------------------------
-
-    /**
-     * Prueft ob ein Punkt in einem Zebrastreifen liegt.
-     * Delegiert an RoadNetwork falls vorhanden.
-     *
-     * @param {number} x
-     * @param {number} y
-     * @returns {boolean}
-     */
-    _isOnCrosswalk(x, y) {
-        if (!this.roadNetwork || !Array.isArray(this.roadNetwork.crosswalks)) {
-            return false;
-        }
-
-        for (const cw of this.roadNetwork.crosswalks) {
-            if (!cw) {
-                continue;
-            }
-
-            // Zebrastreifen koennen als Flaeche { left, top, right, bottom }
-            // oder als { x, y, span, orientation } definiert sein
-            if (cw.left !== undefined && cw.right !== undefined && cw.top !== undefined && cw.bottom !== undefined) {
-                if (x >= cw.left && x <= cw.right && y >= cw.top && y <= cw.bottom) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Prueft ob ein Punkt in irgendeinem Gebaeude-Collider liegt.
-     *
-     * @param {number} x
-     * @param {number} y
-     * @returns {boolean}
-     */
-    _isInsideAnyBuilding(x, y) {
-        if (!this.collisionSystem) {
-            return false;
-        }
-        return this.collisionSystem.isPointInsideAnyCollider(x, y);
-    }
-
-    /**
-     * Gibt den aktuellen Zeitstempel zurueck.
-     *
-     * @returns {number}
-     */
-    _getTimestamp() {
-        return (typeof performance !== 'undefined' && performance.now)
-            ? performance.now()
-            : Date.now();
-    }
-}
-
-AISystem;
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/systems/VehicleSystem.js
-// ═══════════════════════════════════════════════════════
-/**
- * VehicleSystem - Steuert Fahrzeug-Bewegung entlang ihrer Pfade.
- *
- * Portiert aus gta_old/overworld/js/overworld.js:
- *   updateVehicle()                  (Zeilen 6888-6960)
- *   shouldVehicleYield()             (Zeilen 6986-7044)
- *   isVehicleAlignedForCrosswalk()   (Zeilen 7048-7066)
- *   isVehicleApproachingCrosswalk()  (Zeilen 7070-7100)
- *
- * KRITISCH: Positionsaenderungen NUR ueber entityMover.move()!
- */
-
-class VehicleSystem {
-    /**
-     * @param {import('../core/EntityMover.js').EntityMover} entityMover
-     * @param {import('./CollisionSystem.js').CollisionSystem} collisionSystem
-     * @param {import('../world/RoadNetwork.js').RoadNetwork} roadNetwork
-     */
-    constructor(entityMover, collisionSystem, roadNetwork) {
-        this.entityMover = entityMover;
-        this.collisionSystem = collisionSystem;
-        this.roadNetwork = roadNetwork;
-    }
-
-    // ------------------------------------------------------------------
-    //  update  -  Alle Fahrzeuge pro Frame aktualisieren.
-    // ------------------------------------------------------------------
-
-    /**
-     * @param {Array<import('../entities/Vehicle.js').Vehicle>} vehicles
-     * @param {Array<import('../entities/NPC.js').NPC>} npcs
-     * @param {number} deltaTime - (aktuell ungenutzt, reserviert fuer spaetere Frame-Skalierung)
-     */
-    update(vehicles, npcs, deltaTime) {
-        if (!Array.isArray(vehicles)) {
-            return;
-        }
-
-        for (const vehicle of vehicles) {
-            this._updateVehicle(vehicle, npcs);
-        }
-    }
-
-    // ------------------------------------------------------------------
-    //  _updateVehicle  -  Einzelnes Fahrzeug bewegen.
-    //  Portiert aus updateVehicle() Zeilen 6888-6960.
-    // ------------------------------------------------------------------
-
-    /** @private */
-    _updateVehicle(vehicle, npcs) {
-        if (!vehicle || !vehicle.path || vehicle.path.length < 2) {
-            return;
-        }
-
-        const target = vehicle.getCurrentWaypoint();
-        if (!target) {
-            return;
-        }
-
-        const dx = target.x - vehicle.x;
-        const dy = target.y - vehicle.y;
-        const dist = Math.hypot(dx, dy);
-
-        const stepX = dist === 0 ? 0 : (dx / dist) * vehicle.speed;
-        const stepY = dist === 0 ? 0 : (dy / dist) * vehicle.speed;
-
-        // Warte-Timer (z.B. an Haltestellen)
-        if (vehicle.waitTimer > 0) {
-            vehicle.waitTimer -= 1;
-            return;
-        }
-
-        // Stop-Timer (Yield-Nachlaeufer)
-        if (vehicle.stopTimer > 0) {
-            if (this.shouldYield(vehicle, stepX, stepY, npcs)) {
-                vehicle.stopTimer = Math.max(vehicle.stopTimer, 6);
-            } else {
-                vehicle.stopTimer -= 1;
-            }
-            return;
-        }
-
-        // Waypoint erreicht?
-        if (dist <= vehicle.speed) {
-            // Teleport exakt auf den Waypoint
-            this.entityMover.move(vehicle, target.x, target.y, {
-                ignoreSidewalk: true,
-                ignoreCollision: true,
-            });
-            vehicle.waitTimer = target.wait ?? 0;
-            vehicle.advanceWaypoint();
-            return;
-        }
-
-        // Yield-Check (Fussgaenger auf Zebrastreifen)
-        if (this.shouldYield(vehicle, stepX, stepY, npcs)) {
-            vehicle.stopTimer = 12;
-            return;
-        }
-
-        // Rotation setzen
-        vehicle.rotation = Math.atan2(stepY, stepX);
-
-        // Bewegung ueber EntityMover (EINZIGE Stelle fuer x/y!)
-        const targetX = vehicle.x + stepX;
-        const targetY = vehicle.y + stepY;
-
-        this.entityMover.move(vehicle, targetX, targetY, {
-            ignoreSidewalk: true,
-        });
-    }
-
-    // ------------------------------------------------------------------
-    //  shouldYield  -  Prueft ob das Fahrzeug einem Fussgaenger
-    //                   auf einem Zebrastreifen Vorfahrt gewaehren muss.
-    //  Portiert aus shouldVehicleYield() Zeilen 6986-7044.
-    // ------------------------------------------------------------------
-
-    /**
-     * @param {import('../entities/Vehicle.js').Vehicle} vehicle
-     * @param {number} stepX
-     * @param {number} stepY
-     * @param {Array<import('../entities/NPC.js').NPC>} npcs
-     * @returns {boolean}
-     */
-    shouldYield(vehicle, stepX, stepY, npcs) {
-        const crosswalkAreas = this.roadNetwork.crosswalkAreas ?? [];
-
-        if (!crosswalkAreas.length || !Array.isArray(npcs)) {
-            return false;
-        }
-
-        const orientation = Math.abs(stepX) >= Math.abs(stepY) ? 'horizontal' : 'vertical';
-        const direction = orientation === 'horizontal'
-            ? (Math.sign(stepX) || 1)
-            : (Math.sign(stepY) || 1);
-
-        const halfWidth = vehicle.width / 2;
-        const halfHeight = vehicle.height / 2;
-
-        for (const area of crosswalkAreas) {
-            if (area.orientation !== orientation) {
-                continue;
-            }
-
-            if (!this._isAlignedForCrosswalk(vehicle, area, orientation, halfWidth, halfHeight)) {
-                continue;
-            }
-
-            if (!this._isApproachingCrosswalk(vehicle, area, orientation, direction, stepX, stepY, halfWidth, halfHeight)) {
-                continue;
-            }
-
-            const npcBlocking = npcs.some((npc) => {
-                if (!npc || npc.dead) {
-                    return false;
-                }
-
-                if (npc.isCrossing && _isPointInsideArea(npc.x, npc.y, area)) {
-                    return true;
-                }
-
-                return npc.waitingForCrosswalk === area.id;
-            });
-
-            if (npcBlocking) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // ------------------------------------------------------------------
-    //  _isAlignedForCrosswalk  -  Prueft ob das Fahrzeug auf einer
-    //                              Spur liegt die den Zebrastreifen kreuzt.
-    //  Portiert aus isVehicleAlignedForCrosswalk() Zeilen 7048-7066.
-    // ------------------------------------------------------------------
-
-    /** @private */
-    _isAlignedForCrosswalk(vehicle, area, orientation, halfWidth, halfHeight) {
-        if (orientation === 'horizontal') {
-            const yTop = vehicle.y - halfHeight;
-            const yBottom = vehicle.y + halfHeight;
-            return !(yBottom < area.top - 6 || yTop > area.bottom + 6);
-        }
-
-        const xLeft = vehicle.x - halfWidth;
-        const xRight = vehicle.x + halfWidth;
-        return !(xRight < area.left - 6 || xLeft > area.right + 6);
-    }
-
-    // ------------------------------------------------------------------
-    //  _isApproachingCrosswalk  -  Prueft ob das Fahrzeug sich gerade
-    //                               auf den Zebrastreifen zubewegt.
-    //  Portiert aus isVehicleApproachingCrosswalk() Zeilen 7070-7100.
-    // ------------------------------------------------------------------
-
-    /** @private */
-    _isApproachingCrosswalk(vehicle, area, orientation, direction, stepX, stepY, halfWidth, halfHeight) {
-        if (orientation === 'horizontal') {
-            const frontBefore = direction > 0
-                ? vehicle.x + halfWidth
-                : vehicle.x - halfWidth;
-            const frontAfter = frontBefore + stepX;
-
-            if (direction > 0) {
-                return frontBefore <= area.left - 4 && frontAfter >= area.left;
-            }
-
-            return frontBefore >= area.right + 4 && frontAfter <= area.right;
-        }
-
-        const frontBefore = direction > 0
-            ? vehicle.y + halfHeight
-            : vehicle.y - halfHeight;
-        const frontAfter = frontBefore + stepY;
-
-        if (direction > 0) {
-            return frontBefore <= area.top - 4 && frontAfter >= area.top;
-        }
-
-        return frontBefore >= area.bottom + 4 && frontAfter <= area.bottom;
-    }
-}
-
-// ------------------------------------------------------------------
-//  Modul-private Hilfsfunktion
-// ------------------------------------------------------------------
-
-/**
- * Prueft ob ein Punkt innerhalb einer Area (left/right/top/bottom) liegt.
- * Portiert aus isPointInsideArea() Zeilen 7104-7107.
- *
- * @param {number} x
- * @param {number} y
- * @param {{ left: number, right: number, top: number, bottom: number }} area
- * @returns {boolean}
- */
-function _isPointInsideArea(x, y, area) {
-    return x >= area.left && x <= area.right && y >= area.top && y <= area.bottom;
-}
-
-VehicleSystem;
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/systems/CombatSystem.js
-// ═══════════════════════════════════════════════════════
-/**
- * CombatSystem - Verwaltet Projektile, Treffer und Kampf-Logik.
- * Portiert aus gta_old/overworld/js/overworld.js:
- *   processPlayerFiring()            (Z.2991-3017)
- *   spawnProjectilesForWeapon()      (Z.3019-3036)
- *   createProjectile()               (Z.3038-3064)
- *   updateProjectiles()              (Z.3065-3103)
- *   checkProjectileNpcCollision()    (Z.3180-3201)
- *   onNpcHit()                       (Z.3203-3214)
- *   killNpc()                        (Z.3216-3232)
- *   spawnBloodDecal()                (Z.3234-3243)
- */
-
-
-/** Maximale Anzahl an Blood-Decals bevor aelteste entfernt werden */
-const MAX_BLOOD_DECALS = 150;
-
-/** Offset vom Spielerzentrum zur Muendung in Pixeln */
-const MUZZLE_OFFSET = 18;
-
-class CombatSystem {
-
-    /**
-     * @param {import('../core/EventBus.js').EventBus} eventBus
-     * @param {Map<string, object>} weaponCatalog - Ergebnis von createWeaponCatalog()
-     */
-    constructor(eventBus, weaponCatalog) {
-        this.eventBus = eventBus;
-        this.weaponCatalog = weaponCatalog;
-
-        /** @type {Array<object>} Aktive Projektile */
-        this.projectiles = [];
-
-        /** @type {Array<object>} Blut-Decals auf dem Boden */
-        this.bloodDecals = [];
-
-        /** Feuer-Zustand (Timing fuer Fire-Rate) */
-        this._lastShotAt = 0;
-    }
-
-    // ───────────────────── Public API ─────────────────────
-
-    /**
-     * Haupt-Update pro Frame.
-     * @param {import('../entities/Player.js').Player} player
-     * @param {Array<import('../entities/NPC.js').NPC>} npcs
-     * @param {number} _deltaTime - (reserviert, aktuell nicht genutzt)
-     */
-    update(player, npcs, _deltaTime) {
-        this._updateProjectiles(npcs);
-    }
-
-    /**
-     * Versucht mit der aktuellen Waffe zu feuern.
-     * Portiert aus processPlayerFiring() (Z.2991-3017).
-     *
-     * @param {import('../entities/Player.js').Player} player
-     * @param {{x: number, y: number}} mouseWorldPos - Maus-Weltkoordinaten
-     * @param {object} fireInput - { justPressed: boolean, active: boolean }
-     * @param {number} now - performance.now()
-     */
-    fireWeapon(player, mouseWorldPos, fireInput, now) {
-        const weapon = getWeaponDefinition(this.weaponCatalog, player.currentWeaponId);
-
-        if (!weapon || !player.weaponInventory.has(weapon.id)) {
-            return;
-        }
-
-        if (!fireInput.active && !fireInput.justPressed) {
-            return;
-        }
-
-        if (!weapon.automatic && !fireInput.justPressed) {
-            return;
-        }
-
-        const interval = weapon.fireRate ?? 250;
-
-        if (now - this._lastShotAt < interval) {
-            return;
-        }
-
-        const muzzle = player.getMuzzlePosition();
-        this._spawnProjectilesForWeapon(weapon, muzzle, mouseWorldPos);
-
-        this._lastShotAt = now;
-    }
-
-    // ───────────────────── Projektil-Erzeugung ─────────────────────
-
-    /**
-     * Erzeugt Projektil(e) fuer eine Waffe (inkl. Pellets bei Shotgun).
-     * Portiert aus spawnProjectilesForWeapon() (Z.3019-3036).
-     *
-     * @param {object} weapon - Waffendefinition aus dem Katalog
-     * @param {{x: number, y: number}} muzzle - Muendungsposition
-     * @param {{x: number, y: number}} target - Zielposition (Maus-Welt)
-     * @private
-     */
-    _spawnProjectilesForWeapon(weapon, muzzle, target) {
-        const targetX = target.x ?? muzzle.x;
-        const targetY = target.y ?? muzzle.y;
-
-        let angle = Math.atan2(targetY - muzzle.y, targetX - muzzle.x);
-
-        if (!Number.isFinite(angle)) {
-            angle = 0;
-        }
-
-        const spread = weapon.spread ?? 0;
-        const pelletCount = weapon.pellets && weapon.pellets > 1 ? weapon.pellets : 1;
-
-        for (let i = 0; i < pelletCount; i++) {
-            const offset = spread ? (Math.random() - 0.5) * spread * 2 : 0;
-            this._createProjectile(weapon, muzzle.x, muzzle.y, angle + offset);
-        }
-    }
-
-    /**
-     * Erstellt ein einzelnes Projektil.
-     * Portiert aus createProjectile() (Z.3038-3064).
-     *
-     * @param {object} weapon
-     * @param {number} startX
-     * @param {number} startY
-     * @param {number} angle
-     * @private
-     */
-    _createProjectile(weapon, startX, startY, angle) {
-        const speed = weapon.projectileSpeed ?? 10;
-        const vx = Math.cos(angle) * speed;
-        const vy = Math.sin(angle) * speed;
-
-        const originX = startX + Math.cos(angle) * MUZZLE_OFFSET;
-        const originY = startY + Math.sin(angle) * MUZZLE_OFFSET;
-
-        const projectile = {
-            x: originX,
-            y: originY,
-            vx,
-            vy,
-            speed,
-            damage: weapon.damage ?? 10,
-            weaponId: weapon.id,
-            color: weapon.displayColor ?? '#ffd166',
-            maxDistance: weapon.range ?? 600,
-            distance: 0,
-            createdAt: performance.now(),
-        };
-
-        this.projectiles.push(projectile);
-    }
-
-    // ───────────────────── Projektil-Update ─────────────────────
-
-    /**
-     * Bewegt alle Projektile und entfernt abgelaufene.
-     * Portiert aus updateProjectiles() (Z.3065-3103).
-     *
-     * @param {Array<import('../entities/NPC.js').NPC>} npcs
-     * @private
-     */
-    _updateProjectiles(npcs) {
-        if (!this.projectiles.length) {
-            return;
-        }
-
-        const survivors = [];
-
-        for (const projectile of this.projectiles) {
-            projectile.x += projectile.vx;
-            projectile.y += projectile.vy;
-            projectile.distance += projectile.speed;
-
-            let expired = projectile.distance >= projectile.maxDistance;
-
-            if (!expired) {
-                if (this._checkProjectileNpcCollision(projectile, npcs)) {
-                    expired = true;
-                }
-            }
-
-            if (!expired) {
-                survivors.push(projectile);
-            }
-        }
-
-        this.projectiles = survivors;
-    }
-
-    // ───────────────────── Kollisionserkennung ─────────────────────
-
-    /**
-     * Prueft ob ein Projektil einen NPC trifft.
-     * Portiert aus checkProjectileNpcCollision() (Z.3180-3201).
-     *
-     * @param {object} projectile
-     * @param {Array<import('../entities/NPC.js').NPC>} npcs
-     * @returns {boolean} true wenn Treffer
-     * @private
-     */
-    _checkProjectileNpcCollision(projectile, npcs) {
-        if (!npcs || !Array.isArray(npcs)) {
-            return false;
-        }
-
-        for (const npc of npcs) {
-            if (!npc || npc.dead) {
-                continue;
-            }
-
-            const radius = npc.hitRadius ?? 14;
-            const dx = projectile.x - npc.x;
-            const dy = projectile.y - npc.y;
-
-            if (dx * dx + dy * dy <= radius * radius) {
-                this._onNpcHit(npc, projectile);
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // ───────────────────── Treffer-Verarbeitung ─────────────────────
-
-    /**
-     * Verarbeitet einen Treffer auf einen NPC.
-     * Portiert aus onNpcHit() (Z.3203-3214).
-     *
-     * @param {import('../entities/NPC.js').NPC} npc
-     * @param {object} projectile
-     * @private
-     */
-    _onNpcHit(npc, projectile) {
-        const maxHealth = npc.maxHealth ?? 100;
-
-        npc.health = Math.max(0, (npc.health ?? maxHealth) - projectile.damage);
-
-        const panicDuration = 180 + Math.floor(Math.random() * 120);
-        npc.panicTimer = Math.max(npc.panicTimer ?? 0, panicDuration);
-
-        this.eventBus.emit('npc:hit', { npc, damage: projectile.damage, weaponId: projectile.weaponId });
-
-        if (npc.health <= 0) {
-            this._killNpc(npc);
-        }
-    }
-
-    /**
-     * Toetet einen NPC.
-     * Portiert aus killNpc() (Z.3216-3232).
-     *
-     * @param {import('../entities/NPC.js').NPC} npc
-     * @private
-     */
-    _killNpc(npc) {
-        if (npc.dead) {
-            return;
-        }
-
-        npc.dead = true;
-        npc.health = 0;
-        npc.moving = false;
-        npc.panicTimer = 0;
-        npc.waitTimer = 0;
-        npc.animationPhase = 0;
-        npc.isCrossing = false;
-        npc.waitingForCrosswalk = null;
-        npc.deathRotation = (Math.random() * Math.PI) - Math.PI / 2;
-
-        this.spawnBloodDecal(npc.x, npc.y);
-
-        this.eventBus.emit('npc:killed', { npc });
-    }
-
-    // ───────────────────── Blood-Decals ─────────────────────
-
-    /**
-     * Erzeugt einen Blut-Decal an der Position.
-     * Portiert aus spawnBloodDecal() (Z.3234-3243).
-     *
-     * @param {number} x
-     * @param {number} y
-     */
-    spawnBloodDecal(x, y) {
-        this.bloodDecals.push({
-            x,
-            y,
-            radius: 18 + Math.random() * 12,
-            createdAt: performance.now(),
-        });
-
-        if (this.bloodDecals.length > MAX_BLOOD_DECALS) {
-            this.bloodDecals.shift();
-        }
-    }
-}
-
-CombatSystem;
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/systems/DayNightSystem.js
-// ═══════════════════════════════════════════════════════
-/**
- * DayNightSystem - Verwaltet den Tag/Nacht-Zyklus mit Phasen, Beleuchtung und Sternen.
- */
-
-class DayNightSystem {
-
-    constructor() {
-        const now = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
-
-        this.phases = [
-            { id: "day", duration: 300000 },
-            { id: "dusk", duration: 120000 },
-            { id: "night", duration: 300000 },
-            { id: "dawn", duration: 120000 }
-        ];
-
-        this.phaseIndex = 0;
-        this.phaseStart = now;
-        this.lastUpdate = now;
-        this.progress = 0;
-        this.currentPhase = this.phases[0];
-        this.starPhase = 0;
-        this.stars = DayNightSystem.generateNightSkyStars(160);
-
-        this.lighting = {
-            overlayAlpha: 0,
-            overlayTop: "rgba(0, 0, 0, 0)",
-            overlayBottom: "rgba(0, 0, 0, 0)",
-            horizon: null,
-            starAlpha: 0
-        };
-    }
-
-    /**
-     * Erzeugt zufaellige Sterne fuer den Nachthimmel.
-     * @param {number} count
-     * @returns {Array<{x:number,y:number,size:number,twinkleOffset:number,twinkleSpeed:number,baseIntensity:number}>}
-     */
-    static generateNightSkyStars(count = 160) {
-        const total = Math.max(0, Math.floor(count));
-        const stars = [];
-
-        for (let i = 0; i < total; i++) {
-            const randomness = Math.random();
-            stars.push({
-                x: Math.random(),
-                y: Math.random() * 0.65,
-                size: 0.6 + Math.random() * 1.4,
-                twinkleOffset: Math.random() * Math.PI * 2,
-                twinkleSpeed: 0.6 + Math.random() * 1.4,
-                baseIntensity: 0.4 + randomness * 0.6
-            });
-        }
-
-        return stars;
-    }
-
-    /**
-     * Aktualisiert den Zyklus anhand des aktuellen Zeitstempels.
-     * @param {number} now - Zeitstempel in Millisekunden (performance.now)
-     */
-    update(now) {
-        if (!Array.isArray(this.phases) || this.phases.length === 0) {
-            return;
-        }
-
-        if (!Number.isFinite(this.phaseIndex)) {
-            this.phaseIndex = 0;
-        }
-
-        if (!Number.isFinite(this.phaseStart)) {
-            this.phaseStart = now;
-        }
-
-        let phase = this.phases[Math.max(0, Math.min(this.phaseIndex, this.phases.length - 1))];
-        let elapsed = now - this.phaseStart;
-
-        if (!Number.isFinite(elapsed) || elapsed < 0) {
-            elapsed = 0;
-            this.phaseStart = now;
-            phase = this.phases[0];
-            this.phaseIndex = 0;
-        }
-
-        let duration = Math.max(1, Number(phase.duration) || 0);
-
-        while (elapsed >= duration) {
-            elapsed -= duration;
-            this.phaseIndex = (this.phaseIndex + 1) % this.phases.length;
-            phase = this.phases[this.phaseIndex];
-            duration = Math.max(1, Number(phase.duration) || 0);
-            this.phaseStart = now - elapsed;
-        }
-
-        const progress = duration > 0 ? Math.min(1, Math.max(0, elapsed / duration)) : 0;
-
-        const delta = now - (this.lastUpdate ?? now);
-        this.lastUpdate = now;
-
-        if (!Number.isFinite(this.starPhase)) {
-            this.starPhase = 0;
-        }
-
-        if (Number.isFinite(delta) && delta > 0) {
-            this.starPhase = (this.starPhase + delta * 0.0015) % (Math.PI * 2);
-        }
-
-        this.progress = progress;
-        this.currentPhase = phase;
-        this.lighting = this.computeLighting(String(phase.id ?? ''), progress);
-    }
-
-    /**
-     * Gibt das aktuelle Lighting-Objekt zurueck.
-     * @returns {{phaseId:string, overlayAlpha:number, overlayTop:string, overlayBottom:string, horizon:object|null, starAlpha:number}}
-     */
-    getCurrentLighting() {
-        return this.lighting;
-    }
-
-    // ── Beleuchtungsberechnung ──────────────────────────────────────────
-
-    /**
-     * Berechnet die Beleuchtungswerte fuer eine Phase und deren Fortschritt.
-     * @param {string} phaseId
-     * @param {number} progress - 0..1
-     * @returns {{phaseId:string, overlayAlpha:number, overlayTop:string, overlayBottom:string, horizon:object|null, starAlpha:number}}
-     */
-    computeLighting(phaseId, progress) {
-        const t = Math.max(0, Math.min(1, Number(progress) || 0));
-        const sampleStops = (stops, value) => DayNightSystem.sampleColorStops(stops, Math.max(0, Math.min(1, value)));
-
-        const duskSkyStops = [
-            { at: 0, color: [68, 106, 196, 0.86] },
-            { at: 0.33, color: [255, 150, 90, 0.92] },
-            { at: 0.66, color: [186, 58, 48, 0.96] },
-            { at: 1, color: [8, 8, 20, 1] }
-        ];
-
-        const duskHorizonStops = [
-            { at: 0, color: [255, 210, 140, 0.85] },
-            { at: 0.4, color: [255, 142, 64, 0.9] },
-            { at: 0.75, color: [196, 52, 44, 0.92] },
-            { at: 1, color: [12, 10, 28, 0.96] }
-        ];
-
-        const nightSkyTop = [16, 24, 58, 0.92];
-        const nightSkyBottom = [6, 10, 24, 0.96];
-
-        const result = {
-            phaseId: phaseId || 'day',
-            overlayAlpha: 0,
-            overlayTop: 'rgba(0, 0, 0, 0)',
-            overlayBottom: 'rgba(0, 0, 0, 0)',
-            horizon: null,
-            starAlpha: 0
-        };
-
-        switch (phaseId) {
-
-            case 'dusk': {
-                const skyTop = sampleStops(duskSkyStops, t);
-                const skyBottom = sampleStops(duskHorizonStops, Math.min(1, t + 0.15));
-                const horizonTop = sampleStops(duskHorizonStops, Math.max(0, t - 0.15));
-                const horizonBottom = sampleStops(duskHorizonStops, t);
-
-                result.overlayAlpha = 0.35 + t * 0.35;
-                result.overlayTop = DayNightSystem.colorArrayToRgba(skyTop);
-                result.overlayBottom = DayNightSystem.colorArrayToRgba(skyBottom);
-                result.horizon = {
-                    alpha: 0.35 + t * 0.45,
-                    top: DayNightSystem.colorArrayToRgba(horizonTop),
-                    bottom: DayNightSystem.colorArrayToRgba(horizonBottom),
-                    offsetTop: 0.25
-                };
-                result.starAlpha = Math.max(0, t - 0.4) * 0.9;
-                break;
-            }
-
-            case 'night': {
-                result.overlayAlpha = 0.62;
-                result.overlayTop = DayNightSystem.colorArrayToRgba(nightSkyTop);
-                result.overlayBottom = DayNightSystem.colorArrayToRgba(nightSkyBottom);
-                result.horizon = {
-                    alpha: 0.25,
-                    top: DayNightSystem.colorArrayToRgba([32, 30, 60, 0.52]),
-                    bottom: DayNightSystem.colorArrayToRgba([12, 10, 22, 0.68]),
-                    offsetTop: 0.3
-                };
-                result.starAlpha = 0.75;
-                break;
-            }
-
-            case 'dawn': {
-                const reverse = 1 - t;
-                const skyTop = sampleStops(duskSkyStops, reverse);
-                const skyBottom = sampleStops(duskHorizonStops, Math.min(1, reverse + 0.1));
-                const horizonTop = sampleStops(duskHorizonStops, reverse);
-                const horizonBottom = sampleStops(duskHorizonStops, Math.max(0, reverse - 0.1));
-
-                result.overlayAlpha = 0.52 * reverse;
-                result.overlayTop = DayNightSystem.colorArrayToRgba(skyTop);
-                result.overlayBottom = DayNightSystem.colorArrayToRgba(skyBottom);
-                result.horizon = {
-                    alpha: 0.28 + reverse * 0.3,
-                    top: DayNightSystem.colorArrayToRgba(horizonTop),
-                    bottom: DayNightSystem.colorArrayToRgba(horizonBottom),
-                    offsetTop: 0.28
-                };
-                result.starAlpha = Math.max(0, reverse - 0.25) * 0.7;
-                break;
-            }
-
-            case 'day':
-            default: {
-                const warmFactor = Math.sin(t * Math.PI);
-                const top = DayNightSystem.lerpColor([255, 250, 238, 0.08], [255, 236, 204, 0.18], warmFactor);
-                const bottom = DayNightSystem.lerpColor([255, 236, 196, 0.1], [255, 220, 174, 0.18], warmFactor);
-
-                result.overlayAlpha = 0.18 + warmFactor * 0.05;
-                result.overlayTop = DayNightSystem.colorArrayToRgba(top);
-                result.overlayBottom = DayNightSystem.colorArrayToRgba(bottom);
-                result.horizon = {
-                    alpha: 0.2 + warmFactor * 0.12,
-                    top: DayNightSystem.colorArrayToRgba([255, 232, 188, 0.32 + warmFactor * 0.1]),
-                    bottom: DayNightSystem.colorArrayToRgba([255, 214, 162, 0.34 + warmFactor * 0.12]),
-                    offsetTop: 0.35
-                };
-                result.starAlpha = 0;
-                break;
-            }
-
-        }
-
-        return result;
-    }
-
-    // ── Statische Farb-Hilfsfunktionen ──────────────────────────────────
-
-    /**
-     * Interpoliert zwischen Farbstops anhand eines Werts (0..1).
-     * @param {Array<{at:number, color:number[]}>} stops
-     * @param {number} value
-     * @returns {number[]}
-     */
-    static sampleColorStops(stops, value) {
-        if (!Array.isArray(stops) || stops.length === 0) {
-            return [0, 0, 0, 0];
-        }
-
-        const t = Math.max(0, Math.min(1, Number(value) || 0));
-        let previous = stops[0];
-
-        for (let i = 1; i < stops.length; i++) {
-            const current = stops[i];
-            const prevAt = Number(previous?.at ?? 0);
-            const currAt = Number(current?.at ?? 1);
-
-            if (t <= currAt) {
-                const range = Math.max(1e-6, currAt - prevAt);
-                const localT = Math.max(0, Math.min(1, (t - prevAt) / range));
-                return DayNightSystem.lerpColor(previous?.color, current?.color, localT);
-            }
-
-            previous = current;
-        }
-
-        const lastColor = stops[stops.length - 1]?.color;
-        return Array.isArray(lastColor) ? lastColor.slice() : [0, 0, 0, 0];
-    }
-
-    /**
-     * Lineare Interpolation zwischen zwei Farbarrays [r, g, b, a].
-     * @param {number[]} colorA
-     * @param {number[]} colorB
-     * @param {number} t - 0..1
-     * @returns {number[]}
-     */
-    static lerpColor(colorA, colorB, t) {
-        const clampT = Math.max(0, Math.min(1, Number(t) || 0));
-
-        const getComponent = (arr, index) => {
-            if (!Array.isArray(arr) || arr.length === 0) {
-                return index === 3 ? 1 : 0;
-            }
-            if (index < arr.length) {
-                return Number(arr[index]);
-            }
-            if (index === 3) {
-                return arr.length > 3 ? Number(arr[3]) : 1;
-            }
-            return Number(arr[Math.min(index, arr.length - 1)]);
-        };
-
-        const result = [];
-        for (let i = 0; i < 4; i++) {
-            const compA = getComponent(colorA, i);
-            const compB = getComponent(colorB, i);
-            result[i] = compA + (compB - compA) * clampT;
-        }
-
-        return result;
-    }
-
-    /**
-     * Wandelt ein Farbarray [r, g, b, a] in einen rgba()-String um.
-     * @param {number[]} color
-     * @param {number} alphaMultiplier
-     * @returns {string}
-     */
-    static colorArrayToRgba(color, alphaMultiplier = 1) {
-        if (!Array.isArray(color) || color.length === 0) {
-            return 'rgba(0, 0, 0, 0)';
-        }
-
-        const r = Math.round(Math.max(0, Math.min(255, Number(color[0]) || 0)));
-        const g = Math.round(Math.max(0, Math.min(255, Number(color[1] ?? color[0]) || 0)));
-        const b = Math.round(Math.max(0, Math.min(255, Number(color[2] ?? color[1] ?? color[0]) || 0)));
-        const aBase = color.length > 3 ? Number(color[3]) : 1;
-        const a = Math.max(0, Math.min(1, aBase * alphaMultiplier));
-
-        return `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`;
-    }
-}
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/world/BuildingFactory.js
-// ═══════════════════════════════════════════════════════
-/**
- * BuildingFactory - Erstellt Gebaeude-Objekte und Collider.
- *
- * Portiert aus gta_old/overworld/js/overworld.js:
- *   createBuildingColliders() Zeilen 12025-12142
- *
- * SSOT: Alle Gebaeude-Erstellung und Collider-Logik hier zentralisiert.
- */
-
-/**
- * Erstellt ein Gebaeude-Objekt mit den gegebenen Parametern.
- *
- * @param {string} type - Gebaeudetyp (z.B. 'house', 'police', 'casino', 'weaponShop')
- * @param {number} x
- * @param {number} y
- * @param {number} width
- * @param {number} height
- * @param {object} [options={}]
- * @param {string} [options.name]
- * @param {boolean} [options.interactive=false]
- * @param {object} [options.variant]
- * @param {number} [options.colorIndex]
- * @param {number} [options.lotPadding]
- * @param {number} [options.collisionPadding]
- * @param {Array}  [options.subUnits]
- * @param {Array}  [options.collisionRects]
- * @returns {object} Gebaeude-Objekt
- */
-function createBuilding(type, x, y, width, height, options = {}) {
-    const building = {
-        x,
-        y,
-        width,
-        height,
-        type,
-        name: options.name ?? type,
-        interactive: options.interactive ?? false,
-    };
-
-    if (options.variant !== undefined) {
-        building.variant = options.variant;
-    }
-    if (options.colorIndex !== undefined) {
-        building.colorIndex = options.colorIndex;
-    }
-    if (options.lotPadding !== undefined) {
-        building.lotPadding = options.lotPadding;
-    }
-    if (options.collisionPadding !== undefined) {
-        building.collisionPadding = options.collisionPadding;
-    }
-    if (options.subUnits !== undefined) {
-        building.subUnits = options.subUnits;
-    }
-    if (options.collisionRects !== undefined) {
-        building.collisionRects = options.collisionRects;
-    }
-
-    return building;
-}
-
-/**
- * Erstellt Collider-Objekte aus einer Liste von Gebaeuden.
- * Jedes Gebaeude kann eigene collisionRects haben, andernfalls
- * wird die Basisgeometrie als Collider verwendet.
- *
- * Portiert aus createBuildingColliders() Zeilen 12025-12142.
- *
- * @param {Array} buildings
- * @returns {Array<{type: string, id: string|null, left: number, right: number, top: number, bottom: number}>}
- */
-function createBuildingColliders(buildings) {
-    if (!Array.isArray(buildings)) {
-        return [];
-    }
-
-    const colliders = [];
-
-    for (const building of buildings) {
-        if (!building) {
-            continue;
-        }
-
-        const rects = [];
-
-        if (Array.isArray(building.collisionRects) && building.collisionRects.length > 0) {
-            for (const rect of building.collisionRects) {
-                if (!rect) {
-                    continue;
-                }
-
-                const width = Number(rect.width ?? 0);
-                const height = Number(rect.height ?? 0);
-
-                if (!(width > 0 && height > 0)) {
-                    continue;
-                }
-
-                const left = Number(rect.x ?? building.x ?? 0);
-                const top = Number(rect.y ?? building.y ?? 0);
-
-                if (!Number.isFinite(left) || !Number.isFinite(top)) {
-                    continue;
-                }
-
-                rects.push({
-                    left,
-                    right: left + width,
-                    top,
-                    bottom: top + height,
-                });
-            }
-        }
-
-        if (rects.length === 0) {
-            const width = Number(building.width ?? 0);
-            const height = Number(building.height ?? 0);
-            const left = Number(building.x ?? 0);
-            const top = Number(building.y ?? 0);
-
-            if (width > 0 && height > 0 && Number.isFinite(left) && Number.isFinite(top)) {
-                rects.push({
-                    left,
-                    right: left + width,
-                    top,
-                    bottom: top + height,
-                });
-            }
-        }
-
-        for (const rect of rects) {
-            colliders.push({
-                type: 'building',
-                id: building.id ?? building.name ?? null,
-                left: rect.left,
-                right: rect.right,
-                top: rect.top,
-                bottom: rect.bottom,
-            });
-        }
-    }
-
-    return colliders;
-}
-
-
-
-// ═══════════════════════════════════════════════════════
 // js/world/StreetDetails.js
 // ═══════════════════════════════════════════════════════
 /**
@@ -5443,10 +3268,6 @@ function createStreetDetails(config = {}) {
  */
 
 
-
-
-
-
 // ---------------------------------------------------------------------------
 // Residential-Blueprints (SSOT fuer alle Wohnhaus-Positionen)
 // ---------------------------------------------------------------------------
@@ -5558,7 +3379,7 @@ class WorldGenerator {
 
         // Casino Tower mit Podium-Collision
         const casinoTower = {
-            x: 3040, y: 960, width: 238, height: 560,
+            x: 3040, y: 860, width: 238, height: 560,
             name: "Starlight Casino Tower", type: "casino", interactive: true,
         };
         const casinoApron = Math.max(60, Math.round(casinoTower.width * 0.3));
@@ -5570,6 +3391,18 @@ class WorldGenerator {
             { x: casinoTower.x - casinoApron, y: casinoPodiumY, width: casinoTower.width + casinoApron * 2, height: casinoPodiumHeight + casinoPlinthHeight },
         ];
         buildings.push(casinoTower);
+
+        // Motel
+        buildings.push({
+            x: 2540, y: 320, width: 340, height: 220,
+            name: PROPERTY_CATALOG.motel.name, type: "motel", interactive: true,
+        });
+
+        // Apartment-Komplex
+        buildings.push({
+            x: 1080, y: 320, width: 300, height: 400,
+            name: PROPERTY_CATALOG.apartmentComplex.name, type: "apartmentComplex", interactive: true,
+        });
 
         // Downtown Hochhaeuser
         buildings.push({
@@ -6209,738 +4042,3145 @@ class WorldGenerator {
     }
 }
 
-WorldGenerator;
 
 
 
 // ═══════════════════════════════════════════════════════
-// js/interiors/InteriorManager.js
+// js/systems/InputSystem.js
 // ═══════════════════════════════════════════════════════
 /**
- * InteriorManager - Verwaltet den Wechsel zwischen Overworld und Interior-Szenen.
- *
- * Portiert aus gta_old/overworld/js/overworld.js:
- *   enterWeaponShop()  Zeilen 2363-2440
- *   exitInterior()     Zeilen 2441-2515
- *
- * SSOT: Alle Interior-Wechsellogik hier zentralisiert.
+ * InputSystem — Keyboard- und Maus-Eingaben
+ * Portiert aus gta_old/overworld/js/overworld.js setupInput() (Z.456-687)
+ * und updateMouseWorldPosition() (Z.2517-2532)
  */
-
-
-/**
- * @typedef {object} OverworldReturnState
- * @property {{ x: number, y: number }} position
- * @property {{ x: number, y: number }} camera
- */
-
-class InteriorManager {
-
-    constructor() {
-        /** @type {string} Aktuelle Szene ('overworld' oder Interior-Typ) */
-        this.scene = 'overworld';
-
-        /** @type {object|null} Aktives Interior-Objekt */
-        this.activeInterior = null;
-
-        /** @type {OverworldReturnState|null} Gespeicherter Overworld-Zustand */
-        this.overworldReturnState = null;
-    }
+class InputSystem {
 
     /**
-     * Prueft ob die aktuelle Szene ein Interior ist.
-     * @returns {boolean}
+     * @param {HTMLCanvasElement} canvas
      */
-    isInInterior() {
-        return this.scene !== 'overworld' && this.activeInterior !== null;
+    constructor(canvas) {
+        this.canvas = canvas;
+
+        // Keyboard-State
+        this.keys = {};           // aktuelle Taste gedrückt
+        this._justPressed = {};   // einmalig pro Frame true
+        this._justPressedConsumed = {}; // schon abgefragt in diesem Frame
+
+        // Maus-State
+        this.mouse = { x: 0, y: 0, worldX: 0, worldY: 0, down: false };
+        this._fireJustPressed = false;
+        this._fireJustPressedConsumed = false;
+
+        this._bindEvents();
     }
 
-    /**
-     * Gibt den Typ des aktiven Interiors zurueck (oder null).
-     * @returns {string|null}
-     */
-    getInteriorType() {
-        return this.isInInterior() ? this.scene : null;
-    }
+    // ───────────────────── Event-Bindings ─────────────────────
 
-    /**
-     * Betritt ein Interior.
-     *
-     * @param {string} type - Interior-Typ (z.B. 'weaponShop', 'casino')
-     * @param {object} interiorData - Interior-Daten (von WeaponShop.createLayout() etc.)
-     * @param {object} player - Spieler-Entity
-     * @param {object} camera - Kamera-Objekt mit x, y
-     * @param {object} [inputSystem] - InputSystem zum Zuruecksetzen der Tasten
-     * @param {number} [canvasWidth=800] - Canvas-Breite (fuer Zentrierung)
-     * @param {number} [canvasHeight=600] - Canvas-Hoehe
-     */
-    enterInterior(type, interiorData, player, camera, inputSystem, canvasWidth = 800, canvasHeight = 600) {
-        if (this.scene === type) {
-            return;
-        }
-
-        // Interior zentrieren
-        interiorData.originX = Math.max(0, Math.floor((canvasWidth - interiorData.width) / 2));
-        interiorData.originY = Math.max(0, Math.floor((canvasHeight - interiorData.height) / 2));
-
-        // Overworld-Zustand sichern
-        this.overworldReturnState = {
-            position: { x: player.x, y: player.y },
-            camera: { x: camera.x, y: camera.y },
-        };
-
-        // Szene wechseln
-        this.scene = type;
-        this.activeInterior = interiorData;
-
-        // Spieler in Interior positionieren
-        player.x = interiorData.entry.x;
-        player.y = interiorData.entry.y;
-        player.moving = false;
-        player.animationPhase = 0;
-
-        // Kamera zuruecksetzen
-        camera.x = 0;
-        camera.y = 0;
-
-        // Input zuruecksetzen
-        if (inputSystem) {
-            this._resetInput(inputSystem);
-        }
-
-        eventBus.emit('interior:enter', { type, building: interiorData });
-    }
-
-    /**
-     * Verlaesst das aktuelle Interior und stellt den Overworld-Zustand wieder her.
-     *
-     * @param {object} player - Spieler-Entity
-     * @param {object} camera - Kamera-Objekt mit x, y
-     * @param {object} [inputSystem] - InputSystem zum Zuruecksetzen der Tasten
-     */
-    exitInterior(player, camera, inputSystem) {
-        if (this.scene === 'overworld') {
-            return;
-        }
-
-        const exitedType = this.scene;
-
-        // Menu im Interior schliessen
-        const interior = this.activeInterior;
-        if (interior) {
-            interior.menuOpen = false;
-        }
-
-        // Overworld-Zustand wiederherstellen
-        if (this.overworldReturnState) {
-            player.x = this.overworldReturnState.position.x;
-            player.y = this.overworldReturnState.position.y;
-            camera.x = this.overworldReturnState.camera.x;
-            camera.y = this.overworldReturnState.camera.y;
-        }
-
-        // Szene zuruecksetzen
-        this.scene = 'overworld';
-        this.activeInterior = null;
-        this.overworldReturnState = null;
-
-        // Spieler-Zustand zuruecksetzen
-        player.moving = false;
-        player.animationPhase = 0;
-
-        // Input zuruecksetzen
-        if (inputSystem) {
-            this._resetInput(inputSystem);
-        }
-
-        eventBus.emit('interior:exit', { type: exitedType });
-    }
-
-    /**
-     * Setzt alle Input-Keys zurueck.
-     * @param {object} inputSystem
-     * @private
-     */
-    _resetInput(inputSystem) {
-        if (inputSystem.keys) {
-            for (const key of Object.keys(inputSystem.keys)) {
-                inputSystem.keys[key] = false;
+    _bindEvents() {
+        document.addEventListener("keydown", (e) => {
+            const key = e.key.toLowerCase();
+            if (!this.keys[key]) {
+                // Taste war vorher nicht gedrückt → justPressed setzen
+                this._justPressed[key] = true;
+                this._justPressedConsumed[key] = false;
             }
+            this.keys[key] = true;
+        });
+
+        document.addEventListener("keyup", (e) => {
+            const key = e.key.toLowerCase();
+            this.keys[key] = false;
+            this._justPressed[key] = false;
+        });
+
+        this.canvas.addEventListener("mousemove", (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            this.mouse.x = e.clientX - rect.left;
+            this.mouse.y = e.clientY - rect.top;
+        });
+
+        this.canvas.addEventListener("mousedown", (e) => {
+            if (e.button === 0) {
+                this.mouse.down = true;
+                this._fireJustPressed = true;
+                this._fireJustPressedConsumed = false;
+            }
+        });
+
+        document.addEventListener("mouseup", (e) => {
+            if (e.button === 0) {
+                this.mouse.down = false;
+                this._fireJustPressed = false;
+            }
+        });
+    }
+
+    // ───────────────────── Abfragen ─────────────────────
+
+    /** Taste momentan gehalten? */
+    isKeyDown(key) {
+        return !!this.keys[key.toLowerCase()];
+    }
+
+    /** Taste in diesem Frame erstmals gedrückt? (nur einmal true pro Tastendruck) */
+    isKeyPressed(key) {
+        const k = key.toLowerCase();
+        if (this._justPressed[k] && !this._justPressedConsumed[k]) {
+            this._justPressedConsumed[k] = true;
+            return true;
         }
+        return false;
+    }
+
+    /**
+     * Bewegungsvektor aus WASD / Pfeiltasten, normalisiert.
+     * @returns {{dx: number, dy: number}}
+     */
+    getMovementVector() {
+        let dx = 0;
+        let dy = 0;
+
+        if (this.keys["w"] || this.keys["arrowup"])    dy -= 1;
+        if (this.keys["s"] || this.keys["arrowdown"])  dy += 1;
+        if (this.keys["a"] || this.keys["arrowleft"])  dx -= 1;
+        if (this.keys["d"] || this.keys["arrowright"]) dx += 1;
+
+        // Normalisieren bei Diagonalbewegung
+        if (dx !== 0 && dy !== 0) {
+            const len = Math.sqrt(dx * dx + dy * dy);
+            dx /= len;
+            dy /= len;
+        }
+
+        return { dx, dy };
+    }
+
+    /** Shift gedrückt → Sprint */
+    isSprinting() {
+        return !!this.keys["shift"];
+    }
+
+    /**
+     * Maus-Weltposition (erfordert vorheriges updateMouseWorldPosition).
+     * @returns {{x: number, y: number}}
+     */
+    getMouseWorldPosition() {
+        return { x: this.mouse.worldX, y: this.mouse.worldY };
+    }
+
+    /** Linke Maustaste in diesem Frame erstmals gedrückt? */
+    isFirePressed() {
+        if (this._fireJustPressed && !this._fireJustPressedConsumed) {
+            this._fireJustPressedConsumed = true;
+            return true;
+        }
+        return false;
+    }
+
+    /** Linke Maustaste gehalten? */
+    isFireDown() {
+        return this.mouse.down;
+    }
+
+    // ───────────────────── Frame-Update ─────────────────────
+
+    /**
+     * Maus-Weltkoordinaten aktualisieren.
+     * Portiert aus updateMouseWorldPosition() (Z.2517-2532).
+     *
+     * @param {object} camera  - CameraSystem-Instanz (braucht x, y)
+     * @param {object} [interiorOffset] - optional {originX, originY} für Interior-Szenen
+     */
+    updateMouseWorldPosition(camera, interiorOffset) {
+        if (interiorOffset) {
+            this.mouse.worldX = this.mouse.x - interiorOffset.originX;
+            this.mouse.worldY = this.mouse.y - interiorOffset.originY;
+            return;
+        }
+        const zoom = camera.zoom || 1;
+        this.mouse.worldX = this.mouse.x / zoom + camera.x;
+        this.mouse.worldY = this.mouse.y / zoom + camera.y;
+    }
+
+    /**
+     * Am Ende jedes Frames aufrufen — setzt justPressed-Flags zurück.
+     */
+    update() {
+        // Alle justPressed-Flags löschen
+        for (const key in this._justPressed) {
+            this._justPressed[key] = false;
+            this._justPressedConsumed[key] = false;
+        }
+        this._fireJustPressed = false;
+        this._fireJustPressedConsumed = false;
     }
 }
 
-InteriorManager;
-
 
 
 // ═══════════════════════════════════════════════════════
-// js/interiors/WeaponShop.js
+// js/systems/MovementSystem.js
 // ═══════════════════════════════════════════════════════
 /**
- * WeaponShop - Interior fuer den Waffenladen (Ammu-Nation).
+ * MovementSystem - Verarbeitet Entity-Bewegung pro Frame.
  *
- * Portiert aus gta_old/overworld/js/overworld.js:
- *   createWeaponShopInterior()    Zeilen 2037-2129
- *   handleWeaponShopMovement()    Zeilen 2130-2183
- *   updateWeaponShopState()       Zeilen 2211-2243
+ * Berechnet Zielpositionen basierend auf Velocity/Target und delegiert
+ * die tatsaechliche Positionsaenderung an EntityMover.
  *
- * SSOT: Alle Waffenladen-Logik hier zentralisiert.
+ * WICHTIG: Dieses System setzt NIEMALS entity.x/y direkt.
+ * Alle Positionsaenderungen laufen ueber EntityMover.move().
  */
 
 
-
-/** Standard-Waffenreihenfolge */
-const DEFAULT_WEAPON_ORDER = ["pistol", "smg", "assaultRifle", "shotgun", "sniperRifle", "lmg"];
-
-/** Interior-Abmessungen */
-const INTERIOR_WIDTH = 720;
-const INTERIOR_HEIGHT = 420;
-const INTERIOR_MARGIN = 36;
-const COUNTER_HEIGHT = 72;
-const PLAYER_RADIUS = 14;
-
-class WeaponShop {
-
+class MovementSystem {
     /**
-     * @param {object} [config={}]
-     * @param {Array<string>} [config.weaponOrder] - Waffenreihenfolge
+     * @param {import('../core/EntityMover.js').EntityMover} entityMover
      */
-    constructor(config = {}) {
-        this.weaponOrder = config.weaponOrder ?? DEFAULT_WEAPON_ORDER;
+    constructor(entityMover) {
+        this.entityMover = entityMover;
     }
 
     /**
-     * Erstellt das Interior-Layout fuer den Waffenladen.
+     * Aktualisiert alle Entities fuer diesen Frame.
      *
-     * @returns {object} Interior-Datenobjekt
+     * @param {Array} entities - Liste aller beweglichen Entities
+     * @param {number} deltaTime - Zeit seit letztem Frame in Sekunden
      */
-    createLayout() {
-        const width = INTERIOR_WIDTH;
-        const height = INTERIOR_HEIGHT;
-        const margin = INTERIOR_MARGIN;
-        const counterHeight = COUNTER_HEIGHT;
-
-        const counter = {
-            x: margin,
-            y: 174,
-            width: width - margin * 2,
-            height: counterHeight,
-        };
-
-        const vendor = {
-            x: counter.x + counter.width / 2,
-            y: counter.y - 26,
-            interactionRadius: 140,
-            parts: buildHumanoidParts({
-                head: '#f0c1a1',
-                torso: '#1f2d3d',
-                limbs: '#131b24',
-                accent: '#3d5a80',
-                hair: '#2b2118',
-                eyes: '#ffffff',
-                pupil: '#0b132b',
-            }),
-            animationPhase: 0,
-            moving: false,
-        };
-
-        const showcaseGap = 18;
-        const showcaseHeight = 88;
-        const showcaseCount = Math.max(1, this.weaponOrder.length);
-        const availableWidth = counter.width - 48;
-        const showcaseWidth = Math.min(
-            200,
-            (availableWidth - showcaseGap * (showcaseCount - 1)) / showcaseCount
-        );
-        const showcaseY = Math.max(margin + 24, counter.y - showcaseHeight - 32);
-
-        const showcases = [];
-        let showcaseX = counter.x + 24;
-        for (const weaponId of this.weaponOrder) {
-            showcases.push({
-                id: `showcase_${weaponId}`,
-                weaponId,
-                x: showcaseX,
-                y: showcaseY,
-                width: showcaseWidth,
-                height: showcaseHeight,
-            });
-            showcaseX += showcaseWidth + showcaseGap;
+    update(entities, deltaTime) {
+        if (!Array.isArray(entities) || !entities.length || !deltaTime) {
+            return;
         }
 
-        const cabinets = [
-            { id: 'cabinet_left', x: counter.x - 18, y: counter.y - 20, width: 18, height: counterHeight + 56 },
-            { id: 'cabinet_right', x: counter.x + counter.width, y: counter.y - 20, width: 18, height: counterHeight + 56 },
-        ];
+        for (const entity of entities) {
+            if (!entity) {
+                continue;
+            }
 
-        const serviceMat = {
-            x: counter.x + counter.width / 2 - 120,
-            y: counter.y + counter.height - 12,
-            width: 240,
-            height: 16,
-        };
+            // Entities die eingefroren/inaktiv sind ueberspringen
+            if (entity.frozen || entity.inactive) {
+                continue;
+            }
 
-        const obstacles = [counter, ...cabinets];
-
-        return {
-            width,
-            height,
-            margin,
-            entry: { x: width / 2, y: height - margin - 60 },
-            exitZone: {
-                x: width / 2 - 80,
-                y: height - margin - 24,
-                width: 160,
-                height: 36,
-            },
-            counter,
-            vendor,
-            showcases,
-            cabinets,
-            serviceMat,
-            obstacles,
-            playerRadius: PLAYER_RADIUS,
-            playerNearVendor: false,
-            playerNearExit: false,
-            menuOpen: false,
-            menuSelection: 0,
-            menuOptions: this.weaponOrder.slice(),
-            messageText: null,
-            messageTimer: 0,
-        };
+            this._updateEntity(entity, deltaTime);
+        }
     }
 
     /**
-     * Aktualisiert die Spieler-Bewegung im Waffenladen.
-     * Portiert aus handleWeaponShopMovement() Zeilen 2130-2183.
+     * Berechnet die Zielposition einer Entity und bewegt sie ueber EntityMover.
      *
-     * @param {object} interior - Interior-Datenobjekt (von createLayout())
-     * @param {object} player - Spieler-Entity
-     * @param {object} inputSystem - InputSystem
-     */
-    handleMovement(interior, player, inputSystem) {
-        if (!interior) {
-            return;
-        }
-
-        if (interior.menuOpen) {
-            player.moving = false;
-            player.speed = 0;
-            return;
-        }
-
-        const { dx, dy } = inputSystem.getMovementVector();
-        const sprinting = inputSystem.isSprinting();
-        const baseSpeed = player.baseSpeed * 0.9;
-        const speed = sprinting ? baseSpeed * 1.4 : baseSpeed;
-
-        player.speed = speed;
-
-        const scaledDx = dx * speed;
-        const scaledDy = dy * speed;
-
-        const radius = interior.playerRadius ?? PLAYER_RADIUS;
-        const margin = interior.margin ?? INTERIOR_MARGIN;
-
-        if (scaledDx !== 0) {
-            const candidateX = Math.max(
-                radius + margin,
-                Math.min(player.x + scaledDx, interior.width - radius - margin)
-            );
-            if (!WeaponShop._circleHitsAnyObstacle(candidateX, player.y, radius, interior.obstacles)) {
-                player.x = candidateX;
-            }
-        }
-
-        if (scaledDy !== 0) {
-            const candidateY = Math.max(
-                radius + margin,
-                Math.min(player.y + scaledDy, interior.height - radius - margin)
-            );
-            if (!WeaponShop._circleHitsAnyObstacle(player.x, candidateY, radius, interior.obstacles)) {
-                player.y = candidateY;
-            }
-        }
-
-        player.moving = dx !== 0 || dy !== 0;
-    }
-
-    /**
-     * Aktualisiert den Waffenladen-Zustand (Naehe zum Verkaeufer, Ausgang, etc.).
-     * Portiert aus updateWeaponShopState() Zeilen 2211-2243.
+     * Unterstuetzt zwei Bewegungsmodi:
+     * 1. Velocity-basiert: entity hat vx/vy (Pixel pro Sekunde)
+     * 2. Target-basiert:   entity hat targetX/targetY und speed
      *
-     * @param {object} interior - Interior-Datenobjekt
-     * @param {object} player - Spieler-Entity
+     * @param {Object} entity
+     * @param {number} deltaTime
      */
-    updateState(interior, player) {
-        if (!interior) {
-            return;
-        }
+    _updateEntity(entity, deltaTime) {
+        let targetX = entity.x;
+        let targetY = entity.y;
 
-        interior.playerNearVendor = false;
-        const radius = interior.playerRadius ?? PLAYER_RADIUS;
-        const vendor = interior.vendor;
+        // Modus 1: Direkte Velocity (vx/vy in Pixel/Sekunde)
+        if (entity.vx !== undefined || entity.vy !== undefined) {
+            const vx = Number(entity.vx) || 0;
+            const vy = Number(entity.vy) || 0;
 
-        if (vendor) {
-            const vendorRadius = vendor.interactionRadius ?? 100;
-            const distance = Math.hypot(player.x - vendor.x, player.y - vendor.y);
-            interior.playerNearVendor = distance <= vendorRadius;
-
-            if (interior.menuOpen && !interior.playerNearVendor) {
-                interior.menuOpen = false;
+            if (vx === 0 && vy === 0) {
+                return; // Keine Bewegung noetig
             }
+
+            targetX = entity.x + vx * deltaTime;
+            targetY = entity.y + vy * deltaTime;
+        }
+        // Modus 2: Target-basiert (bewege dich Richtung targetX/targetY)
+        else if (entity.targetX !== undefined && entity.targetY !== undefined) {
+            const speed = Number(entity.speed) || 0;
+
+            if (speed <= 0) {
+                return;
+            }
+
+            const dist = distanceBetween(entity.x, entity.y, entity.targetX, entity.targetY);
+
+            if (dist < 1) {
+                // Ziel erreicht
+                entity.targetX = undefined;
+                entity.targetY = undefined;
+                return;
+            }
+
+            const step = Math.min(speed * deltaTime, dist);
+            const ratio = step / dist;
+
+            targetX = entity.x + (entity.targetX - entity.x) * ratio;
+            targetY = entity.y + (entity.targetY - entity.y) * ratio;
         } else {
-            interior.menuOpen = false;
+            // Keine Bewegungsdaten - nichts tun
+            return;
         }
 
-        interior.playerNearExit = circleIntersectsRect(
-            player.x, player.y, radius,
-            interior.exitZone.x, interior.exitZone.y,
-            interior.exitZone.width, interior.exitZone.height
-        );
-
-        if (interior.messageTimer > 0) {
-            interior.messageTimer -= 1;
-            if (interior.messageTimer <= 0) {
-                interior.messageText = null;
-            }
-        }
+        // Delegiere an EntityMover (SSOT fuer Positionsaenderungen)
+        this.entityMover.move(entity, targetX, targetY, {
+            ignoreSidewalk: entity.ignoreSidewalkConstraint || false,
+        });
     }
+}
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/systems/CollisionSystem.js
+// ═══════════════════════════════════════════════════════
+/**
+ * CollisionSystem - Verwaltet alle Kollisionspruefungen und -aufloesungen.
+ * Portiert aus OverworldGame: checkBuildingCollisions, resolveCircleRectCollision,
+ * isPointInsideAnyCollider, collectVehicleColliders.
+ */
+
+
+class CollisionSystem {
 
     /**
-     * Verarbeitet Interaktionen im Waffenladen (Menu oeffnen/schliessen).
-     *
-     * @param {object} interior - Interior-Datenobjekt
-     * @param {object} inputSystem - InputSystem
-     * @returns {{ action: string, data?: any }|null} Aktion oder null
+     * @param {Array} buildingColliders - Liste der Gebaeude-Collider
+     * @param {Array} vehicleColliders  - Liste der Fahrzeug-Collider
      */
-    handleInteraction(interior, inputSystem) {
-        if (!interior) {
+    constructor(buildingColliders = [], vehicleColliders = []) {
+        this.buildingColliders = buildingColliders;
+        this.vehicleColliders = vehicleColliders;
+    }
+
+    // ---------------------------------------------------------------
+    //  resolve  -  Entity an Position (newX, newY) gegen alle
+    //              Gebaeude-Collider pruefen und ggf. herausschieben.
+    //              Gibt { x, y } zurueck.
+    //              Portiert aus checkBuildingCollisions() Zeilen 1225-1424.
+    // ---------------------------------------------------------------
+
+    resolve(entity, newX, newY) {
+        const buildings = this.buildingColliders;
+
+        if (!Array.isArray(buildings) || buildings.length === 0) {
+            return { x: newX, y: newY };
+        }
+
+        const epsilon = 0.1;
+
+        const eWidth = Number(entity.width ?? 0);
+        const eHeight = Number(entity.height ?? 0);
+
+        let ex = newX;
+        let ey = newY;
+
+        for (const building of buildings) {
+            const collisionRects = this._getCollisionRects(building);
+
+            for (const rect of collisionRects) {
+                const bx = rect.x;
+                const by = rect.y;
+                const bw = rect.width;
+                const bh = rect.height;
+
+                const intersects =
+                    ex < bx + bw &&
+                    ex + eWidth > bx &&
+                    ey < by + bh &&
+                    ey + eHeight > by;
+
+                if (intersects) {
+                    const overlapLeft = ex + eWidth - bx;
+                    const overlapRight = bx + bw - ex;
+                    const overlapTop = ey + eHeight - by;
+                    const overlapBottom = by + bh - ey;
+
+                    const minOverlapX = Math.min(overlapLeft, overlapRight);
+                    const minOverlapY = Math.min(overlapTop, overlapBottom);
+
+                    if (minOverlapX < minOverlapY) {
+                        if (overlapLeft < overlapRight) {
+                            ex = bx - eWidth - epsilon;
+                        } else {
+                            ex = bx + bw + epsilon;
+                        }
+                    } else {
+                        if (overlapTop < overlapBottom) {
+                            ey = by - eHeight - epsilon;
+                        } else {
+                            ey = by + bh + epsilon;
+                        }
+                    }
+                }
+            }
+        }
+
+        return { x: ex, y: ey };
+    }
+
+    // ---------------------------------------------------------------
+    //  isPointInsideAnyCollider  -  Prueft ob (x, y) in irgendeinem
+    //                               Collider liegt.
+    //  Portiert aus Zeilen 6196-6244.
+    // ---------------------------------------------------------------
+
+    isPointInsideAnyCollider(x, y, colliders) {
+        if (colliders) {
+            // Legacy-Pfad: explizite Collider-Liste (Rects mit left/right/top/bottom oder x/y/width/height)
+            if (!Array.isArray(colliders) || colliders.length === 0) {
+                return false;
+            }
+            for (const rect of colliders) {
+                if (!rect) continue;
+                const left = Number(rect.left ?? rect.x ?? 0);
+                const right = Number(rect.right ?? ((rect.width != null) ? left + Number(rect.width) : left));
+                const top = Number(rect.top ?? rect.y ?? 0);
+                const bottom = Number(rect.bottom ?? ((rect.height != null) ? top + Number(rect.height) : top));
+                if (!Number.isFinite(left) || !Number.isFinite(right) ||
+                    !Number.isFinite(top) || !Number.isFinite(bottom)) continue;
+                if (left > right || top > bottom) continue;
+                if (x >= left && x <= right && y >= top && y <= bottom) return true;
+            }
+            return false;
+        }
+
+        // Standard-Pfad: echte Gebaeude-Collider via _getCollisionRects nutzen
+        const buildings = this.buildingColliders;
+        if (!Array.isArray(buildings) || buildings.length === 0) {
+            return false;
+        }
+        for (const building of buildings) {
+            const rects = this._getCollisionRects(building);
+            for (const rect of rects) {
+                if (x >= rect.x && x <= rect.x + rect.width &&
+                    y >= rect.y && y <= rect.y + rect.height) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // ---------------------------------------------------------------
+    //  circleHitsBuilding  -  Prueft ob ein Kreis (cx, cy, radius)
+    //                         ein Gebaeude trifft. Gibt das Gebaeude
+    //                         oder null zurueck.
+    // ---------------------------------------------------------------
+
+    circleHitsBuilding(cx, cy, radius) {
+        const buildings = this.buildingColliders;
+
+        if (!Array.isArray(buildings) || buildings.length === 0) {
             return null;
         }
 
-        // E-Taste fuer Interaktion
-        if (inputSystem.isKeyPressed('e')) {
-            if (interior.playerNearExit) {
-                return { action: 'exit' };
-            }
+        for (const building of buildings) {
+            const rects = this._getCollisionRects(building);
 
-            if (interior.playerNearVendor && !interior.menuOpen) {
-                interior.menuOpen = true;
-                interior.menuSelection = 0;
-                return { action: 'menuOpen' };
-            }
-        }
+            for (const rect of rects) {
+                const nearestX = clamp(cx, rect.x, rect.x + rect.width);
+                const nearestY = clamp(cy, rect.y, rect.y + rect.height);
+                const dx = cx - nearestX;
+                const dy = cy - nearestY;
 
-        // Menu-Navigation
-        if (interior.menuOpen) {
-            if (inputSystem.isKeyPressed('escape') || inputSystem.isKeyPressed('q')) {
-                interior.menuOpen = false;
-                return { action: 'menuClose' };
-            }
-
-            if (inputSystem.isKeyPressed('arrowup') || inputSystem.isKeyPressed('w')) {
-                interior.menuSelection = Math.max(0, interior.menuSelection - 1);
-                return { action: 'menuNavigate', data: interior.menuSelection };
-            }
-
-            if (inputSystem.isKeyPressed('arrowdown') || inputSystem.isKeyPressed('s')) {
-                interior.menuSelection = Math.min(
-                    interior.menuOptions.length - 1,
-                    interior.menuSelection + 1
-                );
-                return { action: 'menuNavigate', data: interior.menuSelection };
-            }
-
-            if (inputSystem.isKeyPressed('enter') || inputSystem.isKeyPressed(' ')) {
-                const selectedWeapon = interior.menuOptions[interior.menuSelection];
-                return { action: 'purchase', data: selectedWeapon };
+                if (dx * dx + dy * dy <= radius * radius) {
+                    return building;
+                }
             }
         }
 
         return null;
     }
 
-    // -----------------------------------------------------------------------
-    // Private Hilfsmethoden
-    // -----------------------------------------------------------------------
+    // ---------------------------------------------------------------
+    //  getEntityCollisions  -  Gibt alle Collider zurueck, mit denen
+    //                          die Entity gerade kollidiert.
+    // ---------------------------------------------------------------
+
+    getEntityCollisions(entity) {
+        const result = [];
+
+        const eWidth = Number(entity.width ?? 0);
+        const eHeight = Number(entity.height ?? 0);
+        const ex = Number(entity.x ?? 0);
+        const ey = Number(entity.y ?? 0);
+
+        const allColliders = this._getAllColliderRects();
+
+        for (const rect of allColliders) {
+            const intersects =
+                ex < rect.x + rect.width &&
+                ex + eWidth > rect.x &&
+                ey < rect.y + rect.height &&
+                ey + eHeight > rect.y;
+
+            if (intersects) {
+                result.push(rect);
+            }
+        }
+
+        return result;
+    }
+
+    // ---------------------------------------------------------------
+    //  updateVehicleColliders  -  Fahrzeug-Collider pro Frame
+    //                             aktualisieren.
+    //  Portiert aus collectVehicleColliders() Zeilen 5962-6021.
+    // ---------------------------------------------------------------
+
+    updateVehicleColliders(vehicles) {
+        if (!Array.isArray(vehicles)) {
+            this.vehicleColliders = [];
+            return;
+        }
+
+        const colliders = [];
+
+        for (const vehicle of vehicles) {
+            if (!vehicle) {
+                continue;
+            }
+
+            const width = Number(vehicle.width ?? 0);
+            const height = Number(vehicle.height ?? 0);
+
+            if (!(width > 0 && height > 0)) {
+                continue;
+            }
+
+            const halfWidth = width / 2;
+            const halfHeight = height / 2;
+
+            const centerX = Number(vehicle.x);
+            const centerY = Number(vehicle.y);
+
+            if (!Number.isFinite(centerX) || !Number.isFinite(centerY)) {
+                continue;
+            }
+
+            colliders.push({
+                type: 'vehicle',
+                source: vehicle,
+                left: centerX - halfWidth,
+                right: centerX + halfWidth,
+                top: centerY - halfHeight,
+                bottom: centerY + halfHeight,
+                // Auch als x/y/width/height fuer einheitlichen Zugriff
+                x: centerX - halfWidth,
+                y: centerY - halfHeight,
+                width: width,
+                height: height,
+            });
+        }
+
+        this.vehicleColliders = colliders;
+    }
+
+    // ---------------------------------------------------------------
+    //  resolveCircleRectCollision  -  Kreis-Rechteck-Kollision
+    //                                 aufloesen.
+    //  Portiert aus Zeilen 6022-6195.
+    // ---------------------------------------------------------------
+
+    resolveCircleRectCollision(x, y, radius, rect) {
+        if (!rect) {
+            return { x, y, collided: false };
+        }
+
+        const padding = Number(rect.padding ?? 0) || 0;
+
+        const baseLeft = Number(rect.left ?? rect.x ?? 0);
+        const baseRight = Number(rect.right ?? ((rect.width != null) ? baseLeft + Number(rect.width) : baseLeft));
+        const baseTop = Number(rect.top ?? rect.y ?? 0);
+        const baseBottom = Number(rect.bottom ?? ((rect.height != null) ? baseTop + Number(rect.height) : baseTop));
+
+        if (!Number.isFinite(baseLeft) || !Number.isFinite(baseRight) ||
+            !Number.isFinite(baseTop) || !Number.isFinite(baseBottom)) {
+            return { x, y, collided: false };
+        }
+
+        let left = baseLeft - padding;
+        let right = baseRight + padding;
+        let top = baseTop - padding;
+        let bottom = baseBottom + padding;
+
+        if (left > right) {
+            const swap = left;
+            left = right;
+            right = swap;
+        }
+
+        if (top > bottom) {
+            const swap = top;
+            top = bottom;
+            bottom = swap;
+        }
+
+        // Fall 1: Kreismitte liegt innerhalb des Rechtecks
+        const insideRect = x >= left && x <= right && y >= top && y <= bottom;
+
+        if (insideRect) {
+            const distanceLeft = x - left;
+            const distanceRight = right - x;
+            const distanceTop = y - top;
+            const distanceBottom = bottom - y;
+
+            const minDistance = Math.min(distanceLeft, distanceRight, distanceTop, distanceBottom);
+
+            if (minDistance === distanceLeft) {
+                x = left - radius;
+            } else if (minDistance === distanceRight) {
+                x = right + radius;
+            } else if (minDistance === distanceTop) {
+                y = top - radius;
+            } else {
+                y = bottom + radius;
+            }
+
+            return { x, y, collided: true };
+        }
+
+        // Fall 2: Kreismitte ausserhalb - naechsten Punkt auf Rechteck finden
+        const nearestX = Math.max(left, Math.min(x, right));
+        const nearestY = Math.max(top, Math.min(y, bottom));
+
+        const dx = x - nearestX;
+        const dy = y - nearestY;
+        const distSq = dx * dx + dy * dy;
+        const radiusSq = radius * radius;
+
+        // Sonderfall: Punkt liegt genau auf der Kante
+        if (distSq === 0) {
+            const distanceLeft = Math.abs(x - left);
+            const distanceRight = Math.abs(x - right);
+            const distanceTop = Math.abs(y - top);
+            const distanceBottom = Math.abs(y - bottom);
+
+            const minDistance = Math.min(distanceLeft, distanceRight, distanceTop, distanceBottom);
+
+            if (minDistance === distanceLeft) {
+                x = left - radius;
+            } else if (minDistance === distanceRight) {
+                x = right + radius;
+            } else if (minDistance === distanceTop) {
+                y = top - radius;
+            } else {
+                y = bottom + radius;
+            }
+
+            return { x, y, collided: true };
+        }
+
+        // Keine Kollision wenn Abstand >= Radius
+        if (distSq >= radiusSq || radius <= 0) {
+            return { x, y, collided: false };
+        }
+
+        const dist = Math.sqrt(distSq);
+
+        if (!Number.isFinite(dist) || dist === 0) {
+            return { x, y, collided: false };
+        }
+
+        const overlap = radius - dist;
+
+        if (overlap <= 0) {
+            return { x, y, collided: false };
+        }
+
+        const nx = dx / dist;
+        const ny = dy / dist;
+
+        x += nx * overlap;
+        y += ny * overlap;
+
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+            return { x: nearestX, y: nearestY, collided: true };
+        }
+
+        return { x, y, collided: true };
+    }
+
+    // ---------------------------------------------------------------
+    //  Private Hilfsmethoden
+    // ---------------------------------------------------------------
 
     /**
-     * Prueft ob ein Kreis ein Hindernis trifft.
+     * Extrahiert die effektiven Kollisions-Rechtecke aus einem
+     * Gebaeude-Objekt (collisionRects oder Fallback auf Basis-Rect).
+     */
+    _getCollisionRects(building) {
+        if (!building) {
+            return [];
+        }
+
+        const basePadding = Math.max(0, building.collisionPadding ?? 0);
+
+        const baseX = Number(building.x ?? 0);
+        const baseY = Number(building.y ?? 0);
+        const baseWidth = Math.max(0, Number(building.width ?? 0));
+        const baseHeight = Math.max(0, Number(building.height ?? 0));
+
+        const baseRect = {
+            x: baseX + basePadding,
+            y: baseY + basePadding,
+            width: Math.max(0, baseWidth - basePadding * 2),
+            height: Math.max(0, baseHeight - basePadding * 2),
+        };
+
+        const rects = [];
+
+        if (Array.isArray(building.collisionRects) && building.collisionRects.length > 0) {
+            for (const rect of building.collisionRects) {
+                if (!rect) {
+                    continue;
+                }
+
+                const rawWidth = Number(rect.width ?? 0);
+                const rawHeight = Number(rect.height ?? 0);
+
+                if (!(rawWidth > 0 && rawHeight > 0)) {
+                    continue;
+                }
+
+                const rectPadding = Math.max(0, rect.padding ?? 0);
+                const paddedWidth = rawWidth - rectPadding * 2;
+                const paddedHeight = rawHeight - rectPadding * 2;
+
+                if (!(paddedWidth > 0 && paddedHeight > 0)) {
+                    continue;
+                }
+
+                const resolvedX = Number(rect.x ?? baseX);
+                const resolvedY = Number(rect.y ?? baseY);
+
+                rects.push({
+                    x: resolvedX + rectPadding,
+                    y: resolvedY + rectPadding,
+                    width: paddedWidth,
+                    height: paddedHeight,
+                    source: building,
+                });
+            }
+        }
+
+        if (rects.length === 0 && baseRect.width > 0 && baseRect.height > 0) {
+            baseRect.source = building;
+            rects.push(baseRect);
+        }
+
+        return rects;
+    }
+
+    /**
+     * Sammelt alle Collider-Rects (Gebaeude + Fahrzeuge) als
+     * einheitliche {x, y, width, height} Objekte.
+     */
+    _getAllColliderRects() {
+        const rects = [];
+
+        // Gebaeude
+        if (Array.isArray(this.buildingColliders)) {
+            for (const building of this.buildingColliders) {
+                const bRects = this._getCollisionRects(building);
+                for (const r of bRects) {
+                    rects.push(r);
+                }
+            }
+        }
+
+        // Fahrzeuge
+        if (Array.isArray(this.vehicleColliders)) {
+            for (const vc of this.vehicleColliders) {
+                if (!vc) {
+                    continue;
+                }
+                rects.push({
+                    x: Number(vc.x ?? vc.left ?? 0),
+                    y: Number(vc.y ?? vc.top ?? 0),
+                    width: Number(vc.width ?? (Number(vc.right ?? 0) - Number(vc.left ?? 0))),
+                    height: Number(vc.height ?? (Number(vc.bottom ?? 0) - Number(vc.top ?? 0))),
+                    type: 'vehicle',
+                    source: vc.source ?? vc,
+                });
+            }
+        }
+
+        return rects;
+    }
+}
+
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/systems/CombatSystem.js
+// ═══════════════════════════════════════════════════════
+/**
+ * CombatSystem - Verwaltet Projektile, Treffer und Kampf-Logik.
+ * Portiert aus gta_old/overworld/js/overworld.js:
+ *   processPlayerFiring()            (Z.2991-3017)
+ *   spawnProjectilesForWeapon()      (Z.3019-3036)
+ *   createProjectile()               (Z.3038-3064)
+ *   updateProjectiles()              (Z.3065-3103)
+ *   checkProjectileNpcCollision()    (Z.3180-3201)
+ *   onNpcHit()                       (Z.3203-3214)
+ *   killNpc()                        (Z.3216-3232)
+ *   spawnBloodDecal()                (Z.3234-3243)
+ */
+
+
+/** Maximale Anzahl an Blood-Decals bevor aelteste entfernt werden */
+const MAX_BLOOD_DECALS = 150;
+
+/** Offset vom Spielerzentrum zur Muendung in Pixeln */
+const MUZZLE_OFFSET = 18;
+
+class CombatSystem {
+
+    /**
+     * @param {import('../core/EventBus.js').EventBus} eventBus
+     * @param {Map<string, object>} weaponCatalog - Ergebnis von createWeaponCatalog()
+     */
+    constructor(eventBus, weaponCatalog) {
+        this.eventBus = eventBus;
+        this.weaponCatalog = weaponCatalog;
+
+        /** @type {Array<object>} Aktive Projektile */
+        this.projectiles = [];
+
+        /** @type {Array<object>} Blut-Decals auf dem Boden */
+        this.bloodDecals = [];
+
+        /** Feuer-Zustand (Timing fuer Fire-Rate) */
+        this._lastShotAt = 0;
+    }
+
+    // ───────────────────── Public API ─────────────────────
+
+    /**
+     * Setzt die Polizei-Referenz fuer Projektil-Kollision.
+     * @param {Array<object>} policeOfficers
+     */
+    setPoliceOfficers(policeOfficers) {
+        this._policeOfficers = policeOfficers;
+    }
+
+    /**
+     * Haupt-Update pro Frame.
+     * @param {import('../entities/Player.js').Player} player
+     * @param {Array<import('../entities/NPC.js').NPC>} npcs
+     * @param {number} _deltaTime - (reserviert, aktuell nicht genutzt)
+     */
+    update(player, npcs, _deltaTime) {
+        this._updateProjectiles(npcs);
+    }
+
+    /**
+     * Versucht mit der aktuellen Waffe zu feuern.
+     * Portiert aus processPlayerFiring() (Z.2991-3017).
+     *
+     * @param {import('../entities/Player.js').Player} player
+     * @param {{x: number, y: number}} mouseWorldPos - Maus-Weltkoordinaten
+     * @param {object} fireInput - { justPressed: boolean, active: boolean }
+     * @param {number} now - performance.now()
+     */
+    fireWeapon(player, mouseWorldPos, fireInput, now) {
+        const weapon = getWeaponDefinition(this.weaponCatalog, player.currentWeaponId);
+
+        if (!weapon || !player.weaponInventory.has(weapon.id)) {
+            return;
+        }
+
+        if (!fireInput.active && !fireInput.justPressed) {
+            return;
+        }
+
+        if (!weapon.automatic && !fireInput.justPressed) {
+            return;
+        }
+
+        const interval = weapon.fireRate ?? 250;
+
+        if (now - this._lastShotAt < interval) {
+            return;
+        }
+
+        const muzzle = player.getMuzzlePosition();
+        this._spawnProjectilesForWeapon(weapon, muzzle, mouseWorldPos);
+
+        this._lastShotAt = now;
+    }
+
+    // ───────────────────── Projektil-Erzeugung ─────────────────────
+
+    /**
+     * Erzeugt Projektil(e) fuer eine Waffe (inkl. Pellets bei Shotgun).
+     * Portiert aus spawnProjectilesForWeapon() (Z.3019-3036).
+     *
+     * @param {object} weapon - Waffendefinition aus dem Katalog
+     * @param {{x: number, y: number}} muzzle - Muendungsposition
+     * @param {{x: number, y: number}} target - Zielposition (Maus-Welt)
      * @private
      */
-    static _circleHitsAnyObstacle(x, y, radius, obstacles) {
-        if (!Array.isArray(obstacles)) {
+    _spawnProjectilesForWeapon(weapon, muzzle, target) {
+        const targetX = target.x ?? muzzle.x;
+        const targetY = target.y ?? muzzle.y;
+
+        let angle = Math.atan2(targetY - muzzle.y, targetX - muzzle.x);
+
+        if (!Number.isFinite(angle)) {
+            angle = 0;
+        }
+
+        const spread = weapon.spread ?? 0;
+        const pelletCount = weapon.pellets && weapon.pellets > 1 ? weapon.pellets : 1;
+
+        for (let i = 0; i < pelletCount; i++) {
+            const offset = spread ? (Math.random() - 0.5) * spread * 2 : 0;
+            this._createProjectile(weapon, muzzle.x, muzzle.y, angle + offset);
+        }
+    }
+
+    /**
+     * Erstellt ein einzelnes Projektil.
+     * Portiert aus createProjectile() (Z.3038-3064).
+     *
+     * @param {object} weapon
+     * @param {number} startX
+     * @param {number} startY
+     * @param {number} angle
+     * @private
+     */
+    _createProjectile(weapon, startX, startY, angle) {
+        const speed = weapon.projectileSpeed ?? 10;
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+
+        const originX = startX + Math.cos(angle) * MUZZLE_OFFSET;
+        const originY = startY + Math.sin(angle) * MUZZLE_OFFSET;
+
+        const projectile = {
+            x: originX,
+            y: originY,
+            vx,
+            vy,
+            speed,
+            damage: weapon.damage ?? 10,
+            weaponId: weapon.id,
+            color: weapon.displayColor ?? '#ffd166',
+            maxDistance: weapon.range ?? 600,
+            distance: 0,
+            createdAt: performance.now(),
+        };
+
+        this.projectiles.push(projectile);
+    }
+
+    // ───────────────────── Projektil-Update ─────────────────────
+
+    /**
+     * Bewegt alle Projektile und entfernt abgelaufene.
+     * Portiert aus updateProjectiles() (Z.3065-3103).
+     *
+     * @param {Array<import('../entities/NPC.js').NPC>} npcs
+     * @private
+     */
+    _updateProjectiles(npcs) {
+        if (!this.projectiles.length) {
+            return;
+        }
+
+        const survivors = [];
+
+        for (const projectile of this.projectiles) {
+            projectile.x += projectile.vx;
+            projectile.y += projectile.vy;
+            projectile.distance += projectile.speed;
+
+            let expired = projectile.distance >= projectile.maxDistance;
+
+            if (!expired) {
+                if (this._checkProjectileNpcCollision(projectile, npcs)) {
+                    expired = true;
+                }
+            }
+
+            // Polizei-Treffer pruefen
+            if (!expired && Array.isArray(this._policeOfficers)) {
+                if (this._checkProjectilePoliceCollision(projectile, this._policeOfficers)) {
+                    expired = true;
+                }
+            }
+
+            if (!expired) {
+                survivors.push(projectile);
+            }
+        }
+
+        this.projectiles = survivors;
+    }
+
+    // ───────────────────── Kollisionserkennung ─────────────────────
+
+    /**
+     * Prueft ob ein Projektil einen NPC trifft.
+     * Portiert aus checkProjectileNpcCollision() (Z.3180-3201).
+     *
+     * @param {object} projectile
+     * @param {Array<import('../entities/NPC.js').NPC>} npcs
+     * @returns {boolean} true wenn Treffer
+     * @private
+     */
+    _checkProjectileNpcCollision(projectile, npcs) {
+        if (!npcs || !Array.isArray(npcs)) {
             return false;
         }
 
-        for (const obstacle of obstacles) {
-            if (circleIntersectsRect(x, y, radius, obstacle.x, obstacle.y, obstacle.width, obstacle.height)) {
+        for (const npc of npcs) {
+            if (!npc || npc.dead) {
+                continue;
+            }
+
+            const radius = npc.hitRadius ?? 14;
+            const dx = projectile.x - npc.x;
+            const dy = projectile.y - npc.y;
+
+            if (dx * dx + dy * dy <= radius * radius) {
+                this._onNpcHit(npc, projectile);
                 return true;
             }
         }
 
         return false;
     }
+
+    // ───────────────────── Polizei-Kollision ─────────────────────
+
+    /**
+     * Prueft ob ein Projektil einen Polizisten trifft.
+     * @param {object} projectile
+     * @param {Array<object>} officers
+     * @returns {boolean}
+     * @private
+     */
+    _checkProjectilePoliceCollision(projectile, officers) {
+        for (const cop of officers) {
+            if (!cop || cop.dead) continue;
+
+            const radius = cop.hitRadius ?? 14;
+            const dx = projectile.x - cop.x;
+            const dy = projectile.y - cop.y;
+
+            if (dx * dx + dy * dy <= radius * radius) {
+                this._onPoliceHit(cop, projectile);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Verarbeitet einen Treffer auf einen Polizisten.
+     * @param {object} cop
+     * @param {object} projectile
+     * @private
+     */
+    _onPoliceHit(cop, projectile) {
+        cop.health = Math.max(0, cop.health - projectile.damage);
+
+        this.eventBus.emit('police:hit', { cop, damage: projectile.damage });
+
+        if (cop.health <= 0) {
+            cop.dead = true;
+            cop.health = 0;
+            cop.moving = false;
+            cop.animationPhase = 0;
+            cop.deathRotation = (Math.random() * Math.PI) - Math.PI / 2;
+            this.spawnBloodDecal(cop.x, cop.y);
+            this.eventBus.emit('police:killed', { cop });
+        }
+    }
+
+    // ───────────────────── Treffer-Verarbeitung ─────────────────────
+
+    /**
+     * Verarbeitet einen Treffer auf einen NPC.
+     * Portiert aus onNpcHit() (Z.3203-3214).
+     *
+     * @param {import('../entities/NPC.js').NPC} npc
+     * @param {object} projectile
+     * @private
+     */
+    _onNpcHit(npc, projectile) {
+        const maxHealth = npc.maxHealth ?? 100;
+
+        npc.health = Math.max(0, (npc.health ?? maxHealth) - projectile.damage);
+
+        const panicDuration = 180 + Math.floor(Math.random() * 120);
+        npc.panicTimer = Math.max(npc.panicTimer ?? 0, panicDuration);
+
+        this.eventBus.emit('npc:hit', { npc, damage: projectile.damage, weaponId: projectile.weaponId });
+
+        if (npc.health <= 0) {
+            this._killNpc(npc);
+        }
+    }
+
+    /**
+     * Toetet einen NPC.
+     * Portiert aus killNpc() (Z.3216-3232).
+     *
+     * @param {import('../entities/NPC.js').NPC} npc
+     * @private
+     */
+    _killNpc(npc) {
+        if (npc.dead) {
+            return;
+        }
+
+        npc.dead = true;
+        npc.health = 0;
+        npc.moving = false;
+        npc.panicTimer = 0;
+        npc.waitTimer = 0;
+        npc.animationPhase = 0;
+        npc.isCrossing = false;
+        npc.waitingForCrosswalk = null;
+        npc.deathRotation = (Math.random() * Math.PI) - Math.PI / 2;
+
+        this.spawnBloodDecal(npc.x, npc.y);
+
+        this.eventBus.emit('npc:killed', { npc });
+    }
+
+    // ───────────────────── Blood-Decals ─────────────────────
+
+    /**
+     * Erzeugt einen Blut-Decal an der Position.
+     * Portiert aus spawnBloodDecal() (Z.3234-3243).
+     *
+     * @param {number} x
+     * @param {number} y
+     */
+    spawnBloodDecal(x, y) {
+        this.bloodDecals.push({
+            x,
+            y,
+            radius: 18 + Math.random() * 12,
+            createdAt: performance.now(),
+        });
+
+        if (this.bloodDecals.length > MAX_BLOOD_DECALS) {
+            this.bloodDecals.shift();
+        }
+    }
 }
 
-WeaponShop;
 
 
 
 // ═══════════════════════════════════════════════════════
-// js/interiors/Casino.js
+// js/systems/PoliceSystem.js
 // ═══════════════════════════════════════════════════════
 /**
- * Casino - Logik fuer den Starlight Casino Tower.
+ * PoliceSystem - Verwaltet Polizei-Spawning, Verfolgung, Taser, Verhaftung,
+ * Eskalation und SWAT-Einsatz.
  *
- * Portiert aus gta_old/overworld/js/overworld.js:
- *   convertDollarsToCredits()    Zeilen 2708-2726
- *   convertCreditsToDollars()    Zeilen 2728-2746
- *   loadCasinoCredits()          Zeilen 2657-2678
- *   storeCasinoCredits()         Zeilen 2681-2694
- *   refreshCasinoCreditsCache()  Zeilen 2696-2705
- *   handleCasinoEntry()          Zeilen 743-749
- *   Casino-UI-Logik              Zeilen 751-920
- *
- * SSOT: Alle Casino-Konvertierungs- und Credits-Logik hier zentralisiert.
+ * SSOT fuer alle Polizei-Konstanten und -Logik.
  */
 
-/** Standard-Wechselkurs: 1 Dollar = N Credits */
-const DEFAULT_CREDIT_RATE = 10;
 
-/** LocalStorage-Key fuer Credits */
-const CREDITS_STORAGE_KEY = "casinoCredits";
+// ── Polizeistation (Respawn-Punkt) ──────────────────────────────────────
+const POLICE_STATION_POS = { x: 1800, y: 400 };
 
-class Casino {
+// ── Paletten ────────────────────────────────────────────────────────────
+const POLICE_PALETTE = {
+    head: '#f2d6c1',
+    torso: '#1a3a6b',
+    limbs: '#152d54',
+    accent: '#2563eb',
+    hair: '#1a1a1a',
+    eyes: '#ffffff',
+    pupil: '#1b1b1b',
+};
 
+const SWAT_PALETTE = {
+    head: '#2a2a2a',
+    torso: '#1a1a1a',
+    limbs: '#0d0d0d',
+    accent: '#333333',
+    hair: '#1a1a1a',
+    eyes: '#c0c0c0',
+    pupil: '#222222',
+};
+
+// ── Geschwindigkeiten ───────────────────────────────────────────────────
+const POLICE_CHASE_SPEED = 1.8;
+const SWAT_CHASE_SPEED = 2.2;
+const POLICE_WALK_ANIM_SPEED = 0.1;
+
+// ── Taser ───────────────────────────────────────────────────────────────
+const TASER_RANGE = 180;
+const TASER_COOLDOWN = 4000;
+const TASER_PROJECTILE_SPEED = 8;
+const TASER_HIT_RADIUS = 18;
+
+// ── Stun / Slow ─────────────────────────────────────────────────────────
+const STUN_DURATION = 2000;
+const SLOW_DURATION = 2000;
+const SLOW_FACTOR = 0.4;
+
+// ── Verhaftung ──────────────────────────────────────────────────────────
+const ARREST_RADIUS = 45;
+const ARREST_TIME = 5000;
+
+// ── Spawning ────────────────────────────────────────────────────────────
+const POLICE_SPAWN_DISTANCE_MIN = 280;
+const POLICE_SPAWN_DISTANCE_MAX = 400;
+const SPAWN_DELAY_INITIAL = 2000;
+const SPAWN_INTERVAL = 4000;
+const MAX_POLICE_TOTAL = 8;
+
+// ── Gesundheit ──────────────────────────────────────────────────────────
+const POLICE_HEALTH = 150;
+const SWAT_HEALTH = 300;
+
+// ── Eskalation ──────────────────────────────────────────────────────────
+const ESCALATION_STAGES = [
+    { time: 0,     weaponId: 'pistol',       maxPolice: 2, fireRate: 900,  spawnSwat: false },
+    { time: 20000, weaponId: 'smg',          maxPolice: 3, fireRate: 350,  spawnSwat: false },
+    { time: 45000, weaponId: 'assaultRifle', maxPolice: 5, fireRate: 280,  spawnSwat: true  },
+];
+
+// ── Polizei-Schussverhalten ─────────────────────────────────────────────
+const POLICE_GUN_RANGE = 350;
+const POLICE_BULLET_SPREAD = 0.08;
+
+let _nextPoliceId = 1;
+
+class PoliceSystem {
     /**
-     * @param {object} [config={}]
-     * @param {number} [config.creditRate=10] - Wechselkurs Dollar -> Credits
+     * @param {import('../core/EventBus.js').EventBus} eventBus
+     * @param {import('../core/EntityMover.js').EntityMover} entityMover
+     * @param {Map<string, object>} weaponCatalog
      */
-    constructor(config = {}) {
-        this.creditRate = config.creditRate ?? DEFAULT_CREDIT_RATE;
+    constructor(eventBus, entityMover, weaponCatalog) {
+        this.eventBus = eventBus;
+        this.entityMover = entityMover;
+        this.weaponCatalog = weaponCatalog;
+
+        /** @type {Array<object>} Aktive Polizisten */
+        this.officers = [];
+
+        /** @type {Array<object>} Polizei-Projektile (Taser + Kugeln) */
+        this.projectiles = [];
+
+        /** Wanted-Status */
+        this.wanted = false;
+        this.wantedSince = 0;
+        this.policeShootBack = false;
+        this.shootBackSince = 0;
+
+        /** Spawn-Timing */
+        this._spawnDelayRemaining = 0;
+        this._lastSpawnAt = 0;
+
+        /** Verhaftungs-Fortschritt (ms) */
+        this.arrestProgress = 0;
+
+        /** Aktueller Eskalations-Index */
+        this._escalationIndex = 0;
     }
 
-    // -----------------------------------------------------------------------
-    // Credits-Persistenz (LocalStorage)
-    // -----------------------------------------------------------------------
+    // =====================================================================
+    //  Public API
+    // =====================================================================
 
     /**
-     * Laedt Casino-Credits aus dem LocalStorage.
-     *
-     * @param {number} [fallback=0] - Rueckgabewert wenn nichts gespeichert
+     * Aktiviert den Wanted-Status (z.B. nach NPC-Kill).
+     * @param {number} now - performance.now()
+     */
+    setWanted(now) {
+        if (this.wanted) return;
+        this.wanted = true;
+        this.wantedSince = now;
+        this._spawnDelayRemaining = SPAWN_DELAY_INITIAL;
+        this._escalationIndex = 0;
+        this.policeShootBack = false;
+        this.arrestProgress = 0;
+    }
+
+    /**
+     * Wird aufgerufen wenn ein Polizist vom Spieler getroffen wird.
+     * @param {number} now
+     */
+    onPoliceShot(now) {
+        if (!this.policeShootBack) {
+            this.policeShootBack = true;
+            this.shootBackSince = now;
+        }
+    }
+
+    /**
+     * Setzt den gesamten Polizei-Zustand zurueck (z.B. nach Respawn).
+     */
+    reset() {
+        this.officers = [];
+        this.projectiles = [];
+        this.wanted = false;
+        this.wantedSince = 0;
+        this.policeShootBack = false;
+        this.shootBackSince = 0;
+        this._spawnDelayRemaining = 0;
+        this._lastSpawnAt = 0;
+        this.arrestProgress = 0;
+        this._escalationIndex = 0;
+    }
+
+    /**
+     * Haupt-Update pro Frame.
+     * @param {import('../entities/Player.js').Player} player
+     * @param {number} deltaTime - Sekunden seit letztem Frame
+     * @param {number} now - performance.now()
+     * @returns {{ wasted: boolean }} Ob der Spieler verhaftet/getoetet wurde
+     */
+    update(player, deltaTime, now) {
+        if (!this.wanted) {
+            return { wasted: false };
+        }
+
+        const deltaMs = deltaTime * 1000;
+
+        // Spawn-Delay
+        if (this._spawnDelayRemaining > 0) {
+            this._spawnDelayRemaining -= deltaMs;
+            if (this._spawnDelayRemaining > 0) {
+                return { wasted: false };
+            }
+        }
+
+        // Eskalation aktualisieren
+        this._updateEscalation(now);
+
+        // Polizisten spawnen
+        this._spawnIfNeeded(player, now);
+
+        // Polizisten-KI
+        let anyNearby = false;
+        for (const cop of this.officers) {
+            if (cop.dead) continue;
+            this._updateOfficerAI(cop, player, now);
+            if (this._distanceTo(cop, player) <= ARREST_RADIUS) {
+                anyNearby = true;
+            }
+        }
+
+        // Verhaftungs-Timer
+        if (anyNearby && player.stunTimer > 0) {
+            this.arrestProgress += deltaMs;
+        } else if (anyNearby) {
+            this.arrestProgress += deltaMs * 0.3;
+        } else {
+            this.arrestProgress = Math.max(0, this.arrestProgress - deltaMs * 0.5);
+        }
+
+        if (this.arrestProgress >= ARREST_TIME) {
+            return { wasted: true, reason: 'arrested' };
+        }
+
+        // Projektile aktualisieren
+        const playerHit = this._updateProjectiles(player);
+        if (playerHit.taser) {
+            player.stunTimer = STUN_DURATION;
+            player.slowTimer = SLOW_DURATION;
+        }
+        if (playerHit.damage > 0) {
+            player.health = Math.max(0, player.health - playerHit.damage);
+            if (player.health <= 0) {
+                return { wasted: true, reason: 'killed' };
+            }
+        }
+
+        // Tote Polizisten aufraeuemen
+        this.officers = this.officers.filter(c => !c.dead || c._deathAge < 10000);
+        for (const cop of this.officers) {
+            if (cop.dead) {
+                cop._deathAge = (cop._deathAge ?? 0) + deltaMs;
+            }
+        }
+
+        return { wasted: false };
+    }
+
+    // =====================================================================
+    //  Eskalation
+    // =====================================================================
+
+    /** @param {number} now */
+    _updateEscalation(now) {
+        const elapsed = now - this.wantedSince;
+        for (let i = ESCALATION_STAGES.length - 1; i >= 0; i--) {
+            if (elapsed >= ESCALATION_STAGES[i].time) {
+                this._escalationIndex = i;
+                break;
+            }
+        }
+    }
+
+    /** @returns {object} Aktuelle Eskalationsstufe */
+    _getCurrentStage() {
+        return ESCALATION_STAGES[this._escalationIndex] ?? ESCALATION_STAGES[0];
+    }
+
+    // =====================================================================
+    //  Spawning
+    // =====================================================================
+
+    /**
+     * @param {object} player
+     * @param {number} now
+     */
+    _spawnIfNeeded(player, now) {
+        const stage = this._getCurrentStage();
+        const aliveCount = this.officers.filter(c => !c.dead).length;
+
+        if (aliveCount >= stage.maxPolice || aliveCount >= MAX_POLICE_TOTAL) return;
+        if (now - this._lastSpawnAt < SPAWN_INTERVAL) return;
+
+        const shouldSpawnSwat = stage.spawnSwat && !this.officers.some(c => c.type === 'swat' && !c.dead);
+        const type = shouldSpawnSwat ? 'swat' : 'police';
+
+        const cop = this._createOfficer(player, type, stage.weaponId);
+        if (cop) {
+            this.officers.push(cop);
+            this._lastSpawnAt = now;
+        }
+    }
+
+    /**
+     * Erstellt einen Polizisten an einer zufaelligen Position um den Spieler.
+     * @param {object} player
+     * @param {'police'|'swat'} type
+     * @param {string} weaponId
+     * @returns {object|null}
+     */
+    _createOfficer(player, type, weaponId) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = POLICE_SPAWN_DISTANCE_MIN + Math.random() * (POLICE_SPAWN_DISTANCE_MAX - POLICE_SPAWN_DISTANCE_MIN);
+        const x = player.x + Math.cos(angle) * dist;
+        const y = player.y + Math.sin(angle) * dist;
+
+        const isSwat = type === 'swat';
+        const palette = isSwat ? SWAT_PALETTE : POLICE_PALETTE;
+
+        return {
+            id: _nextPoliceId++,
+            x, y,
+            width: 30,
+            height: 30,
+            speed: isSwat ? SWAT_CHASE_SPEED : POLICE_CHASE_SPEED,
+            health: isSwat ? SWAT_HEALTH : POLICE_HEALTH,
+            maxHealth: isSwat ? SWAT_HEALTH : POLICE_HEALTH,
+            dead: false,
+            moving: false,
+            hidden: false,
+            type,
+            isPolice: true,
+            parts: buildHumanoidParts(palette),
+            palette,
+            animationPhase: 0,
+            hitRadius: 14,
+            weaponId,
+            taserCooldownUntil: 0,
+            gunCooldownUntil: 0,
+            nearPlayerTimer: 0,
+            deathRotation: 0,
+            stayOnSidewalks: false,
+        };
+    }
+
+    // =====================================================================
+    //  KI-Update pro Polizist
+    // =====================================================================
+
+    /**
+     * @param {object} cop
+     * @param {object} player
+     * @param {number} now
+     */
+    _updateOfficerAI(cop, player, now) {
+        const dx = player.x - cop.x;
+        const dy = player.y - cop.y;
+        const dist = Math.hypot(dx, dy);
+
+        // Bewegung zum Spieler
+        if (dist > 20) {
+            const ratio = cop.speed / dist;
+            const targetX = cop.x + dx * ratio;
+            const targetY = cop.y + dy * ratio;
+            this.entityMover.move(cop, targetX, targetY, { ignoreSidewalk: true });
+            cop.moving = true;
+        } else {
+            cop.moving = false;
+        }
+
+        // Animation
+        if (cop.moving) {
+            cop.animationPhase = (cop.animationPhase + cop.speed * POLICE_WALK_ANIM_SPEED) % (Math.PI * 2);
+        } else {
+            cop.animationPhase *= 0.85;
+        }
+
+        // Taser (immer verfuegbar)
+        if (dist <= TASER_RANGE && now >= cop.taserCooldownUntil) {
+            this._fireTaser(cop, player, now);
+            cop.taserCooldownUntil = now + TASER_COOLDOWN;
+        }
+
+        // Schusswaffen (nur wenn provoziert)
+        if (this.policeShootBack && dist <= POLICE_GUN_RANGE) {
+            const stage = this._getCurrentStage();
+            const weapon = getWeaponDefinition(this.weaponCatalog, cop.weaponId);
+            if (weapon && now >= cop.gunCooldownUntil) {
+                this._fireGun(cop, player, weapon, now);
+                cop.gunCooldownUntil = now + (stage.fireRate ?? weapon.fireRate ?? 500);
+            }
+        }
+    }
+
+    // =====================================================================
+    //  Taser
+    // =====================================================================
+
+    /**
+     * @param {object} cop
+     * @param {object} player
+     * @param {number} now
+     */
+    _fireTaser(cop, player, now) {
+        const dx = player.x - cop.x;
+        const dy = player.y - cop.y;
+        const angle = Math.atan2(dy, dx);
+
+        this.projectiles.push({
+            x: cop.x + Math.cos(angle) * 16,
+            y: cop.y + Math.sin(angle) * 16,
+            vx: Math.cos(angle) * TASER_PROJECTILE_SPEED,
+            vy: Math.sin(angle) * TASER_PROJECTILE_SPEED,
+            speed: TASER_PROJECTILE_SPEED,
+            type: 'taser',
+            damage: 0,
+            color: '#ffee00',
+            maxDistance: TASER_RANGE + 40,
+            distance: 0,
+            createdAt: now,
+        });
+    }
+
+    // =====================================================================
+    //  Schusswaffen
+    // =====================================================================
+
+    /**
+     * @param {object} cop
+     * @param {object} player
+     * @param {object} weapon
+     * @param {number} now
+     */
+    _fireGun(cop, player, weapon, now) {
+        const dx = player.x - cop.x;
+        const dy = player.y - cop.y;
+        const baseAngle = Math.atan2(dy, dx);
+        const spread = POLICE_BULLET_SPREAD;
+        const angle = baseAngle + (Math.random() - 0.5) * spread * 2;
+        const projSpeed = weapon.projectileSpeed ?? 10;
+
+        this.projectiles.push({
+            x: cop.x + Math.cos(angle) * 16,
+            y: cop.y + Math.sin(angle) * 16,
+            vx: Math.cos(angle) * projSpeed,
+            vy: Math.sin(angle) * projSpeed,
+            speed: projSpeed,
+            type: 'bullet',
+            damage: weapon.damage ?? 15,
+            color: weapon.displayColor ?? '#fca311',
+            maxDistance: weapon.range ?? 600,
+            distance: 0,
+            createdAt: now,
+        });
+    }
+
+    // =====================================================================
+    //  Projektil-Update
+    // =====================================================================
+
+    /**
+     * @param {object} player
+     * @returns {{ taser: boolean, damage: number }}
+     */
+    _updateProjectiles(player) {
+        const result = { taser: false, damage: 0 };
+        if (!this.projectiles.length) return result;
+
+        const survivors = [];
+        const playerHitRadius = 16;
+
+        for (const proj of this.projectiles) {
+            proj.x += proj.vx;
+            proj.y += proj.vy;
+            proj.distance += proj.speed;
+
+            if (proj.distance >= proj.maxDistance) continue;
+
+            // Treffer auf Spieler pruefen
+            const dx = proj.x - (player.x + player.width / 2);
+            const dy = proj.y - (player.y + player.height / 2);
+            if (dx * dx + dy * dy <= playerHitRadius * playerHitRadius) {
+                if (proj.type === 'taser') {
+                    result.taser = true;
+                } else {
+                    result.damage += proj.damage;
+                }
+                continue;
+            }
+
+            survivors.push(proj);
+        }
+
+        this.projectiles = survivors;
+        return result;
+    }
+
+    // =====================================================================
+    //  Hilfsfunktionen
+    // =====================================================================
+
+    /**
+     * @param {object} a
+     * @param {object} b
      * @returns {number}
      */
-    loadCredits(fallback = 0) {
-        if (typeof window === "undefined" || !window.localStorage) {
-            return Math.max(0, fallback);
+    _distanceTo(a, b) {
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        return Math.hypot(dx, dy);
+    }
+
+    /**
+     * Gibt die Anzahl lebender Polizisten zurueck.
+     * @returns {number}
+     */
+    getAliveCount() {
+        return this.officers.filter(c => !c.dead).length;
+    }
+
+    /**
+     * Gibt den Verhaftungs-Fortschritt als 0-1 zurueck.
+     * @returns {number}
+     */
+    getArrestProgress() {
+        return Math.min(1, this.arrestProgress / ARREST_TIME);
+    }
+}
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/systems/AISystem.js
+// ═══════════════════════════════════════════════════════
+/**
+ * AISystem - NPC-KI: Wegpunkt-Navigation, Panik-Flucht, Stuck-Detection.
+ *
+ * KRITISCH: Alle Positionsaenderungen NUR ueber this.entityMover.move() oder .teleport()!
+ * Niemals npc.x = ... direkt setzen!
+ *
+ * Portiert aus gta_old/overworld/js/overworld.js:
+ *   updateNPC()                    (Zeilen 5598-5820)
+ *   updateNpcPanicMovement()       (Zeilen 6787-6886)
+ *   updateNpcMovementTracker()     (Zeilen 6343-6408)
+ *   redirectNpcOnWalkwayEdge()     (Zeilen 6603-6668)
+ *   teleportNpcToNearestSidewalk() (Zeilen 6669-6786)
+ *   findNearestSidewalkSpot()      (Zeilen 6409-6534)
+ *   getBuildingSidewalkExit()      (Zeilen 6535-6602)
+ */
+
+/** Panik-Geschwindigkeitsfaktor relativ zur Basis-Geschwindigkeit */
+const PANIC_SPEED_MULTIPLIER = 2.2;
+
+/** Animations-Geschwindigkeitsfaktor beim normalen Gehen */
+const WALK_ANIM_FACTOR = 0.08;
+
+/** Animations-Geschwindigkeitsfaktor bei Panik */
+const PANIC_ANIM_FACTOR = 0.07;
+
+/** Abkling-Faktor fuer die Animation im Stehen */
+const ANIM_DECAY = 0.85;
+
+/** Mindest-Wartezeit nach Panik-Ende */
+const POST_PANIC_WAIT = 45;
+
+/** Mindest-Wartezeit bei Richtungswechsel */
+const REDIRECT_MIN_WAIT = 8;
+
+/** Maximale zufaellige Wartezeit bei Richtungswechsel */
+const REDIRECT_RANDOM_WAIT = 24;
+
+/** Abstand-Padding um Fahrzeug-Collider */
+const VEHICLE_CLEAR_PADDING = 6;
+
+/** Mindest-Teleport-Abstand bei 'idle' */
+const IDLE_MIN_TELEPORT_DISTANCE = 26;
+
+/** Mindest-Teleport-Abstand bei 'building' */
+const BUILDING_MIN_TELEPORT_DISTANCE = 14;
+
+/** Mindest-Teleport-Abstand bei Building-Exit */
+const BUILDING_EXIT_MIN_DISTANCE = 22;
+
+class AISystem {
+    /**
+     * @param {import('../core/EntityMover.js').EntityMover} entityMover
+     * @param {import('../world/RoadNetwork.js').RoadNetwork} roadNetwork
+     * @param {import('../core/EventBus.js').EventBus} eventBus
+     * @param {Object} [deps] - Optionale Abhaengigkeiten
+     * @param {import('./CollisionSystem.js').CollisionSystem} [deps.collisionSystem]
+     * @param {Array} [deps.buildings] - Gebaeude-Liste fuer getBuildingSidewalkExit
+     */
+    constructor(entityMover, roadNetwork, eventBus, deps = {}) {
+        this.entityMover = entityMover;
+        this.roadNetwork = roadNetwork;
+        this.eventBus = eventBus;
+        this.collisionSystem = deps.collisionSystem ?? null;
+        this.buildings = deps.buildings ?? [];
+    }
+
+    // -------------------------------------------------------------------
+    //  Haupt-Update
+    // -------------------------------------------------------------------
+
+    /**
+     * Aktualisiert alle NPCs fuer diesen Frame.
+     *
+     * @param {Array<import('../entities/NPC.js').NPC>} npcs
+     * @param {import('../entities/Player.js').default} player
+     * @param {number} deltaTime - Zeit seit letztem Frame (wird fuer Timestamps genutzt)
+     */
+    update(npcs, player, deltaTime) {
+        if (!Array.isArray(npcs) || !npcs.length) {
+            return;
         }
 
-        try {
-            const raw = window.localStorage.getItem(CREDITS_STORAGE_KEY);
-            if (raw == null) {
-                return Math.max(0, fallback);
+        for (const npc of npcs) {
+            if (!npc || !npc.path || npc.path.length < 2) {
+                continue;
             }
 
-            const parsed = parseInt(raw, 10);
-            if (!Number.isFinite(parsed) || parsed < 0) {
-                return 0;
+            // a) Skip wenn dead/hidden/insideBuilding
+            if (npc.dead) {
+                npc.moving = false;
+                npc.waitTimer = 0;
+                npc.animationPhase *= ANIM_DECAY;
+                continue;
             }
 
-            return parsed;
-        } catch (err) {
-            console.warn("Casino credits konnten nicht geladen werden:", err);
-            return Math.max(0, fallback);
+            if (npc.hidden || npc.insideBuilding) {
+                continue;
+            }
+
+            // a2) Sofort-Check: NPC steckt in Gebaeude-Collider (z.B. nach Spawn)
+            if (!npc._spawnChecked) {
+                npc._spawnChecked = true;
+                if (this._isInsideAnyBuilding(npc.x, npc.y)) {
+                    const now = this._getTimestamp();
+                    if (this._teleportToNearestSidewalk(npc, 'building', now)) {
+                        npc.moving = false;
+                    }
+                    continue;
+                }
+            }
+
+            // b) Panik-Modus
+            if (npc.panicTimer > 0) {
+                this._handlePanic(npc, player);
+                continue;
+            }
+
+            // c) Normale Wegpunkt-Navigation
+            this._handleWaypointNavigation(npc);
+
+            // d) Stuck-Detection
+            this._updateStuckDetection(npc);
+
+            // e) Animation
+            this._updateAnimation(npc);
+        }
+    }
+
+    // -------------------------------------------------------------------
+    //  Wegpunkt-Navigation  (portiert aus updateNPC Zeilen 5634-5818)
+    // -------------------------------------------------------------------
+
+    /**
+     * @param {import('../entities/NPC.js').NPC} npc
+     */
+    _handleWaypointNavigation(npc) {
+        let movingThisFrame = false;
+
+        if (npc.waitTimer > 0) {
+            npc.waitTimer -= 1;
+        } else {
+            const target = npc.getCurrentWaypoint();
+
+            if (!target) {
+                return;
+            }
+
+            const dx = target.x - npc.x;
+            const dy = target.y - npc.y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist <= npc.speed) {
+                // Wegpunkt erreicht - per entityMover an exakte Position setzen
+                this.entityMover.teleport(npc, target.x, target.y);
+
+                npc.waitTimer = target.wait ?? 0;
+                npc.waitingForCrosswalk = target.crosswalkIndex ?? null;
+
+                // Dynamische Navigation: neuen Wegpunkt generieren
+                if (npc.dynamicNavigation) {
+                    this._generateDynamicWaypoint(npc);
+                } else {
+                    // Gebaeude-Aktionen
+                    this._handleWaypointAction(npc, target);
+                    npc.advanceWaypoint();
+                }
+            } else if (dist > 0) {
+                const ratio = npc.speed / dist;
+                const nextX = npc.x + dx * ratio;
+                const nextY = npc.y + dy * ratio;
+
+                const result = this.entityMover.move(npc, nextX, nextY);
+                movingThisFrame = result.moved;
+            }
+        }
+
+        // Crossing-Status (vereinfacht - wird vom RoadNetwork gehandelt)
+        npc.isCrossing = this._isOnCrosswalk(npc.x, npc.y);
+
+        npc.moving = movingThisFrame && npc.waitTimer === 0;
+
+        if (!npc.isCrossing && npc.waitTimer === 0 && !npc.moving) {
+            npc.waitingForCrosswalk = null;
         }
     }
 
     /**
-     * Speichert Casino-Credits im LocalStorage.
+     * Verarbeitet Gebaeude-bezogene Aktionen bei Wegpunkt-Ankunft.
      *
-     * @param {number} amount
-     * @returns {number} Gespeicherter Wert
+     * @param {import('../entities/NPC.js').NPC} npc
+     * @param {Object} target - Der erreichte Wegpunkt
      */
-    storeCredits(amount) {
-        const value = Math.max(0, Math.floor(Number(amount) || 0));
+    _handleWaypointAction(npc, target) {
+        if (target.action === 'enter') {
+            if (target.buildingId) {
+                npc.lastBuildingId = target.buildingId;
+            }
+            npc.insideBuilding = target.buildingId ?? npc.insideBuilding ?? npc.lastBuildingId ?? true;
+            npc.hidden = true;
+        } else if (target.action === 'exit') {
+            if (target.buildingId) {
+                npc.lastBuildingId = target.buildingId;
+            }
+            npc.insideBuilding = null;
+            npc.hidden = false;
+        } else if (target.interior) {
+            if (target.buildingId) {
+                npc.lastBuildingId = target.buildingId;
+            }
+            npc.insideBuilding = target.buildingId ?? npc.insideBuilding ?? npc.lastBuildingId ?? true;
+            npc.hidden = true;
+        }
+    }
 
-        if (typeof window !== "undefined" && window.localStorage) {
-            try {
-                window.localStorage.setItem(CREDITS_STORAGE_KEY, String(value));
-            } catch (err) {
-                console.warn("Casino credits konnten nicht gespeichert werden:", err);
+    // -------------------------------------------------------------------
+    //  Panik-Bewegung  (portiert aus updateNpcPanicMovement Zeilen 6787-6886)
+    // -------------------------------------------------------------------
+
+    /**
+     * @param {import('../entities/NPC.js').NPC} npc
+     * @param {Object} player - Spieler-Entity mit x/y
+     */
+    _handlePanic(npc, player) {
+        if (!player) {
+            return;
+        }
+
+        let awayX = npc.x - player.x;
+        let awayY = npc.y - player.y;
+        let length = Math.hypot(awayX, awayY);
+
+        if (length < 1) {
+            const angle = Math.random() * Math.PI * 2;
+            awayX = Math.cos(angle);
+            awayY = Math.sin(angle);
+            length = 1;
+        }
+
+        const baseSpeed = npc.speed ?? 1.2;
+        const panicSpeed = baseSpeed * PANIC_SPEED_MULTIPLIER;
+
+        const targetX = npc.x + (awayX / length) * panicSpeed;
+        const targetY = npc.y + (awayY / length) * panicSpeed;
+
+        const result = this.entityMover.move(npc, targetX, targetY);
+
+        let moved = result.moved;
+
+        // Wenn nicht bewegt oder im Gebaeude: teleportieren
+        if (!moved) {
+            const insideBuilding = this._isInsideAnyBuilding(npc.x, npc.y);
+            const now = this._getTimestamp();
+            if (this._teleportToNearestSidewalk(npc, insideBuilding ? 'building' : 'idle', now)) {
+                moved = true;
             }
         }
 
-        return value;
+        npc.moving = moved;
+        npc.waitTimer = 0;
+        npc.isCrossing = false;
+        npc.waitingForCrosswalk = null;
+
+        npc.animationPhase = (npc.animationPhase + panicSpeed * PANIC_ANIM_FACTOR) % (Math.PI * 2);
+
+        npc.panicTimer = Math.max(0, (npc.panicTimer ?? 0) - 1);
+
+        if (npc.panicTimer === 0) {
+            npc.waitTimer = POST_PANIC_WAIT;
+        }
     }
 
-    // -----------------------------------------------------------------------
-    // Konvertierung
-    // -----------------------------------------------------------------------
+    // -------------------------------------------------------------------
+    //  Stuck-Detection  (portiert aus updateNPC Zeilen 5750-5788 +
+    //                     updateNpcMovementTracker Zeilen 6343-6408)
+    // -------------------------------------------------------------------
 
     /**
-     * Konvertiert Dollars zu Casino-Credits.
-     * Portiert aus convertDollarsToCredits() Zeilen 2708-2726.
-     *
-     * @param {object} player - Spieler-Entity (braucht player.money)
-     * @param {number} [amount] - Betrag in Dollar (Standard: alles)
-     * @returns {{ success: boolean, reason?: string, dollarsSpent: number, creditsAdded: number, totalCredits: number }}
+     * @param {import('../entities/NPC.js').NPC} npc
      */
-    convertDollarsToCredits(player, amount) {
-        const rate = this.creditRate;
-        const availableDollars = amount !== undefined
-            ? Math.floor(Math.max(0, Math.min(Number(amount), Number(player.money ?? 0))))
-            : Math.floor(Math.max(0, Number(player.money ?? 0)));
+    _updateStuckDetection(npc) {
+        const now = this._getTimestamp();
+        const stepDistance = Math.hypot(npc.x - (npc._prevX ?? npc.x), npc.y - (npc._prevY ?? npc.y));
 
-        if (!(availableDollars > 0)) {
-            return {
-                success: false,
-                reason: "noMoney",
-                dollarsSpent: 0,
-                creditsAdded: 0,
-                totalCredits: this.loadCredits(player.casinoCredits ?? 0),
-            };
+        // Position fuer naechsten Frame merken (kein direktes Setzen von x/y!)
+        npc._prevX = npc.x;
+        npc._prevY = npc.y;
+
+        const tracker = this._updateMovementTracker(npc, stepDistance, now);
+
+        // Pruefe ob NPC im Gebaeude steckt
+        const insideBuilding = this._isInsideAnyBuilding(npc.x, npc.y);
+        const wantsTeleportInside = insideBuilding && !npc.hidden && !npc.insideBuilding;
+
+        if (wantsTeleportInside) {
+            if (this._teleportToNearestSidewalk(npc, 'building', now)) {
+                npc.moving = false;
+            }
+            return;
         }
 
-        const creditsAdded = availableDollars * rate;
-        const currentCredits = this.loadCredits(player.casinoCredits ?? 0);
-        const newTotal = currentCredits + creditsAdded;
+        // Stuck/Idle-Teleport
+        if (tracker && npc.waitTimer === 0) {
+            const idleThreshold = tracker.idleThreshold ?? 3500;
+            const maxStuckSamples = tracker.maxStuckSamples ?? 2;
+            const idleTooLong = tracker.idleTime >= idleThreshold;
+            const stuckTooOften = (tracker.stuckSamples ?? 0) >= maxStuckSamples;
 
-        player.money = Math.max(0, (player.money ?? 0) - availableDollars);
-        this.storeCredits(newTotal);
-        player.casinoCredits = newTotal;
+            if (idleTooLong || stuckTooOften) {
+                if (this._teleportToNearestSidewalk(npc, 'idle', now)) {
+                    npc.moving = false;
+                }
+            }
+        }
+    }
 
+    /**
+     * Aktualisiert den Movement-Tracker eines NPC.
+     * Portiert aus updateNpcMovementTracker() (Zeilen 6343-6408).
+     *
+     * @param {import('../entities/NPC.js').NPC} npc
+     * @param {number} stepDistance - Bewegungsdistanz in diesem Frame
+     * @param {number} timestamp
+     * @returns {Object|null} Der Tracker
+     */
+    _updateMovementTracker(npc, stepDistance, timestamp) {
+        const tracker = npc.ensureMovementTracker(timestamp);
+
+        if (!tracker) {
+            return null;
+        }
+
+        const time = Number.isFinite(timestamp) ? timestamp : tracker.lastUpdateTime;
+        const delta = Math.max(0, time - tracker.lastUpdateTime);
+        tracker.lastUpdateTime = time;
+
+        const motionThreshold = tracker.motionThreshold ?? 0.45;
+
+        if (npc.waitTimer > 0) {
+            tracker.idleTime = 0;
+        } else if (stepDistance <= motionThreshold) {
+            tracker.idleTime += delta;
+        } else {
+            tracker.idleTime = 0;
+        }
+
+        if (!tracker.samplePosition) {
+            tracker.samplePosition = { x: npc.x, y: npc.y };
+            tracker.sampleTime = time;
+        }
+
+        const sampleWindow = tracker.sampleWindow ?? 4000;
+
+        if (time - tracker.sampleTime >= sampleWindow) {
+            const displacement = Math.hypot(
+                npc.x - tracker.samplePosition.x,
+                npc.y - tracker.samplePosition.y
+            );
+
+            tracker.samplePosition = { x: npc.x, y: npc.y };
+            tracker.sampleTime = time;
+
+            if (npc.waitTimer === 0 && displacement < (tracker.minDisplacement ?? 12)) {
+                tracker.stuckSamples = Math.min(
+                    (tracker.stuckSamples ?? 0) + 1,
+                    tracker.maxStuckSamples ?? 2
+                );
+            } else {
+                tracker.stuckSamples = Math.max(0, (tracker.stuckSamples ?? 0) - 1);
+            }
+        }
+
+        return tracker;
+    }
+
+    // -------------------------------------------------------------------
+    //  Animation  (portiert aus updateNPC Zeilen 5796-5808)
+    // -------------------------------------------------------------------
+
+    /**
+     * @param {import('../entities/NPC.js').NPC} npc
+     */
+    _updateAnimation(npc) {
+        if (npc.moving && npc.waitTimer === 0) {
+            npc.animationPhase = (npc.animationPhase + npc.speed * WALK_ANIM_FACTOR) % (Math.PI * 2);
+        } else {
+            npc.animationPhase *= ANIM_DECAY;
+        }
+    }
+
+    // -------------------------------------------------------------------
+    //  Teleport zum naechsten Buergersteig
+    //  (portiert aus teleportNpcToNearestSidewalk Zeilen 6669-6786)
+    // -------------------------------------------------------------------
+
+    /**
+     * @param {import('../entities/NPC.js').NPC} npc
+     * @param {string} reason - 'building' oder 'idle'
+     * @param {number} timestamp
+     * @returns {boolean} Ob teleportiert wurde
+     */
+    _teleportToNearestSidewalk(npc, reason, timestamp) {
+        if (!npc || npc.fixedSpawn) {
+            return false;
+        }
+
+        const tracker = npc.ensureMovementTracker(timestamp);
+
+        if (!tracker) {
+            return false;
+        }
+
+        const time = Number.isFinite(timestamp) ? timestamp : tracker.lastUpdateTime;
+
+        // Bei Idle zuerst Richtungswechsel versuchen
+        if (reason === 'idle') {
+            if (this._redirectOnWalkwayEdge(npc, time)) {
+                return false;
+            }
+        }
+
+        // Cooldown pruefen
+        const cooldown = Number(tracker.teleportCooldown) || 4000;
+        if (time - tracker.lastTeleportAt < cooldown) {
+            return false;
+        }
+
+        let searchX = npc.x;
+        let searchY = npc.y;
+        let minDistance = reason === 'idle' ? IDLE_MIN_TELEPORT_DISTANCE : BUILDING_MIN_TELEPORT_DISTANCE;
+
+        // Bei Gebaeude: Exit-Punkt als Startpunkt
+        let buildingIdForTeleport = null;
+        if (reason === 'building') {
+            buildingIdForTeleport = npc.insideBuilding || npc.lastBuildingId || null;
+            const exit = this._getBuildingSidewalkExit(buildingIdForTeleport);
+            if (exit) {
+                searchX = exit.x;
+                searchY = exit.y;
+                minDistance = Math.max(minDistance, BUILDING_EXIT_MIN_DISTANCE);
+            }
+        }
+
+        let candidate = this._findNearestSidewalkSpot(searchX, searchY, { minDistance });
+
+        if (!candidate) {
+            candidate = this._findNearestSidewalkSpot(npc.x, npc.y, { minDistance: 0 });
+        }
+
+        if (!candidate) {
+            return false;
+        }
+
+        // Teleportiere via EntityMover
+        this.entityMover.teleport(npc, candidate.x, candidate.y);
+
+        npc.waitTimer = 0;
+        npc.hidden = false;
+        npc.insideBuilding = null;
+
+        if (buildingIdForTeleport) {
+            npc.lastBuildingId = buildingIdForTeleport;
+        }
+
+        // Tracker zuruecksetzen
+        tracker.lastTeleportAt = time;
+        tracker.idleTime = 0;
+        tracker.stuckSamples = 0;
+        tracker.samplePosition = { x: npc.x, y: npc.y };
+        tracker.sampleTime = time;
+
+        return true;
+    }
+
+    // -------------------------------------------------------------------
+    //  Richtungswechsel am Gehweg-Rand
+    //  (portiert aus redirectNpcOnWalkwayEdge Zeilen 6603-6668)
+    // -------------------------------------------------------------------
+
+    /**
+     * @param {import('../entities/NPC.js').NPC} npc
+     * @param {number} timestamp
+     * @returns {boolean} Ob umgeleitet wurde
+     */
+    _redirectOnWalkwayEdge(npc, timestamp) {
+        if (!npc || !Array.isArray(npc.path) || npc.path.length < 2) {
+            return false;
+        }
+
+        const turnOptions = [1, 2, -1];
+        const choice = turnOptions[Math.floor(Math.random() * turnOptions.length)];
+
+        let nextIndex = npc.waypointIndex;
+
+        if (!Number.isFinite(nextIndex)) {
+            nextIndex = 0;
+        }
+
+        if (choice === -1) {
+            nextIndex = (nextIndex - 1 + npc.path.length) % npc.path.length;
+        } else {
+            nextIndex = (nextIndex + choice + npc.path.length) % npc.path.length;
+        }
+
+        npc.waypointIndex = nextIndex;
+        npc.waitTimer = Math.max(REDIRECT_MIN_WAIT, Math.round(REDIRECT_MIN_WAIT + Math.random() * REDIRECT_RANDOM_WAIT));
+
+        // Auf naechsten Buergersteig projizieren via entityMover
+        if (this.roadNetwork) {
+            const spot = this.roadNetwork.findNearestSidewalkSpot(npc.x, npc.y);
+            if (spot && Number.isFinite(spot.x) && Number.isFinite(spot.y)) {
+                this.entityMover.teleport(npc, spot.x, spot.y);
+            }
+        }
+
+        // Tracker zuruecksetzen
+        const tracker = npc.ensureMovementTracker(timestamp);
+        if (tracker) {
+            const time = Number.isFinite(timestamp) ? timestamp : tracker.lastUpdateTime;
+            tracker.lastTeleportAt = time;
+            tracker.idleTime = 0;
+            tracker.stuckSamples = 0;
+            tracker.samplePosition = { x: npc.x, y: npc.y };
+            tracker.sampleTime = time;
+        }
+
+        return true;
+    }
+
+    // -------------------------------------------------------------------
+    //  Dynamische Wegpunkt-Generierung
+    // -------------------------------------------------------------------
+
+    /**
+     * Generiert dynamisch den naechsten Wegpunkt basierend auf verfuegbaren
+     * Buergersteig-Korridoren. NPC waehlt an Kreuzungen zufaellig eine
+     * neue Richtung und vermeidet Umkehr.
+     *
+     * @param {import('../entities/NPC.js').NPC} npc
+     */
+    _generateDynamicWaypoint(npc) {
+        if (!this.roadNetwork) {
+            return;
+        }
+
+        const corridors = this.roadNetwork.sidewalkCorridors;
+        if (!Array.isArray(corridors) || !corridors.length) {
+            return;
+        }
+
+        // Korridore finden die den NPC enthalten
+        const margin = 10;
+        const nearby = [];
+        for (const c of corridors) {
+            if (!c || !(c.width > 0) || !(c.height > 0)) {
+                continue;
+            }
+            if (npc.x >= c.x - margin && npc.x <= c.x + c.width + margin &&
+                npc.y >= c.y - margin && npc.y <= c.y + c.height + margin) {
+                nearby.push(c);
+            }
+        }
+
+        if (!nearby.length) {
+            return;
+        }
+
+        // Endpunkte der Korridore als Kandidaten sammeln
+        const candidates = [];
+        const edgePad = 12;
+
+        for (const c of nearby) {
+            const isHorizontal = c.width > c.height * 1.5;
+            const isVertical = c.height > c.width * 1.5;
+            const centerX = c.x + c.width / 2;
+            const centerY = c.y + c.height / 2;
+
+            if (isHorizontal || (!isHorizontal && !isVertical)) {
+                candidates.push({ x: c.x + edgePad, y: centerY, dir: 'left' });
+                candidates.push({ x: c.x + c.width - edgePad, y: centerY, dir: 'right' });
+            }
+            if (isVertical || (!isHorizontal && !isVertical)) {
+                candidates.push({ x: centerX, y: c.y + edgePad, dir: 'up' });
+                candidates.push({ x: centerX, y: c.y + c.height - edgePad, dir: 'down' });
+            }
+        }
+
+        // Nur Kandidaten die weit genug entfernt sind
+        const minDist = 40;
+        let valid = candidates.filter(
+            (c) => Math.hypot(c.x - npc.x, c.y - npc.y) > minDist
+        );
+
+        // Umkehr vermeiden (nicht zurueck woher wir kamen)
+        if (valid.length > 1 && npc._lastNavDir) {
+            const opposite = { left: 'right', right: 'left', up: 'down', down: 'up' };
+            const notBack = valid.filter((c) => c.dir !== opposite[npc._lastNavDir]);
+            if (notBack.length > 0) {
+                valid = notBack;
+            }
+        }
+
+        // Kandidaten die in Gebaeude-Collidern liegen herausfiltern
+        if (this.collisionSystem) {
+            valid = valid.filter(c => !this.collisionSystem.isPointInsideAnyCollider(c.x, c.y));
+        }
+
+        if (!valid.length) {
+            // Fallback auf ungefilterte Kandidaten (ohne Gebaeude-Check)
+            valid = candidates.filter(c =>
+                !this.collisionSystem || !this.collisionSystem.isPointInsideAnyCollider(c.x, c.y)
+            );
+        }
+        if (!valid.length) {
+            valid = candidates;
+        }
+        if (!valid.length) {
+            return;
+        }
+
+        const target = valid[Math.floor(Math.random() * valid.length)];
+        npc._lastNavDir = target.dir;
+
+        // Pfad auf 2 Punkte setzen: aktuelle Position + Ziel
+        npc.path[0] = { x: npc.x, y: npc.y, wait: 0 };
+        npc.path[1] = { x: target.x, y: target.y, wait: 4 + Math.floor(Math.random() * 20) };
+        npc.path.length = 2;
+        npc.waypointIndex = 1;
+    }
+
+    // -------------------------------------------------------------------
+    //  Naechsten Buergersteig-Spot finden
+    //  (portiert aus findNearestSidewalkSpot Zeilen 6409-6534)
+    // -------------------------------------------------------------------
+
+    /**
+     * @param {number} x
+     * @param {number} y
+     * @param {Object} [options]
+     * @param {number} [options.minDistance=0]
+     * @returns {{ x: number, y: number }|null}
+     */
+    _findNearestSidewalkSpot(x, y, options = {}) {
+        if (!this.roadNetwork) {
+            return null;
+        }
+
+        const minDistance = Math.max(0, Number(options.minDistance) || 0);
+        const minDistSq = minDistance * minDistance;
+
+        const candidates = [];
+
+        const collisionSystem = this.collisionSystem;
+
+        const addCandidate = (px, py) => {
+            if (!Number.isFinite(px) || !Number.isFinite(py)) {
+                return;
+            }
+
+            // Nicht in Gebaeude
+            if (collisionSystem && collisionSystem.isPointInsideAnyCollider(px, py)) {
+                return;
+            }
+
+            // Nicht in Fahrzeug
+            if (collisionSystem && Array.isArray(collisionSystem.vehicleColliders)) {
+                for (const vehicle of collisionSystem.vehicleColliders) {
+                    if (!vehicle) {
+                        continue;
+                    }
+                    if (
+                        px >= vehicle.left - VEHICLE_CLEAR_PADDING &&
+                        px <= vehicle.right + VEHICLE_CLEAR_PADDING &&
+                        py >= vehicle.top - VEHICLE_CLEAR_PADDING &&
+                        py <= vehicle.bottom + VEHICLE_CLEAR_PADDING
+                    ) {
+                        return;
+                    }
+                }
+            }
+
+            candidates.push({ x: px, y: py });
+        };
+
+        // Projektion auf naechsten Buergersteig
+        const spot = this.roadNetwork.findNearestSidewalkSpot(x, y);
+        if (spot) {
+            addCandidate(spot.x, spot.y);
+        }
+
+        // Walkable-Areas Zentren als Kandidaten
+        const walkableAreas = this.roadNetwork.walkableAreas;
+        if (Array.isArray(walkableAreas) && walkableAreas.length) {
+            for (const rect of walkableAreas) {
+                if (!rect) {
+                    continue;
+                }
+                const rw = Number(rect.width ?? 0);
+                const rh = Number(rect.height ?? 0);
+                const rx = Number(rect.x ?? 0);
+                const ry = Number(rect.y ?? 0);
+
+                if (rw > 0 && rh > 0) {
+                    addCandidate(rx + rw / 2, ry + rh / 2);
+                }
+            }
+        }
+
+        // Besten Kandidaten waehlen (naechster mit Mindestabstand)
+        let best = null;
+        let bestDistSq = Infinity;
+
+        for (const candidate of candidates) {
+            const dx = candidate.x - x;
+            const dy = candidate.y - y;
+            const distSq = dx * dx + dy * dy;
+
+            if (distSq < minDistSq) {
+                continue;
+            }
+
+            if (distSq < bestDistSq) {
+                bestDistSq = distSq;
+                best = candidate;
+            }
+        }
+
+        // Fallback: Ohne Mindestabstand wiederholen
+        if (!best && minDistance > 0) {
+            return this._findNearestSidewalkSpot(x, y, { ...options, minDistance: 0 });
+        }
+
+        return best;
+    }
+
+    // -------------------------------------------------------------------
+    //  Gebaeude-Buergersteig-Exit finden
+    //  (portiert aus getBuildingSidewalkExit Zeilen 6535-6602)
+    // -------------------------------------------------------------------
+
+    /**
+     * @param {*} buildingId
+     * @returns {{ x: number, y: number }|null}
+     */
+    _getBuildingSidewalkExit(buildingId) {
+        if (!buildingId) {
+            return null;
+        }
+
+        const buildings = Array.isArray(this.buildings) ? this.buildings : [];
+        const building = buildings.find(
+            (entry) => entry && (entry.id === buildingId || entry.name === buildingId)
+        );
+
+        if (!building) {
+            return null;
+        }
+
+        const metrics = building.metrics ?? null;
+
+        if (metrics && metrics.approach) {
+            return { x: metrics.approach.x, y: metrics.approach.y };
+        }
+
+        if (metrics && metrics.entrance) {
+            return { x: metrics.entrance.x, y: metrics.entrance.y + 6 };
+        }
+
+        if (metrics && metrics.bounds) {
+            const bounds = metrics.bounds;
+            if (bounds && Number.isFinite(bounds.left) && Number.isFinite(bounds.right) && Number.isFinite(bounds.bottom)) {
+                return { x: (bounds.left + bounds.right) / 2, y: bounds.bottom + 12 };
+            }
+        }
+
+        if (building.bounds && Number.isFinite(building.bounds.left) && Number.isFinite(building.bounds.right) && Number.isFinite(building.bounds.bottom)) {
+            return { x: (building.bounds.left + building.bounds.right) / 2, y: building.bounds.bottom + 12 };
+        }
+
+        const baseX = Number(building.x);
+        const baseY = Number(building.y);
+        const width = Number(building.width);
+        const height = Number(building.height);
+
+        if (Number.isFinite(baseX) && Number.isFinite(baseY) && Number.isFinite(width) && Number.isFinite(height)) {
+            return { x: baseX + width / 2, y: baseY + height + 12 };
+        }
+
+        return null;
+    }
+
+    // -------------------------------------------------------------------
+    //  Hilfsfunktionen
+    // -------------------------------------------------------------------
+
+    /**
+     * Prueft ob ein Punkt in einem Zebrastreifen liegt.
+     * Delegiert an RoadNetwork falls vorhanden.
+     *
+     * @param {number} x
+     * @param {number} y
+     * @returns {boolean}
+     */
+    _isOnCrosswalk(x, y) {
+        if (!this.roadNetwork || !Array.isArray(this.roadNetwork.crosswalks)) {
+            return false;
+        }
+
+        for (const cw of this.roadNetwork.crosswalks) {
+            if (!cw) {
+                continue;
+            }
+
+            // Zebrastreifen koennen als Flaeche { left, top, right, bottom }
+            // oder als { x, y, span, orientation } definiert sein
+            if (cw.left !== undefined && cw.right !== undefined && cw.top !== undefined && cw.bottom !== undefined) {
+                if (x >= cw.left && x <= cw.right && y >= cw.top && y <= cw.bottom) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Prueft ob ein Punkt in irgendeinem Gebaeude-Collider liegt.
+     *
+     * @param {number} x
+     * @param {number} y
+     * @returns {boolean}
+     */
+    _isInsideAnyBuilding(x, y) {
+        if (!this.collisionSystem) {
+            return false;
+        }
+        return this.collisionSystem.isPointInsideAnyCollider(x, y);
+    }
+
+    /**
+     * Gibt den aktuellen Zeitstempel zurueck.
+     *
+     * @returns {number}
+     */
+    _getTimestamp() {
+        return (typeof performance !== 'undefined' && performance.now)
+            ? performance.now()
+            : Date.now();
+    }
+}
+
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/systems/VehicleSystem.js
+// ═══════════════════════════════════════════════════════
+/**
+ * VehicleSystem - Steuert Fahrzeug-Bewegung entlang ihrer Pfade.
+ *
+ * Portiert aus gta_old/overworld/js/overworld.js:
+ *   updateVehicle()                  (Zeilen 6888-6960)
+ *   shouldVehicleYield()             (Zeilen 6986-7044)
+ *   isVehicleAlignedForCrosswalk()   (Zeilen 7048-7066)
+ *   isVehicleApproachingCrosswalk()  (Zeilen 7070-7100)
+ *
+ * KRITISCH: Positionsaenderungen NUR ueber entityMover.move()!
+ */
+
+class VehicleSystem {
+    /**
+     * @param {import('../core/EntityMover.js').EntityMover} entityMover
+     * @param {import('./CollisionSystem.js').CollisionSystem} collisionSystem
+     * @param {import('../world/RoadNetwork.js').RoadNetwork} roadNetwork
+     */
+    constructor(entityMover, collisionSystem, roadNetwork) {
+        this.entityMover = entityMover;
+        this.collisionSystem = collisionSystem;
+        this.roadNetwork = roadNetwork;
+    }
+
+    // ------------------------------------------------------------------
+    //  update  -  Alle Fahrzeuge pro Frame aktualisieren.
+    // ------------------------------------------------------------------
+
+    /**
+     * @param {Array<import('../entities/Vehicle.js').Vehicle>} vehicles
+     * @param {Array<import('../entities/NPC.js').NPC>} npcs
+     * @param {number} deltaTime - (aktuell ungenutzt, reserviert fuer spaetere Frame-Skalierung)
+     */
+    update(vehicles, npcs, deltaTime) {
+        if (!Array.isArray(vehicles)) {
+            return;
+        }
+
+        for (const vehicle of vehicles) {
+            this._updateVehicle(vehicle, npcs);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    //  _updateVehicle  -  Einzelnes Fahrzeug bewegen.
+    //  Portiert aus updateVehicle() Zeilen 6888-6960.
+    // ------------------------------------------------------------------
+
+    /** @private */
+    _updateVehicle(vehicle, npcs) {
+        if (!vehicle || !vehicle.path || vehicle.path.length < 2) {
+            return;
+        }
+
+        const target = vehicle.getCurrentWaypoint();
+        if (!target) {
+            return;
+        }
+
+        const dx = target.x - vehicle.x;
+        const dy = target.y - vehicle.y;
+        const dist = Math.hypot(dx, dy);
+
+        const stepX = dist === 0 ? 0 : (dx / dist) * vehicle.speed;
+        const stepY = dist === 0 ? 0 : (dy / dist) * vehicle.speed;
+
+        // Warte-Timer (z.B. an Haltestellen)
+        if (vehicle.waitTimer > 0) {
+            vehicle.waitTimer -= 1;
+            return;
+        }
+
+        // Stop-Timer (Yield-Nachlaeufer)
+        if (vehicle.stopTimer > 0) {
+            if (this.shouldYield(vehicle, stepX, stepY, npcs)) {
+                vehicle.stopTimer = Math.max(vehicle.stopTimer, 6);
+            } else {
+                vehicle.stopTimer -= 1;
+            }
+            return;
+        }
+
+        // Waypoint erreicht?
+        if (dist <= vehicle.speed) {
+            // Teleport exakt auf den Waypoint
+            this.entityMover.move(vehicle, target.x, target.y, {
+                ignoreSidewalk: true,
+                ignoreCollision: true,
+            });
+            vehicle.waitTimer = target.wait ?? 0;
+            vehicle.advanceWaypoint();
+            return;
+        }
+
+        // Yield-Check (Fussgaenger auf Zebrastreifen)
+        if (this.shouldYield(vehicle, stepX, stepY, npcs)) {
+            vehicle.stopTimer = 12;
+            return;
+        }
+
+        // Rotation setzen
+        vehicle.rotation = Math.atan2(stepY, stepX);
+
+        // Bewegung ueber EntityMover (EINZIGE Stelle fuer x/y!)
+        const targetX = vehicle.x + stepX;
+        const targetY = vehicle.y + stepY;
+
+        this.entityMover.move(vehicle, targetX, targetY, {
+            ignoreSidewalk: true,
+        });
+    }
+
+    // ------------------------------------------------------------------
+    //  shouldYield  -  Prueft ob das Fahrzeug einem Fussgaenger
+    //                   auf einem Zebrastreifen Vorfahrt gewaehren muss.
+    //  Portiert aus shouldVehicleYield() Zeilen 6986-7044.
+    // ------------------------------------------------------------------
+
+    /**
+     * @param {import('../entities/Vehicle.js').Vehicle} vehicle
+     * @param {number} stepX
+     * @param {number} stepY
+     * @param {Array<import('../entities/NPC.js').NPC>} npcs
+     * @returns {boolean}
+     */
+    shouldYield(vehicle, stepX, stepY, npcs) {
+        const crosswalkAreas = this.roadNetwork.crosswalkAreas ?? [];
+
+        if (!crosswalkAreas.length || !Array.isArray(npcs)) {
+            return false;
+        }
+
+        const orientation = Math.abs(stepX) >= Math.abs(stepY) ? 'horizontal' : 'vertical';
+        const direction = orientation === 'horizontal'
+            ? (Math.sign(stepX) || 1)
+            : (Math.sign(stepY) || 1);
+
+        const halfWidth = vehicle.width / 2;
+        const halfHeight = vehicle.height / 2;
+
+        for (const area of crosswalkAreas) {
+            if (area.orientation !== orientation) {
+                continue;
+            }
+
+            if (!this._isAlignedForCrosswalk(vehicle, area, orientation, halfWidth, halfHeight)) {
+                continue;
+            }
+
+            if (!this._isApproachingCrosswalk(vehicle, area, orientation, direction, stepX, stepY, halfWidth, halfHeight)) {
+                continue;
+            }
+
+            const npcBlocking = npcs.some((npc) => {
+                if (!npc || npc.dead) {
+                    return false;
+                }
+
+                if (npc.isCrossing && _isPointInsideArea(npc.x, npc.y, area)) {
+                    return true;
+                }
+
+                return npc.waitingForCrosswalk === area.id;
+            });
+
+            if (npcBlocking) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // ------------------------------------------------------------------
+    //  _isAlignedForCrosswalk  -  Prueft ob das Fahrzeug auf einer
+    //                              Spur liegt die den Zebrastreifen kreuzt.
+    //  Portiert aus isVehicleAlignedForCrosswalk() Zeilen 7048-7066.
+    // ------------------------------------------------------------------
+
+    /** @private */
+    _isAlignedForCrosswalk(vehicle, area, orientation, halfWidth, halfHeight) {
+        if (orientation === 'horizontal') {
+            const yTop = vehicle.y - halfHeight;
+            const yBottom = vehicle.y + halfHeight;
+            return !(yBottom < area.top - 6 || yTop > area.bottom + 6);
+        }
+
+        const xLeft = vehicle.x - halfWidth;
+        const xRight = vehicle.x + halfWidth;
+        return !(xRight < area.left - 6 || xLeft > area.right + 6);
+    }
+
+    // ------------------------------------------------------------------
+    //  _isApproachingCrosswalk  -  Prueft ob das Fahrzeug sich gerade
+    //                               auf den Zebrastreifen zubewegt.
+    //  Portiert aus isVehicleApproachingCrosswalk() Zeilen 7070-7100.
+    // ------------------------------------------------------------------
+
+    /** @private */
+    _isApproachingCrosswalk(vehicle, area, orientation, direction, stepX, stepY, halfWidth, halfHeight) {
+        if (orientation === 'horizontal') {
+            const frontBefore = direction > 0
+                ? vehicle.x + halfWidth
+                : vehicle.x - halfWidth;
+            const frontAfter = frontBefore + stepX;
+
+            if (direction > 0) {
+                return frontBefore <= area.left - 4 && frontAfter >= area.left;
+            }
+
+            return frontBefore >= area.right + 4 && frontAfter <= area.right;
+        }
+
+        const frontBefore = direction > 0
+            ? vehicle.y + halfHeight
+            : vehicle.y - halfHeight;
+        const frontAfter = frontBefore + stepY;
+
+        if (direction > 0) {
+            return frontBefore <= area.top - 4 && frontAfter >= area.top;
+        }
+
+        return frontBefore >= area.bottom + 4 && frontAfter <= area.bottom;
+    }
+}
+
+// ------------------------------------------------------------------
+//  Modul-private Hilfsfunktion
+// ------------------------------------------------------------------
+
+/**
+ * Prueft ob ein Punkt innerhalb einer Area (left/right/top/bottom) liegt.
+ * Portiert aus isPointInsideArea() Zeilen 7104-7107.
+ *
+ * @param {number} x
+ * @param {number} y
+ * @param {{ left: number, right: number, top: number, bottom: number }} area
+ * @returns {boolean}
+ */
+function _isPointInsideArea(x, y, area) {
+    return x >= area.left && x <= area.right && y >= area.top && y <= area.bottom;
+}
+
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/systems/CameraSystem.js
+// ═══════════════════════════════════════════════════════
+/**
+ * CameraSystem — Kamera folgt dem Spieler, clampt an Weltgrenzen.
+ * Portiert aus gta_old/overworld/js/overworld.js updateCamera() (Z.1205-1223)
+ */
+class CameraSystem {
+
+    /**
+     * @param {number} viewportWidth  - Canvas-Breite
+     * @param {number} viewportHeight - Canvas-Höhe
+     * @param {number} [zoom=1]       - Zoom-Faktor (1 = kein Zoom)
+     */
+    constructor(viewportWidth, viewportHeight, zoom = 1) {
+        this.x = 0;
+        this.y = 0;
+        this.width = viewportWidth;
+        this.height = viewportHeight;
+        this.zoom = zoom;
+    }
+
+    /**
+     * Kamera auf Ziel-Entity zentrieren und an Weltgrenzen clampen.
+     * Portiert aus updateCamera() (Z.1205-1223).
+     *
+     * @param {object} targetEntity - Objekt mit {x, y}
+     * @param {object} worldBounds  - {width, height} der Welt
+     */
+    update(targetEntity, worldBounds) {
+        // Effektive Viewport-Größe (berücksichtigt Zoom)
+        const vw = this.width / this.zoom;
+        const vh = this.height / this.zoom;
+
+        // Kamera zentriert auf Entity
+        this.x = targetEntity.x - vw / 2;
+        this.y = targetEntity.y - vh / 2;
+
+        // An Weltgrenzen clampen
+        this.x = Math.max(0, Math.min(this.x, worldBounds.width - vw));
+        this.y = Math.max(0, Math.min(this.y, worldBounds.height - vh));
+    }
+
+    /**
+     * Weltkoordinaten → Bildschirmkoordinaten.
+     * @param {number} wx
+     * @param {number} wy
+     * @returns {{sx: number, sy: number}}
+     */
+    worldToScreen(wx, wy) {
         return {
-            success: true,
-            dollarsSpent: availableDollars,
-            creditsAdded,
-            totalCredits: newTotal,
+            sx: (wx - this.x) * this.zoom,
+            sy: (wy - this.y) * this.zoom
         };
     }
 
     /**
-     * Konvertiert Casino-Credits zurueck zu Dollars.
-     * Portiert aus convertCreditsToDollars() Zeilen 2728-2746.
-     *
-     * @param {object} player - Spieler-Entity (braucht player.money, player.casinoCredits)
-     * @param {number} [amount] - Credits zum Umtauschen (Standard: alle)
-     * @returns {{ success: boolean, reason?: string, creditsSpent: number, dollarsGained: number, totalCredits: number }}
+     * Bildschirmkoordinaten → Weltkoordinaten.
+     * @param {number} sx
+     * @param {number} sy
+     * @returns {{wx: number, wy: number}}
      */
-    convertCreditsToDollars(player, amount) {
-        const rate = this.creditRate;
-        const currentCredits = this.loadCredits(player.casinoCredits ?? 0);
-
-        const maxCredits = amount !== undefined
-            ? Math.floor(Math.max(0, Math.min(Number(amount), currentCredits)))
-            : currentCredits;
-
-        const availableCredits = Math.floor(Math.max(0, Number(maxCredits)));
-
-        if (availableCredits < rate) {
-            return {
-                success: false,
-                reason: "noCredits",
-                creditsSpent: 0,
-                dollarsGained: 0,
-                totalCredits: availableCredits,
-            };
-        }
-
-        const dollarsGained = Math.floor(availableCredits / rate);
-        const creditsSpent = dollarsGained * rate;
-        const newTotal = currentCredits - creditsSpent;
-
-        this.storeCredits(newTotal);
-        player.money = (player.money ?? 0) + dollarsGained;
-        player.casinoCredits = newTotal;
-
+    screenToWorld(sx, sy) {
         return {
-            success: true,
-            creditsSpent,
-            dollarsGained,
-            totalCredits: newTotal,
-        };
-    }
-
-    // -----------------------------------------------------------------------
-    // Hilfsfunktionen
-    // -----------------------------------------------------------------------
-
-    /**
-     * Aktualisiert den Credits-Cache des Spielers aus dem LocalStorage.
-     *
-     * @param {object} player
-     */
-    refreshCreditsCache(player) {
-        player.casinoCredits = this.loadCredits(player.casinoCredits ?? 0);
-    }
-
-    /**
-     * Gibt den Casino-Eingangs-URL zurueck (fuer Navigation zum Casino-Spiel).
-     *
-     * @returns {string}
-     */
-    getCasinoGameUrl() {
-        return "../casinogame/index.html";
-    }
-
-    /**
-     * Formatiert einen Geldbetrag fuer die Anzeige.
-     *
-     * @param {number} dollars
-     * @returns {string}
-     */
-    formatMoney(dollars) {
-        const value = Math.floor(Math.max(0, Number(dollars) || 0));
-        return value.toLocaleString("de-DE") + "$";
-    }
-
-    /**
-     * Formatiert Credits fuer die Anzeige.
-     *
-     * @param {number} credits
-     * @returns {string}
-     */
-    formatCredits(credits) {
-        const value = Math.floor(Math.max(0, Number(credits) || 0));
-        return value.toLocaleString("de-DE");
-    }
-
-    /**
-     * Berechnet den Info-Text fuer die Casino-Interaktion.
-     *
-     * @param {object} player
-     * @returns {string}
-     */
-    getInteractionMessage(player) {
-        const rate = this.creditRate;
-        const moneyText = this.formatMoney(player.money ?? 0);
-        const creditText = this.formatCredits(player.casinoCredits ?? 0) + " Credits";
-        return `Kurs 1$ = ${rate} Credits | Bargeld: ${moneyText} | Credits: ${creditText}`;
-    }
-
-    /**
-     * Berechnet ob Kauf/Auszahlung moeglich ist.
-     *
-     * @param {object} player
-     * @returns {{ canBuy: boolean, canCashOut: boolean, dollarsAvailable: number, creditsAvailable: number }}
-     */
-    getButtonState(player) {
-        const rate = this.creditRate;
-        const dollarsAvailable = Math.floor(Math.max(0, Number(player.money ?? 0)));
-        const creditsAvailable = Math.floor(Math.max(0, Number(player.casinoCredits ?? 0)));
-
-        return {
-            canBuy: dollarsAvailable > 0,
-            canCashOut: creditsAvailable >= rate,
-            dollarsAvailable,
-            creditsAvailable,
+            wx: sx / this.zoom + this.x,
+            wy: sy / this.zoom + this.y
         };
     }
 }
 
-Casino;
+
+
+// ═══════════════════════════════════════════════════════
+// js/systems/DayNightSystem.js
+// ═══════════════════════════════════════════════════════
+/**
+ * DayNightSystem - Verwaltet den Tag/Nacht-Zyklus mit Phasen, Beleuchtung und Sternen.
+ */
+
+class DayNightSystem {
+
+    constructor() {
+        const now = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+
+        this.phases = [
+            { id: "day", duration: 300000 },
+            { id: "dusk", duration: 120000 },
+            { id: "night", duration: 300000 },
+            { id: "dawn", duration: 120000 }
+        ];
+
+        this.phaseIndex = 0;
+        this.phaseStart = now;
+        this.lastUpdate = now;
+        this.progress = 0;
+        this.currentPhase = this.phases[0];
+        this.starPhase = 0;
+        this.stars = DayNightSystem.generateNightSkyStars(160);
+
+        this.lighting = {
+            overlayAlpha: 0,
+            overlayTop: "rgba(0, 0, 0, 0)",
+            overlayBottom: "rgba(0, 0, 0, 0)",
+            horizon: null,
+            starAlpha: 0
+        };
+    }
+
+    /**
+     * Erzeugt zufaellige Sterne fuer den Nachthimmel.
+     * @param {number} count
+     * @returns {Array<{x:number,y:number,size:number,twinkleOffset:number,twinkleSpeed:number,baseIntensity:number}>}
+     */
+    static generateNightSkyStars(count = 160) {
+        const total = Math.max(0, Math.floor(count));
+        const stars = [];
+
+        for (let i = 0; i < total; i++) {
+            const randomness = Math.random();
+            stars.push({
+                x: Math.random(),
+                y: Math.random() * 0.65,
+                size: 0.6 + Math.random() * 1.4,
+                twinkleOffset: Math.random() * Math.PI * 2,
+                twinkleSpeed: 0.6 + Math.random() * 1.4,
+                baseIntensity: 0.4 + randomness * 0.6
+            });
+        }
+
+        return stars;
+    }
+
+    /**
+     * Aktualisiert den Zyklus anhand des aktuellen Zeitstempels.
+     * @param {number} now - Zeitstempel in Millisekunden (performance.now)
+     */
+    update(now) {
+        if (!Array.isArray(this.phases) || this.phases.length === 0) {
+            return;
+        }
+
+        if (!Number.isFinite(this.phaseIndex)) {
+            this.phaseIndex = 0;
+        }
+
+        if (!Number.isFinite(this.phaseStart)) {
+            this.phaseStart = now;
+        }
+
+        let phase = this.phases[Math.max(0, Math.min(this.phaseIndex, this.phases.length - 1))];
+        let elapsed = now - this.phaseStart;
+
+        if (!Number.isFinite(elapsed) || elapsed < 0) {
+            elapsed = 0;
+            this.phaseStart = now;
+            phase = this.phases[0];
+            this.phaseIndex = 0;
+        }
+
+        let duration = Math.max(1, Number(phase.duration) || 0);
+
+        while (elapsed >= duration) {
+            elapsed -= duration;
+            this.phaseIndex = (this.phaseIndex + 1) % this.phases.length;
+            phase = this.phases[this.phaseIndex];
+            duration = Math.max(1, Number(phase.duration) || 0);
+            this.phaseStart = now - elapsed;
+        }
+
+        const progress = duration > 0 ? Math.min(1, Math.max(0, elapsed / duration)) : 0;
+
+        const delta = now - (this.lastUpdate ?? now);
+        this.lastUpdate = now;
+
+        if (!Number.isFinite(this.starPhase)) {
+            this.starPhase = 0;
+        }
+
+        if (Number.isFinite(delta) && delta > 0) {
+            this.starPhase = (this.starPhase + delta * 0.0015) % (Math.PI * 2);
+        }
+
+        this.progress = progress;
+        this.currentPhase = phase;
+        this.lighting = this.computeLighting(String(phase.id ?? ''), progress);
+    }
+
+    /**
+     * Gibt das aktuelle Lighting-Objekt zurueck.
+     * @returns {{phaseId:string, overlayAlpha:number, overlayTop:string, overlayBottom:string, horizon:object|null, starAlpha:number}}
+     */
+    getCurrentLighting() {
+        return this.lighting;
+    }
+
+    // ── Beleuchtungsberechnung ──────────────────────────────────────────
+
+    /**
+     * Berechnet die Beleuchtungswerte fuer eine Phase und deren Fortschritt.
+     * @param {string} phaseId
+     * @param {number} progress - 0..1
+     * @returns {{phaseId:string, overlayAlpha:number, overlayTop:string, overlayBottom:string, horizon:object|null, starAlpha:number}}
+     */
+    computeLighting(phaseId, progress) {
+        const t = Math.max(0, Math.min(1, Number(progress) || 0));
+        const sampleStops = (stops, value) => DayNightSystem.sampleColorStops(stops, Math.max(0, Math.min(1, value)));
+
+        const duskSkyStops = [
+            { at: 0, color: [68, 106, 196, 0.86] },
+            { at: 0.33, color: [255, 150, 90, 0.92] },
+            { at: 0.66, color: [186, 58, 48, 0.96] },
+            { at: 1, color: [8, 8, 20, 1] }
+        ];
+
+        const duskHorizonStops = [
+            { at: 0, color: [255, 210, 140, 0.85] },
+            { at: 0.4, color: [255, 142, 64, 0.9] },
+            { at: 0.75, color: [196, 52, 44, 0.92] },
+            { at: 1, color: [12, 10, 28, 0.96] }
+        ];
+
+        const nightSkyTop = [16, 24, 58, 0.92];
+        const nightSkyBottom = [6, 10, 24, 0.96];
+
+        const result = {
+            phaseId: phaseId || 'day',
+            overlayAlpha: 0,
+            overlayTop: 'rgba(0, 0, 0, 0)',
+            overlayBottom: 'rgba(0, 0, 0, 0)',
+            horizon: null,
+            starAlpha: 0
+        };
+
+        switch (phaseId) {
+
+            case 'dusk': {
+                const skyTop = sampleStops(duskSkyStops, t);
+                const skyBottom = sampleStops(duskHorizonStops, Math.min(1, t + 0.15));
+                const horizonTop = sampleStops(duskHorizonStops, Math.max(0, t - 0.15));
+                const horizonBottom = sampleStops(duskHorizonStops, t);
+
+                result.overlayAlpha = 0.35 + t * 0.57;
+                result.overlayTop = DayNightSystem.colorArrayToRgba(skyTop);
+                result.overlayBottom = DayNightSystem.colorArrayToRgba(skyBottom);
+                result.horizon = {
+                    alpha: 0.35 + t * 0.45,
+                    top: DayNightSystem.colorArrayToRgba(horizonTop),
+                    bottom: DayNightSystem.colorArrayToRgba(horizonBottom),
+                    offsetTop: 0.25
+                };
+                result.starAlpha = 0;
+                break;
+            }
+
+            case 'night': {
+                result.overlayAlpha = 0.92;
+                result.overlayTop = DayNightSystem.colorArrayToRgba([2, 2, 6, 0.98]);
+                result.overlayBottom = DayNightSystem.colorArrayToRgba([0, 0, 0, 0.99]);
+                result.horizon = null;
+                result.starAlpha = 0;
+                break;
+            }
+
+            case 'dawn': {
+                const reverse = 1 - t;
+                const skyTop = sampleStops(duskSkyStops, reverse);
+                const skyBottom = sampleStops(duskHorizonStops, Math.min(1, reverse + 0.1));
+                const horizonTop = sampleStops(duskHorizonStops, reverse);
+                const horizonBottom = sampleStops(duskHorizonStops, Math.max(0, reverse - 0.1));
+
+                result.overlayAlpha = 0.52 * reverse;
+                result.overlayTop = DayNightSystem.colorArrayToRgba(skyTop);
+                result.overlayBottom = DayNightSystem.colorArrayToRgba(skyBottom);
+                result.horizon = {
+                    alpha: 0.28 + reverse * 0.3,
+                    top: DayNightSystem.colorArrayToRgba(horizonTop),
+                    bottom: DayNightSystem.colorArrayToRgba(horizonBottom),
+                    offsetTop: 0.28
+                };
+                result.starAlpha = 0;
+                break;
+            }
+
+            case 'day':
+            default: {
+                const warmFactor = Math.sin(t * Math.PI);
+                const top = DayNightSystem.lerpColor([255, 250, 238, 0.08], [255, 236, 204, 0.18], warmFactor);
+                const bottom = DayNightSystem.lerpColor([255, 236, 196, 0.1], [255, 220, 174, 0.18], warmFactor);
+
+                result.overlayAlpha = 0.18 + warmFactor * 0.05;
+                result.overlayTop = DayNightSystem.colorArrayToRgba(top);
+                result.overlayBottom = DayNightSystem.colorArrayToRgba(bottom);
+                result.horizon = {
+                    alpha: 0.2 + warmFactor * 0.12,
+                    top: DayNightSystem.colorArrayToRgba([255, 232, 188, 0.32 + warmFactor * 0.1]),
+                    bottom: DayNightSystem.colorArrayToRgba([255, 214, 162, 0.34 + warmFactor * 0.12]),
+                    offsetTop: 0.35
+                };
+                result.starAlpha = 0;
+                break;
+            }
+
+        }
+
+        return result;
+    }
+
+    // ── Statische Farb-Hilfsfunktionen ──────────────────────────────────
+
+    /**
+     * Interpoliert zwischen Farbstops anhand eines Werts (0..1).
+     * @param {Array<{at:number, color:number[]}>} stops
+     * @param {number} value
+     * @returns {number[]}
+     */
+    static sampleColorStops(stops, value) {
+        if (!Array.isArray(stops) || stops.length === 0) {
+            return [0, 0, 0, 0];
+        }
+
+        const t = Math.max(0, Math.min(1, Number(value) || 0));
+        let previous = stops[0];
+
+        for (let i = 1; i < stops.length; i++) {
+            const current = stops[i];
+            const prevAt = Number(previous?.at ?? 0);
+            const currAt = Number(current?.at ?? 1);
+
+            if (t <= currAt) {
+                const range = Math.max(1e-6, currAt - prevAt);
+                const localT = Math.max(0, Math.min(1, (t - prevAt) / range));
+                return DayNightSystem.lerpColor(previous?.color, current?.color, localT);
+            }
+
+            previous = current;
+        }
+
+        const lastColor = stops[stops.length - 1]?.color;
+        return Array.isArray(lastColor) ? lastColor.slice() : [0, 0, 0, 0];
+    }
+
+    /**
+     * Lineare Interpolation zwischen zwei Farbarrays [r, g, b, a].
+     * @param {number[]} colorA
+     * @param {number[]} colorB
+     * @param {number} t - 0..1
+     * @returns {number[]}
+     */
+    static lerpColor(colorA, colorB, t) {
+        const clampT = Math.max(0, Math.min(1, Number(t) || 0));
+
+        const getComponent = (arr, index) => {
+            if (!Array.isArray(arr) || arr.length === 0) {
+                return index === 3 ? 1 : 0;
+            }
+            if (index < arr.length) {
+                return Number(arr[index]);
+            }
+            if (index === 3) {
+                return arr.length > 3 ? Number(arr[3]) : 1;
+            }
+            return Number(arr[Math.min(index, arr.length - 1)]);
+        };
+
+        const result = [];
+        for (let i = 0; i < 4; i++) {
+            const compA = getComponent(colorA, i);
+            const compB = getComponent(colorB, i);
+            result[i] = compA + (compB - compA) * clampT;
+        }
+
+        return result;
+    }
+
+    /**
+     * Wandelt ein Farbarray [r, g, b, a] in einen rgba()-String um.
+     * @param {number[]} color
+     * @param {number} alphaMultiplier
+     * @returns {string}
+     */
+    static colorArrayToRgba(color, alphaMultiplier = 1) {
+        if (!Array.isArray(color) || color.length === 0) {
+            return 'rgba(0, 0, 0, 0)';
+        }
+
+        const r = Math.round(Math.max(0, Math.min(255, Number(color[0]) || 0)));
+        const g = Math.round(Math.max(0, Math.min(255, Number(color[1] ?? color[0]) || 0)));
+        const b = Math.round(Math.max(0, Math.min(255, Number(color[2] ?? color[1] ?? color[0]) || 0)));
+        const aBase = color.length > 3 ? Number(color[3]) : 1;
+        const a = Math.max(0, Math.min(1, aBase * alphaMultiplier));
+
+        return `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`;
+    }
+}
 
 
 
@@ -7002,6 +7242,11 @@ class InteractionSystem {
          */
         this.interactionRequiresKeyRelease = false;
 
+        // --- Immobilien ---
+
+        /** @type {RealEstateSystem|null} */
+        this.realEstateSystem = null;
+
         // --- Casino ---
 
         /** @type {import('../interiors/Casino.js').Casino|null} */
@@ -7029,6 +7274,15 @@ class InteractionSystem {
 
         /** @type {HTMLButtonElement|null} */
         this.cashOutCasinoCreditsButton = null;
+
+        /** @type {HTMLButtonElement|null} */
+        this.buyPropertyButton = null;
+
+        /** @type {HTMLButtonElement|null} */
+        this.sellPropertyButton = null;
+
+        /** @type {HTMLButtonElement|null} */
+        this.moveInButton = null;
     }
 
     // ===================================================================
@@ -7045,6 +7299,9 @@ class InteractionSystem {
      * @param {HTMLButtonElement} elements.enterButton   - "Betreten"-Button
      * @param {HTMLButtonElement} [elements.buyCredits]  - "Credits kaufen"-Button
      * @param {HTMLButtonElement} [elements.cashOut]     - "Credits auszahlen"-Button
+     * @param {HTMLButtonElement} [elements.buyProperty] - "Immobilie kaufen"-Button
+     * @param {HTMLButtonElement} [elements.sellProperty] - "Immobilie verkaufen"-Button
+     * @param {HTMLButtonElement} [elements.moveInButton] - "Einziehen"-Button
      */
     initUI(elements) {
         this.interactionUI = elements.container ?? null;
@@ -7053,6 +7310,9 @@ class InteractionSystem {
         this.enterBuildingButton = elements.enterButton ?? null;
         this.buyCasinoCreditsButton = elements.buyCredits ?? null;
         this.cashOutCasinoCreditsButton = elements.cashOut ?? null;
+        this.buyPropertyButton = elements.buyProperty ?? null;
+        this.sellPropertyButton = elements.sellProperty ?? null;
+        this.moveInButton = elements.moveInButton ?? null;
 
         this._bindButtonEvents();
     }
@@ -7064,6 +7324,15 @@ class InteractionSystem {
      */
     setCasino(casino) {
         this.casino = casino;
+    }
+
+    /**
+     * Setzt das RealEstateSystem fuer Immobilien-Kauf/Verkauf.
+     *
+     * @param {RealEstateSystem} realEstateSystem
+     */
+    setRealEstateSystem(realEstateSystem) {
+        this.realEstateSystem = realEstateSystem;
     }
 
     // ===================================================================
@@ -7229,14 +7498,24 @@ class InteractionSystem {
             this.buildingNameEl.textContent = building.name ?? 'Unbekanntes Gebaeude';
         }
 
+        // Ist es eine Immobilie?
+        const isProperty = RealEstateSystem.isPropertyType(building.type);
+        const isOwned = isProperty && player && player.ownedProperties.has(building.id);
+
         // Button-Text anpassen
         if (this.enterBuildingButton) {
             if (building.type === 'weaponShop') {
                 this.enterBuildingButton.textContent = 'Shop betreten';
             } else if (building.type === 'casino') {
                 this.enterBuildingButton.textContent = 'Casino betreten';
+            } else if (isProperty) {
+                this.enterBuildingButton.style.display = 'none';
             } else {
                 this.enterBuildingButton.textContent = 'Betreten';
+            }
+
+            if (!isProperty) {
+                this.enterBuildingButton.style.display = 'inline-block';
             }
         }
 
@@ -7249,6 +7528,42 @@ class InteractionSystem {
         if (this.cashOutCasinoCreditsButton) {
             this.cashOutCasinoCreditsButton.style.display =
                 building.type === 'casino' ? 'inline-block' : 'none';
+        }
+
+        // Immobilien-Buttons sichtbar/unsichtbar
+        if (this.buyPropertyButton) {
+            this.buyPropertyButton.style.display =
+                isProperty && !isOwned ? 'inline-block' : 'none';
+            if (isProperty && !isOwned) {
+                const catalog = RealEstateSystem.getCatalogEntry(building.type);
+                if (catalog) {
+                    this.buyPropertyButton.textContent =
+                        'Kaufen (' + RealEstateSystem.formatMoney(catalog.price) + ')';
+                }
+            }
+        }
+
+        if (this.sellPropertyButton) {
+            this.sellPropertyButton.style.display =
+                isProperty && isOwned ? 'inline-block' : 'none';
+            if (isProperty && isOwned) {
+                const catalog = RealEstateSystem.getCatalogEntry(building.type);
+                if (catalog) {
+                    const refund = RealEstateSystem.getSellRefund(catalog.price);
+                    this.sellPropertyButton.textContent =
+                        'Verkaufen (' + RealEstateSystem.formatMoney(refund) + ')';
+                }
+            }
+        }
+
+        // Einziehen-Button: nur bei eigenen Immobilien, nicht wenn bereits Wohnsitz
+        if (this.moveInButton) {
+            const isHome = isOwned && player && player.homePropertyId === building.id;
+            this.moveInButton.style.display =
+                isProperty && isOwned && !isHome ? 'inline-block' : 'none';
+            if (isProperty && isOwned && !isHome) {
+                this.moveInButton.textContent = 'Einziehen';
+            }
         }
 
         // Casino-Message-Timeout raeumen
@@ -7268,6 +7583,21 @@ class InteractionSystem {
                 this.buildingMessageEl.textContent = 'Schau dich um und teste neue Waffen.';
             } else if (building.type === 'house') {
                 this.buildingMessageEl.textContent = 'Privates Wohnhaus. Zutritt nur fuer Bewohner.';
+            } else if (isProperty) {
+                const catalog = RealEstateSystem.getCatalogEntry(building.type);
+                if (catalog) {
+                    if (isOwned) {
+                        const isHome = player && player.homePropertyId === building.id;
+                        const homeLabel = isHome ? ' (Dein Wohnsitz!)' : '';
+                        this.buildingMessageEl.textContent =
+                            'Dein Eigentum!' + homeLabel +
+                            ' Einkommen: ' + RealEstateSystem.formatMoney(catalog.income) + ' / Tag';
+                    } else {
+                        this.buildingMessageEl.textContent =
+                            catalog.description + ' | Einkommen: ' +
+                            RealEstateSystem.formatMoney(catalog.income) + ' / Tag';
+                    }
+                }
             } else {
                 this.buildingMessageEl.textContent = 'Druecke Betreten um hineinzugehen.';
             }
@@ -7319,6 +7649,19 @@ class InteractionSystem {
 
         if (this.enterBuildingButton) {
             this.enterBuildingButton.textContent = 'Betreten';
+            this.enterBuildingButton.style.display = 'inline-block';
+        }
+
+        if (this.buyPropertyButton) {
+            this.buyPropertyButton.style.display = 'none';
+        }
+
+        if (this.sellPropertyButton) {
+            this.sellPropertyButton.style.display = 'none';
+        }
+
+        if (this.moveInButton) {
+            this.moveInButton.style.display = 'none';
         }
 
         if (this.casinoMessageTimeout) {
@@ -7577,6 +7920,121 @@ class InteractionSystem {
     }
 
     // ===================================================================
+    //  Immobilien-Kauf/Verkauf Handler
+    // ===================================================================
+
+    /**
+     * Behandelt den Kauf einer Immobilie.
+     * @param {object} player
+     */
+    handleBuyProperty(player) {
+        if (!this.realEstateSystem || !this.pendingInteractionBuilding) {
+            return;
+        }
+
+        const result = this.realEstateSystem.buyProperty(player, this.pendingInteractionBuilding);
+
+        if (!this.buildingMessageEl) {
+            return;
+        }
+
+        if (!result.success) {
+            if (result.reason === 'noMoney') {
+                this.buildingMessageEl.textContent = 'Nicht genug Geld!';
+            } else if (result.reason === 'alreadyOwned') {
+                this.buildingMessageEl.textContent = 'Diese Immobilie gehoert dir bereits!';
+            } else {
+                this.buildingMessageEl.textContent = 'Kauf nicht moeglich.';
+            }
+            return;
+        }
+
+        this.buildingMessageEl.textContent =
+            'Gekauft! Einkommen: ' + RealEstateSystem.formatMoney(result.property.income) +
+            ' alle ' + result.property.incomeInterval + ' Sek.';
+
+        // Buttons aktualisieren
+        if (this.buyPropertyButton) {
+            this.buyPropertyButton.style.display = 'none';
+        }
+        if (this.sellPropertyButton) {
+            const catalog = RealEstateSystem.getCatalogEntry(this.pendingInteractionBuilding.type);
+            if (catalog) {
+                const refund = RealEstateSystem.getSellRefund(catalog.price);
+                this.sellPropertyButton.textContent =
+                    'Verkaufen (' + RealEstateSystem.formatMoney(refund) + ')';
+            }
+            this.sellPropertyButton.style.display = 'inline-block';
+        }
+    }
+
+    /**
+     * Behandelt den Verkauf einer Immobilie.
+     * @param {object} player
+     */
+    handleSellProperty(player) {
+        if (!this.realEstateSystem || !this.pendingInteractionBuilding) {
+            return;
+        }
+
+        const result = this.realEstateSystem.sellProperty(player, this.pendingInteractionBuilding);
+
+        if (!this.buildingMessageEl) {
+            return;
+        }
+
+        if (!result.success) {
+            this.buildingMessageEl.textContent = 'Verkauf nicht moeglich.';
+            return;
+        }
+
+        this.buildingMessageEl.textContent =
+            'Verkauft! ' + RealEstateSystem.formatMoney(result.refund) + ' erhalten.';
+
+        // Buttons aktualisieren
+        if (this.sellPropertyButton) {
+            this.sellPropertyButton.style.display = 'none';
+        }
+        if (this.buyPropertyButton) {
+            const catalog = RealEstateSystem.getCatalogEntry(this.pendingInteractionBuilding.type);
+            if (catalog) {
+                this.buyPropertyButton.textContent =
+                    'Kaufen (' + RealEstateSystem.formatMoney(catalog.price) + ')';
+            }
+            this.buyPropertyButton.style.display = 'inline-block';
+        }
+    }
+
+    /**
+     * Behandelt das Einziehen in eine eigene Immobilie (Wohnsitz setzen).
+     * @param {object} player
+     */
+    handleMoveIn(player) {
+        if (!this.realEstateSystem || !this.pendingInteractionBuilding) {
+            return;
+        }
+
+        const result = this.realEstateSystem.moveIn(player, this.pendingInteractionBuilding);
+
+        if (!this.buildingMessageEl) {
+            return;
+        }
+
+        if (!result.success) {
+            this.buildingMessageEl.textContent = 'Einziehen nicht moeglich.';
+            return;
+        }
+
+        this.buildingMessageEl.textContent =
+            'Du wohnst jetzt hier! Respawn-Punkt gesetzt.';
+
+        // Einziehen-Button verstecken
+        if (this.moveInButton) {
+            this.moveInButton.style.display = 'none';
+        }
+    }
+
+    // ===================================================================
     //  Button-Event-Bindings
     // ===================================================================
 
@@ -7606,10 +8064,27 @@ class InteractionSystem {
                 this.eventBus.emit('interaction:cashOutCasinoCredits');
             });
         }
+
+        if (this.buyPropertyButton) {
+            this.buyPropertyButton.addEventListener('click', () => {
+                this.eventBus.emit('interaction:buyProperty');
+            });
+        }
+
+        if (this.sellPropertyButton) {
+            this.sellPropertyButton.addEventListener('click', () => {
+                this.eventBus.emit('interaction:sellProperty');
+            });
+        }
+
+        if (this.moveInButton) {
+            this.moveInButton.addEventListener('click', () => {
+                this.eventBus.emit('interaction:moveIn');
+            });
+        }
     }
 }
 
-InteractionSystem;
 
 
 
@@ -8464,6 +8939,8 @@ class BuildingRenderer {
                 case 'officeTower':   this.drawOfficeTower(building); break;
                 case 'residentialTower': this.drawResidentialTower(building); break;
                 case 'weaponShop':    this.drawWeaponShop(building); break;
+                case 'motel':         this.drawMotel(building); break;
+                case 'apartmentComplex': this.drawApartmentComplex(building); break;
                 case 'restaurant':    this.drawRestaurant(building); break;
                 case 'shop':          this.drawShop(building); break;
                 case 'house':
@@ -8471,7 +8948,8 @@ class BuildingRenderer {
             }
         }
 
-        this.drawInteractionPoints(buildings);
+        // Interaktions-Punkte nicht mehr visuell zeichnen (Funktion bleibt erhalten)
+        // this.drawInteractionPoints(buildings);
     }
 
     // --- computeHouseMetrics ---
@@ -9803,6 +10281,179 @@ class BuildingRenderer {
         this.ctx.restore();
     }
 
+    // --- drawMotel ---
+
+    drawMotel(building) {
+        const { x, y, width, height } = building;
+        this.ctx.save();
+
+        // Hauptgebaeude
+        const facade = this.ctx.createLinearGradient(x, y, x, y + height);
+        facade.addColorStop(0, '#8b6f52');
+        facade.addColorStop(1, '#6b5240');
+        this.ctx.fillStyle = facade;
+        this.ctx.fillRect(x, y, width, height);
+
+        // Dach
+        this.ctx.fillStyle = '#4a3728';
+        this.ctx.fillRect(x - 6, y - 12, width + 12, 16);
+
+        // Tueren und Fenster (Zimmerreihe)
+        const roomWidth = 52;
+        const roomSpacing = 8;
+        const roomCount = Math.floor((width - 20) / (roomWidth + roomSpacing));
+        const startX = x + (width - roomCount * (roomWidth + roomSpacing) + roomSpacing) / 2;
+        const doorY = y + height - 60;
+
+        for (let i = 0; i < roomCount; i++) {
+            const rx = startX + i * (roomWidth + roomSpacing);
+
+            // Fenster
+            this.ctx.fillStyle = 'rgba(160, 200, 230, 0.6)';
+            this.ctx.fillRect(rx + 4, y + 20, roomWidth - 8, 30);
+            this.ctx.strokeStyle = '#5a4535';
+            this.ctx.lineWidth = 1.5;
+            this.ctx.strokeRect(rx + 4, y + 20, roomWidth - 8, 30);
+
+            // Kreuzstreben
+            this.ctx.beginPath();
+            this.ctx.moveTo(rx + roomWidth / 2, y + 20);
+            this.ctx.lineTo(rx + roomWidth / 2, y + 50);
+            this.ctx.moveTo(rx + 4, y + 35);
+            this.ctx.lineTo(rx + roomWidth - 4, y + 35);
+            this.ctx.stroke();
+
+            // Tuer
+            this.ctx.fillStyle = '#3d2e22';
+            this.ctx.fillRect(rx + 12, doorY, 28, 48);
+            this.ctx.fillStyle = '#c9a84c';
+            this.ctx.beginPath();
+            this.ctx.arc(rx + 36, doorY + 26, 3, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            // Zimmernummer
+            this.ctx.fillStyle = '#ddd';
+            this.ctx.font = '10px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(String(i + 1), rx + roomWidth / 2, doorY - 4);
+        }
+
+        // Neon-Schild
+        this.ctx.fillStyle = '#1a0f08';
+        this.ctx.fillRect(x + width / 2 - 72, y + height + 4, 144, 28);
+        this.ctx.fillStyle = '#ff6b4a';
+        this.ctx.font = 'bold 16px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText((building.name ?? 'MOTEL').toUpperCase(), x + width / 2, y + height + 23);
+        this.ctx.strokeStyle = '#ff8866';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(x + width / 2 - 72, y + height + 4, 144, 28);
+
+        // Parkplatz-Markierungen
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        this.ctx.lineWidth = 1;
+        for (let i = 0; i < roomCount; i++) {
+            const px = startX + i * (roomWidth + roomSpacing);
+            this.ctx.strokeRect(px, y + height + 36, roomWidth, 30);
+        }
+
+        this.ctx.restore();
+    }
+
+    // --- drawApartmentComplex ---
+
+    drawApartmentComplex(building) {
+        const { x, y, width, height } = building;
+        this.ctx.save();
+
+        // Hauptgebaeude
+        const facade = this.ctx.createLinearGradient(x, y, x + width, y + height);
+        facade.addColorStop(0, '#7a8999');
+        facade.addColorStop(0.5, '#5c6b7a');
+        facade.addColorStop(1, '#4a5768');
+        this.ctx.fillStyle = facade;
+        this.ctx.fillRect(x, y, width, height);
+
+        // Stockwerk-Linien und Fenster
+        const floorHeight = 38;
+        const floorCount = Math.floor((height - 60) / floorHeight);
+        const windowWidth = 24;
+        const windowHeight = 20;
+        const windowSpacing = 12;
+        const windowsPerFloor = Math.floor((width - 40) / (windowWidth + windowSpacing));
+        const windowStartX = x + (width - windowsPerFloor * (windowWidth + windowSpacing) + windowSpacing) / 2;
+
+        for (let floor = 0; floor < floorCount; floor++) {
+            const floorY = y + 24 + floor * floorHeight;
+
+            // Stockwerk-Trennlinie
+            this.ctx.fillStyle = '#3d4a58';
+            this.ctx.fillRect(x + 8, floorY + floorHeight - 4, width - 16, 4);
+
+            for (let w = 0; w < windowsPerFloor; w++) {
+                const wx = windowStartX + w * (windowWidth + windowSpacing);
+                const wy = floorY + 6;
+
+                // Fenster
+                this.ctx.fillStyle = 'rgba(200, 220, 240, 0.55)';
+                this.ctx.fillRect(wx, wy, windowWidth, windowHeight);
+
+                // Balkon (jedes zweite Fenster)
+                if ((floor + w) % 3 === 0) {
+                    this.ctx.fillStyle = 'rgba(100, 110, 125, 0.8)';
+                    this.ctx.fillRect(wx - 3, wy + windowHeight, windowWidth + 6, 6);
+                    this.ctx.strokeStyle = 'rgba(180, 190, 200, 0.5)';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.strokeRect(wx - 3, wy + windowHeight, windowWidth + 6, 6);
+                }
+
+                // Fensterrahmen
+                this.ctx.strokeStyle = '#3a4555';
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeRect(wx, wy, windowWidth, windowHeight);
+            }
+        }
+
+        // Dach
+        this.ctx.fillStyle = '#3a4555';
+        this.ctx.fillRect(x - 4, y - 10, width + 8, 14);
+        // Dachaufbauten
+        this.ctx.fillStyle = '#4a5565';
+        this.ctx.fillRect(x + 20, y - 24, 30, 14);
+        this.ctx.fillRect(x + width - 50, y - 24, 30, 14);
+
+        // Eingangsbereich
+        const entryWidth = 60;
+        const entryHeight = Math.min(50, height * 0.14);
+        const entryX = x + width / 2 - entryWidth / 2;
+        const entryY = y + height - entryHeight;
+
+        this.ctx.fillStyle = '#1e2832';
+        this.ctx.fillRect(entryX, entryY, entryWidth, entryHeight);
+
+        // Glastuer
+        this.ctx.fillStyle = 'rgba(180, 210, 240, 0.4)';
+        this.ctx.fillRect(entryX + 8, entryY + 6, entryWidth - 16, entryHeight - 10);
+        this.ctx.strokeStyle = '#8a9aab';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(entryX + 8, entryY + 6, entryWidth - 16, entryHeight - 10);
+
+        // Schild
+        this.ctx.fillStyle = '#2a3545';
+        this.ctx.fillRect(x + width / 2 - 80, entryY - 22, 160, 20);
+        this.ctx.fillStyle = '#c0d0e0';
+        this.ctx.font = 'bold 13px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText((building.name ?? 'APARTMENTS').toUpperCase(), x + width / 2, entryY - 7);
+
+        // Seitliche Saeulen
+        this.ctx.fillStyle = '#4a5565';
+        this.ctx.fillRect(x - 2, y, 8, height);
+        this.ctx.fillRect(x + width - 6, y, 8, height);
+
+        this.ctx.restore();
+    }
+
     // --- Interaction Points ---
 
     drawInteractionPoints(buildings) {
@@ -9934,6 +10585,71 @@ class EntityRenderer {
     drawNPC(npc) {
         if (!npc || npc.hidden) return;
         this.drawCharacterParts(npc);
+    }
+
+    // --- Polizei ---
+
+    /**
+     * Zeichnet alle Polizisten mit Waffen.
+     * @param {Array<object>} officers
+     * @param {object} player - Spieler-Position fuer Waffenrichtung
+     * @param {Map<string, object>} weaponCatalog
+     */
+    drawPoliceOfficers(officers, player, weaponCatalog) {
+        if (!officers) return;
+        for (const cop of officers) {
+            if (!cop || cop.hidden) continue;
+            this.drawPoliceOfficer(cop, player, weaponCatalog);
+        }
+    }
+
+    /**
+     * Zeichnet einen einzelnen Polizisten.
+     * @param {object} cop
+     * @param {object} player
+     * @param {Map<string, object>} weaponCatalog
+     */
+    drawPoliceOfficer(cop, player, weaponCatalog) {
+        if (cop.dead) {
+            // Toten Polizisten mit Rotation zeichnen
+            this.ctx.save();
+            this.ctx.translate(cop.x, cop.y);
+            this.ctx.rotate(cop.deathRotation ?? 0);
+            this.ctx.globalAlpha = 0.6;
+            const deadRenderable = { x: 0, y: 0, parts: cop.parts, animationPhase: 0, moving: false };
+            this.drawCharacterParts(deadRenderable);
+            this.ctx.restore();
+            return;
+        }
+
+        const renderable = {
+            x: cop.x,
+            y: cop.y,
+            parts: cop.parts,
+            animationPhase: cop.animationPhase ?? 0,
+            moving: cop.moving,
+        };
+
+        this.drawCharacterParts(renderable);
+
+        // SWAT Helm-Visier zeichnen
+        if (cop.type === 'swat') {
+            const bob = cop.moving ? Math.abs(Math.cos(cop.animationPhase ?? 0)) * 1.2 : 0;
+            this.ctx.save();
+            this.ctx.fillStyle = 'rgba(50, 50, 70, 0.7)';
+            this.ctx.fillRect(cop.x - 5, cop.y - 20 - bob, 10, 4);
+            this.ctx.restore();
+        }
+
+        // Waffe zeichnen (zeigt zum Spieler)
+        const weapon = weaponCatalog?.get?.(cop.weaponId) ?? null;
+        if (weapon) {
+            const fakeMouse = {
+                worldX: player.x + player.width / 2,
+                worldY: player.y + player.height / 2,
+            };
+            this.drawEquippedWeaponModel(renderable, weapon, fakeMouse);
+        }
     }
 
     // --- Vehicle ---
@@ -10241,6 +10957,10 @@ class UIRenderer {
         this.ctx = renderer.ctx;
         this.playerPosEl = domElements.playerPosEl ?? null;
         this.fpsEl = domElements.fpsEl ?? null;
+
+        // Offscreen-Canvas fuer Nacht-Overlay mit Taschenlampen-Ausschnitten
+        this._darkCanvas = document.createElement('canvas');
+        this._darkCtx = this._darkCanvas.getContext('2d');
     }
 
     // ── Formatierungs-Hilfsfunktionen ───────────────────────────────────
@@ -10281,41 +11001,49 @@ class UIRenderer {
      * @param {number} casinoCredits
      * @param {number} casinoCreditRate
      */
-    drawHUD(player, fps, weaponCatalog, weaponInventory, weaponLoadout, weaponOrder, playerMoney, casinoCredits, casinoCreditRate) {
+    drawHUD(player, fps, weaponCatalog, weaponInventory, weaponLoadout, weaponOrder, playerMoney, casinoCredits, casinoCreditRate, ownedPropertyCount) {
         if (this.playerPosEl) {
             this.playerPosEl.textContent = Math.round(player.x) + ", " + Math.round(player.y);
         }
 
         const weapon = this._getCurrentWeaponFromCatalog(player, weaponCatalog);
-        const hudWidth = 420;
-        const hudHeight = 200;
+        const hudWidth = 520;
+        const hudHeight = 290;
         const baseX = 10;
         const baseY = 60;
-        let textY = baseY + 30;
+        let textY = baseY + 36;
 
         this.ctx.fillStyle = "rgba(12, 16, 24, 0.78)";
         this.ctx.fillRect(baseX, baseY, hudWidth, hudHeight);
 
         this.ctx.fillStyle = "#ffffff";
-        this.ctx.font = "16px Arial";
-        this.ctx.fillText("Kontostand: " + UIRenderer.formatMoney(playerMoney), baseX + 10, textY);
-        textY += 24;
-        this.ctx.fillText("Casino Credits: " + UIRenderer.formatCredits(casinoCredits) + " Credits", baseX + 10, textY);
-        textY += 24;
-        this.ctx.fillText("Aktive Waffe: " + (weapon ? weapon.name : "Keine"), baseX + 10, textY);
-        textY += 24;
+        this.ctx.font = "20px Arial";
+        this.ctx.textAlign = "left";
+        this.ctx.fillText("Kontostand: " + UIRenderer.formatMoney(playerMoney), baseX + 14, textY);
+        textY += 30;
+        this.ctx.fillText("Casino Credits: " + UIRenderer.formatCredits(casinoCredits) + " Credits", baseX + 14, textY);
+        textY += 30;
+
+        // Immobilien-Anzeige
+        const propCount = ownedPropertyCount ?? 0;
+        this.ctx.fillStyle = propCount > 0 ? '#4CAF50' : '#888';
+        this.ctx.fillText("Immobilien: " + propCount, baseX + 14, textY);
+        this.ctx.fillStyle = "#ffffff";
+        textY += 30;
+        this.ctx.fillText("Aktive Waffe: " + (weapon ? weapon.name : "Keine"), baseX + 14, textY);
+        textY += 30;
 
         if (weapon) {
             const fireSeconds = (Number(weapon.fireRate ?? 0) / 1000).toFixed(1);
-            this.ctx.fillText("Schaden: " + weapon.damage + " | Feuerrate: " + fireSeconds + " s", baseX + 10, textY);
+            this.ctx.fillText("Schaden: " + weapon.damage + " | Feuerrate: " + fireSeconds + " s", baseX + 14, textY);
         } else {
-            this.ctx.fillText("Schaden: - | Feuerrate: -", baseX + 10, textY);
+            this.ctx.fillText("Schaden: - | Feuerrate: -", baseX + 14, textY);
         }
 
-        textY += 26;
+        textY += 32;
 
         this.ctx.fillStyle = "#8ce0ff";
-        this.ctx.font = "14px Arial";
+        this.ctx.font = "18px Arial";
 
         const quickSlots = Array.isArray(weaponLoadout) ? weaponLoadout : [];
         const slotLabels = [];
@@ -10331,19 +11059,19 @@ class UIRenderer {
             ? "Schnellzugriff " + slotLabels.join(" | ") + " | Shift: Sprint"
             : "Shift: Sprint";
 
-        this.ctx.fillText(quickText, baseX + 10, textY);
-        textY += 20;
+        this.ctx.fillText(quickText, baseX + 14, textY);
+        textY += 26;
 
         const ownedCount = weaponOrder.filter((id) => weaponInventory.has(id)).length;
         if (ownedCount > quickSlots.length) {
             const rangeStart = quickSlots.length + 1;
             const rangeEnd = ownedCount;
             const moreText = "Weitere Waffen: Tasten " + rangeStart + (rangeStart === rangeEnd ? "" : "-" + rangeEnd);
-            this.ctx.fillText(moreText, baseX + 10, textY);
-            textY += 20;
+            this.ctx.fillText(moreText, baseX + 14, textY);
+            textY += 26;
         }
 
-        this.ctx.fillText("E: Interagieren | Casino: 1$ = " + (casinoCreditRate ?? 10) + " Credits", baseX + 10, textY);
+        this.ctx.fillText("E: Interagieren | Casino: 1$ = " + (casinoCreditRate ?? 10) + " Credits", baseX + 14, textY);
     }
 
     // ── Crosshair ───────────────────────────────────────────────────────
@@ -10519,6 +11247,333 @@ class UIRenderer {
      * @param {object} weaponCatalog
      * @returns {object|null}
      */
+    // ── Taschenlampen + Nacht-Overlay ──────────────────────────────────
+
+    /**
+     * Zeichnet das Nacht-Overlay mit Taschenlampen-Ausschnitten.
+     * Nutzt einen Offscreen-Canvas: Dunkelheit malen, Kegel ausstanzen,
+     * dann auf den Haupt-Canvas compositen.
+     *
+     * @param {number} overlayAlpha - aktuelle Dunkelheit (0-1)
+     * @param {number} cameraX
+     * @param {number} cameraY
+     * @param {number} viewWidth  - sichtbare Viewport-Breite (Welt-Einheiten)
+     * @param {number} viewHeight - sichtbare Viewport-Hoehe (Welt-Einheiten)
+     * @param {Array<{x:number, y:number, angle:number, spread?:number, range?:number}>} flashlights
+     */
+    drawNightWithFlashlights(overlayAlpha, cameraX, cameraY, viewWidth, viewHeight, flashlights) {
+        if (overlayAlpha < 0.05) return;
+
+        const dc = this._darkCanvas;
+        const dctx = this._darkCtx;
+
+        // Offscreen-Canvas auf sichtbare Groesse anpassen
+        const w = Math.ceil(viewWidth);
+        const h = Math.ceil(viewHeight);
+        if (dc.width !== w || dc.height !== h) {
+            dc.width = w;
+            dc.height = h;
+        }
+
+        // Dunkelheit fuellen
+        dctx.clearRect(0, 0, w, h);
+        dctx.fillStyle = `rgba(0, 0, 0, ${Math.min(1, overlayAlpha)})`;
+        dctx.fillRect(0, 0, w, h);
+
+        // Taschenlampen-Kegel ausstanzen
+        if (flashlights && flashlights.length > 0) {
+            dctx.globalCompositeOperation = 'destination-out';
+
+            for (const fl of flashlights) {
+                const spread = fl.spread ?? 0.45;
+                const range = fl.range ?? 220;
+                const angle = fl.angle;
+                // Lokale Koordinaten relativ zum Offscreen-Canvas
+                const cx = fl.x - cameraX;
+                const cy = fl.y - cameraY;
+
+                const leftAngle = angle - spread;
+                const rightAngle = angle + spread;
+                const tipX1 = cx + Math.cos(leftAngle) * range;
+                const tipY1 = cy + Math.sin(leftAngle) * range;
+                const tipX2 = cx + Math.cos(rightAngle) * range;
+                const tipY2 = cy + Math.sin(rightAngle) * range;
+                const midX = cx + Math.cos(angle) * range;
+                const midY = cy + Math.sin(angle) * range;
+
+                // Radialer Gradient fuer sanften Rand
+                const grad = dctx.createRadialGradient(cx, cy, 6, cx, cy, range);
+                grad.addColorStop(0, 'rgba(0, 0, 0, 1)');
+                grad.addColorStop(0.65, 'rgba(0, 0, 0, 0.8)');
+                grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+                dctx.beginPath();
+                dctx.moveTo(cx, cy);
+                dctx.lineTo(tipX1, tipY1);
+                dctx.quadraticCurveTo(midX, midY, tipX2, tipY2);
+                dctx.closePath();
+                dctx.fillStyle = grad;
+                dctx.fill();
+            }
+
+            dctx.globalCompositeOperation = 'source-over';
+        }
+
+        // Offscreen-Dunkelheit auf Haupt-Canvas zeichnen
+        this.ctx.drawImage(dc, cameraX, cameraY, w, h);
+
+        // Warmer Lichtschein der Taschenlampen (auf Haupt-Canvas)
+        if (flashlights && flashlights.length > 0) {
+            this.ctx.save();
+            this.ctx.globalCompositeOperation = 'lighter';
+            for (const fl of flashlights) {
+                const spread = fl.spread ?? 0.45;
+                const range = fl.range ?? 220;
+                const angle = fl.angle;
+                const cx = fl.x;
+                const cy = fl.y;
+
+                const leftAngle = angle - spread;
+                const rightAngle = angle + spread;
+                const tipX1 = cx + Math.cos(leftAngle) * range;
+                const tipY1 = cy + Math.sin(leftAngle) * range;
+                const tipX2 = cx + Math.cos(rightAngle) * range;
+                const tipY2 = cy + Math.sin(rightAngle) * range;
+                const midX = cx + Math.cos(angle) * range;
+                const midY = cy + Math.sin(angle) * range;
+
+                const warmGrad = this.ctx.createRadialGradient(cx, cy, 4, cx, cy, range);
+                warmGrad.addColorStop(0, 'rgba(255, 245, 200, 0.10)');
+                warmGrad.addColorStop(0.5, 'rgba(255, 235, 180, 0.04)');
+                warmGrad.addColorStop(1, 'rgba(255, 230, 160, 0)');
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(cx, cy);
+                this.ctx.lineTo(tipX1, tipY1);
+                this.ctx.quadraticCurveTo(midX, midY, tipX2, tipY2);
+                this.ctx.closePath();
+                this.ctx.fillStyle = warmGrad;
+                this.ctx.fill();
+            }
+            this.ctx.restore();
+        }
+    }
+
+    // ── Polizei-UI ─────────────────────────────────────────────────────
+
+    /**
+     * Zeichnet den Wanted-Indikator (Polizei-Sirene).
+     * @param {boolean} wanted
+     * @param {boolean} shootBack - Ob Polizei zurueckschiesst
+     * @param {number} now - performance.now() fuer Blink-Animation
+     */
+    drawWantedIndicator(wanted, shootBack, now) {
+        if (!wanted) return;
+
+        const x = this.renderer.width - 280;
+        const y = 20;
+
+        // Hintergrund
+        this.ctx.fillStyle = 'rgba(12, 16, 24, 0.85)';
+        this.ctx.fillRect(x, y, 260, 60);
+
+        // Blinkendes Polizei-Icon
+        const blink = Math.sin(now * 0.008) > 0;
+        this.ctx.fillStyle = blink ? '#3b82f6' : '#ef4444';
+        this.ctx.beginPath();
+        this.ctx.arc(x + 30, y + 30, 14, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // Text
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 24px Arial';
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText(shootBack ? 'GESUCHT!' : 'POLIZEI', x + 54, y + 38);
+    }
+
+    /**
+     * Zeichnet die Verhaftungs-Fortschrittsanzeige.
+     * @param {number} progress - 0 bis 1
+     */
+    drawArrestProgress(progress) {
+        if (progress <= 0.01) return;
+
+        const barW = 320;
+        const barH = 20;
+        const x = (this.renderer.width - barW) / 2;
+        const y = this.renderer.height - 100;
+
+        // Hintergrund
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        this.ctx.fillRect(x - 6, y - 30, barW + 12, barH + 44);
+
+        // Label
+        this.ctx.fillStyle = '#ff4444';
+        this.ctx.font = 'bold 18px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('VERHAFTUNG', x + barW / 2, y - 6);
+
+        // Bar Hintergrund
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        this.ctx.fillRect(x, y, barW, barH);
+
+        // Bar Fortschritt
+        this.ctx.fillStyle = '#ff4444';
+        this.ctx.fillRect(x, y, barW * Math.min(1, progress), barH);
+    }
+
+    /**
+     * Zeichnet den Stun-Effekt (blaue Blitze um den Bildschirm).
+     * @param {number} stunTimer - Verbleibende Stun-Zeit in ms
+     * @param {number} now
+     */
+    drawStunEffect(stunTimer, now) {
+        if (stunTimer <= 0) return;
+
+        const alpha = Math.min(0.4, stunTimer / 2000 * 0.4);
+        const flash = Math.sin(now * 0.02) * 0.15;
+
+        this.ctx.save();
+        this.ctx.fillStyle = `rgba(50, 130, 255, ${alpha + flash})`;
+        this.ctx.fillRect(0, 0, this.renderer.width, this.renderer.height);
+
+        // BETAEUBT Text
+        this.ctx.fillStyle = `rgba(255, 255, 100, ${0.6 + flash})`;
+        this.ctx.font = 'bold 42px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('BETAEUBT', this.renderer.width / 2, this.renderer.height / 2 - 40);
+
+        this.ctx.restore();
+    }
+
+    /**
+     * Zeichnet den Slow-Effekt (dezenter blauer Rand).
+     * @param {number} slowTimer
+     */
+    drawSlowEffect(slowTimer) {
+        if (slowTimer <= 0) return;
+
+        const alpha = Math.min(0.2, slowTimer / 2000 * 0.2);
+        this.ctx.save();
+
+        // Vignette-Effekt
+        const grad = this.ctx.createRadialGradient(
+            this.renderer.width / 2, this.renderer.height / 2, this.renderer.height * 0.3,
+            this.renderer.width / 2, this.renderer.height / 2, this.renderer.height * 0.7
+        );
+        grad.addColorStop(0, 'rgba(50, 130, 255, 0)');
+        grad.addColorStop(1, `rgba(50, 130, 255, ${alpha})`);
+        this.ctx.fillStyle = grad;
+        this.ctx.fillRect(0, 0, this.renderer.width, this.renderer.height);
+
+        this.ctx.restore();
+    }
+
+    /**
+     * Zeichnet den WASTED-Bildschirm.
+     * @param {string} reason - 'arrested' oder 'killed'
+     * @returns {{ buttonRect: {x:number, y:number, w:number, h:number} }}
+     */
+    drawWastedScreen(reason) {
+        const w = this.renderer.width;
+        const h = this.renderer.height;
+
+        // Dunkler Overlay
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+        this.ctx.fillRect(0, 0, w, h);
+
+        // Roter Streifen
+        const stripeH = 160;
+        const stripeY = h / 2 - stripeH / 2 - 40;
+        this.ctx.fillStyle = 'rgba(180, 20, 20, 0.6)';
+        this.ctx.fillRect(0, stripeY, w, stripeH);
+
+        // WASTED Text
+        this.ctx.fillStyle = '#cc1111';
+        this.ctx.font = 'bold 96px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText('WASTED', w / 2, stripeY + stripeH / 2);
+
+        // Untertitel
+        this.ctx.fillStyle = '#cccccc';
+        this.ctx.font = '24px Arial';
+        const fine = reason === 'killed' ? 500 : 250;
+        const subtitle = reason === 'arrested'
+            ? 'Du wurdest verhaftet. Strafe: ' + fine + '$'
+            : 'Du wurdest ausgeschaltet. Strafe: ' + fine + '$';
+        this.ctx.fillText(subtitle, w / 2, stripeY + stripeH + 40);
+
+        // Respawn-Button
+        const btnW = 300;
+        const btnH = 60;
+        const btnX = w / 2 - btnW / 2;
+        const btnY = stripeY + stripeH + 70;
+
+        this.ctx.fillStyle = '#2563eb';
+        this.ctx.fillRect(btnX, btnY, btnW, btnH);
+        this.ctx.strokeStyle = '#60a5fa';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(btnX, btnY, btnW, btnH);
+
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 26px Arial';
+        this.ctx.fillText('RESPAWN', w / 2, btnY + btnH / 2);
+
+        this.ctx.textBaseline = 'alphabetic';
+
+        return { buttonRect: { x: btnX, y: btnY, w: btnW, h: btnH } };
+    }
+
+    /**
+     * Zeichnet die Spieler-Gesundheitsanzeige.
+     * @param {number} health
+     * @param {number} maxHealth
+     */
+    drawPlayerHealth(health, maxHealth) {
+        if (health >= maxHealth) return;
+
+        const barW = 200;
+        const barH = 14;
+        const x = (this.renderer.width - barW) / 2;
+        const y = this.renderer.height - 55;
+
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        this.ctx.fillRect(x - 3, y - 3, barW + 6, barH + 6);
+
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        this.ctx.fillRect(x, y, barW, barH);
+
+        const ratio = Math.max(0, health / maxHealth);
+        const color = ratio > 0.5 ? '#22c55e' : ratio > 0.25 ? '#eab308' : '#ef4444';
+        this.ctx.fillStyle = color;
+        this.ctx.fillRect(x, y, barW * ratio, barH);
+    }
+
+    /**
+     * Zeichnet die Stamina-Bar (Sprint-Ausdauer).
+     * @param {number} stamina - 0 bis 1
+     */
+    drawStaminaBar(stamina) {
+        if (stamina >= 1) return;
+
+        const barW = 200;
+        const barH = 8;
+        const x = (this.renderer.width - barW) / 2;
+        const y = this.renderer.height - 38;
+
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        this.ctx.fillRect(x - 2, y - 2, barW + 4, barH + 4);
+
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        this.ctx.fillRect(x, y, barW, barH);
+
+        const ratio = Math.max(0, Math.min(1, stamina));
+        const color = ratio > 0.4 ? '#38bdf8' : ratio > 0.15 ? '#f59e0b' : '#ef4444';
+        this.ctx.fillStyle = color;
+        this.ctx.fillRect(x, y, barW * ratio, barH);
+    }
+
     _getCurrentWeaponFromCatalog(player, weaponCatalog) {
         const weaponId = player?.currentWeaponId ?? player?.equippedWeapon ?? null;
         if (!weaponId || !weaponCatalog) {
@@ -10527,6 +11582,1592 @@ class UIRenderer {
         return weaponCatalog?.get?.(weaponId) ?? weaponCatalog?.[weaponId] ?? null;
     }
 }
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/rendering/PhoneUI.js
+// ═══════════════════════════════════════════════════════
+/**
+ * PhoneUI - Handy-Overlay mit Homescreen und oeffenbaren Apps (Karte, Chats).
+ */
+
+// ── Spielzeit-Mapping ────────────────────────────────────────────────────
+const PHASE_TIME_MAP = {
+    day:   { startHour: 8,  spanHours: 10 },
+    dusk:  { startHour: 18, spanHours: 3  },
+    night: { startHour: 21, spanHours: 8  },
+    dawn:  { startHour: 5,  spanHours: 3  },
+};
+
+const DAY_NAMES = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+
+// ── Apps ─────────────────────────────────────────────────────────────────
+const PHONE_APPS = [
+    { id: 'map',      label: 'Karte',       icon: 'map',   color: '#2ea043' },
+    { id: 'chats',    label: 'Nachrichten',  icon: 'chat',  color: '#58a6ff' },
+    { id: 'contacts', label: 'Kontakte',     icon: 'user',  color: '#d29922' },
+    { id: 'settings', label: 'Einstellungen',icon: 'gear',  color: '#8b949e' },
+];
+
+// ── Chat-Daten ───────────────────────────────────────────────────────────
+const CHAT_CONTACTS = [
+    {
+        name: 'Mama',
+        messages: [
+            { text: 'Vergiss nicht einzukaufen!', time: '09:14', incoming: true },
+            { text: 'Ja mach ich spaeter',        time: '09:15', incoming: false },
+            { text: 'Komm nicht zu spaet!',        time: '14:07', incoming: true },
+        ],
+    },
+    {
+        name: 'Luca',
+        messages: [
+            { text: 'Bist du heute online?',       time: '11:32', incoming: true },
+            { text: 'Bin unterwegs gerade',         time: '11:33', incoming: false },
+            { text: 'Ok sag bescheid wenn du da bist', time: '11:34', incoming: true },
+        ],
+    },
+    {
+        name: 'Tim',
+        messages: [
+            { text: 'Hast du das Spiel gesehen?',  time: '20:11', incoming: true },
+            { text: 'Ja war krass!',                time: '20:12', incoming: false },
+        ],
+    },
+];
+
+// ── Handy-Konstanten ─────────────────────────────────────────────────────
+const PHONE_W = 260;
+const PHONE_H = 480;
+const SCREEN_PAD = 12;
+const SCREEN_TOP = 40;
+const SCREEN_BOTTOM = 30;
+const STATUS_BAR_H = 28;
+const NAV_BAR_H = 36;
+
+class PhoneUI {
+
+    constructor() {
+        this.open = false;
+        /** 'home' | 'map' | 'chats' | 'chat-detail' | 'contacts' | 'settings' */
+        this.currentScreen = 'home';
+        this.selectedChat = null;       // Index in CHAT_CONTACTS
+
+        this._dayCount = 0;
+        this._lastPhaseIndex = 0;
+        this._slideProgress = 0;
+
+        // Klick-State
+        this._clickConsumed = false;
+
+        // Gecachte Handy-Position (wird in draw() gesetzt, in handleClick gelesen)
+        this._phoneX = 0;
+        this._phoneY = 0;
+        this._canvasW = 0;
+        this._canvasH = 0;
+    }
+
+    // ── Toggle ───────────────────────────────────────────────────────────
+
+    toggle() {
+        if (this.open) {
+            this.open = false;
+            this.currentScreen = 'home';
+            this.selectedChat = null;
+        } else {
+            this.open = true;
+        }
+    }
+
+    // ── Update ───────────────────────────────────────────────────────────
+
+    /**
+     * @param {number} deltaTime
+     * @param {import('../systems/DayNightSystem.js').DayNightSystem} dayNight
+     * @param {{x:number, y:number, down:boolean}} mouse
+     * @param {boolean} mouseJustPressed
+     */
+    update(deltaTime, dayNight, mouse, mouseJustPressed) {
+        // Slide-Animation
+        const target = this.open ? 1 : 0;
+        const speed = 8;
+        this._slideProgress += (target - this._slideProgress) * Math.min(1, speed * deltaTime);
+        if (Math.abs(this._slideProgress - target) < 0.005) {
+            this._slideProgress = target;
+        }
+
+        // Tag-Zaehler
+        if (dayNight) {
+            const idx = dayNight.phaseIndex;
+            if (this._lastPhaseIndex === 3 && idx === 0) {
+                this._dayCount++;
+            }
+            this._lastPhaseIndex = idx;
+        }
+
+        // Klick-Verarbeitung
+        if (mouseJustPressed && this.open && this._slideProgress > 0.9) {
+            this._handleClick(mouse.x, mouse.y);
+        }
+    }
+
+    get visible() {
+        return this._slideProgress > 0.01;
+    }
+
+    // ── Klick-Verarbeitung ───────────────────────────────────────────────
+
+    _handleClick(mx, my) {
+        const phoneX = this._phoneX;
+        const phoneY = this._phoneY;
+        const screenX = phoneX + SCREEN_PAD;
+        const screenY = phoneY + SCREEN_TOP;
+        const screenW = PHONE_W - SCREEN_PAD * 2;
+        const screenH = PHONE_H - SCREEN_TOP - SCREEN_BOTTOM;
+        const contentY = screenY + STATUS_BAR_H;
+        const contentH = screenH - STATUS_BAR_H - NAV_BAR_H;
+
+        // Ausserhalb Handy?
+        if (mx < phoneX || mx > phoneX + PHONE_W || my < phoneY || my > phoneY + PHONE_H) {
+            return;
+        }
+
+        // Nav-Bar: Zurueck-Button (immer sichtbar wenn nicht auf Home)
+        const navY = screenY + screenH - NAV_BAR_H;
+        if (this.currentScreen !== 'home' && my >= navY && my <= navY + NAV_BAR_H) {
+            if (this.currentScreen === 'chat-detail') {
+                this.currentScreen = 'chats';
+                this.selectedChat = null;
+            } else {
+                this.currentScreen = 'home';
+            }
+            return;
+        }
+
+        // Homescreen: App-Icons
+        if (this.currentScreen === 'home') {
+            const cols = 2;
+            const iconSize = 52;
+            const gapX = (screenW - cols * iconSize) / (cols + 1);
+            const gapY = 24;
+            const startY = contentY + 30;
+
+            for (let i = 0; i < PHONE_APPS.length; i++) {
+                const col = i % cols;
+                const row = Math.floor(i / cols);
+                const ix = screenX + gapX + col * (iconSize + gapX);
+                const iy = startY + row * (iconSize + gapY + 16);
+
+                if (mx >= ix && mx <= ix + iconSize && my >= iy && my <= iy + iconSize) {
+                    this.currentScreen = PHONE_APPS[i].id;
+                    return;
+                }
+            }
+            return;
+        }
+
+        // Chats-Liste: Kontakt anklicken
+        if (this.currentScreen === 'chats') {
+            const listStartY = contentY + 8;
+            const itemH = 52;
+
+            for (let i = 0; i < CHAT_CONTACTS.length; i++) {
+                const iy = listStartY + i * itemH;
+                if (mx >= screenX && mx <= screenX + screenW && my >= iy && my <= iy + itemH) {
+                    this.selectedChat = i;
+                    this.currentScreen = 'chat-detail';
+                    return;
+                }
+            }
+        }
+    }
+
+    /** Prueft ob ein Klick innerhalb des Handys liegt (um Spielaktionen zu blockieren) */
+    isClickOnPhone(mx, my) {
+        if (!this.open || this._slideProgress < 0.5) return false;
+        return mx >= this._phoneX && mx <= this._phoneX + PHONE_W &&
+               my >= this._phoneY && my <= this._phoneY + PHONE_H;
+    }
+
+    // ── Spielzeit ────────────────────────────────────────────────────────
+
+    getGameTime(dayNight) {
+        const phaseId = dayNight.currentPhase?.id ?? 'day';
+        const progress = dayNight.progress ?? 0;
+        const mapping = PHASE_TIME_MAP[phaseId] ?? PHASE_TIME_MAP.day;
+
+        const totalHours = mapping.startHour + mapping.spanHours * progress;
+        const hours24 = ((totalHours % 24) + 24) % 24;
+        const hours = Math.floor(hours24);
+        const minutes = Math.floor((hours24 - hours) * 60);
+        const dayName = DAY_NAMES[this._dayCount % DAY_NAMES.length];
+
+        return { hours, minutes, dayName };
+    }
+
+    // ── Haupt-Render ─────────────────────────────────────────────────────
+
+    draw(ctx, canvasWidth, canvasHeight, { dayNight, player, buildings, roadLayout, worldBounds }) {
+        if (!this.visible) return;
+
+        const slide = this._slideProgress;
+        this._canvasW = canvasWidth;
+        this._canvasH = canvasHeight;
+
+        const phoneX = canvasWidth / 2 - PHONE_W / 2;
+        const phoneBaseY = canvasHeight / 2 - PHONE_H / 2;
+        const phoneY = phoneBaseY + (1 - slide) * (canvasHeight - phoneBaseY + 40);
+
+        this._phoneX = phoneX;
+        this._phoneY = phoneY;
+
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, slide * 1.5);
+
+        // Schatten
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 30;
+        ctx.shadowOffsetY = 8;
+
+        // Gehaeuse
+        this._roundRect(ctx, phoneX, phoneY, PHONE_W, PHONE_H, 24);
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fill();
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+
+        this._roundRect(ctx, phoneX, phoneY, PHONE_W, PHONE_H, 24);
+        ctx.strokeStyle = '#3a3a5e';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Bildschirm
+        const screenX = phoneX + SCREEN_PAD;
+        const screenY = phoneY + SCREEN_TOP;
+        const screenW = PHONE_W - SCREEN_PAD * 2;
+        const screenH = PHONE_H - SCREEN_TOP - SCREEN_BOTTOM;
+
+        this._roundRect(ctx, screenX, screenY, screenW, screenH, 12);
+        ctx.fillStyle = '#0d1117';
+        ctx.fill();
+
+        ctx.save();
+        ctx.beginPath();
+        this._roundRect(ctx, screenX, screenY, screenW, screenH, 12);
+        ctx.clip();
+
+        // Statusleiste
+        this._drawStatusBar(ctx, screenX, screenY, screenW, dayNight);
+
+        // Content-Bereich
+        const contentY = screenY + STATUS_BAR_H;
+        const contentH = screenH - STATUS_BAR_H - NAV_BAR_H;
+
+        switch (this.currentScreen) {
+            case 'home':
+                this._drawHomeScreen(ctx, screenX, contentY, screenW, contentH, dayNight);
+                break;
+            case 'map':
+                this._drawMapApp(ctx, screenX, contentY, screenW, contentH, player, buildings, roadLayout, worldBounds);
+                break;
+            case 'chats':
+                this._drawChatsApp(ctx, screenX, contentY, screenW, contentH);
+                break;
+            case 'chat-detail':
+                this._drawChatDetail(ctx, screenX, contentY, screenW, contentH);
+                break;
+            case 'contacts':
+                this._drawContactsApp(ctx, screenX, contentY, screenW, contentH);
+                break;
+            case 'settings':
+                this._drawSettingsApp(ctx, screenX, contentY, screenW, contentH);
+                break;
+        }
+
+        // Nav-Bar
+        this._drawNavBar(ctx, screenX, screenY + screenH - NAV_BAR_H, screenW);
+
+        ctx.restore(); // clip
+
+        // Notch
+        ctx.fillStyle = '#0d1117';
+        this._roundRect(ctx, phoneX + PHONE_W / 2 - 40, phoneY + 8, 80, 20, 10);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(phoneX + PHONE_W / 2 + 20, phoneY + 18, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#1a3a5e';
+        ctx.fill();
+
+        // Home-Strich
+        ctx.strokeStyle = '#3a3a5e';
+        ctx.lineWidth = 2;
+        this._roundRect(ctx, phoneX + PHONE_W / 2 - 30, phoneY + PHONE_H - 22, 60, 4, 2);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    // ── Statusleiste ─────────────────────────────────────────────────────
+
+    _drawStatusBar(ctx, x, y, w, dayNight) {
+        ctx.fillStyle = '#161b22';
+        ctx.fillRect(x, y, w, STATUS_BAR_H);
+
+        const time = this.getGameTime(dayNight);
+        const timeStr = String(time.hours).padStart(2, '0') + ':' + String(time.minutes).padStart(2, '0');
+
+        ctx.fillStyle = '#e6edf3';
+        ctx.font = 'bold 13px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(timeStr, x + 10, y + 19);
+
+        ctx.textAlign = 'right';
+        ctx.font = '12px Arial';
+        ctx.fillStyle = '#8b949e';
+        ctx.fillText(time.dayName, x + w - 10, y + 19);
+
+        // Batterie-Icon
+        const batX = x + w - 70;
+        const batY = y + 9;
+        ctx.strokeStyle = '#8b949e';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(batX, batY, 16, 9);
+        ctx.fillStyle = '#3fb950';
+        ctx.fillRect(batX + 2, batY + 2, 10, 5);
+        ctx.fillStyle = '#8b949e';
+        ctx.fillRect(batX + 16, batY + 2, 2, 5);
+
+        ctx.strokeStyle = '#30363d';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, y + STATUS_BAR_H);
+        ctx.lineTo(x + w, y + STATUS_BAR_H);
+        ctx.stroke();
+    }
+
+    // ── Homescreen ───────────────────────────────────────────────────────
+
+    _drawHomeScreen(ctx, x, y, w, h, dayNight) {
+        // Uhrzeit gross
+        const time = this.getGameTime(dayNight);
+        const timeStr = String(time.hours).padStart(2, '0') + ':' + String(time.minutes).padStart(2, '0');
+
+        ctx.fillStyle = '#e6edf3';
+        ctx.font = 'bold 36px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(timeStr, x + w / 2, y + 38);
+
+        ctx.font = '13px Arial';
+        ctx.fillStyle = '#8b949e';
+        ctx.fillText(time.dayName, x + w / 2, y + 56);
+
+        // App-Grid
+        const cols = 2;
+        const iconSize = 52;
+        const gapX = (w - cols * iconSize) / (cols + 1);
+        const gapY = 24;
+        const startY = y + 78;
+
+        for (let i = 0; i < PHONE_APPS.length; i++) {
+            const app = PHONE_APPS[i];
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const ix = x + gapX + col * (iconSize + gapX);
+            const iy = startY + row * (iconSize + gapY + 16);
+
+            // Icon-Hintergrund
+            this._roundRect(ctx, ix, iy, iconSize, iconSize, 14);
+            ctx.fillStyle = app.color;
+            ctx.fill();
+
+            // Icon-Symbol
+            ctx.fillStyle = '#ffffff';
+            this._drawAppIcon(ctx, ix + iconSize / 2, iy + iconSize / 2, app.icon);
+
+            // Label
+            ctx.fillStyle = '#c9d1d9';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(app.label, ix + iconSize / 2, iy + iconSize + 14);
+        }
+
+        // Ungelesene-Nachrichten Badge auf Chats
+        const chatIdx = PHONE_APPS.findIndex(a => a.id === 'chats');
+        if (chatIdx >= 0) {
+            const col = chatIdx % cols;
+            const row = Math.floor(chatIdx / cols);
+            const ix = x + gapX + col * (iconSize + gapX);
+            const iy = startY + row * (iconSize + gapY + 16);
+
+            const unread = CHAT_CONTACTS.reduce((sum, c) => sum + c.messages.filter(m => m.incoming).length, 0);
+            if (unread > 0) {
+                ctx.beginPath();
+                ctx.arc(ix + iconSize - 4, iy + 4, 10, 0, Math.PI * 2);
+                ctx.fillStyle = '#f85149';
+                ctx.fill();
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(String(unread), ix + iconSize - 4, iy + 8);
+            }
+        }
+    }
+
+    // ── App-Icons zeichnen ───────────────────────────────────────────────
+
+    _drawAppIcon(ctx, cx, cy, icon) {
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        switch (icon) {
+            case 'map': {
+                // Standort-Pin
+                ctx.beginPath();
+                ctx.arc(cx, cy - 4, 7, Math.PI, 0);
+                ctx.lineTo(cx, cy + 10);
+                ctx.closePath();
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(cx, cy - 4, 3, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+            }
+            case 'chat': {
+                // Sprechblase
+                this._roundRect(ctx, cx - 10, cy - 9, 20, 14, 4);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(cx - 3, cy + 5);
+                ctx.lineTo(cx - 7, cy + 11);
+                ctx.lineTo(cx + 2, cy + 5);
+                ctx.stroke();
+                // Punkte
+                ctx.beginPath();
+                ctx.arc(cx - 5, cy - 2, 1.5, 0, Math.PI * 2);
+                ctx.arc(cx, cy - 2, 1.5, 0, Math.PI * 2);
+                ctx.arc(cx + 5, cy - 2, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+            }
+            case 'user': {
+                // Kopf
+                ctx.beginPath();
+                ctx.arc(cx, cy - 5, 6, 0, Math.PI * 2);
+                ctx.stroke();
+                // Koerper
+                ctx.beginPath();
+                ctx.arc(cx, cy + 14, 11, Math.PI + 0.4, -0.4);
+                ctx.stroke();
+                break;
+            }
+            case 'gear': {
+                // Zahnrad
+                const r = 9;
+                const teeth = 6;
+                ctx.beginPath();
+                for (let i = 0; i < teeth; i++) {
+                    const a1 = (i / teeth) * Math.PI * 2 - Math.PI / 2;
+                    const a2 = ((i + 0.35) / teeth) * Math.PI * 2 - Math.PI / 2;
+                    const a3 = ((i + 0.65) / teeth) * Math.PI * 2 - Math.PI / 2;
+                    const a4 = ((i + 1) / teeth) * Math.PI * 2 - Math.PI / 2;
+                    ctx.lineTo(cx + Math.cos(a1) * r, cy + Math.sin(a1) * r);
+                    ctx.lineTo(cx + Math.cos(a2) * (r - 3), cy + Math.sin(a2) * (r - 3));
+                    ctx.lineTo(cx + Math.cos(a3) * (r - 3), cy + Math.sin(a3) * (r - 3));
+                    ctx.lineTo(cx + Math.cos(a4) * r, cy + Math.sin(a4) * r);
+                }
+                ctx.closePath();
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+            }
+        }
+        ctx.restore();
+    }
+
+    // ── Map App ──────────────────────────────────────────────────────────
+
+    _drawMapApp(ctx, x, y, w, h, player, buildings, roadLayout, worldBounds) {
+        // Titel
+        ctx.fillStyle = '#161b22';
+        ctx.fillRect(x, y, w, 30);
+        ctx.fillStyle = '#e6edf3';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Karte', x + w / 2, y + 20);
+
+        // Karte (so gross wie moeglich)
+        const mapY = y + 34;
+        const mapH = h - 38;
+
+        ctx.fillStyle = '#1c2a1c';
+        ctx.fillRect(x, mapY, w, mapH);
+
+        this._drawMinimap(ctx, x, mapY, w, mapH, player, buildings, roadLayout, worldBounds);
+    }
+
+    // ── Chats App (Kontaktliste) ─────────────────────────────────────────
+
+    _drawChatsApp(ctx, x, y, w, h) {
+        // Titel
+        ctx.fillStyle = '#161b22';
+        ctx.fillRect(x, y, w, 30);
+        ctx.fillStyle = '#e6edf3';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Nachrichten', x + w / 2, y + 20);
+
+        const listY = y + 34;
+        const itemH = 52;
+
+        for (let i = 0; i < CHAT_CONTACTS.length; i++) {
+            const contact = CHAT_CONTACTS[i];
+            const iy = listY + i * itemH;
+            const lastMsg = contact.messages[contact.messages.length - 1];
+
+            // Hover-Hintergrund
+            ctx.fillStyle = i % 2 === 0 ? '#161b22' : '#0d1117';
+            ctx.fillRect(x, iy, w, itemH);
+
+            // Avatar-Kreis
+            ctx.beginPath();
+            ctx.arc(x + 26, iy + itemH / 2, 16, 0, Math.PI * 2);
+            ctx.fillStyle = ['#2ea043', '#58a6ff', '#d29922'][i % 3];
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(contact.name[0], x + 26, iy + itemH / 2 + 5);
+
+            // Name
+            ctx.fillStyle = '#e6edf3';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(contact.name, x + 50, iy + 20);
+
+            // Letzte Nachricht
+            ctx.fillStyle = '#8b949e';
+            ctx.font = '11px Arial';
+            const preview = lastMsg ? (lastMsg.incoming ? '' : 'Du: ') + lastMsg.text : '';
+            const maxChars = 22;
+            ctx.fillText(
+                preview.length > maxChars ? preview.slice(0, maxChars) + '...' : preview,
+                x + 50, iy + 38
+            );
+
+            // Zeit
+            if (lastMsg) {
+                ctx.fillStyle = '#484f58';
+                ctx.font = '10px Arial';
+                ctx.textAlign = 'right';
+                ctx.fillText(lastMsg.time, x + w - 10, iy + 20);
+            }
+
+            // Trennlinie
+            ctx.strokeStyle = '#21262d';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x + 50, iy + itemH);
+            ctx.lineTo(x + w, iy + itemH);
+            ctx.stroke();
+        }
+    }
+
+    // ── Chat-Detail ──────────────────────────────────────────────────────
+
+    _drawChatDetail(ctx, x, y, w, h) {
+        const contact = CHAT_CONTACTS[this.selectedChat];
+        if (!contact) return;
+
+        // Titel
+        ctx.fillStyle = '#161b22';
+        ctx.fillRect(x, y, w, 30);
+        ctx.fillStyle = '#e6edf3';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(contact.name, x + w / 2, y + 20);
+
+        // Nachrichten
+        let msgY = y + 40;
+        for (const msg of contact.messages) {
+            if (msgY + 48 > y + h) break;
+            this._drawChatBubble(ctx, x, w, msgY, msg, contact.name);
+            msgY += 48;
+        }
+    }
+
+    // ── Kontakte App ─────────────────────────────────────────────────────
+
+    _drawContactsApp(ctx, x, y, w, h) {
+        ctx.fillStyle = '#161b22';
+        ctx.fillRect(x, y, w, 30);
+        ctx.fillStyle = '#e6edf3';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Kontakte', x + w / 2, y + 20);
+
+        const contacts = ['Mama', 'Luca', 'Tim', 'Papa', 'Sarah'];
+        const listY = y + 38;
+
+        for (let i = 0; i < contacts.length; i++) {
+            const iy = listY + i * 44;
+
+            // Avatar
+            ctx.beginPath();
+            ctx.arc(x + 26, iy + 22, 14, 0, Math.PI * 2);
+            ctx.fillStyle = ['#2ea043', '#58a6ff', '#d29922', '#f85149', '#a371f7'][i % 5];
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 13px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(contacts[i][0], x + 26, iy + 27);
+
+            // Name
+            ctx.fillStyle = '#e6edf3';
+            ctx.font = '13px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(contacts[i], x + 50, iy + 26);
+
+            // Trennlinie
+            ctx.strokeStyle = '#21262d';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x + 50, iy + 44);
+            ctx.lineTo(x + w, iy + 44);
+            ctx.stroke();
+        }
+    }
+
+    // ── Einstellungen App ────────────────────────────────────────────────
+
+    _drawSettingsApp(ctx, x, y, w, h) {
+        ctx.fillStyle = '#161b22';
+        ctx.fillRect(x, y, w, 30);
+        ctx.fillStyle = '#e6edf3';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Einstellungen', x + w / 2, y + 20);
+
+        const items = [
+            { label: 'WLAN',       value: 'Verbunden' },
+            { label: 'Bluetooth',  value: 'Aus' },
+            { label: 'Helligkeit', value: 'Auto' },
+            { label: 'Ton',        value: 'An' },
+            { label: 'Info',       value: 'v1.0' },
+        ];
+
+        const listY = y + 40;
+        for (let i = 0; i < items.length; i++) {
+            const iy = listY + i * 38;
+
+            ctx.fillStyle = '#e6edf3';
+            ctx.font = '13px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(items[i].label, x + 14, iy + 22);
+
+            ctx.fillStyle = '#8b949e';
+            ctx.textAlign = 'right';
+            ctx.fillText(items[i].value, x + w - 14, iy + 22);
+
+            ctx.strokeStyle = '#21262d';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x + 14, iy + 38);
+            ctx.lineTo(x + w - 14, iy + 38);
+            ctx.stroke();
+        }
+    }
+
+    // ── Nav-Bar ──────────────────────────────────────────────────────────
+
+    _drawNavBar(ctx, x, y, w) {
+        ctx.fillStyle = '#0d1117';
+        ctx.fillRect(x, y, w, NAV_BAR_H);
+
+        ctx.strokeStyle = '#30363d';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + w, y);
+        ctx.stroke();
+
+        if (this.currentScreen !== 'home') {
+            // Zurueck-Pfeil
+            ctx.strokeStyle = '#e6edf3';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            const cx = x + w / 2;
+            const cy = y + NAV_BAR_H / 2;
+
+            ctx.beginPath();
+            ctx.moveTo(cx - 8, cy);
+            ctx.lineTo(cx + 8, cy);
+            ctx.moveTo(cx - 8, cy);
+            ctx.lineTo(cx - 2, cy - 6);
+            ctx.moveTo(cx - 8, cy);
+            ctx.lineTo(cx - 2, cy + 6);
+            ctx.stroke();
+
+            ctx.fillStyle = '#8b949e';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Zurueck', cx, cy + 15);
+        } else {
+            // Home-Indicator
+            ctx.fillStyle = '#30363d';
+            this._roundRect(ctx, x + w / 2 - 20, y + NAV_BAR_H / 2 - 2, 40, 4, 2);
+            ctx.fill();
+        }
+    }
+
+    // ── Minimap ──────────────────────────────────────────────────────────
+
+    _drawMinimap(ctx, x, y, w, h, player, buildings, roadLayout, worldBounds) {
+        const worldW = worldBounds.width;
+        const worldH = worldBounds.height;
+        const scaleX = w / worldW;
+        const scaleY = h / worldH;
+
+        if (roadLayout) {
+            ctx.strokeStyle = 'rgba(80, 80, 80, 0.7)';
+            ctx.lineWidth = 2;
+            const roads = [
+                ...(roadLayout.horizontal ?? []),
+                ...(roadLayout.vertical ?? []),
+                ...(roadLayout.diagonal ?? []),
+            ];
+            for (const road of roads) {
+                if (road.y1 !== undefined) {
+                    ctx.beginPath();
+                    ctx.moveTo(x + (road.x1 ?? road.x) * scaleX, y + (road.y1 ?? road.y) * scaleY);
+                    ctx.lineTo(x + (road.x2 ?? road.x) * scaleX, y + (road.y2 ?? road.y) * scaleY);
+                    ctx.stroke();
+                } else if (road.y !== undefined) {
+                    const startX = road.x1 ?? road.startX ?? 0;
+                    const endX = road.x2 ?? road.endX ?? worldW;
+                    ctx.beginPath();
+                    ctx.moveTo(x + startX * scaleX, y + road.y * scaleY);
+                    ctx.lineTo(x + endX * scaleX, y + road.y * scaleY);
+                    ctx.stroke();
+                } else if (road.x !== undefined) {
+                    const startY = road.y1 ?? road.startY ?? 0;
+                    const endY = road.y2 ?? road.endY ?? worldH;
+                    ctx.beginPath();
+                    ctx.moveTo(x + road.x * scaleX, y + startY * scaleY);
+                    ctx.lineTo(x + road.x * scaleX, y + endY * scaleY);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        if (buildings) {
+            ctx.fillStyle = 'rgba(100, 120, 150, 0.6)';
+            for (const b of buildings) {
+                const bx = (b.x ?? 0) * scaleX;
+                const by = (b.y ?? 0) * scaleY;
+                const bw = Math.max(2, (b.width ?? 0) * scaleX);
+                const bh = Math.max(2, (b.height ?? 0) * scaleY);
+                ctx.fillRect(x + bx, y + by, bw, bh);
+            }
+        }
+
+        if (player) {
+            const px = x + player.x * scaleX;
+            const py = y + player.y * scaleY;
+            ctx.beginPath();
+            ctx.arc(px, py, 6, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 200, 255, 0.25)';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(px, py, 3, 0, Math.PI * 2);
+            ctx.fillStyle = '#00c8ff';
+            ctx.fill();
+        }
+    }
+
+    // ── Chat-Bubble ──────────────────────────────────────────────────────
+
+    _drawChatBubble(ctx, screenX, screenW, y, msg, senderName) {
+        const maxBubbleW = screenW - 36;
+        const bubbleH = 38;
+        const isIncoming = msg.incoming;
+        const bubbleW = Math.min(maxBubbleW, ctx.measureText(msg.text).width + 24);
+        const bubbleX = isIncoming ? screenX + 8 : screenX + screenW - bubbleW - 8;
+
+        ctx.fillStyle = isIncoming ? '#21262d' : '#1a3a2a';
+        this._roundRect(ctx, bubbleX, y, bubbleW, bubbleH, 10);
+        ctx.fill();
+
+        // Absender + Zeit
+        ctx.fillStyle = isIncoming ? '#58a6ff' : '#3fb950';
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(isIncoming ? senderName : 'Du', bubbleX + 10, y + 13);
+
+        ctx.fillStyle = '#484f58';
+        ctx.font = '9px Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText(msg.time, bubbleX + bubbleW - 10, y + 13);
+
+        // Text
+        ctx.fillStyle = '#c9d1d9';
+        ctx.font = '11px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(msg.text, bubbleX + 10, y + 29);
+    }
+
+    // ── Hilfsfunktion ────────────────────────────────────────────────────
+
+    _roundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+    }
+}
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/interiors/InteriorManager.js
+// ═══════════════════════════════════════════════════════
+/**
+ * InteriorManager - Verwaltet den Wechsel zwischen Overworld und Interior-Szenen.
+ *
+ * Portiert aus gta_old/overworld/js/overworld.js:
+ *   enterWeaponShop()  Zeilen 2363-2440
+ *   exitInterior()     Zeilen 2441-2515
+ *
+ * SSOT: Alle Interior-Wechsellogik hier zentralisiert.
+ */
+
+
+/**
+ * @typedef {object} OverworldReturnState
+ * @property {{ x: number, y: number }} position
+ * @property {{ x: number, y: number }} camera
+ */
+
+class InteriorManager {
+
+    constructor() {
+        /** @type {string} Aktuelle Szene ('overworld' oder Interior-Typ) */
+        this.scene = 'overworld';
+
+        /** @type {object|null} Aktives Interior-Objekt */
+        this.activeInterior = null;
+
+        /** @type {OverworldReturnState|null} Gespeicherter Overworld-Zustand */
+        this.overworldReturnState = null;
+    }
+
+    /**
+     * Prueft ob die aktuelle Szene ein Interior ist.
+     * @returns {boolean}
+     */
+    isInInterior() {
+        return this.scene !== 'overworld' && this.activeInterior !== null;
+    }
+
+    /**
+     * Gibt den Typ des aktiven Interiors zurueck (oder null).
+     * @returns {string|null}
+     */
+    getInteriorType() {
+        return this.isInInterior() ? this.scene : null;
+    }
+
+    /**
+     * Betritt ein Interior.
+     *
+     * @param {string} type - Interior-Typ (z.B. 'weaponShop', 'casino')
+     * @param {object} interiorData - Interior-Daten (von WeaponShop.createLayout() etc.)
+     * @param {object} player - Spieler-Entity
+     * @param {object} camera - Kamera-Objekt mit x, y
+     * @param {object} [inputSystem] - InputSystem zum Zuruecksetzen der Tasten
+     * @param {number} [canvasWidth=800] - Canvas-Breite (fuer Zentrierung)
+     * @param {number} [canvasHeight=600] - Canvas-Hoehe
+     */
+    enterInterior(type, interiorData, player, camera, inputSystem, canvasWidth = 800, canvasHeight = 600) {
+        if (this.scene === type) {
+            return;
+        }
+
+        // Interior zentrieren
+        interiorData.originX = Math.max(0, Math.floor((canvasWidth - interiorData.width) / 2));
+        interiorData.originY = Math.max(0, Math.floor((canvasHeight - interiorData.height) / 2));
+
+        // Overworld-Zustand sichern
+        this.overworldReturnState = {
+            position: { x: player.x, y: player.y },
+            camera: { x: camera.x, y: camera.y },
+        };
+
+        // Szene wechseln
+        this.scene = type;
+        this.activeInterior = interiorData;
+
+        // Spieler in Interior positionieren
+        player.x = interiorData.entry.x;
+        player.y = interiorData.entry.y;
+        player.moving = false;
+        player.animationPhase = 0;
+
+        // Kamera zuruecksetzen
+        camera.x = 0;
+        camera.y = 0;
+
+        // Input zuruecksetzen
+        if (inputSystem) {
+            this._resetInput(inputSystem);
+        }
+
+        eventBus.emit('interior:enter', { type, building: interiorData });
+    }
+
+    /**
+     * Verlaesst das aktuelle Interior und stellt den Overworld-Zustand wieder her.
+     *
+     * @param {object} player - Spieler-Entity
+     * @param {object} camera - Kamera-Objekt mit x, y
+     * @param {object} [inputSystem] - InputSystem zum Zuruecksetzen der Tasten
+     */
+    exitInterior(player, camera, inputSystem) {
+        if (this.scene === 'overworld') {
+            return;
+        }
+
+        const exitedType = this.scene;
+
+        // Menu im Interior schliessen
+        const interior = this.activeInterior;
+        if (interior) {
+            interior.menuOpen = false;
+        }
+
+        // Overworld-Zustand wiederherstellen
+        if (this.overworldReturnState) {
+            player.x = this.overworldReturnState.position.x;
+            player.y = this.overworldReturnState.position.y;
+            camera.x = this.overworldReturnState.camera.x;
+            camera.y = this.overworldReturnState.camera.y;
+        }
+
+        // Szene zuruecksetzen
+        this.scene = 'overworld';
+        this.activeInterior = null;
+        this.overworldReturnState = null;
+
+        // Spieler-Zustand zuruecksetzen
+        player.moving = false;
+        player.animationPhase = 0;
+
+        // Input zuruecksetzen
+        if (inputSystem) {
+            this._resetInput(inputSystem);
+        }
+
+        eventBus.emit('interior:exit', { type: exitedType });
+    }
+
+    /**
+     * Setzt alle Input-Keys zurueck.
+     * @param {object} inputSystem
+     * @private
+     */
+    _resetInput(inputSystem) {
+        if (inputSystem.keys) {
+            for (const key of Object.keys(inputSystem.keys)) {
+                inputSystem.keys[key] = false;
+            }
+        }
+    }
+}
+
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/interiors/WeaponShop.js
+// ═══════════════════════════════════════════════════════
+/**
+ * WeaponShop - Interior fuer den Waffenladen (Ammu-Nation).
+ *
+ * Portiert aus gta_old/overworld/js/overworld.js:
+ *   createWeaponShopInterior()    Zeilen 2037-2129
+ *   handleWeaponShopMovement()    Zeilen 2130-2183
+ *   updateWeaponShopState()       Zeilen 2211-2243
+ *
+ * SSOT: Alle Waffenladen-Logik hier zentralisiert.
+ */
+
+
+/** Standard-Waffenreihenfolge */
+const DEFAULT_WEAPON_ORDER = ["pistol", "smg", "assaultRifle", "shotgun", "sniperRifle", "lmg"];
+
+/** Interior-Abmessungen */
+const INTERIOR_WIDTH = 720;
+const INTERIOR_HEIGHT = 420;
+const INTERIOR_MARGIN = 36;
+const COUNTER_HEIGHT = 72;
+const PLAYER_RADIUS = 14;
+
+class WeaponShop {
+
+    /**
+     * @param {object} [config={}]
+     * @param {Array<string>} [config.weaponOrder] - Waffenreihenfolge
+     */
+    constructor(config = {}) {
+        this.weaponOrder = config.weaponOrder ?? DEFAULT_WEAPON_ORDER;
+    }
+
+    /**
+     * Erstellt das Interior-Layout fuer den Waffenladen.
+     *
+     * @returns {object} Interior-Datenobjekt
+     */
+    createLayout() {
+        const width = INTERIOR_WIDTH;
+        const height = INTERIOR_HEIGHT;
+        const margin = INTERIOR_MARGIN;
+        const counterHeight = COUNTER_HEIGHT;
+
+        const counter = {
+            x: margin,
+            y: 174,
+            width: width - margin * 2,
+            height: counterHeight,
+        };
+
+        const vendor = {
+            x: counter.x + counter.width / 2,
+            y: counter.y - 26,
+            interactionRadius: 140,
+            parts: buildHumanoidParts({
+                head: '#f0c1a1',
+                torso: '#1f2d3d',
+                limbs: '#131b24',
+                accent: '#3d5a80',
+                hair: '#2b2118',
+                eyes: '#ffffff',
+                pupil: '#0b132b',
+            }),
+            animationPhase: 0,
+            moving: false,
+        };
+
+        const showcaseGap = 18;
+        const showcaseHeight = 88;
+        const showcaseCount = Math.max(1, this.weaponOrder.length);
+        const availableWidth = counter.width - 48;
+        const showcaseWidth = Math.min(
+            200,
+            (availableWidth - showcaseGap * (showcaseCount - 1)) / showcaseCount
+        );
+        const showcaseY = Math.max(margin + 24, counter.y - showcaseHeight - 32);
+
+        const showcases = [];
+        let showcaseX = counter.x + 24;
+        for (const weaponId of this.weaponOrder) {
+            showcases.push({
+                id: `showcase_${weaponId}`,
+                weaponId,
+                x: showcaseX,
+                y: showcaseY,
+                width: showcaseWidth,
+                height: showcaseHeight,
+            });
+            showcaseX += showcaseWidth + showcaseGap;
+        }
+
+        const cabinets = [
+            { id: 'cabinet_left', x: counter.x - 18, y: counter.y - 20, width: 18, height: counterHeight + 56 },
+            { id: 'cabinet_right', x: counter.x + counter.width, y: counter.y - 20, width: 18, height: counterHeight + 56 },
+        ];
+
+        const serviceMat = {
+            x: counter.x + counter.width / 2 - 120,
+            y: counter.y + counter.height - 12,
+            width: 240,
+            height: 16,
+        };
+
+        const obstacles = [counter, ...cabinets];
+
+        return {
+            width,
+            height,
+            margin,
+            entry: { x: width / 2, y: height - margin - 60 },
+            exitZone: {
+                x: width / 2 - 80,
+                y: height - margin - 24,
+                width: 160,
+                height: 36,
+            },
+            counter,
+            vendor,
+            showcases,
+            cabinets,
+            serviceMat,
+            obstacles,
+            playerRadius: PLAYER_RADIUS,
+            playerNearVendor: false,
+            playerNearExit: false,
+            menuOpen: false,
+            menuSelection: 0,
+            menuOptions: this.weaponOrder.slice(),
+            messageText: null,
+            messageTimer: 0,
+        };
+    }
+
+    /**
+     * Aktualisiert die Spieler-Bewegung im Waffenladen.
+     * Portiert aus handleWeaponShopMovement() Zeilen 2130-2183.
+     *
+     * @param {object} interior - Interior-Datenobjekt (von createLayout())
+     * @param {object} player - Spieler-Entity
+     * @param {object} inputSystem - InputSystem
+     * @param {number} deltaTime - Zeit seit letztem Frame in Sekunden
+     */
+    handleMovement(interior, player, inputSystem, deltaTime) {
+        if (!interior) {
+            return;
+        }
+
+        if (interior.menuOpen) {
+            player.moving = false;
+            player.speed = 0;
+            player.trySprintAndUpdateStamina(false, false, deltaTime);
+            return;
+        }
+
+        const { dx, dy } = inputSystem.getMovementVector();
+        const isMoving = dx !== 0 || dy !== 0;
+        const sprinting = player.trySprintAndUpdateStamina(inputSystem.isSprinting(), isMoving, deltaTime);
+        const baseSpeed = player.baseSpeed * 0.9;
+        const speed = sprinting ? baseSpeed * 1.4 : baseSpeed;
+
+        player.speed = speed;
+
+        const scaledDx = dx * speed;
+        const scaledDy = dy * speed;
+
+        const radius = interior.playerRadius ?? PLAYER_RADIUS;
+        const margin = interior.margin ?? INTERIOR_MARGIN;
+
+        if (scaledDx !== 0) {
+            const candidateX = Math.max(
+                radius + margin,
+                Math.min(player.x + scaledDx, interior.width - radius - margin)
+            );
+            if (!WeaponShop._circleHitsAnyObstacle(candidateX, player.y, radius, interior.obstacles)) {
+                player.x = candidateX;
+            }
+        }
+
+        if (scaledDy !== 0) {
+            const candidateY = Math.max(
+                radius + margin,
+                Math.min(player.y + scaledDy, interior.height - radius - margin)
+            );
+            if (!WeaponShop._circleHitsAnyObstacle(player.x, candidateY, radius, interior.obstacles)) {
+                player.y = candidateY;
+            }
+        }
+
+        player.moving = dx !== 0 || dy !== 0;
+    }
+
+    /**
+     * Aktualisiert den Waffenladen-Zustand (Naehe zum Verkaeufer, Ausgang, etc.).
+     * Portiert aus updateWeaponShopState() Zeilen 2211-2243.
+     *
+     * @param {object} interior - Interior-Datenobjekt
+     * @param {object} player - Spieler-Entity
+     */
+    updateState(interior, player) {
+        if (!interior) {
+            return;
+        }
+
+        interior.playerNearVendor = false;
+        const radius = interior.playerRadius ?? PLAYER_RADIUS;
+        const vendor = interior.vendor;
+
+        if (vendor) {
+            const vendorRadius = vendor.interactionRadius ?? 100;
+            const distance = Math.hypot(player.x - vendor.x, player.y - vendor.y);
+            interior.playerNearVendor = distance <= vendorRadius;
+
+            if (interior.menuOpen && !interior.playerNearVendor) {
+                interior.menuOpen = false;
+            }
+        } else {
+            interior.menuOpen = false;
+        }
+
+        interior.playerNearExit = circleIntersectsRect(
+            player.x, player.y, radius,
+            interior.exitZone.x, interior.exitZone.y,
+            interior.exitZone.width, interior.exitZone.height
+        );
+
+        if (interior.messageTimer > 0) {
+            interior.messageTimer -= 1;
+            if (interior.messageTimer <= 0) {
+                interior.messageText = null;
+            }
+        }
+    }
+
+    /**
+     * Verarbeitet Interaktionen im Waffenladen (Menu oeffnen/schliessen).
+     *
+     * @param {object} interior - Interior-Datenobjekt
+     * @param {object} inputSystem - InputSystem
+     * @returns {{ action: string, data?: any }|null} Aktion oder null
+     */
+    handleInteraction(interior, inputSystem) {
+        if (!interior) {
+            return null;
+        }
+
+        // E-Taste fuer Interaktion
+        if (inputSystem.isKeyPressed('e')) {
+            if (interior.playerNearExit) {
+                return { action: 'exit' };
+            }
+
+            if (interior.playerNearVendor && !interior.menuOpen) {
+                interior.menuOpen = true;
+                interior.menuSelection = 0;
+                return { action: 'menuOpen' };
+            }
+        }
+
+        // Menu-Navigation
+        if (interior.menuOpen) {
+            if (inputSystem.isKeyPressed('escape') || inputSystem.isKeyPressed('q')) {
+                interior.menuOpen = false;
+                return { action: 'menuClose' };
+            }
+
+            if (inputSystem.isKeyPressed('arrowup') || inputSystem.isKeyPressed('w')) {
+                interior.menuSelection = Math.max(0, interior.menuSelection - 1);
+                return { action: 'menuNavigate', data: interior.menuSelection };
+            }
+
+            if (inputSystem.isKeyPressed('arrowdown') || inputSystem.isKeyPressed('s')) {
+                interior.menuSelection = Math.min(
+                    interior.menuOptions.length - 1,
+                    interior.menuSelection + 1
+                );
+                return { action: 'menuNavigate', data: interior.menuSelection };
+            }
+
+            if (inputSystem.isKeyPressed('enter') || inputSystem.isKeyPressed(' ')) {
+                const selectedWeapon = interior.menuOptions[interior.menuSelection];
+                return { action: 'purchase', data: selectedWeapon };
+            }
+        }
+
+        return null;
+    }
+
+    // -----------------------------------------------------------------------
+    // Private Hilfsmethoden
+    // -----------------------------------------------------------------------
+
+    /**
+     * Prueft ob ein Kreis ein Hindernis trifft.
+     * @private
+     */
+    static _circleHitsAnyObstacle(x, y, radius, obstacles) {
+        if (!Array.isArray(obstacles)) {
+            return false;
+        }
+
+        for (const obstacle of obstacles) {
+            if (circleIntersectsRect(x, y, radius, obstacle.x, obstacle.y, obstacle.width, obstacle.height)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/interiors/Casino.js
+// ═══════════════════════════════════════════════════════
+/**
+ * Casino - Logik fuer den Starlight Casino Tower.
+ *
+ * Portiert aus gta_old/overworld/js/overworld.js:
+ *   convertDollarsToCredits()    Zeilen 2708-2726
+ *   convertCreditsToDollars()    Zeilen 2728-2746
+ *   loadCasinoCredits()          Zeilen 2657-2678
+ *   storeCasinoCredits()         Zeilen 2681-2694
+ *   refreshCasinoCreditsCache()  Zeilen 2696-2705
+ *   handleCasinoEntry()          Zeilen 743-749
+ *   Casino-UI-Logik              Zeilen 751-920
+ *
+ * SSOT: Alle Casino-Konvertierungs- und Credits-Logik hier zentralisiert.
+ */
+
+/** Standard-Wechselkurs: 1 Dollar = N Credits */
+const DEFAULT_CREDIT_RATE = 10;
+
+/** LocalStorage-Key fuer Credits */
+const CREDITS_STORAGE_KEY = "casinoCredits";
+
+class Casino {
+
+    /**
+     * @param {object} [config={}]
+     * @param {number} [config.creditRate=10] - Wechselkurs Dollar -> Credits
+     */
+    constructor(config = {}) {
+        this.creditRate = config.creditRate ?? DEFAULT_CREDIT_RATE;
+    }
+
+    // -----------------------------------------------------------------------
+    // Credits-Persistenz (LocalStorage)
+    // -----------------------------------------------------------------------
+
+    /**
+     * Laedt Casino-Credits aus dem LocalStorage.
+     *
+     * @param {number} [fallback=0] - Rueckgabewert wenn nichts gespeichert
+     * @returns {number}
+     */
+    loadCredits(fallback = 0) {
+        if (typeof window === "undefined" || !window.localStorage) {
+            return Math.max(0, fallback);
+        }
+
+        try {
+            const raw = window.localStorage.getItem(CREDITS_STORAGE_KEY);
+            if (raw == null) {
+                return Math.max(0, fallback);
+            }
+
+            const parsed = parseInt(raw, 10);
+            if (!Number.isFinite(parsed) || parsed < 0) {
+                return 0;
+            }
+
+            return parsed;
+        } catch (err) {
+            console.warn("Casino credits konnten nicht geladen werden:", err);
+            return Math.max(0, fallback);
+        }
+    }
+
+    /**
+     * Speichert Casino-Credits im LocalStorage.
+     *
+     * @param {number} amount
+     * @returns {number} Gespeicherter Wert
+     */
+    storeCredits(amount) {
+        const value = Math.max(0, Math.floor(Number(amount) || 0));
+
+        if (typeof window !== "undefined" && window.localStorage) {
+            try {
+                window.localStorage.setItem(CREDITS_STORAGE_KEY, String(value));
+            } catch (err) {
+                console.warn("Casino credits konnten nicht gespeichert werden:", err);
+            }
+        }
+
+        return value;
+    }
+
+    // -----------------------------------------------------------------------
+    // Konvertierung
+    // -----------------------------------------------------------------------
+
+    /**
+     * Konvertiert Dollars zu Casino-Credits.
+     * Portiert aus convertDollarsToCredits() Zeilen 2708-2726.
+     *
+     * @param {object} player - Spieler-Entity (braucht player.money)
+     * @param {number} [amount] - Betrag in Dollar (Standard: alles)
+     * @returns {{ success: boolean, reason?: string, dollarsSpent: number, creditsAdded: number, totalCredits: number }}
+     */
+    convertDollarsToCredits(player, amount) {
+        const rate = this.creditRate;
+        const availableDollars = amount !== undefined
+            ? Math.floor(Math.max(0, Math.min(Number(amount), Number(player.money ?? 0))))
+            : Math.floor(Math.max(0, Number(player.money ?? 0)));
+
+        if (!(availableDollars > 0)) {
+            return {
+                success: false,
+                reason: "noMoney",
+                dollarsSpent: 0,
+                creditsAdded: 0,
+                totalCredits: this.loadCredits(player.casinoCredits ?? 0),
+            };
+        }
+
+        const creditsAdded = availableDollars * rate;
+        const currentCredits = this.loadCredits(player.casinoCredits ?? 0);
+        const newTotal = currentCredits + creditsAdded;
+
+        player.money = Math.max(0, (player.money ?? 0) - availableDollars);
+        this.storeCredits(newTotal);
+        player.casinoCredits = newTotal;
+
+        return {
+            success: true,
+            dollarsSpent: availableDollars,
+            creditsAdded,
+            totalCredits: newTotal,
+        };
+    }
+
+    /**
+     * Konvertiert Casino-Credits zurueck zu Dollars.
+     * Portiert aus convertCreditsToDollars() Zeilen 2728-2746.
+     *
+     * @param {object} player - Spieler-Entity (braucht player.money, player.casinoCredits)
+     * @param {number} [amount] - Credits zum Umtauschen (Standard: alle)
+     * @returns {{ success: boolean, reason?: string, creditsSpent: number, dollarsGained: number, totalCredits: number }}
+     */
+    convertCreditsToDollars(player, amount) {
+        const rate = this.creditRate;
+        const currentCredits = this.loadCredits(player.casinoCredits ?? 0);
+
+        const maxCredits = amount !== undefined
+            ? Math.floor(Math.max(0, Math.min(Number(amount), currentCredits)))
+            : currentCredits;
+
+        const availableCredits = Math.floor(Math.max(0, Number(maxCredits)));
+
+        if (availableCredits < rate) {
+            return {
+                success: false,
+                reason: "noCredits",
+                creditsSpent: 0,
+                dollarsGained: 0,
+                totalCredits: availableCredits,
+            };
+        }
+
+        const dollarsGained = Math.floor(availableCredits / rate);
+        const creditsSpent = dollarsGained * rate;
+        const newTotal = currentCredits - creditsSpent;
+
+        this.storeCredits(newTotal);
+        player.money = (player.money ?? 0) + dollarsGained;
+        player.casinoCredits = newTotal;
+
+        return {
+            success: true,
+            creditsSpent,
+            dollarsGained,
+            totalCredits: newTotal,
+        };
+    }
+
+    // -----------------------------------------------------------------------
+    // Hilfsfunktionen
+    // -----------------------------------------------------------------------
+
+    /**
+     * Aktualisiert den Credits-Cache des Spielers aus dem LocalStorage.
+     *
+     * @param {object} player
+     */
+    refreshCreditsCache(player) {
+        player.casinoCredits = this.loadCredits(player.casinoCredits ?? 0);
+    }
+
+    /**
+     * Gibt den Casino-Eingangs-URL zurueck (fuer Navigation zum Casino-Spiel).
+     *
+     * @returns {string}
+     */
+    getCasinoGameUrl() {
+        return "../casinogame/index.html";
+    }
+
+    /**
+     * Formatiert einen Geldbetrag fuer die Anzeige.
+     *
+     * @param {number} dollars
+     * @returns {string}
+     */
+    formatMoney(dollars) {
+        const value = Math.floor(Math.max(0, Number(dollars) || 0));
+        return value.toLocaleString("de-DE") + "$";
+    }
+
+    /**
+     * Formatiert Credits fuer die Anzeige.
+     *
+     * @param {number} credits
+     * @returns {string}
+     */
+    formatCredits(credits) {
+        const value = Math.floor(Math.max(0, Number(credits) || 0));
+        return value.toLocaleString("de-DE");
+    }
+
+    /**
+     * Berechnet den Info-Text fuer die Casino-Interaktion.
+     *
+     * @param {object} player
+     * @returns {string}
+     */
+    getInteractionMessage(player) {
+        const rate = this.creditRate;
+        const moneyText = this.formatMoney(player.money ?? 0);
+        const creditText = this.formatCredits(player.casinoCredits ?? 0) + " Credits";
+        return `Kurs 1$ = ${rate} Credits | Bargeld: ${moneyText} | Credits: ${creditText}`;
+    }
+
+    /**
+     * Berechnet ob Kauf/Auszahlung moeglich ist.
+     *
+     * @param {object} player
+     * @returns {{ canBuy: boolean, canCashOut: boolean, dollarsAvailable: number, creditsAvailable: number }}
+     */
+    getButtonState(player) {
+        const rate = this.creditRate;
+        const dollarsAvailable = Math.floor(Math.max(0, Number(player.money ?? 0)));
+        const creditsAvailable = Math.floor(Math.max(0, Number(player.casinoCredits ?? 0)));
+
+        return {
+            canBuy: dollarsAvailable > 0,
+            canCashOut: creditsAvailable >= rate,
+            dollarsAvailable,
+            creditsAvailable,
+        };
+    }
+}
+
 
 
 
@@ -10548,26 +13189,6 @@ class UIRenderer {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // ---------------------------------------------------------------------------
 // Welt-Konstanten (SSOT)
 // ---------------------------------------------------------------------------
@@ -10576,6 +13197,7 @@ const WORLD_HEIGHT = 2800;
 const ROAD_WIDTH = 70;
 const ROAD_HALF_WIDTH = 35;
 const SIDEWALK_WIDTH = 36;
+const CAMERA_ZOOM = 2;
 
 // ---------------------------------------------------------------------------
 // Animations-Konstanten
@@ -10684,6 +13306,8 @@ class Game {
         const currentWeaponId = loadCurrentWeaponId(weaponInventory, weaponLoadout);
         const playerMoney = loadPlayerMoney();
         const casinoCredits = loadCasinoCredits();
+        const ownedProperties = loadOwnedProperties();
+        const homePropertyId = loadHomeProperty();
 
         // ── Spieler ──────────────────────────────────────────────────────
         const returnPos = loadReturnPosition();
@@ -10695,6 +13319,8 @@ class Game {
             currentWeaponId,
             weaponInventory,
             weaponLoadout,
+            ownedProperties,
+            homePropertyId,
         });
 
         // ── NPCs und Fahrzeuge ───────────────────────────────────────────
@@ -10710,7 +13336,9 @@ class Game {
         });
         this.vehicleSystem = new VehicleSystem(this.entityMover, this.collisionSystem, this.roadNetwork);
         this.combatSystem = new CombatSystem(eventBus, this.weaponCatalog);
-        this.cameraSystem = new CameraSystem(this.renderer.width, this.renderer.height);
+        this.policeSystem = new PoliceSystem(eventBus, this.entityMover, this.weaponCatalog);
+        this.combatSystem.setPoliceOfficers(this.policeSystem.officers);
+        this.cameraSystem = new CameraSystem(this.renderer.width, this.renderer.height, CAMERA_ZOOM);
         if (returnPos) {
             this.cameraSystem.x = returnPos.cx || 0;
             this.cameraSystem.y = returnPos.cy || 0;
@@ -10722,9 +13350,13 @@ class Game {
         this.weaponShop = new WeaponShop({ weaponOrder: [...WEAPON_ORDER] });
         this.casino = new Casino();
 
+        // ── Immobilien-System ──────────────────────────────────────────────
+        this.realEstateSystem = new RealEstateSystem(eventBus);
+
         // ── Interaction-System ───────────────────────────────────────────
         this.interactionSystem = new InteractionSystem(eventBus, this.interiorManager, this.buildings);
         this.interactionSystem.setCasino(this.casino);
+        this.interactionSystem.setRealEstateSystem(this.realEstateSystem);
 
         // ── Renderer ─────────────────────────────────────────────────────
         this.worldRenderer = new WorldRenderer(this.renderer);
@@ -10737,8 +13369,15 @@ class Game {
             fpsEl: document.getElementById('fps'),
         });
 
+        // ── Handy-UI ───────────────────────────────────────────────────────
+        this.phoneUI = new PhoneUI();
+
         // ── Welt-Bounds ──────────────────────────────────────────────────
         this.worldBounds = { width: WORLD_WIDTH, height: WORLD_HEIGHT };
+
+        // ── Wasted-Zustand ─────────────────────────────────────────────────
+        this.wastedState = null; // null oder { reason: 'arrested'|'killed' }
+        this._wastedButtonRect = null;
 
         // ── Game-Loop Timing ─────────────────────────────────────────────
         this._lastTimestamp = 0;
@@ -10799,15 +13438,49 @@ class Game {
             this._persistState();
         });
 
+        // Immobilie kaufen/verkaufen
+        this.eventBus.on('interaction:buyProperty', () => {
+            this.interactionSystem.handleBuyProperty(this.player);
+            this._persistState();
+        });
+
+        this.eventBus.on('interaction:sellProperty', () => {
+            this.interactionSystem.handleSellProperty(this.player);
+            this._persistState();
+        });
+
+        this.eventBus.on('interaction:moveIn', () => {
+            this.interactionSystem.handleMoveIn(this.player);
+            this._persistState();
+        });
+
         // Interior verlassen
         this.eventBus.on('interior:exit', () => {
             this._persistState();
         });
 
-        // NPC getoetet -> Geld droppen
+        // NPC getoetet -> Geld droppen + Polizei rufen
         this.eventBus.on('npc:killed', (data) => {
             const drop = 10 + Math.floor(Math.random() * 40);
             this.player.money += drop;
+            this.policeSystem.setWanted(performance.now());
+        });
+
+        // Polizist getroffen -> Polizei schiesst zurueck
+        this.eventBus.on('police:hit', () => {
+            this.policeSystem.onPoliceShot(performance.now());
+        });
+
+        // Wasted-Respawn per Mausklick
+        this.canvas.addEventListener('click', (e) => {
+            if (!this.wastedState || !this._wastedButtonRect) return;
+            const rect = this.canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            const btn = this._wastedButtonRect;
+            if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
+                this._respawnPlayer();
+            }
         });
     }
 
@@ -10822,6 +13495,9 @@ class Game {
         const cancelButton = document.getElementById('cancelInteraction');
         const buyCredits = document.getElementById('buyCasinoCredits');
         const cashOut = document.getElementById('cashOutCasinoCredits');
+        const buyProperty = document.getElementById('buyProperty');
+        const sellProperty = document.getElementById('sellProperty');
+        const moveInButton = document.getElementById('moveInProperty');
 
         if (container) {
             this.interactionSystem.initUI({
@@ -10831,6 +13507,9 @@ class Game {
                 enterButton,
                 buyCredits,
                 cashOut,
+                buyProperty,
+                sellProperty,
+                moveInButton,
             });
 
             // Cancel-Button
@@ -10843,6 +13522,44 @@ class Game {
     }
 
     // =====================================================================
+    //  Respawn
+    // =====================================================================
+
+    _respawnPlayer() {
+        // Strafe abziehen: 250$ bei Verhaftung, 500$ bei Tod
+        const fine = this.wastedState?.reason === 'killed' ? 500 : 250;
+        this.player.money = Math.max(0, this.player.money - fine);
+
+        this.wastedState = null;
+        this._wastedButtonRect = null;
+
+        // Respawn-Position: Wohnsitz oder Polizeistation
+        let respawnX = POLICE_STATION_POS.x;
+        let respawnY = POLICE_STATION_POS.y;
+
+        if (this.player.homePropertyId) {
+            const homeBuilding = this.buildings.find(
+                (b) => b && b.id === this.player.homePropertyId
+            );
+            if (homeBuilding) {
+                respawnX = homeBuilding.x + homeBuilding.width / 2;
+                respawnY = homeBuilding.y + homeBuilding.height + 30;
+            }
+        }
+
+        this.entityMover.teleport(this.player, respawnX, respawnY);
+        this.player.health = this.player.maxHealth;
+        this.player.stunTimer = 0;
+        this.player.slowTimer = 0;
+
+        this.cameraSystem.x = respawnX - this.renderer.width / (2 * CAMERA_ZOOM);
+        this.cameraSystem.y = respawnY - this.renderer.height / (2 * CAMERA_ZOOM);
+
+        this.policeSystem.reset();
+        this.combatSystem.setPoliceOfficers(this.policeSystem.officers);
+    }
+
+    // =====================================================================
     //  Persistence
     // =====================================================================
 
@@ -10851,6 +13568,8 @@ class Game {
         persistWeaponLoadout(this.player.weaponLoadout, this.player.weaponInventory);
         persistCurrentWeaponId(this.player.currentWeaponId, this.player.weaponInventory);
         persistPlayerMoney(this.player.money);
+        persistOwnedProperties(this.player.ownedProperties);
+        persistHomeProperty(this.player.homePropertyId);
     }
 
     // =====================================================================
@@ -10862,6 +13581,9 @@ class Game {
      * @param {number} now - performance.now() Zeitstempel
      */
     update(deltaTime, now) {
+        // Wasted-Zustand: kein Gameplay-Update
+        if (this.wastedState) return;
+
         const scene = this.interiorManager.scene;
 
         if (scene === 'overworld') {
@@ -10881,16 +13603,36 @@ class Game {
      */
     _updateOverworld(deltaTime, now) {
         const player = this.player;
+        const deltaMs = deltaTime * 1000;
 
         // Maus-Weltposition aktualisieren
         this.inputSystem.updateMouseWorldPosition(this.cameraSystem);
 
-        // Spieler-Bewegung
-        const { dx, dy } = this.inputSystem.getMovementVector();
-        const sprinting = this.inputSystem.isSprinting();
-        const speed = sprinting ? player.baseSpeed * player.sprintMultiplier : player.baseSpeed;
+        // Stun/Slow-Timer aktualisieren
+        if (player.stunTimer > 0) {
+            player.stunTimer = Math.max(0, player.stunTimer - deltaMs);
+            if (player.stunTimer === 0 && player.slowTimer > 0) {
+                // Slow startet erst nach Stun
+            }
+        } else if (player.slowTimer > 0) {
+            player.slowTimer = Math.max(0, player.slowTimer - deltaMs);
+        }
 
-        if (dx !== 0 || dy !== 0) {
+        // Spieler-Bewegung (blockiert bei Stun)
+        const isStunned = player.stunTimer > 0;
+        const isSlowed = player.slowTimer > 0;
+
+        const { dx, dy } = this.inputSystem.getMovementVector();
+        const isMoving = dx !== 0 || dy !== 0;
+        const sprinting = player.trySprintAndUpdateStamina(this.inputSystem.isSprinting(), isMoving, deltaTime);
+
+        let speed = sprinting ? player.baseSpeed * player.sprintMultiplier : player.baseSpeed;
+
+        if (isSlowed) {
+            speed *= SLOW_FACTOR;
+        }
+
+        if (!isStunned && (dx !== 0 || dy !== 0)) {
             const targetX = player.x + dx * speed;
             const targetY = player.y + dy * speed;
             this.entityMover.move(player, targetX, targetY);
@@ -10908,23 +13650,57 @@ class Game {
         // Fahrzeug-Collider aktualisieren
         this.collisionSystem.updateVehicleColliders(this.vehicles);
 
+        // Handy togglen (Q-Taste) — vor Combat, damit Klicks abgefangen werden
+        if (this.inputSystem.isKeyPressed('q')) {
+            this.phoneUI.toggle();
+        }
+
+        // Handy-Klick pruefen (konsumiert isFirePressed wenn auf Handy)
+        const phoneConsumedClick = this.phoneUI.open && this.phoneUI._slideProgress > 0.9
+            && this.phoneUI.isClickOnPhone(this.inputSystem.mouse.x, this.inputSystem.mouse.y);
+
+        if (phoneConsumedClick) {
+            // Klick ans Handy weiterleiten
+            this.phoneUI.update(deltaTime, this.dayNightSystem, this.inputSystem.mouse, this.inputSystem.isFirePressed());
+        } else {
+            this.phoneUI.update(deltaTime, this.dayNightSystem, this.inputSystem.mouse, false);
+        }
+
         // Kampf-System
+        this.combatSystem.setPoliceOfficers(this.policeSystem.officers);
         this.combatSystem.update(player, this.npcs, deltaTime);
 
-        // Schuss verarbeiten
-        const mouseWorld = this.inputSystem.getMouseWorldPosition();
-        this.combatSystem.fireWeapon(
-            player,
-            mouseWorld,
-            { justPressed: this.inputSystem.isFirePressed(), active: this.inputSystem.isFireDown() },
-            now
-        );
+        // Schuss verarbeiten (blockiert bei Stun oder wenn Handy den Klick hat)
+        if (!isStunned && !phoneConsumedClick) {
+            const mouseWorld = this.inputSystem.getMouseWorldPosition();
+            this.combatSystem.fireWeapon(
+                player,
+                mouseWorld,
+                { justPressed: this.inputSystem.isFirePressed(), active: this.inputSystem.isFireDown() },
+                now
+            );
+        }
+
+        // Polizei-System
+        const policeResult = this.policeSystem.update(player, deltaTime, now);
+        if (policeResult.wasted) {
+            this.wastedState = { reason: policeResult.reason ?? 'arrested' };
+            return;
+        }
+
+        // Immobilien-System (passives Einkommen pro Ingame-Tag)
+        this.realEstateSystem.update(player, this.buildings, deltaTime, this.dayNightSystem);
 
         // Interaktions-System (Gebaeude-Proximity)
         this.interactionSystem.update(player, this.inputSystem);
 
         // Waffenwechsel per Zahlentasten
         this._handleWeaponSwitch();
+
+        // Taschenlampe togglen (F-Taste)
+        if (this.inputSystem.isKeyPressed('f')) {
+            player.flashlightOn = !player.flashlightOn;
+        }
 
         // Kamera
         this.cameraSystem.update(player, this.worldBounds);
@@ -10956,8 +13732,8 @@ class Game {
             originY: interior.originY,
         });
 
-        // Bewegung
-        this.weaponShop.handleMovement(interior, this.player, this.inputSystem);
+        // Bewegung (Stamina wird in handleMovement via Player.trySprintAndUpdateStamina aktualisiert)
+        this.weaponShop.handleMovement(interior, this.player, this.inputSystem, deltaTime);
 
         // Zustand aktualisieren
         this.weaponShop.updateState(interior, this.player);
@@ -11072,6 +13848,7 @@ class Game {
         const ctx = this.renderer.getContext();
 
         this.renderer.save();
+        ctx.scale(camera.zoom, camera.zoom);
         this.renderer.translate(-camera.x, -camera.y);
 
         // Welt
@@ -11090,6 +13867,13 @@ class Game {
         this.entityRenderer.drawVehicles(this.vehicles);
         this.entityRenderer.drawNPCs(this.npcs);
 
+        // Polizisten
+        this.entityRenderer.drawPoliceOfficers(
+            this.policeSystem.officers,
+            this.player,
+            this.weaponCatalog
+        );
+
         // Spieler
         const currentWeapon = getWeaponDefinition(this.weaponCatalog, this.player.currentWeaponId);
         this.entityRenderer.drawPlayer(
@@ -11099,18 +13883,60 @@ class Game {
             this.interactionSystem.nearBuilding
         );
 
-        // Projektile (Overworld)
+        // Projektile (Overworld) - Spieler + Polizei
         this.effectsRenderer.drawProjectiles(this.combatSystem.projectiles, 'overworld');
+        this.effectsRenderer.drawProjectiles(this.policeSystem.projectiles, 'overworld');
 
         // Tag/Nacht-Overlay
         const lighting = this.dayNightSystem.getCurrentLighting();
-        this.uiRenderer.drawDayNightOverlay(
-            lighting,
-            camera.x, camera.y,
-            this.renderer.width, this.renderer.height,
-            this.dayNightSystem.stars,
-            this.dayNightSystem.starPhase
-        );
+        const viewW = this.renderer.width / camera.zoom;
+        const viewH = this.renderer.height / camera.zoom;
+
+        // Taschenlampen sammeln
+        const flashlights = [];
+        const overlayAlpha = lighting ? lighting.overlayAlpha : 0;
+
+        if (overlayAlpha > 0.3) {
+            // Spieler-Taschenlampe
+            if (this.player.flashlightOn) {
+                const pc = this.player.getCenter();
+                const mouse = this.inputSystem.getMouseWorldPosition();
+                const angle = Math.atan2(mouse.y - pc.y, mouse.x - pc.x);
+                flashlights.push({ x: pc.x, y: pc.y, angle, spread: 0.4, range: 250 });
+            }
+
+            // NPC-Taschenlampen (Richtung = Laufrichtung zum Waypoint)
+            for (const npc of this.npcs) {
+                if (npc.dead || npc.hidden || !npc.hasFlashlight || !npc.moving) continue;
+                const wp = npc.getCurrentWaypoint();
+                if (!wp) continue;
+                const angle = Math.atan2(wp.y - npc.y, wp.x - npc.x);
+                flashlights.push({
+                    x: npc.x + (npc.width || 32) / 2,
+                    y: npc.y + (npc.height || 32) / 2,
+                    angle, spread: 0.35, range: 180
+                });
+            }
+        }
+
+        if (flashlights.length > 0 && overlayAlpha > 0.3) {
+            // Nacht-Overlay mit Taschenlampen-Ausschnitten
+            this.uiRenderer.drawDayNightOverlay(
+                { ...lighting, overlayAlpha: 0, starAlpha: 0 },
+                camera.x, camera.y, viewW, viewH,
+                [], 0
+            );
+            this.uiRenderer.drawNightWithFlashlights(
+                overlayAlpha, camera.x, camera.y, viewW, viewH, flashlights
+            );
+        } else {
+            this.uiRenderer.drawDayNightOverlay(
+                lighting,
+                camera.x, camera.y, viewW, viewH,
+                this.dayNightSystem.stars,
+                this.dayNightSystem.starPhase
+            );
+        }
 
         this.renderer.restore();
 
@@ -11124,11 +13950,51 @@ class Game {
             WEAPON_ORDER,
             this.player.money,
             this.player.casinoCredits,
-            this.casino.creditRate
+            this.casino.creditRate,
+            this.player.ownedProperties.size
         );
 
+        // Handy-Overlay
+        this.phoneUI.draw(
+            this.renderer.getContext(),
+            this.renderer.width,
+            this.renderer.height,
+            {
+                dayNight: this.dayNightSystem,
+                player: this.player,
+                buildings: this.buildings,
+                roadLayout: this.roadLayout,
+                worldBounds: this.worldBounds,
+            }
+        );
+
+        // Polizei-UI
+        const now = performance.now();
+        if (this.policeSystem.wanted) {
+            this.uiRenderer.drawWantedIndicator(true, this.policeSystem.policeShootBack, now);
+            this.uiRenderer.drawArrestProgress(this.policeSystem.getArrestProgress());
+        }
+
+        // Spieler-Gesundheit
+        this.uiRenderer.drawPlayerHealth(this.player.health, this.player.maxHealth);
+
+        // Stamina-Bar
+        this.uiRenderer.drawStaminaBar(this.player.stamina);
+
+        // Stun/Slow-Effekte
+        this.uiRenderer.drawStunEffect(this.player.stunTimer, now);
+        this.uiRenderer.drawSlowEffect(this.player.slowTimer);
+
+        // Wasted-Screen
+        if (this.wastedState) {
+            const result = this.uiRenderer.drawWastedScreen(this.wastedState.reason);
+            this._wastedButtonRect = result.buttonRect;
+        }
+
         // Crosshair
-        this.uiRenderer.drawCrosshair(this.inputSystem.mouse);
+        if (!this.wastedState) {
+            this.uiRenderer.drawCrosshair(this.inputSystem.mouse);
+        }
     }
 
     _renderWeaponShop() {
@@ -11352,7 +14218,6 @@ class Game {
     }
 }
 
-Game;
 
 
 
@@ -11368,7 +14233,6 @@ Game;
 const canvas = document.getElementById('gameCanvas');
 const game = new Game(canvas);
 game.start();
-
 
 
 })();

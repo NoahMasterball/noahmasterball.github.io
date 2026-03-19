@@ -34,6 +34,8 @@ export class Player extends Entity {
      * @param {string|null} [options.currentWeaponId=null]
      * @param {Set|null} [options.weaponInventory=null]
      * @param {Array|null} [options.weaponLoadout=null]
+     * @param {Set|null} [options.ownedProperties=null]
+     * @param {string|null} [options.homePropertyId=null]
      */
     constructor(options = {}) {
         super({
@@ -56,13 +58,54 @@ export class Player extends Entity {
         this.weaponInventory = options.weaponInventory ?? new Set();
         this.weaponLoadout = options.weaponLoadout ?? [];
 
+        // Taschenlampe
+        this.flashlightOn = false;
+
         // Geld
         this.money = options.money ?? 1500;
         this.casinoCredits = options.casinoCredits ?? 0;
 
+        // Immobilien-Besitz
+        this.ownedProperties = options.ownedProperties ?? new Set();
+        this.homePropertyId = options.homePropertyId ?? null;
+
+        // Stamina (Sprint-Ausdauer)
+        this.stamina = 1;          // 0-1, startet voll
+        this.maxStaminaDuration = 5; // Sekunden Sprint
+        this.staminaRegenDelay = 1;  // Sekunden bis Regen startet
+        this.staminaRegenRate = 0.25; // pro Sekunde (4s fuer volle Regen)
+        this._staminaCooldown = 0;   // Sekunden seit Sprint-Ende
+
+        // Polizei-Effekte (Stun/Slow)
+        this.stunTimer = 0;
+        this.slowTimer = 0;
+
         // Visuelle Teile
         const palette = options.palette ?? DEFAULT_PLAYER_PALETTE;
         this.parts = buildHumanoidParts(palette);
+    }
+
+    /**
+     * Prueft ob Sprint moeglich ist und aktualisiert Stamina.
+     * SSOT fuer Sprint-Bedingung und Stamina-Verbrauch/-Regeneration.
+     *
+     * @param {boolean} wantsSprint - Shift gedrueckt?
+     * @param {boolean} isMoving - Bewegt sich der Spieler?
+     * @param {number} deltaTime - Vergangene Zeit in Sekunden
+     * @returns {boolean} Ob tatsaechlich gesprintet wird
+     */
+    trySprintAndUpdateStamina(wantsSprint, isMoving, deltaTime) {
+        const sprinting = wantsSprint && isMoving && this.stamina > 0;
+        if (sprinting) {
+            this.stamina = Math.max(0, this.stamina - deltaTime / this.maxStaminaDuration);
+            this._staminaCooldown = 0;
+        } else {
+            this._staminaCooldown += deltaTime;
+            if (this._staminaCooldown >= this.staminaRegenDelay) {
+                this.stamina = Math.min(1, this.stamina + deltaTime * this.staminaRegenRate);
+            }
+        }
+        return sprinting;
     }
 
     /**

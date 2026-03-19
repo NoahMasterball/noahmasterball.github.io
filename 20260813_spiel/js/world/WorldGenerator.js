@@ -16,6 +16,7 @@ import { Vehicle } from '../entities/Vehicle.js';
 import { createHouseStyles } from '../data/HouseStyles.js';
 import { pseudoRandom2D } from '../core/MathUtils.js';
 import { createStreetDetails } from './StreetDetails.js';
+import { PROPERTY_CATALOG } from '../systems/RealEstateSystem.js';
 
 // ---------------------------------------------------------------------------
 // Residential-Blueprints (SSOT fuer alle Wohnhaus-Positionen)
@@ -128,7 +129,7 @@ export class WorldGenerator {
 
         // Casino Tower mit Podium-Collision
         const casinoTower = {
-            x: 3040, y: 960, width: 238, height: 560,
+            x: 3040, y: 860, width: 238, height: 560,
             name: "Starlight Casino Tower", type: "casino", interactive: true,
         };
         const casinoApron = Math.max(60, Math.round(casinoTower.width * 0.3));
@@ -140,6 +141,18 @@ export class WorldGenerator {
             { x: casinoTower.x - casinoApron, y: casinoPodiumY, width: casinoTower.width + casinoApron * 2, height: casinoPodiumHeight + casinoPlinthHeight },
         ];
         buildings.push(casinoTower);
+
+        // Motel
+        buildings.push({
+            x: 2540, y: 320, width: 340, height: 220,
+            name: PROPERTY_CATALOG.motel.name, type: "motel", interactive: true,
+        });
+
+        // Apartment-Komplex
+        buildings.push({
+            x: 1080, y: 320, width: 300, height: 400,
+            name: PROPERTY_CATALOG.apartmentComplex.name, type: "apartmentComplex", interactive: true,
+        });
 
         // Downtown Hochhaeuser
         buildings.push({

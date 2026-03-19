@@ -16,6 +16,7 @@
  */
 
 import { eventBus } from '../core/EventBus.js';
+import { RealEstateSystem, PROPERTY_CATALOG } from './RealEstateSystem.js';
 
 /** Reichweite in Pixeln, in der ein Gebaeude als "nah" gilt */
 const INTERACTION_RANGE = 60;
@@ -54,6 +55,11 @@ export class InteractionSystem {
          */
         this.interactionRequiresKeyRelease = false;
 
+        // --- Immobilien ---
+
+        /** @type {RealEstateSystem|null} */
+        this.realEstateSystem = null;
+
         // --- Casino ---
 
         /** @type {import('../interiors/Casino.js').Casino|null} */
@@ -81,6 +87,15 @@ export class InteractionSystem {
 
         /** @type {HTMLButtonElement|null} */
         this.cashOutCasinoCreditsButton = null;
+
+        /** @type {HTMLButtonElement|null} */
+        this.buyPropertyButton = null;
+
+        /** @type {HTMLButtonElement|null} */
+        this.sellPropertyButton = null;
+
+        /** @type {HTMLButtonElement|null} */
+        this.moveInButton = null;
     }
 
     // ===================================================================
@@ -97,6 +112,9 @@ export class InteractionSystem {
      * @param {HTMLButtonElement} elements.enterButton   - "Betreten"-Button
      * @param {HTMLButtonElement} [elements.buyCredits]  - "Credits kaufen"-Button
      * @param {HTMLButtonElement} [elements.cashOut]     - "Credits auszahlen"-Button
+     * @param {HTMLButtonElement} [elements.buyProperty] - "Immobilie kaufen"-Button
+     * @param {HTMLButtonElement} [elements.sellProperty] - "Immobilie verkaufen"-Button
+     * @param {HTMLButtonElement} [elements.moveInButton] - "Einziehen"-Button
      */
     initUI(elements) {
         this.interactionUI = elements.container ?? null;
@@ -105,6 +123,9 @@ export class InteractionSystem {
         this.enterBuildingButton = elements.enterButton ?? null;
         this.buyCasinoCreditsButton = elements.buyCredits ?? null;
         this.cashOutCasinoCreditsButton = elements.cashOut ?? null;
+        this.buyPropertyButton = elements.buyProperty ?? null;
+        this.sellPropertyButton = elements.sellProperty ?? null;
+        this.moveInButton = elements.moveInButton ?? null;
 
         this._bindButtonEvents();
     }
@@ -116,6 +137,15 @@ export class InteractionSystem {
      */
     setCasino(casino) {
         this.casino = casino;
+    }
+
+    /**
+     * Setzt das RealEstateSystem fuer Immobilien-Kauf/Verkauf.
+     *
+     * @param {RealEstateSystem} realEstateSystem
+     */
+    setRealEstateSystem(realEstateSystem) {
+        this.realEstateSystem = realEstateSystem;
     }
 
     // ===================================================================
@@ -281,14 +311,24 @@ export class InteractionSystem {
             this.buildingNameEl.textContent = building.name ?? 'Unbekanntes Gebaeude';
         }
 
+        // Ist es eine Immobilie?
+        const isProperty = RealEstateSystem.isPropertyType(building.type);
+        const isOwned = isProperty && player && player.ownedProperties.has(building.id);
+
         // Button-Text anpassen
         if (this.enterBuildingButton) {
             if (building.type === 'weaponShop') {
                 this.enterBuildingButton.textContent = 'Shop betreten';
             } else if (building.type === 'casino') {
                 this.enterBuildingButton.textContent = 'Casino betreten';
+            } else if (isProperty) {
+                this.enterBuildingButton.style.display = 'none';
             } else {
                 this.enterBuildingButton.textContent = 'Betreten';
+            }
+
+            if (!isProperty) {
+                this.enterBuildingButton.style.display = 'inline-block';
             }
         }
 
@@ -301,6 +341,42 @@ export class InteractionSystem {
         if (this.cashOutCasinoCreditsButton) {
             this.cashOutCasinoCreditsButton.style.display =
                 building.type === 'casino' ? 'inline-block' : 'none';
+        }
+
+        // Immobilien-Buttons sichtbar/unsichtbar
+        if (this.buyPropertyButton) {
+            this.buyPropertyButton.style.display =
+                isProperty && !isOwned ? 'inline-block' : 'none';
+            if (isProperty && !isOwned) {
+                const catalog = RealEstateSystem.getCatalogEntry(building.type);
+                if (catalog) {
+                    this.buyPropertyButton.textContent =
+                        'Kaufen (' + RealEstateSystem.formatMoney(catalog.price) + ')';
+                }
+            }
+        }
+
+        if (this.sellPropertyButton) {
+            this.sellPropertyButton.style.display =
+                isProperty && isOwned ? 'inline-block' : 'none';
+            if (isProperty && isOwned) {
+                const catalog = RealEstateSystem.getCatalogEntry(building.type);
+                if (catalog) {
+                    const refund = RealEstateSystem.getSellRefund(catalog.price);
+                    this.sellPropertyButton.textContent =
+                        'Verkaufen (' + RealEstateSystem.formatMoney(refund) + ')';
+                }
+            }
+        }
+
+        // Einziehen-Button: nur bei eigenen Immobilien, nicht wenn bereits Wohnsitz
+        if (this.moveInButton) {
+            const isHome = isOwned && player && player.homePropertyId === building.id;
+            this.moveInButton.style.display =
+                isProperty && isOwned && !isHome ? 'inline-block' : 'none';
+            if (isProperty && isOwned && !isHome) {
+                this.moveInButton.textContent = 'Einziehen';
+            }
         }
 
         // Casino-Message-Timeout raeumen
@@ -320,6 +396,21 @@ export class InteractionSystem {
                 this.buildingMessageEl.textContent = 'Schau dich um und teste neue Waffen.';
             } else if (building.type === 'house') {
                 this.buildingMessageEl.textContent = 'Privates Wohnhaus. Zutritt nur fuer Bewohner.';
+            } else if (isProperty) {
+                const catalog = RealEstateSystem.getCatalogEntry(building.type);
+                if (catalog) {
+                    if (isOwned) {
+                        const isHome = player && player.homePropertyId === building.id;
+                        const homeLabel = isHome ? ' (Dein Wohnsitz!)' : '';
+                        this.buildingMessageEl.textContent =
+                            'Dein Eigentum!' + homeLabel +
+                            ' Einkommen: ' + RealEstateSystem.formatMoney(catalog.income) + ' / Tag';
+                    } else {
+                        this.buildingMessageEl.textContent =
+                            catalog.description + ' | Einkommen: ' +
+                            RealEstateSystem.formatMoney(catalog.income) + ' / Tag';
+                    }
+                }
             } else {
                 this.buildingMessageEl.textContent = 'Druecke Betreten um hineinzugehen.';
             }
@@ -371,6 +462,19 @@ export class InteractionSystem {
 
         if (this.enterBuildingButton) {
             this.enterBuildingButton.textContent = 'Betreten';
+            this.enterBuildingButton.style.display = 'inline-block';
+        }
+
+        if (this.buyPropertyButton) {
+            this.buyPropertyButton.style.display = 'none';
+        }
+
+        if (this.sellPropertyButton) {
+            this.sellPropertyButton.style.display = 'none';
+        }
+
+        if (this.moveInButton) {
+            this.moveInButton.style.display = 'none';
         }
 
         if (this.casinoMessageTimeout) {
@@ -629,6 +733,121 @@ export class InteractionSystem {
     }
 
     // ===================================================================
+    //  Immobilien-Kauf/Verkauf Handler
+    // ===================================================================
+
+    /**
+     * Behandelt den Kauf einer Immobilie.
+     * @param {object} player
+     */
+    handleBuyProperty(player) {
+        if (!this.realEstateSystem || !this.pendingInteractionBuilding) {
+            return;
+        }
+
+        const result = this.realEstateSystem.buyProperty(player, this.pendingInteractionBuilding);
+
+        if (!this.buildingMessageEl) {
+            return;
+        }
+
+        if (!result.success) {
+            if (result.reason === 'noMoney') {
+                this.buildingMessageEl.textContent = 'Nicht genug Geld!';
+            } else if (result.reason === 'alreadyOwned') {
+                this.buildingMessageEl.textContent = 'Diese Immobilie gehoert dir bereits!';
+            } else {
+                this.buildingMessageEl.textContent = 'Kauf nicht moeglich.';
+            }
+            return;
+        }
+
+        this.buildingMessageEl.textContent =
+            'Gekauft! Einkommen: ' + RealEstateSystem.formatMoney(result.property.income) +
+            ' alle ' + result.property.incomeInterval + ' Sek.';
+
+        // Buttons aktualisieren
+        if (this.buyPropertyButton) {
+            this.buyPropertyButton.style.display = 'none';
+        }
+        if (this.sellPropertyButton) {
+            const catalog = RealEstateSystem.getCatalogEntry(this.pendingInteractionBuilding.type);
+            if (catalog) {
+                const refund = RealEstateSystem.getSellRefund(catalog.price);
+                this.sellPropertyButton.textContent =
+                    'Verkaufen (' + RealEstateSystem.formatMoney(refund) + ')';
+            }
+            this.sellPropertyButton.style.display = 'inline-block';
+        }
+    }
+
+    /**
+     * Behandelt den Verkauf einer Immobilie.
+     * @param {object} player
+     */
+    handleSellProperty(player) {
+        if (!this.realEstateSystem || !this.pendingInteractionBuilding) {
+            return;
+        }
+
+        const result = this.realEstateSystem.sellProperty(player, this.pendingInteractionBuilding);
+
+        if (!this.buildingMessageEl) {
+            return;
+        }
+
+        if (!result.success) {
+            this.buildingMessageEl.textContent = 'Verkauf nicht moeglich.';
+            return;
+        }
+
+        this.buildingMessageEl.textContent =
+            'Verkauft! ' + RealEstateSystem.formatMoney(result.refund) + ' erhalten.';
+
+        // Buttons aktualisieren
+        if (this.sellPropertyButton) {
+            this.sellPropertyButton.style.display = 'none';
+        }
+        if (this.buyPropertyButton) {
+            const catalog = RealEstateSystem.getCatalogEntry(this.pendingInteractionBuilding.type);
+            if (catalog) {
+                this.buyPropertyButton.textContent =
+                    'Kaufen (' + RealEstateSystem.formatMoney(catalog.price) + ')';
+            }
+            this.buyPropertyButton.style.display = 'inline-block';
+        }
+    }
+
+    /**
+     * Behandelt das Einziehen in eine eigene Immobilie (Wohnsitz setzen).
+     * @param {object} player
+     */
+    handleMoveIn(player) {
+        if (!this.realEstateSystem || !this.pendingInteractionBuilding) {
+            return;
+        }
+
+        const result = this.realEstateSystem.moveIn(player, this.pendingInteractionBuilding);
+
+        if (!this.buildingMessageEl) {
+            return;
+        }
+
+        if (!result.success) {
+            this.buildingMessageEl.textContent = 'Einziehen nicht moeglich.';
+            return;
+        }
+
+        this.buildingMessageEl.textContent =
+            'Du wohnst jetzt hier! Respawn-Punkt gesetzt.';
+
+        // Einziehen-Button verstecken
+        if (this.moveInButton) {
+            this.moveInButton.style.display = 'none';
+        }
+    }
+
+    // ===================================================================
     //  Button-Event-Bindings
     // ===================================================================
 
@@ -656,6 +875,24 @@ export class InteractionSystem {
         if (this.cashOutCasinoCreditsButton) {
             this.cashOutCasinoCreditsButton.addEventListener('click', () => {
                 this.eventBus.emit('interaction:cashOutCasinoCredits');
+            });
+        }
+
+        if (this.buyPropertyButton) {
+            this.buyPropertyButton.addEventListener('click', () => {
+                this.eventBus.emit('interaction:buyProperty');
+            });
+        }
+
+        if (this.sellPropertyButton) {
+            this.sellPropertyButton.addEventListener('click', () => {
+                this.eventBus.emit('interaction:sellProperty');
+            });
+        }
+
+        if (this.moveInButton) {
+            this.moveInButton.addEventListener('click', () => {
+                this.eventBus.emit('interaction:moveIn');
             });
         }
     }

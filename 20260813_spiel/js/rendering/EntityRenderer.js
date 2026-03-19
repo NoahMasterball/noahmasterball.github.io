@@ -111,6 +111,71 @@ export class EntityRenderer {
         this.drawCharacterParts(npc);
     }
 
+    // --- Polizei ---
+
+    /**
+     * Zeichnet alle Polizisten mit Waffen.
+     * @param {Array<object>} officers
+     * @param {object} player - Spieler-Position fuer Waffenrichtung
+     * @param {Map<string, object>} weaponCatalog
+     */
+    drawPoliceOfficers(officers, player, weaponCatalog) {
+        if (!officers) return;
+        for (const cop of officers) {
+            if (!cop || cop.hidden) continue;
+            this.drawPoliceOfficer(cop, player, weaponCatalog);
+        }
+    }
+
+    /**
+     * Zeichnet einen einzelnen Polizisten.
+     * @param {object} cop
+     * @param {object} player
+     * @param {Map<string, object>} weaponCatalog
+     */
+    drawPoliceOfficer(cop, player, weaponCatalog) {
+        if (cop.dead) {
+            // Toten Polizisten mit Rotation zeichnen
+            this.ctx.save();
+            this.ctx.translate(cop.x, cop.y);
+            this.ctx.rotate(cop.deathRotation ?? 0);
+            this.ctx.globalAlpha = 0.6;
+            const deadRenderable = { x: 0, y: 0, parts: cop.parts, animationPhase: 0, moving: false };
+            this.drawCharacterParts(deadRenderable);
+            this.ctx.restore();
+            return;
+        }
+
+        const renderable = {
+            x: cop.x,
+            y: cop.y,
+            parts: cop.parts,
+            animationPhase: cop.animationPhase ?? 0,
+            moving: cop.moving,
+        };
+
+        this.drawCharacterParts(renderable);
+
+        // SWAT Helm-Visier zeichnen
+        if (cop.type === 'swat') {
+            const bob = cop.moving ? Math.abs(Math.cos(cop.animationPhase ?? 0)) * 1.2 : 0;
+            this.ctx.save();
+            this.ctx.fillStyle = 'rgba(50, 50, 70, 0.7)';
+            this.ctx.fillRect(cop.x - 5, cop.y - 20 - bob, 10, 4);
+            this.ctx.restore();
+        }
+
+        // Waffe zeichnen (zeigt zum Spieler)
+        const weapon = weaponCatalog?.get?.(cop.weaponId) ?? null;
+        if (weapon) {
+            const fakeMouse = {
+                worldX: player.x + player.width / 2,
+                worldY: player.y + player.height / 2,
+            };
+            this.drawEquippedWeaponModel(renderable, weapon, fakeMouse);
+        }
+    }
+
     // --- Vehicle ---
 
     drawVehicleParts(vehicle) {

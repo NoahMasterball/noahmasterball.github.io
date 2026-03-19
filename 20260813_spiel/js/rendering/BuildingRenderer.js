@@ -35,6 +35,8 @@ export class BuildingRenderer {
                 case 'officeTower':   this.drawOfficeTower(building); break;
                 case 'residentialTower': this.drawResidentialTower(building); break;
                 case 'weaponShop':    this.drawWeaponShop(building); break;
+                case 'motel':         this.drawMotel(building); break;
+                case 'apartmentComplex': this.drawApartmentComplex(building); break;
                 case 'restaurant':    this.drawRestaurant(building); break;
                 case 'shop':          this.drawShop(building); break;
                 case 'house':
@@ -42,7 +44,8 @@ export class BuildingRenderer {
             }
         }
 
-        this.drawInteractionPoints(buildings);
+        // Interaktions-Punkte nicht mehr visuell zeichnen (Funktion bleibt erhalten)
+        // this.drawInteractionPoints(buildings);
     }
 
     // --- computeHouseMetrics ---
@@ -1370,6 +1373,179 @@ export class BuildingRenderer {
         this.ctx.font = 'bold 10px Arial';
         this.ctx.textAlign = 'center';
         this.ctx.fillText('RESTAURANT', x + width / 2, y - 6);
+
+        this.ctx.restore();
+    }
+
+    // --- drawMotel ---
+
+    drawMotel(building) {
+        const { x, y, width, height } = building;
+        this.ctx.save();
+
+        // Hauptgebaeude
+        const facade = this.ctx.createLinearGradient(x, y, x, y + height);
+        facade.addColorStop(0, '#8b6f52');
+        facade.addColorStop(1, '#6b5240');
+        this.ctx.fillStyle = facade;
+        this.ctx.fillRect(x, y, width, height);
+
+        // Dach
+        this.ctx.fillStyle = '#4a3728';
+        this.ctx.fillRect(x - 6, y - 12, width + 12, 16);
+
+        // Tueren und Fenster (Zimmerreihe)
+        const roomWidth = 52;
+        const roomSpacing = 8;
+        const roomCount = Math.floor((width - 20) / (roomWidth + roomSpacing));
+        const startX = x + (width - roomCount * (roomWidth + roomSpacing) + roomSpacing) / 2;
+        const doorY = y + height - 60;
+
+        for (let i = 0; i < roomCount; i++) {
+            const rx = startX + i * (roomWidth + roomSpacing);
+
+            // Fenster
+            this.ctx.fillStyle = 'rgba(160, 200, 230, 0.6)';
+            this.ctx.fillRect(rx + 4, y + 20, roomWidth - 8, 30);
+            this.ctx.strokeStyle = '#5a4535';
+            this.ctx.lineWidth = 1.5;
+            this.ctx.strokeRect(rx + 4, y + 20, roomWidth - 8, 30);
+
+            // Kreuzstreben
+            this.ctx.beginPath();
+            this.ctx.moveTo(rx + roomWidth / 2, y + 20);
+            this.ctx.lineTo(rx + roomWidth / 2, y + 50);
+            this.ctx.moveTo(rx + 4, y + 35);
+            this.ctx.lineTo(rx + roomWidth - 4, y + 35);
+            this.ctx.stroke();
+
+            // Tuer
+            this.ctx.fillStyle = '#3d2e22';
+            this.ctx.fillRect(rx + 12, doorY, 28, 48);
+            this.ctx.fillStyle = '#c9a84c';
+            this.ctx.beginPath();
+            this.ctx.arc(rx + 36, doorY + 26, 3, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            // Zimmernummer
+            this.ctx.fillStyle = '#ddd';
+            this.ctx.font = '10px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(String(i + 1), rx + roomWidth / 2, doorY - 4);
+        }
+
+        // Neon-Schild
+        this.ctx.fillStyle = '#1a0f08';
+        this.ctx.fillRect(x + width / 2 - 72, y + height + 4, 144, 28);
+        this.ctx.fillStyle = '#ff6b4a';
+        this.ctx.font = 'bold 16px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText((building.name ?? 'MOTEL').toUpperCase(), x + width / 2, y + height + 23);
+        this.ctx.strokeStyle = '#ff8866';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(x + width / 2 - 72, y + height + 4, 144, 28);
+
+        // Parkplatz-Markierungen
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        this.ctx.lineWidth = 1;
+        for (let i = 0; i < roomCount; i++) {
+            const px = startX + i * (roomWidth + roomSpacing);
+            this.ctx.strokeRect(px, y + height + 36, roomWidth, 30);
+        }
+
+        this.ctx.restore();
+    }
+
+    // --- drawApartmentComplex ---
+
+    drawApartmentComplex(building) {
+        const { x, y, width, height } = building;
+        this.ctx.save();
+
+        // Hauptgebaeude
+        const facade = this.ctx.createLinearGradient(x, y, x + width, y + height);
+        facade.addColorStop(0, '#7a8999');
+        facade.addColorStop(0.5, '#5c6b7a');
+        facade.addColorStop(1, '#4a5768');
+        this.ctx.fillStyle = facade;
+        this.ctx.fillRect(x, y, width, height);
+
+        // Stockwerk-Linien und Fenster
+        const floorHeight = 38;
+        const floorCount = Math.floor((height - 60) / floorHeight);
+        const windowWidth = 24;
+        const windowHeight = 20;
+        const windowSpacing = 12;
+        const windowsPerFloor = Math.floor((width - 40) / (windowWidth + windowSpacing));
+        const windowStartX = x + (width - windowsPerFloor * (windowWidth + windowSpacing) + windowSpacing) / 2;
+
+        for (let floor = 0; floor < floorCount; floor++) {
+            const floorY = y + 24 + floor * floorHeight;
+
+            // Stockwerk-Trennlinie
+            this.ctx.fillStyle = '#3d4a58';
+            this.ctx.fillRect(x + 8, floorY + floorHeight - 4, width - 16, 4);
+
+            for (let w = 0; w < windowsPerFloor; w++) {
+                const wx = windowStartX + w * (windowWidth + windowSpacing);
+                const wy = floorY + 6;
+
+                // Fenster
+                this.ctx.fillStyle = 'rgba(200, 220, 240, 0.55)';
+                this.ctx.fillRect(wx, wy, windowWidth, windowHeight);
+
+                // Balkon (jedes zweite Fenster)
+                if ((floor + w) % 3 === 0) {
+                    this.ctx.fillStyle = 'rgba(100, 110, 125, 0.8)';
+                    this.ctx.fillRect(wx - 3, wy + windowHeight, windowWidth + 6, 6);
+                    this.ctx.strokeStyle = 'rgba(180, 190, 200, 0.5)';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.strokeRect(wx - 3, wy + windowHeight, windowWidth + 6, 6);
+                }
+
+                // Fensterrahmen
+                this.ctx.strokeStyle = '#3a4555';
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeRect(wx, wy, windowWidth, windowHeight);
+            }
+        }
+
+        // Dach
+        this.ctx.fillStyle = '#3a4555';
+        this.ctx.fillRect(x - 4, y - 10, width + 8, 14);
+        // Dachaufbauten
+        this.ctx.fillStyle = '#4a5565';
+        this.ctx.fillRect(x + 20, y - 24, 30, 14);
+        this.ctx.fillRect(x + width - 50, y - 24, 30, 14);
+
+        // Eingangsbereich
+        const entryWidth = 60;
+        const entryHeight = Math.min(50, height * 0.14);
+        const entryX = x + width / 2 - entryWidth / 2;
+        const entryY = y + height - entryHeight;
+
+        this.ctx.fillStyle = '#1e2832';
+        this.ctx.fillRect(entryX, entryY, entryWidth, entryHeight);
+
+        // Glastuer
+        this.ctx.fillStyle = 'rgba(180, 210, 240, 0.4)';
+        this.ctx.fillRect(entryX + 8, entryY + 6, entryWidth - 16, entryHeight - 10);
+        this.ctx.strokeStyle = '#8a9aab';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(entryX + 8, entryY + 6, entryWidth - 16, entryHeight - 10);
+
+        // Schild
+        this.ctx.fillStyle = '#2a3545';
+        this.ctx.fillRect(x + width / 2 - 80, entryY - 22, 160, 20);
+        this.ctx.fillStyle = '#c0d0e0';
+        this.ctx.font = 'bold 13px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText((building.name ?? 'APARTMENTS').toUpperCase(), x + width / 2, entryY - 7);
+
+        // Seitliche Saeulen
+        this.ctx.fillStyle = '#4a5565';
+        this.ctx.fillRect(x - 2, y, 8, height);
+        this.ctx.fillRect(x + width - 6, y, 8, height);
 
         this.ctx.restore();
     }

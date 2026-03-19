@@ -164,7 +164,7 @@ export class DayNightSystem {
                 const horizonTop = sampleStops(duskHorizonStops, Math.max(0, t - 0.15));
                 const horizonBottom = sampleStops(duskHorizonStops, t);
 
-                result.overlayAlpha = 0.35 + t * 0.35;
+                result.overlayAlpha = 0.35 + t * 0.57;
                 result.overlayTop = DayNightSystem.colorArrayToRgba(skyTop);
                 result.overlayBottom = DayNightSystem.colorArrayToRgba(skyBottom);
                 result.horizon = {
@@ -173,21 +173,16 @@ export class DayNightSystem {
                     bottom: DayNightSystem.colorArrayToRgba(horizonBottom),
                     offsetTop: 0.25
                 };
-                result.starAlpha = Math.max(0, t - 0.4) * 0.9;
+                result.starAlpha = 0;
                 break;
             }
 
             case 'night': {
-                result.overlayAlpha = 0.62;
-                result.overlayTop = DayNightSystem.colorArrayToRgba(nightSkyTop);
-                result.overlayBottom = DayNightSystem.colorArrayToRgba(nightSkyBottom);
-                result.horizon = {
-                    alpha: 0.25,
-                    top: DayNightSystem.colorArrayToRgba([32, 30, 60, 0.52]),
-                    bottom: DayNightSystem.colorArrayToRgba([12, 10, 22, 0.68]),
-                    offsetTop: 0.3
-                };
-                result.starAlpha = 0.75;
+                result.overlayAlpha = 0.92;
+                result.overlayTop = DayNightSystem.colorArrayToRgba([2, 2, 6, 0.98]);
+                result.overlayBottom = DayNightSystem.colorArrayToRgba([0, 0, 0, 0.99]);
+                result.horizon = null;
+                result.starAlpha = 0;
                 break;
             }
 
@@ -207,7 +202,7 @@ export class DayNightSystem {
                     bottom: DayNightSystem.colorArrayToRgba(horizonBottom),
                     offsetTop: 0.28
                 };
-                result.starAlpha = Math.max(0, reverse - 0.25) * 0.7;
+                result.starAlpha = 0;
                 break;
             }
 

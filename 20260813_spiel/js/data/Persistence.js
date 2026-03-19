@@ -321,3 +321,68 @@ export function persistPlayerMoney(amount) {
     writeItem(KEY_PLAYER_MONEY, String(value));
     return value;
 }
+
+// ───────────────────── Immobilien-Besitz ─────────────────────
+
+const KEY_OWNED_PROPERTIES = 'overworldOwnedProperties';
+
+/**
+ * Laedt die besessenen Immobilien aus localStorage.
+ * @returns {Set<string>} Set von Building-IDs
+ */
+export function loadOwnedProperties() {
+    const owned = new Set();
+    const raw = readItem(KEY_OWNED_PROPERTIES);
+    if (raw) {
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                for (const id of parsed) {
+                    if (typeof id === 'string') {
+                        owned.add(id);
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('Immobilien konnten nicht geladen werden', error);
+        }
+    }
+    return owned;
+}
+
+/**
+ * Speichert die besessenen Immobilien in localStorage.
+ * @param {Set<string>} ownedProperties
+ */
+export function persistOwnedProperties(ownedProperties) {
+    const ids = Array.from(ownedProperties).filter((id) => typeof id === 'string');
+    writeItem(KEY_OWNED_PROPERTIES, JSON.stringify(ids));
+}
+
+// ───────────────────── Wohnsitz (Home Property) ─────────────────────
+
+const KEY_HOME_PROPERTY = 'overworldHomeProperty';
+
+/**
+ * Laedt die Wohnsitz-Building-ID aus localStorage.
+ * @returns {string|null}
+ */
+export function loadHomeProperty() {
+    const raw = readItem(KEY_HOME_PROPERTY);
+    if (raw && typeof raw === 'string' && raw.length > 0) {
+        return raw;
+    }
+    return null;
+}
+
+/**
+ * Speichert die Wohnsitz-Building-ID in localStorage.
+ * @param {string|null} buildingId
+ */
+export function persistHomeProperty(buildingId) {
+    if (buildingId && typeof buildingId === 'string') {
+        writeItem(KEY_HOME_PROPERTY, buildingId);
+    } else {
+        removeItem(KEY_HOME_PROPERTY);
+    }
+}

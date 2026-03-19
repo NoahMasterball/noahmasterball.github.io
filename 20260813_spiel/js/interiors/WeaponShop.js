@@ -140,8 +140,9 @@ export class WeaponShop {
      * @param {object} interior - Interior-Datenobjekt (von createLayout())
      * @param {object} player - Spieler-Entity
      * @param {object} inputSystem - InputSystem
+     * @param {number} deltaTime - Zeit seit letztem Frame in Sekunden
      */
-    handleMovement(interior, player, inputSystem) {
+    handleMovement(interior, player, inputSystem, deltaTime) {
         if (!interior) {
             return;
         }
@@ -149,11 +150,13 @@ export class WeaponShop {
         if (interior.menuOpen) {
             player.moving = false;
             player.speed = 0;
+            player.trySprintAndUpdateStamina(false, false, deltaTime);
             return;
         }
 
         const { dx, dy } = inputSystem.getMovementVector();
-        const sprinting = inputSystem.isSprinting();
+        const isMoving = dx !== 0 || dy !== 0;
+        const sprinting = player.trySprintAndUpdateStamina(inputSystem.isSprinting(), isMoving, deltaTime);
         const baseSpeed = player.baseSpeed * 0.9;
         const speed = sprinting ? baseSpeed * 1.4 : baseSpeed;
 
