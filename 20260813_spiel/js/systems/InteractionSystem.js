@@ -1,22 +1,13 @@
 /**
  * InteractionSystem - Gebaeude-Interaktion und UI-Steuerung.
  *
- * Portiert aus gta_old/overworld/js/overworld.js:
- *   checkBuildingCollisions() Interaktions-Teil  Zeilen 1391-1419
- *   showBuildingInteraction()                    Zeilen 11271-11363
- *   hideBuildingInteraction()                    Zeilen 11365-11429
- *   performBuildingEntry()                       Zeilen 11201-11270
- *   Casino-UI (updateCasinoInteractionMessage, updateCasinoButtonsState,
- *              handleBuyCasinoCredits, handleCashOutCasinoCredits,
- *              resetCasinoMessageWithDelay)      Zeilen 751-920
- *
  * SSOT: Alle Proximity-Erkennung und Interaktions-UI hier zentralisiert.
  * Dieses System veraendert KEINE Positionen. Es erkennt Proximity und
  * delegiert an InteriorManager fuer Szenen-Wechsel.
  */
 
 import { eventBus } from '../core/EventBus.js';
-import { RealEstateSystem, PROPERTY_CATALOG } from './RealEstateSystem.js';
+import { RealEstateSystem, RENTAL_CATALOG, PROPERTY_CATALOG, isRentalType, isPurchasableType } from './RealEstateSystem.js';
 
 /** Reichweite in Pixeln, in der ein Gebaeude als "nah" gilt */
 const INTERACTION_RANGE = 60;
@@ -89,6 +80,12 @@ export class InteractionSystem {
         this.cashOutCasinoCreditsButton = null;
 
         /** @type {HTMLButtonElement|null} */
+        this.rentPropertyButton = null;
+
+        /** @type {HTMLButtonElement|null} */
+        this.cancelRentalButton = null;
+
+        /** @type {HTMLButtonElement|null} */
         this.buyPropertyButton = null;
 
         /** @type {HTMLButtonElement|null} */
@@ -104,17 +101,6 @@ export class InteractionSystem {
 
     /**
      * Verbindet die DOM-Elemente fuer die Interaktions-UI.
-     *
-     * @param {object} elements
-     * @param {HTMLElement}       elements.container     - Wrapper (display: none/block)
-     * @param {HTMLElement}       elements.nameEl        - Gebaeudename
-     * @param {HTMLElement}       elements.messageEl     - Nachrichtentext
-     * @param {HTMLButtonElement} elements.enterButton   - "Betreten"-Button
-     * @param {HTMLButtonElement} [elements.buyCredits]  - "Credits kaufen"-Button
-     * @param {HTMLButtonElement} [elements.cashOut]     - "Credits auszahlen"-Button
-     * @param {HTMLButtonElement} [elements.buyProperty] - "Immobilie kaufen"-Button
-     * @param {HTMLButtonElement} [elements.sellProperty] - "Immobilie verkaufen"-Button
-     * @param {HTMLButtonElement} [elements.moveInButton] - "Einziehen"-Button
      */
     initUI(elements) {
         this.interactionUI = elements.container ?? null;
@@ -123,6 +109,8 @@ export class InteractionSystem {
         this.enterBuildingButton = elements.enterButton ?? null;
         this.buyCasinoCreditsButton = elements.buyCredits ?? null;
         this.cashOutCasinoCreditsButton = elements.cashOut ?? null;
+        this.rentPropertyButton = elements.rentProperty ?? null;
+        this.cancelRentalButton = elements.cancelRental ?? null;
         this.buyPropertyButton = elements.buyProperty ?? null;
         this.sellPropertyButton = elements.sellProperty ?? null;
         this.moveInButton = elements.moveInButton ?? null;
@@ -132,17 +120,13 @@ export class InteractionSystem {
 
     /**
      * Setzt die Casino-Instanz fuer Credits-Konvertierung.
-     *
-     * @param {import('../interiors/Casino.js').Casino} casino
      */
     setCasino(casino) {
         this.casino = casino;
     }
 
     /**
-     * Setzt das RealEstateSystem fuer Immobilien-Kauf/Verkauf.
-     *
-     * @param {RealEstateSystem} realEstateSystem
+     * Setzt das RealEstateSystem fuer Immobilien-Kauf/Verkauf/Miete.
      */
     setRealEstateSystem(realEstateSystem) {
         this.realEstateSystem = realEstateSystem;
@@ -154,15 +138,6 @@ export class InteractionSystem {
 
     /**
      * Prueft Proximity zu interaktiven Gebaeuden und steuert die UI.
-     * Wird jeden Frame aufgerufen.
-     *
-     * Die UI erscheint NICHT automatisch bei Annaeherung, sondern erst
-     * wenn der Spieler E drueckt und vor dem Eingang (Suedseite) steht.
-     *
-     * WICHTIG: Veraendert KEINE Positionen.
-     *
-     * @param {object} player - Spieler-Entity
-     * @param {import('./InputSystem.js').InputSystem} inputSystem
      */
     update(player, inputSystem) {
         // Im Interior keine Overworld-Interaktionen pruefen
@@ -188,15 +163,12 @@ export class InteractionSystem {
 
             if (!this.interactionRequiresKeyRelease && inputSystem.isKeyPressed('e')) {
                 if (!this.isInteractionVisible) {
-                    // Erstes E: Menue oeffnen
                     this.showInteractionUI(nearest, player);
                 } else {
-                    // Zweites E: Gebaeude betreten
                     this.performEntry(nearest, player);
                 }
             }
         } else {
-            // Nicht am Eingang -> UI verstecken
             if (this.isInteractionVisible) {
                 this.hideInteractionUI();
             }
@@ -207,14 +179,6 @@ export class InteractionSystem {
     //  Proximity-Erkennung (nur Suedseite / Eingang)
     // ===================================================================
 
-    /**
-     * Findet ein interaktives Gebaeude, vor dessen Eingang (Suedseite)
-     * der Spieler steht. Nur die Unterkante des Gebaeudes wird geprueft.
-     *
-     * @param {object} player
-     * @returns {object|null}
-     * @private
-     */
     _findBuildingAtEntrance(player) {
         const buildings = this.buildings;
         if (!Array.isArray(buildings) || buildings.length === 0) {
@@ -243,10 +207,7 @@ export class InteractionSystem {
                 const bh = rect.height;
                 const bottomEdge = by + bh;
 
-                // Spieler muss horizontal im Bereich des Gebaeudes sein
                 const xOverlap = px + pw > bx && px < bx + bw;
-
-                // Spieler muss an der Suedseite stehen (unterhalb der Unterkante)
                 const atSouth = py > bottomEdge - 4 && py < bottomEdge + range;
 
                 if (xOverlap && atSouth) {
@@ -258,14 +219,6 @@ export class InteractionSystem {
         return null;
     }
 
-    /**
-     * Ermittelt die Collision-Rects eines Gebaeudes fuer Proximity-Erkennung.
-     * Nutzt collisionRects falls vorhanden, sonst Fallback auf Basis-Geometrie.
-     *
-     * @param {object} building
-     * @returns {Array<{x: number, y: number, width: number, height: number}>}
-     * @private
-     */
     _getBuildingRects(building) {
         if (Array.isArray(building.collisionRects) && building.collisionRects.length > 0) {
             return building.collisionRects;
@@ -282,16 +235,8 @@ export class InteractionSystem {
 
     // ===================================================================
     //  UI anzeigen / verstecken
-    //  Portiert aus showBuildingInteraction() Zeilen 11271-11363
-    //  und hideBuildingInteraction() Zeilen 11365-11429
     // ===================================================================
 
-    /**
-     * Zeigt die Interaktions-UI fuer ein Gebaeude an.
-     *
-     * @param {object} building
-     * @param {object} [player] - Spieler-Entity (fuer Casino-Anzeige)
-     */
     showInteractionUI(building, player) {
         if (!building || !this.interactionUI) {
             return;
@@ -311,56 +256,79 @@ export class InteractionSystem {
             this.buildingNameEl.textContent = building.name ?? 'Unbekanntes Gebaeude';
         }
 
-        // Ist es eine Immobilie?
-        const isProperty = RealEstateSystem.isPropertyType(building.type);
-        const isOwned = isProperty && player && player.ownedProperties.has(building.id);
+        // Typ bestimmen
+        const isRental = isRentalType(building.type);
+        const isPurchasable = isPurchasableType(building.type);
+        const isRented = isRental && player && player.rentedPropertyId === building.id;
+        const isOwned = isPurchasable && player && player.ownedProperties.has(building.id);
 
-        // Button-Text anpassen
+        // Enter-Button anpassen
         if (this.enterBuildingButton) {
             if (building.type === 'weaponShop') {
                 this.enterBuildingButton.textContent = 'Shop betreten';
+                this.enterBuildingButton.style.display = 'inline-block';
             } else if (building.type === 'casino') {
                 this.enterBuildingButton.textContent = 'Casino betreten';
-            } else if (isProperty) {
+                this.enterBuildingButton.style.display = 'inline-block';
+            } else if (building.type === 'realEstateAgent') {
+                this.enterBuildingButton.style.display = 'none';
+            } else if (isRental || isPurchasable) {
                 this.enterBuildingButton.style.display = 'none';
             } else {
                 this.enterBuildingButton.textContent = 'Betreten';
-            }
-
-            if (!isProperty) {
                 this.enterBuildingButton.style.display = 'inline-block';
             }
         }
 
-        // Casino-Buttons sichtbar/unsichtbar
+        // Casino-Buttons
         if (this.buyCasinoCreditsButton) {
             this.buyCasinoCreditsButton.style.display =
                 building.type === 'casino' ? 'inline-block' : 'none';
         }
-
         if (this.cashOutCasinoCreditsButton) {
             this.cashOutCasinoCreditsButton.style.display =
                 building.type === 'casino' ? 'inline-block' : 'none';
         }
 
-        // Immobilien-Buttons sichtbar/unsichtbar
+        // Miet-Buttons (Motel/Apartment)
+        if (this.rentPropertyButton) {
+            this.rentPropertyButton.style.display =
+                isRental && !isRented ? 'inline-block' : 'none';
+            if (isRental && !isRented) {
+                const rental = RealEstateSystem.getRentalEntry(building.type);
+                if (rental) {
+                    this.rentPropertyButton.textContent =
+                        'Mieten (' + RealEstateSystem.formatMoney(rental.rent) + ' / Tag)';
+                }
+            }
+        }
+        if (this.cancelRentalButton) {
+            this.cancelRentalButton.style.display =
+                isRental && isRented ? 'inline-block' : 'none';
+            if (isRental && isRented) {
+                this.cancelRentalButton.textContent = 'Miete kuendigen';
+            }
+        }
+
+        // Kauf-Buttons (Bungalow etc. via Makler)
         if (this.buyPropertyButton) {
-            this.buyPropertyButton.style.display =
-                isProperty && !isOwned ? 'inline-block' : 'none';
-            if (isProperty && !isOwned) {
-                const catalog = RealEstateSystem.getCatalogEntry(building.type);
+            // Kaufen: nur bei Makler-Gebaeude fuer kaufbare Immobilien in der Naehe,
+            // oder direkt am Bungalow
+            const showBuy = isPurchasable && !isOwned;
+            this.buyPropertyButton.style.display = showBuy ? 'inline-block' : 'none';
+            if (showBuy) {
+                const catalog = RealEstateSystem.getPurchaseEntry(building.type);
                 if (catalog) {
                     this.buyPropertyButton.textContent =
                         'Kaufen (' + RealEstateSystem.formatMoney(catalog.price) + ')';
                 }
             }
         }
-
         if (this.sellPropertyButton) {
-            this.sellPropertyButton.style.display =
-                isProperty && isOwned ? 'inline-block' : 'none';
-            if (isProperty && isOwned) {
-                const catalog = RealEstateSystem.getCatalogEntry(building.type);
+            const showSell = isPurchasable && isOwned;
+            this.sellPropertyButton.style.display = showSell ? 'inline-block' : 'none';
+            if (showSell) {
+                const catalog = RealEstateSystem.getPurchaseEntry(building.type);
                 if (catalog) {
                     const refund = RealEstateSystem.getSellRefund(catalog.price);
                     this.sellPropertyButton.textContent =
@@ -369,12 +337,12 @@ export class InteractionSystem {
             }
         }
 
-        // Einziehen-Button: nur bei eigenen Immobilien, nicht wenn bereits Wohnsitz
+        // Einziehen-Button: nur bei eigenen Kaufimmobilien
         if (this.moveInButton) {
             const isHome = isOwned && player && player.homePropertyId === building.id;
             this.moveInButton.style.display =
-                isProperty && isOwned && !isHome ? 'inline-block' : 'none';
-            if (isProperty && isOwned && !isHome) {
+                isPurchasable && isOwned && !isHome ? 'inline-block' : 'none';
+            if (isPurchasable && isOwned && !isHome) {
                 this.moveInButton.textContent = 'Einziehen';
             }
         }
@@ -396,19 +364,33 @@ export class InteractionSystem {
                 this.buildingMessageEl.textContent = 'Schau dich um und teste neue Waffen.';
             } else if (building.type === 'house') {
                 this.buildingMessageEl.textContent = 'Privates Wohnhaus. Zutritt nur fuer Bewohner.';
-            } else if (isProperty) {
-                const catalog = RealEstateSystem.getCatalogEntry(building.type);
+            } else if (building.type === 'realEstateAgent') {
+                this.buildingMessageEl.textContent = 'Immobilienmakler - Hier kannst du Haeuser kaufen und verkaufen.';
+            } else if (isRental) {
+                const rental = RealEstateSystem.getRentalEntry(building.type);
+                if (rental) {
+                    if (isRented) {
+                        this.buildingMessageEl.textContent =
+                            'Deine gemietete Unterkunft! Miete: ' +
+                            RealEstateSystem.formatMoney(rental.rent) + ' / Tag';
+                    } else {
+                        this.buildingMessageEl.textContent =
+                            rental.description + ' | Miete: ' +
+                            RealEstateSystem.formatMoney(rental.rent) + ' / Tag';
+                    }
+                }
+            } else if (isPurchasable) {
+                const catalog = RealEstateSystem.getPurchaseEntry(building.type);
                 if (catalog) {
                     if (isOwned) {
                         const isHome = player && player.homePropertyId === building.id;
                         const homeLabel = isHome ? ' (Dein Wohnsitz!)' : '';
                         this.buildingMessageEl.textContent =
-                            'Dein Eigentum!' + homeLabel +
-                            ' Einkommen: ' + RealEstateSystem.formatMoney(catalog.income) + ' / Tag';
+                            'Dein Eigentum!' + homeLabel;
                     } else {
                         this.buildingMessageEl.textContent =
-                            catalog.description + ' | Einkommen: ' +
-                            RealEstateSystem.formatMoney(catalog.income) + ' / Tag';
+                            catalog.description + ' | Preis: ' +
+                            RealEstateSystem.formatMoney(catalog.price);
                     }
                 }
             } else {
@@ -420,9 +402,6 @@ export class InteractionSystem {
         this.interactionUI.style.display = 'block';
     }
 
-    /**
-     * Versteckt die Interaktions-UI.
-     */
     hideInteractionUI() {
         const previousBuilding = this.pendingInteractionBuilding;
 
@@ -445,7 +424,6 @@ export class InteractionSystem {
             this.buyCasinoCreditsButton.disabled = false;
             this.buyCasinoCreditsButton.textContent = 'Credits kaufen';
         }
-
         if (this.cashOutCasinoCreditsButton) {
             this.cashOutCasinoCreditsButton.style.display = 'none';
             this.cashOutCasinoCreditsButton.disabled = false;
@@ -455,24 +433,29 @@ export class InteractionSystem {
         if (this.buildingMessageEl) {
             this.buildingMessageEl.textContent = '';
         }
-
         if (this.buildingNameEl) {
             this.buildingNameEl.textContent = 'Unbekanntes Gebaeude';
         }
-
         if (this.enterBuildingButton) {
             this.enterBuildingButton.textContent = 'Betreten';
             this.enterBuildingButton.style.display = 'inline-block';
         }
 
+        // Miet-Buttons
+        if (this.rentPropertyButton) {
+            this.rentPropertyButton.style.display = 'none';
+        }
+        if (this.cancelRentalButton) {
+            this.cancelRentalButton.style.display = 'none';
+        }
+
+        // Kauf-Buttons
         if (this.buyPropertyButton) {
             this.buyPropertyButton.style.display = 'none';
         }
-
         if (this.sellPropertyButton) {
             this.sellPropertyButton.style.display = 'none';
         }
-
         if (this.moveInButton) {
             this.moveInButton.style.display = 'none';
         }
@@ -485,59 +468,44 @@ export class InteractionSystem {
 
     // ===================================================================
     //  Eintritt
-    //  Portiert aus performBuildingEntry() Zeilen 11201-11270
     // ===================================================================
 
-    /**
-     * Fuehrt den Eintritt in ein Gebaeude aus.
-     * Delegiert an InteriorManager fuer den eigentlichen Szenen-Wechsel.
-     *
-     * @param {object} building
-     * @param {object} player
-     */
     performEntry(building, player) {
         if (!building) {
             this.hideInteractionUI();
             return;
         }
 
-        // Wohnhaus: nur Hinweis anzeigen, nicht betretbar
+        // Wohnhaus: nur Hinweis
         if (building.type === 'house') {
             if (building._housePromptShown) {
                 this.hideInteractionUI();
                 return;
             }
-
             if (this.buildingMessageEl) {
                 this.buildingMessageEl.textContent = 'Dieses Wohnhaus ist derzeit nicht betretbar.';
             }
-
             building._housePromptShown = true;
             this.isInteractionVisible = true;
             this.interactionRequiresKeyRelease = true;
-
             if (this.interactionUI) {
                 this.interactionUI.style.display = 'block';
             }
-
             return;
         }
 
         this.hideInteractionUI();
 
-        // Casino: an Casino-Handler delegieren
         if (building.type === 'casino') {
             this._handleCasinoEntry(building, player);
             return;
         }
 
-        // Waffenladen: an InteriorManager delegieren
         if (building.type === 'weaponShop') {
             this.eventBus.emit('interaction:enterWeaponShop', { building, player });
             return;
         }
 
-        // Sonstiges interaktives Gebaeude
         if (building.interactive) {
             this.eventBus.emit('interaction:enterGeneric', { building, player });
         }
@@ -545,17 +513,8 @@ export class InteractionSystem {
 
     // ===================================================================
     //  Casino-UI-Logik
-    //  Portiert aus Zeilen 751-920
     // ===================================================================
 
-    /**
-     * Behandelt den Casino-Eintritt.
-     * Portiert aus handleCasinoEntry() Zeilen 743-749.
-     *
-     * @param {object} building
-     * @param {object} player
-     * @private
-     */
     _handleCasinoEntry(building, player) {
         if (this.casino) {
             this.casino.refreshCreditsCache(player);
@@ -563,37 +522,15 @@ export class InteractionSystem {
         this.eventBus.emit('interaction:enterCasino', { building, player });
     }
 
-    /**
-     * Aktualisiert die Casino-Nachricht in der Interaktions-UI.
-     * Portiert aus updateCasinoInteractionMessage() Zeilen 821-838.
-     *
-     * @param {object} player
-     * @private
-     */
     _updateCasinoInteractionMessage(player) {
-        if (!this.buildingMessageEl || !this.casino) {
-            return;
-        }
-
+        if (!this.buildingMessageEl || !this.casino) return;
         this.buildingMessageEl.textContent = this.casino.getInteractionMessage(player);
         this._updateCasinoButtonsState(player);
     }
 
-    /**
-     * Aktualisiert den Zustand der Casino-Buttons (enabled/disabled, Labels).
-     * Portiert aus updateCasinoButtonsState() Zeilen 841-893.
-     *
-     * @param {object} [player]
-     * @private
-     */
     _updateCasinoButtonsState(player) {
-        if (!this.buyCasinoCreditsButton && !this.cashOutCasinoCreditsButton) {
-            return;
-        }
-
-        if (!this.casino || !player) {
-            return;
-        }
+        if (!this.buyCasinoCreditsButton && !this.cashOutCasinoCreditsButton) return;
+        if (!this.casino || !player) return;
 
         const isCasino = this.pendingInteractionBuilding &&
             this.pendingInteractionBuilding.type === 'casino';
@@ -606,7 +543,6 @@ export class InteractionSystem {
 
         if (this.buyCasinoCreditsButton) {
             this.buyCasinoCreditsButton.disabled = !canBuy;
-
             if (isCasino && canBuy) {
                 const creditsGain = state.dollarsAvailable * rate;
                 const dollarsLabel = state.dollarsAvailable.toLocaleString('de-DE');
@@ -620,7 +556,6 @@ export class InteractionSystem {
 
         if (this.cashOutCasinoCreditsButton) {
             this.cashOutCasinoCreditsButton.disabled = !canCashOut;
-
             if (isCasino && canCashOut) {
                 const dollarsGain = Math.floor(state.creditsAvailable / rate);
                 const creditsUsed = dollarsGain * rate;
@@ -634,29 +569,14 @@ export class InteractionSystem {
         }
     }
 
-    /**
-     * Behandelt den Kauf von Casino-Credits.
-     * Portiert aus handleBuyCasinoCredits() Zeilen 751-783.
-     *
-     * @param {object} player
-     */
     handleBuyCasinoCredits(player) {
-        if (!this.casino) {
-            return;
-        }
-
+        if (!this.casino) return;
         const result = this.casino.convertDollarsToCredits(player);
-
-        if (!this.buildingMessageEl) {
-            return;
-        }
+        if (!this.buildingMessageEl) return;
 
         if (!result.success) {
-            if (result.reason === 'noMoney') {
-                this.buildingMessageEl.textContent = 'Keine Dollars zum Umtauschen.';
-            } else {
-                this.buildingMessageEl.textContent = 'Umtausch derzeit nicht moeglich.';
-            }
+            this.buildingMessageEl.textContent =
+                result.reason === 'noMoney' ? 'Keine Dollars zum Umtauschen.' : 'Umtausch derzeit nicht moeglich.';
             this._updateCasinoButtonsState(player);
             return;
         }
@@ -671,29 +591,14 @@ export class InteractionSystem {
         this._resetCasinoMessageWithDelay(player);
     }
 
-    /**
-     * Behandelt die Auszahlung von Casino-Credits.
-     * Portiert aus handleCashOutCasinoCredits() Zeilen 786-818.
-     *
-     * @param {object} player
-     */
     handleCashOutCasinoCredits(player) {
-        if (!this.casino) {
-            return;
-        }
-
+        if (!this.casino) return;
         const result = this.casino.convertCreditsToDollars(player);
-
-        if (!this.buildingMessageEl) {
-            return;
-        }
+        if (!this.buildingMessageEl) return;
 
         if (!result.success) {
-            if (result.reason === 'noCredits') {
-                this.buildingMessageEl.textContent = 'Keine Credits zum Auszahlen.';
-            } else {
-                this.buildingMessageEl.textContent = 'Auszahlung derzeit nicht moeglich.';
-            }
+            this.buildingMessageEl.textContent =
+                result.reason === 'noCredits' ? 'Keine Credits zum Auszahlen.' : 'Auszahlung derzeit nicht moeglich.';
             this._updateCasinoButtonsState(player);
             return;
         }
@@ -708,22 +613,11 @@ export class InteractionSystem {
         this._resetCasinoMessageWithDelay(player);
     }
 
-    /**
-     * Setzt die Casino-Nachricht nach einer Verzoegerung zurueck auf den Standard.
-     * Portiert aus resetCasinoMessageWithDelay() Zeilen 896-920.
-     *
-     * @param {object} player
-     * @private
-     */
     _resetCasinoMessageWithDelay(player) {
-        if (typeof window === 'undefined') {
-            return;
-        }
-
+        if (typeof window === 'undefined') return;
         if (this.casinoMessageTimeout) {
             clearTimeout(this.casinoMessageTimeout);
         }
-
         this.casinoMessageTimeout = window.setTimeout(() => {
             if (this.pendingInteractionBuilding &&
                 this.pendingInteractionBuilding.type === 'casino') {
@@ -733,23 +627,75 @@ export class InteractionSystem {
     }
 
     // ===================================================================
-    //  Immobilien-Kauf/Verkauf Handler
+    //  Miet-Handler (Motel/Apartment)
     // ===================================================================
 
-    /**
-     * Behandelt den Kauf einer Immobilie.
-     * @param {object} player
-     */
-    handleBuyProperty(player) {
-        if (!this.realEstateSystem || !this.pendingInteractionBuilding) {
+    handleRentProperty(player) {
+        if (!this.realEstateSystem || !this.pendingInteractionBuilding) return;
+
+        const result = this.realEstateSystem.rentProperty(player, this.pendingInteractionBuilding);
+        if (!this.buildingMessageEl) return;
+
+        if (!result.success) {
+            if (result.reason === 'noMoney') {
+                this.buildingMessageEl.textContent = 'Nicht genug Geld fuer die Miete!';
+            } else if (result.reason === 'alreadyRented') {
+                this.buildingMessageEl.textContent = 'Du mietest hier bereits!';
+            } else {
+                this.buildingMessageEl.textContent = 'Mieten nicht moeglich.';
+            }
             return;
         }
+
+        this.buildingMessageEl.textContent =
+            'Eingezogen! Miete: ' + RealEstateSystem.formatMoney(result.rental.rent) + ' / Tag. Respawn hier gesetzt.';
+
+        // Buttons aktualisieren
+        if (this.rentPropertyButton) {
+            this.rentPropertyButton.style.display = 'none';
+        }
+        if (this.cancelRentalButton) {
+            this.cancelRentalButton.textContent = 'Miete kuendigen';
+            this.cancelRentalButton.style.display = 'inline-block';
+        }
+    }
+
+    handleCancelRental(player) {
+        if (!this.realEstateSystem || !this.pendingInteractionBuilding) return;
+
+        const result = this.realEstateSystem.cancelRental(player, this.pendingInteractionBuilding);
+        if (!this.buildingMessageEl) return;
+
+        if (!result.success) {
+            this.buildingMessageEl.textContent = 'Kuendigung nicht moeglich.';
+            return;
+        }
+
+        this.buildingMessageEl.textContent = 'Miete gekuendigt. Du wohnst hier nicht mehr.';
+
+        // Buttons aktualisieren
+        if (this.cancelRentalButton) {
+            this.cancelRentalButton.style.display = 'none';
+        }
+        if (this.rentPropertyButton) {
+            const rental = RealEstateSystem.getRentalEntry(this.pendingInteractionBuilding.type);
+            if (rental) {
+                this.rentPropertyButton.textContent =
+                    'Mieten (' + RealEstateSystem.formatMoney(rental.rent) + ' / Tag)';
+            }
+            this.rentPropertyButton.style.display = 'inline-block';
+        }
+    }
+
+    // ===================================================================
+    //  Kauf/Verkauf Handler (Bungalow etc.)
+    // ===================================================================
+
+    handleBuyProperty(player) {
+        if (!this.realEstateSystem || !this.pendingInteractionBuilding) return;
 
         const result = this.realEstateSystem.buyProperty(player, this.pendingInteractionBuilding);
-
-        if (!this.buildingMessageEl) {
-            return;
-        }
+        if (!this.buildingMessageEl) return;
 
         if (!result.success) {
             if (result.reason === 'noMoney') {
@@ -762,16 +708,13 @@ export class InteractionSystem {
             return;
         }
 
-        this.buildingMessageEl.textContent =
-            'Gekauft! Einkommen: ' + RealEstateSystem.formatMoney(result.property.income) +
-            ' alle ' + result.property.incomeInterval + ' Sek.';
+        this.buildingMessageEl.textContent = 'Gekauft! Du bist jetzt Eigentuemer.';
 
-        // Buttons aktualisieren
         if (this.buyPropertyButton) {
             this.buyPropertyButton.style.display = 'none';
         }
         if (this.sellPropertyButton) {
-            const catalog = RealEstateSystem.getCatalogEntry(this.pendingInteractionBuilding.type);
+            const catalog = RealEstateSystem.getPurchaseEntry(this.pendingInteractionBuilding.type);
             if (catalog) {
                 const refund = RealEstateSystem.getSellRefund(catalog.price);
                 this.sellPropertyButton.textContent =
@@ -779,22 +722,17 @@ export class InteractionSystem {
             }
             this.sellPropertyButton.style.display = 'inline-block';
         }
+        if (this.moveInButton) {
+            this.moveInButton.textContent = 'Einziehen';
+            this.moveInButton.style.display = 'inline-block';
+        }
     }
 
-    /**
-     * Behandelt den Verkauf einer Immobilie.
-     * @param {object} player
-     */
     handleSellProperty(player) {
-        if (!this.realEstateSystem || !this.pendingInteractionBuilding) {
-            return;
-        }
+        if (!this.realEstateSystem || !this.pendingInteractionBuilding) return;
 
         const result = this.realEstateSystem.sellProperty(player, this.pendingInteractionBuilding);
-
-        if (!this.buildingMessageEl) {
-            return;
-        }
+        if (!this.buildingMessageEl) return;
 
         if (!result.success) {
             this.buildingMessageEl.textContent = 'Verkauf nicht moeglich.';
@@ -804,12 +742,14 @@ export class InteractionSystem {
         this.buildingMessageEl.textContent =
             'Verkauft! ' + RealEstateSystem.formatMoney(result.refund) + ' erhalten.';
 
-        // Buttons aktualisieren
         if (this.sellPropertyButton) {
             this.sellPropertyButton.style.display = 'none';
         }
+        if (this.moveInButton) {
+            this.moveInButton.style.display = 'none';
+        }
         if (this.buyPropertyButton) {
-            const catalog = RealEstateSystem.getCatalogEntry(this.pendingInteractionBuilding.type);
+            const catalog = RealEstateSystem.getPurchaseEntry(this.pendingInteractionBuilding.type);
             if (catalog) {
                 this.buyPropertyButton.textContent =
                     'Kaufen (' + RealEstateSystem.formatMoney(catalog.price) + ')';
@@ -818,30 +758,19 @@ export class InteractionSystem {
         }
     }
 
-    /**
-     * Behandelt das Einziehen in eine eigene Immobilie (Wohnsitz setzen).
-     * @param {object} player
-     */
     handleMoveIn(player) {
-        if (!this.realEstateSystem || !this.pendingInteractionBuilding) {
-            return;
-        }
+        if (!this.realEstateSystem || !this.pendingInteractionBuilding) return;
 
         const result = this.realEstateSystem.moveIn(player, this.pendingInteractionBuilding);
-
-        if (!this.buildingMessageEl) {
-            return;
-        }
+        if (!this.buildingMessageEl) return;
 
         if (!result.success) {
             this.buildingMessageEl.textContent = 'Einziehen nicht moeglich.';
             return;
         }
 
-        this.buildingMessageEl.textContent =
-            'Du wohnst jetzt hier! Respawn-Punkt gesetzt.';
+        this.buildingMessageEl.textContent = 'Du wohnst jetzt hier! Respawn-Punkt gesetzt.';
 
-        // Einziehen-Button verstecken
         if (this.moveInButton) {
             this.moveInButton.style.display = 'none';
         }
@@ -851,10 +780,6 @@ export class InteractionSystem {
     //  Button-Event-Bindings
     // ===================================================================
 
-    /**
-     * Bindet Click-Handler an die UI-Buttons.
-     * @private
-     */
     _bindButtonEvents() {
         if (this.enterBuildingButton) {
             this.enterBuildingButton.addEventListener('click', () => {
@@ -875,6 +800,18 @@ export class InteractionSystem {
         if (this.cashOutCasinoCreditsButton) {
             this.cashOutCasinoCreditsButton.addEventListener('click', () => {
                 this.eventBus.emit('interaction:cashOutCasinoCredits');
+            });
+        }
+
+        if (this.rentPropertyButton) {
+            this.rentPropertyButton.addEventListener('click', () => {
+                this.eventBus.emit('interaction:rentProperty');
+            });
+        }
+
+        if (this.cancelRentalButton) {
+            this.cancelRentalButton.addEventListener('click', () => {
+                this.eventBus.emit('interaction:cancelRental');
             });
         }
 

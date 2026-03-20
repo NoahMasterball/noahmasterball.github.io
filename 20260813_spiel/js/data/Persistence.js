@@ -104,18 +104,13 @@ const KEY_WEAPON_INVENTORY = 'overworldWeaponInventory';
 
 /**
  * Laedt das Waffeninventar aus localStorage.
- * Standard-Waffe "pistol" ist immer enthalten.
+ * Spieler startet ohne Waffen - Waffen muessen im Shop gekauft werden.
  *
  * @returns {Set<string>} Besessene Waffen-IDs
  */
 export function loadWeaponInventory() {
-    const defaults = ['pistol'];
     const validIds = new Set(WEAPON_ORDER);
     const owned = new Set();
-
-    for (const id of defaults) {
-        owned.add(id);
-    }
 
     const raw = readItem(KEY_WEAPON_INVENTORY);
     if (raw) {
@@ -152,6 +147,7 @@ const MAX_LOADOUT_SLOTS = 3;
 
 /**
  * Laedt das Waffen-Loadout (bis zu 3 Slots) aus localStorage.
+ * Gibt leeres Array zurueck wenn keine Waffen im Besitz.
  *
  * @param {Set<string>} weaponInventory - Aktuelle besessene Waffen
  * @returns {Array<string>} Loadout-Slot-IDs
@@ -190,10 +186,6 @@ export function loadWeaponLoadout(weaponInventory) {
         }
     }
 
-    if (!slots.length) {
-        slots.push('pistol');
-    }
-
     return slots;
 }
 
@@ -215,27 +207,32 @@ const KEY_CURRENT_WEAPON = 'overworldCurrentWeaponId';
 
 /**
  * Laedt die aktuell ausgeruestete Waffen-ID aus localStorage.
+ * Gibt null zurueck wenn keine Waffen im Besitz.
  *
  * @param {Set<string>} weaponInventory
  * @param {Array<string>} weaponLoadout
- * @returns {string} Waffen-ID
+ * @returns {string|null} Waffen-ID oder null wenn unbewaffnet
  */
 export function loadCurrentWeaponId(weaponInventory, weaponLoadout) {
+    if (!weaponInventory || weaponInventory.size === 0) {
+        return null;
+    }
+
     const fallback = Array.isArray(weaponLoadout) && weaponLoadout.length
         ? weaponLoadout[0]
-        : 'pistol';
+        : null;
 
     const stored = readItem(KEY_CURRENT_WEAPON);
     if (stored && weaponInventory.has(stored)) {
         return stored;
     }
 
-    if (weaponInventory.has(fallback)) {
+    if (fallback && weaponInventory.has(fallback)) {
         return fallback;
     }
 
     const owned = WEAPON_ORDER.find((id) => weaponInventory.has(id));
-    return owned ?? 'pistol';
+    return owned ?? null;
 }
 
 /**
@@ -244,7 +241,7 @@ export function loadCurrentWeaponId(weaponInventory, weaponLoadout) {
  * @param {Set<string>} weaponInventory
  */
 export function persistCurrentWeaponId(currentWeaponId, weaponInventory) {
-    if (weaponInventory.has(currentWeaponId)) {
+    if (currentWeaponId && weaponInventory.has(currentWeaponId)) {
         writeItem(KEY_CURRENT_WEAPON, currentWeaponId);
     } else {
         removeItem(KEY_CURRENT_WEAPON);
@@ -384,5 +381,33 @@ export function persistHomeProperty(buildingId) {
         writeItem(KEY_HOME_PROPERTY, buildingId);
     } else {
         removeItem(KEY_HOME_PROPERTY);
+    }
+}
+
+// ───────────────────── Gemietete Unterkunft ─────────────────────
+
+const KEY_RENTED_PROPERTY = 'overworldRentedProperty';
+
+/**
+ * Laedt die gemietete Unterkunft-Building-ID aus localStorage.
+ * @returns {string|null}
+ */
+export function loadRentedProperty() {
+    const raw = readItem(KEY_RENTED_PROPERTY);
+    if (raw && typeof raw === 'string' && raw.length > 0) {
+        return raw;
+    }
+    return null;
+}
+
+/**
+ * Speichert die gemietete Unterkunft-Building-ID in localStorage.
+ * @param {string|null} buildingId
+ */
+export function persistRentedProperty(buildingId) {
+    if (buildingId && typeof buildingId === 'string') {
+        writeItem(KEY_RENTED_PROPERTY, buildingId);
+    } else {
+        removeItem(KEY_RENTED_PROPERTY);
     }
 }

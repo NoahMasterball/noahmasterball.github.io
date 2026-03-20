@@ -131,17 +131,17 @@ export class DayNightSystem {
         const sampleStops = (stops, value) => DayNightSystem.sampleColorStops(stops, Math.max(0, Math.min(1, value)));
 
         const duskSkyStops = [
-            { at: 0, color: [68, 106, 196, 0.86] },
-            { at: 0.33, color: [255, 150, 90, 0.92] },
-            { at: 0.66, color: [186, 58, 48, 0.96] },
-            { at: 1, color: [8, 8, 20, 1] }
+            { at: 0, color: [80, 110, 180, 0.82] },
+            { at: 0.33, color: [180, 140, 120, 0.85] },
+            { at: 0.66, color: [100, 60, 80, 0.90] },
+            { at: 1, color: [10, 10, 24, 0.98] }
         ];
 
         const duskHorizonStops = [
-            { at: 0, color: [255, 210, 140, 0.85] },
-            { at: 0.4, color: [255, 142, 64, 0.9] },
-            { at: 0.75, color: [196, 52, 44, 0.92] },
-            { at: 1, color: [12, 10, 28, 0.96] }
+            { at: 0, color: [200, 180, 140, 0.78] },
+            { at: 0.4, color: [180, 130, 100, 0.82] },
+            { at: 0.75, color: [110, 60, 70, 0.88] },
+            { at: 1, color: [14, 12, 30, 0.94] }
         ];
 
         const nightSkyTop = [16, 24, 58, 0.92];

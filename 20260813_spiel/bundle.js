@@ -1,6 +1,7 @@
-// Auto-generated bundle — 2026-03-19T20:18:18.207Z
+// Auto-generated bundle — 2026-03-20T20:17:57.000Z
 (function() {
 'use strict';
+
 
 
 
@@ -413,7 +414,6 @@ function buildHumanoidParts(palette = {}) {
  * Alle Positionsaenderungen gehen durch EntityMover.move().
  */
 
-
 /** Standard-Palette fuer den Spieler */
 const DEFAULT_PLAYER_PALETTE = {
     head: '#f6d7c4',
@@ -442,6 +442,7 @@ class Player extends Entity {
      * @param {Array|null} [options.weaponLoadout=null]
      * @param {Set|null} [options.ownedProperties=null]
      * @param {string|null} [options.homePropertyId=null]
+     * @param {string|null} [options.rentedPropertyId=null]
      */
     constructor(options = {}) {
         super({
@@ -471,9 +472,10 @@ class Player extends Entity {
         this.money = options.money ?? 1500;
         this.casinoCredits = options.casinoCredits ?? 0;
 
-        // Immobilien-Besitz
+        // Immobilien-Besitz und Miete
         this.ownedProperties = options.ownedProperties ?? new Set();
         this.homePropertyId = options.homePropertyId ?? null;
+        this.rentedPropertyId = options.rentedPropertyId ?? null;
 
         // Stamina (Sprint-Ausdauer)
         this.stamina = 1;          // 0-1, startet voll
@@ -560,7 +562,6 @@ class Player extends Entity {
  * Diese Klasse definiert nur Zustand und Logik-Daten.
  * Bewegung wird von MovementSystem / EntityMover gesteuert.
  */
-
 
 /** Standard-Werte fuer den Movement-Tracker */
 const TRACKER_DEFAULTS = {
@@ -850,7 +851,6 @@ class NPC extends Entity {
  * WICHTIG: Setzt NIEMALS this.x/this.y direkt (ausser Initialisierung im Constructor).
  * Alle Positionsaenderungen gehen durch EntityMover.move().
  */
-
 
 class Vehicle extends Entity {
     /**
@@ -1392,7 +1392,6 @@ function createHouseStyles() {
  *   persistPlayerMoney()       (neu)
  */
 
-
 // ───────────────────── Hilfsfunktionen ─────────────────────
 
 /** @returns {boolean} true wenn localStorage verfuegbar */
@@ -1480,18 +1479,13 @@ const KEY_WEAPON_INVENTORY = 'overworldWeaponInventory';
 
 /**
  * Laedt das Waffeninventar aus localStorage.
- * Standard-Waffe "pistol" ist immer enthalten.
+ * Spieler startet ohne Waffen - Waffen muessen im Shop gekauft werden.
  *
  * @returns {Set<string>} Besessene Waffen-IDs
  */
 function loadWeaponInventory() {
-    const defaults = ['pistol'];
     const validIds = new Set(WEAPON_ORDER);
     const owned = new Set();
-
-    for (const id of defaults) {
-        owned.add(id);
-    }
 
     const raw = readItem(KEY_WEAPON_INVENTORY);
     if (raw) {
@@ -1528,6 +1522,7 @@ const MAX_LOADOUT_SLOTS = 3;
 
 /**
  * Laedt das Waffen-Loadout (bis zu 3 Slots) aus localStorage.
+ * Gibt leeres Array zurueck wenn keine Waffen im Besitz.
  *
  * @param {Set<string>} weaponInventory - Aktuelle besessene Waffen
  * @returns {Array<string>} Loadout-Slot-IDs
@@ -1566,10 +1561,6 @@ function loadWeaponLoadout(weaponInventory) {
         }
     }
 
-    if (!slots.length) {
-        slots.push('pistol');
-    }
-
     return slots;
 }
 
@@ -1591,27 +1582,32 @@ const KEY_CURRENT_WEAPON = 'overworldCurrentWeaponId';
 
 /**
  * Laedt die aktuell ausgeruestete Waffen-ID aus localStorage.
+ * Gibt null zurueck wenn keine Waffen im Besitz.
  *
  * @param {Set<string>} weaponInventory
  * @param {Array<string>} weaponLoadout
- * @returns {string} Waffen-ID
+ * @returns {string|null} Waffen-ID oder null wenn unbewaffnet
  */
 function loadCurrentWeaponId(weaponInventory, weaponLoadout) {
+    if (!weaponInventory || weaponInventory.size === 0) {
+        return null;
+    }
+
     const fallback = Array.isArray(weaponLoadout) && weaponLoadout.length
         ? weaponLoadout[0]
-        : 'pistol';
+        : null;
 
     const stored = readItem(KEY_CURRENT_WEAPON);
     if (stored && weaponInventory.has(stored)) {
         return stored;
     }
 
-    if (weaponInventory.has(fallback)) {
+    if (fallback && weaponInventory.has(fallback)) {
         return fallback;
     }
 
     const owned = WEAPON_ORDER.find((id) => weaponInventory.has(id));
-    return owned ?? 'pistol';
+    return owned ?? null;
 }
 
 /**
@@ -1620,7 +1616,7 @@ function loadCurrentWeaponId(weaponInventory, weaponLoadout) {
  * @param {Set<string>} weaponInventory
  */
 function persistCurrentWeaponId(currentWeaponId, weaponInventory) {
-    if (weaponInventory.has(currentWeaponId)) {
+    if (currentWeaponId && weaponInventory.has(currentWeaponId)) {
         writeItem(KEY_CURRENT_WEAPON, currentWeaponId);
     } else {
         removeItem(KEY_CURRENT_WEAPON);
@@ -1763,44 +1759,105 @@ function persistHomeProperty(buildingId) {
     }
 }
 
+// ───────────────────── Gemietete Unterkunft ─────────────────────
+
+const KEY_RENTED_PROPERTY = 'overworldRentedProperty';
+
+/**
+ * Laedt die gemietete Unterkunft-Building-ID aus localStorage.
+ * @returns {string|null}
+ */
+function loadRentedProperty() {
+    const raw = readItem(KEY_RENTED_PROPERTY);
+    if (raw && typeof raw === 'string' && raw.length > 0) {
+        return raw;
+    }
+    return null;
+}
+
+/**
+ * Speichert die gemietete Unterkunft-Building-ID in localStorage.
+ * @param {string|null} buildingId
+ */
+function persistRentedProperty(buildingId) {
+    if (buildingId && typeof buildingId === 'string') {
+        writeItem(KEY_RENTED_PROPERTY, buildingId);
+    } else {
+        removeItem(KEY_RENTED_PROPERTY);
+    }
+}
+
 
 
 // ═══════════════════════════════════════════════════════
 // js/systems/RealEstateSystem.js
 // ═══════════════════════════════════════════════════════
 /**
- * RealEstateSystem - Immobilienmarkt: Kauf und Verwaltung von Gebaeuden.
+ * RealEstateSystem - Immobilienmarkt: Miete und Kauf von Gebaeuden.
  *
- * SSOT: Alle Immobilien-Preise, Einkuenfte und Kauf-Logik hier zentralisiert.
- * Einkommen wird pro Ingame-Tag ausgezahlt (1 voller Tag/Nacht-Zyklus).
+ * SSOT: Alle Immobilien-Preise, Mieten und Kauf-Logik hier zentralisiert.
+ * - Motel/Apartment: Mietbar (taegliche Miete wird abgezogen)
+ * - Bungalow/Haeuser: Kaufbar ueber Immobilienmaklbuero
+ * Miet-/Kauf-Abrechnung erfolgt pro Ingame-Tag (1 voller Tag/Nacht-Zyklus).
  */
 
 // ---------------------------------------------------------------------------
-// Immobilien-Katalog (SSOT fuer alle kaufbaren Immobilien)
+// Miet-Katalog (SSOT fuer alle mietbaren Unterkuenfte)
 // ---------------------------------------------------------------------------
 
 /**
- * Gibt den Immobilien-Katalog zurueck.
- * Schluessel = Building-Type, Wert = Kauf-Details.
- * income = Einkommen pro Ingame-Tag.
+ * Mietbare Unterkuenfte: Schluessel = Building-Type, Wert = Miet-Details.
+ * rent = Miete pro Ingame-Tag.
  */
+const RENTAL_CATALOG = {
+    motel: {
+        name: 'Sunrise Motel',
+        rent: 50,
+        description: 'Kleines Motelzimmer mit Bett, Waschbecken und Toilette.',
+    },
+    apartmentComplex: {
+        name: 'Parkview Apartments',
+        rent: 150,
+        description: 'Gemuetliche Wohnung mit Bad, Doppelbett, Fernseher und mehr.',
+    },
+};
+
+// ---------------------------------------------------------------------------
+// Kauf-Katalog (SSOT fuer alle kaufbaren Immobilien ueber Makler)
+// ---------------------------------------------------------------------------
+
 /** Verkaufsrate: Anteil des Kaufpreises bei Verkauf (SSOT) */
 const PROPERTY_SELL_RATE = 0.5;
 
 const PROPERTY_CATALOG = {
-    motel: {
-        name: 'Sunrise Motel',
-        price: 8000,
-        income: 200,
-        description: 'Ein kleines Motel am Stadtrand. Generiert taegliches Einkommen.',
-    },
-    apartmentComplex: {
-        name: 'Parkview Apartments',
-        price: 25000,
-        income: 750,
-        description: 'Ein Apartmentkomplex mit mehreren Einheiten. Hohe Mieteinnahmen.',
+    bungalow: {
+        name: 'Bungalow am Stadtrand',
+        price: 35000,
+        description: 'Ein gemuetlicher Bungalow mit drei Raeumen: Wohnzimmer, Schlafzimmer und Kueche.',
     },
 };
+
+// ---------------------------------------------------------------------------
+// Kompatibilitaet: isPropertyType prueft beide Kataloge
+// ---------------------------------------------------------------------------
+
+/**
+ * Prueft ob ein Gebaeudetyp mietbar ist.
+ * @param {string} type
+ * @returns {boolean}
+ */
+function isRentalType(type) {
+    return type in RENTAL_CATALOG;
+}
+
+/**
+ * Prueft ob ein Gebaeudetyp kaufbar ist (ueber Makler).
+ * @param {string} type
+ * @returns {boolean}
+ */
+function isPurchasableType(type) {
+    return type in PROPERTY_CATALOG;
+}
 
 class RealEstateSystem {
 
@@ -1816,19 +1873,93 @@ class RealEstateSystem {
         /** @type {number} Zaehlt wie oft phaseIndex auf 0 zurueckspringt (= neuer Tag) */
         this._dayCount = 0;
 
-        /** @type {number} Letzter Tag an dem Einkommen gezahlt wurde */
-        this._lastIncomeDay = 0;
+        /** @type {number} Letzter Tag an dem Miete/Einkommen abgerechnet wurde */
+        this._lastRentDay = 0;
     }
 
     // ===================================================================
-    //  Kauf / Verkauf
+    //  Miete (Motel / Apartment)
     // ===================================================================
 
     /**
-     * Versucht eine Immobilie zu kaufen.
+     * Mietet eine Unterkunft. Spieler zahlt taegliche Miete.
      *
-     * @param {object} player - Spieler-Entity
-     * @param {object} building - Gebaeude-Objekt
+     * @param {object} player
+     * @param {object} building
+     * @returns {{ success: boolean, reason?: string, rental?: object }}
+     */
+    rentProperty(player, building) {
+        if (!building || !building.id) {
+            return { success: false, reason: 'invalidBuilding' };
+        }
+
+        const rental = RENTAL_CATALOG[building.type];
+        if (!rental) {
+            return { success: false, reason: 'notRentable' };
+        }
+
+        // Bereits gemietet?
+        if (player.rentedPropertyId === building.id) {
+            return { success: false, reason: 'alreadyRented' };
+        }
+
+        // Erste Miete sofort zahlen
+        if (player.money < rental.rent) {
+            return { success: false, reason: 'noMoney' };
+        }
+
+        player.money -= rental.rent;
+        player.rentedPropertyId = building.id;
+        player.homePropertyId = building.id;
+
+        this.eventBus.emit('realEstate:rented', {
+            buildingId: building.id,
+            type: building.type,
+            rent: rental.rent,
+        });
+
+        return { success: true, rental };
+    }
+
+    /**
+     * Kuendigt die aktuelle Miete.
+     *
+     * @param {object} player
+     * @param {object} building
+     * @returns {{ success: boolean, reason?: string }}
+     */
+    cancelRental(player, building) {
+        if (!building || !building.id) {
+            return { success: false, reason: 'invalidBuilding' };
+        }
+
+        if (player.rentedPropertyId !== building.id) {
+            return { success: false, reason: 'notRented' };
+        }
+
+        player.rentedPropertyId = null;
+
+        // Wohnsitz nur entfernen wenn es die gemietete Unterkunft war
+        if (player.homePropertyId === building.id) {
+            player.homePropertyId = null;
+        }
+
+        this.eventBus.emit('realEstate:rentalCancelled', {
+            buildingId: building.id,
+        });
+
+        return { success: true };
+    }
+
+    // ===================================================================
+    //  Kauf / Verkauf (Bungalow etc. ueber Makler)
+    // ===================================================================
+
+    /**
+     * Kauft eine Immobilie (Bungalow etc.).
+     *
+     * @param {object} player
+     * @param {object} building
      * @returns {{ success: boolean, reason?: string, property?: object }}
      */
     buyProperty(player, building) {
@@ -1858,10 +1989,7 @@ class RealEstateSystem {
             price: catalog.price,
         });
 
-        return {
-            success: true,
-            property: catalog,
-        };
+        return { success: true, property: catalog };
     }
 
     /**
@@ -1889,7 +2017,6 @@ class RealEstateSystem {
         player.money += refund;
         player.ownedProperties.delete(building.id);
 
-        // Falls der Spieler dort wohnt, Wohnsitz entfernen
         if (player.homePropertyId === building.id) {
             player.homePropertyId = null;
         }
@@ -1904,7 +2031,7 @@ class RealEstateSystem {
     }
 
     // ===================================================================
-    //  Einziehen (Wohnsitz setzen)
+    //  Einziehen (Wohnsitz setzen - nur bei eigenen Immobilien)
     // ===================================================================
 
     /**
@@ -1933,32 +2060,24 @@ class RealEstateSystem {
     }
 
     // ===================================================================
-    //  Passives Einkommen (pro Ingame-Tag)
+    //  Taegliche Miet-Abrechnung (pro Ingame-Tag)
     // ===================================================================
 
     /**
-     * Aktualisiert das passive Einkommen aus besessenen Immobilien.
-     * Einkommen wird einmal pro Ingame-Tag ausgezahlt.
+     * Zieht taegliche Miete ab wenn Spieler eine Unterkunft gemietet hat.
+     * Bei fehlendem Geld wird die Miete automatisch gekuendigt.
      *
      * @param {object} player
      * @param {Array} buildings - Alle Gebaeude der Welt
-     * @param {number} deltaTime - Sekunden seit letztem Frame (unused, Tageswechsel-basiert)
-     * @param {object} dayNightSystem - DayNightSystem-Instanz
+     * @param {number} deltaTime
+     * @param {object} dayNightSystem
      */
     update(player, buildings, deltaTime, dayNightSystem) {
-        if (!player.ownedProperties || player.ownedProperties.size === 0) {
-            return;
-        }
+        if (!dayNightSystem) return;
 
-        if (!dayNightSystem) {
-            return;
-        }
-
-        // Tag-Wechsel erkennen: phaseIndex springt auf 0 (Tag beginnt)
         const currentPhaseIndex = dayNightSystem.phaseIndex ?? 0;
 
         if (this._lastPhaseIndex < 0) {
-            // Erster Frame: initialisieren
             this._lastPhaseIndex = currentPhaseIndex;
             return;
         }
@@ -1967,25 +2086,35 @@ class RealEstateSystem {
         if (currentPhaseIndex === 0 && this._lastPhaseIndex !== 0) {
             this._dayCount++;
 
-            // Einkommen auszahlen
-            if (this._dayCount > this._lastIncomeDay) {
-                let totalIncome = 0;
-                for (const buildingId of player.ownedProperties) {
-                    const building = buildings.find((b) => b && b.id === buildingId);
-                    if (!building) continue;
-                    const catalog = PROPERTY_CATALOG[building.type];
-                    if (!catalog) continue;
-                    totalIncome += catalog.income;
-                }
+            if (this._dayCount > this._lastRentDay) {
+                this._lastRentDay = this._dayCount;
 
-                if (totalIncome > 0) {
-                    player.money += totalIncome;
-                    this._lastIncomeDay = this._dayCount;
-
-                    this.eventBus.emit('realEstate:income', {
-                        amount: totalIncome,
-                        day: this._dayCount,
-                    });
+                // Miete abziehen
+                if (player.rentedPropertyId) {
+                    const building = buildings.find((b) => b && b.id === player.rentedPropertyId);
+                    if (building) {
+                        const rental = RENTAL_CATALOG[building.type];
+                        if (rental) {
+                            if (player.money >= rental.rent) {
+                                player.money -= rental.rent;
+                                this.eventBus.emit('realEstate:rentPaid', {
+                                    buildingId: building.id,
+                                    rent: rental.rent,
+                                    day: this._dayCount,
+                                });
+                            } else {
+                                // Kein Geld -> Miete kuendigen
+                                player.rentedPropertyId = null;
+                                if (player.homePropertyId === building.id) {
+                                    player.homePropertyId = null;
+                                }
+                                this.eventBus.emit('realEstate:evicted', {
+                                    buildingId: building.id,
+                                    day: this._dayCount,
+                                });
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1998,21 +2127,39 @@ class RealEstateSystem {
     // ===================================================================
 
     /**
-     * Gibt die Katalog-Infos fuer einen Gebaeudetyp zurueck.
+     * Gibt die Katalog-Infos fuer einen Gebaeudetyp zurueck (Miet- oder Kauf-Katalog).
      * @param {string} type
      * @returns {object|null}
      */
     static getCatalogEntry(type) {
+        return RENTAL_CATALOG[type] ?? PROPERTY_CATALOG[type] ?? null;
+    }
+
+    /**
+     * Gibt den Miet-Katalog-Eintrag zurueck.
+     * @param {string} type
+     * @returns {object|null}
+     */
+    static getRentalEntry(type) {
+        return RENTAL_CATALOG[type] ?? null;
+    }
+
+    /**
+     * Gibt den Kauf-Katalog-Eintrag zurueck.
+     * @param {string} type
+     * @returns {object|null}
+     */
+    static getPurchaseEntry(type) {
         return PROPERTY_CATALOG[type] ?? null;
     }
 
     /**
-     * Prueft ob ein Gebaeudetyp kaufbar ist.
+     * Prueft ob ein Gebaeudetyp mietbar oder kaufbar ist.
      * @param {string} type
      * @returns {boolean}
      */
     static isPropertyType(type) {
-        return type in PROPERTY_CATALOG;
+        return type in RENTAL_CATALOG || type in PROPERTY_CATALOG;
     }
 
     /**
@@ -3267,7 +3414,6 @@ function createStreetDetails(config = {}) {
  * NPC/Vehicle-Instanzen ueber NPC.js/Vehicle.js.
  */
 
-
 // ---------------------------------------------------------------------------
 // Residential-Blueprints (SSOT fuer alle Wohnhaus-Positionen)
 // ---------------------------------------------------------------------------
@@ -3395,13 +3541,13 @@ class WorldGenerator {
         // Motel
         buildings.push({
             x: 2540, y: 320, width: 340, height: 220,
-            name: PROPERTY_CATALOG.motel.name, type: "motel", interactive: true,
+            name: RENTAL_CATALOG.motel.name, type: "motel", interactive: true,
         });
 
         // Apartment-Komplex
         buildings.push({
             x: 1080, y: 320, width: 300, height: 400,
-            name: PROPERTY_CATALOG.apartmentComplex.name, type: "apartmentComplex", interactive: true,
+            name: RENTAL_CATALOG.apartmentComplex.name, type: "apartmentComplex", interactive: true,
         });
 
         // Downtown Hochhaeuser
@@ -3423,6 +3569,18 @@ class WorldGenerator {
                 { label: "Stadtmarkt", accent: "#7fd491" },
                 { label: "Polizeiposten", accent: "#5da1ff" },
             ],
+        });
+
+        // Immobilienmakler
+        buildings.push({
+            x: 2920, y: 1820, width: 200, height: 160,
+            name: "Immobilienmakler Schmidt", type: "realEstateAgent", interactive: true,
+        });
+
+        // Bungalow (kaufbar ueber Makler)
+        buildings.push({
+            x: 2920, y: 2100, width: 280, height: 200,
+            name: PROPERTY_CATALOG.bungalow.name, type: "bungalow", interactive: true,
         });
 
         // Wohnhaeuser aus Blueprints
@@ -4231,7 +4389,6 @@ class InputSystem {
  * Alle Positionsaenderungen laufen ueber EntityMover.move().
  */
 
-
 class MovementSystem {
     /**
      * @param {import('../core/EntityMover.js').EntityMover} entityMover
@@ -4335,7 +4492,6 @@ class MovementSystem {
  * Portiert aus OverworldGame: checkBuildingCollisions, resolveCircleRectCollision,
  * isPointInsideAnyCollider, collectVehicleColliders.
  */
-
 
 class CollisionSystem {
 
@@ -4825,7 +4981,6 @@ class CollisionSystem {
  *   spawnBloodDecal()                (Z.3234-3243)
  */
 
-
 /** Maximale Anzahl an Blood-Decals bevor aelteste entfernt werden */
 const MAX_BLOOD_DECALS = 150;
 
@@ -5185,7 +5340,6 @@ class CombatSystem {
  *
  * SSOT fuer alle Polizei-Konstanten und -Logik.
  */
-
 
 // ── Polizeistation (Respawn-Punkt) ──────────────────────────────────────
 const POLICE_STATION_POS = { x: 1800, y: 400 };
@@ -6825,8 +6979,9 @@ class CameraSystem {
         this.x = targetEntity.x - vw / 2;
         this.y = targetEntity.y - vh / 2;
 
-        // An Weltgrenzen clampen
-        this.x = Math.max(0, Math.min(this.x, worldBounds.width - vw));
+        // An Weltgrenzen clampen (westliche Grenze erlaubt Blick aufs Meer)
+        const westLimit = -(this.oceanOverflow ?? 0);
+        this.x = Math.max(westLimit, Math.min(this.x, worldBounds.width - vw));
         this.y = Math.max(0, Math.min(this.y, worldBounds.height - vh));
     }
 
@@ -6995,17 +7150,17 @@ class DayNightSystem {
         const sampleStops = (stops, value) => DayNightSystem.sampleColorStops(stops, Math.max(0, Math.min(1, value)));
 
         const duskSkyStops = [
-            { at: 0, color: [68, 106, 196, 0.86] },
-            { at: 0.33, color: [255, 150, 90, 0.92] },
-            { at: 0.66, color: [186, 58, 48, 0.96] },
-            { at: 1, color: [8, 8, 20, 1] }
+            { at: 0, color: [80, 110, 180, 0.82] },
+            { at: 0.33, color: [180, 140, 120, 0.85] },
+            { at: 0.66, color: [100, 60, 80, 0.90] },
+            { at: 1, color: [10, 10, 24, 0.98] }
         ];
 
         const duskHorizonStops = [
-            { at: 0, color: [255, 210, 140, 0.85] },
-            { at: 0.4, color: [255, 142, 64, 0.9] },
-            { at: 0.75, color: [196, 52, 44, 0.92] },
-            { at: 1, color: [12, 10, 28, 0.96] }
+            { at: 0, color: [200, 180, 140, 0.78] },
+            { at: 0.4, color: [180, 130, 100, 0.82] },
+            { at: 0.75, color: [110, 60, 70, 0.88] },
+            { at: 1, color: [14, 12, 30, 0.94] }
         ];
 
         const nightSkyTop = [16, 24, 58, 0.92];
@@ -7190,20 +7345,10 @@ class DayNightSystem {
 /**
  * InteractionSystem - Gebaeude-Interaktion und UI-Steuerung.
  *
- * Portiert aus gta_old/overworld/js/overworld.js:
- *   checkBuildingCollisions() Interaktions-Teil  Zeilen 1391-1419
- *   showBuildingInteraction()                    Zeilen 11271-11363
- *   hideBuildingInteraction()                    Zeilen 11365-11429
- *   performBuildingEntry()                       Zeilen 11201-11270
- *   Casino-UI (updateCasinoInteractionMessage, updateCasinoButtonsState,
- *              handleBuyCasinoCredits, handleCashOutCasinoCredits,
- *              resetCasinoMessageWithDelay)      Zeilen 751-920
- *
  * SSOT: Alle Proximity-Erkennung und Interaktions-UI hier zentralisiert.
  * Dieses System veraendert KEINE Positionen. Es erkennt Proximity und
  * delegiert an InteriorManager fuer Szenen-Wechsel.
  */
-
 
 /** Reichweite in Pixeln, in der ein Gebaeude als "nah" gilt */
 const INTERACTION_RANGE = 60;
@@ -7276,6 +7421,12 @@ class InteractionSystem {
         this.cashOutCasinoCreditsButton = null;
 
         /** @type {HTMLButtonElement|null} */
+        this.rentPropertyButton = null;
+
+        /** @type {HTMLButtonElement|null} */
+        this.cancelRentalButton = null;
+
+        /** @type {HTMLButtonElement|null} */
         this.buyPropertyButton = null;
 
         /** @type {HTMLButtonElement|null} */
@@ -7291,17 +7442,6 @@ class InteractionSystem {
 
     /**
      * Verbindet die DOM-Elemente fuer die Interaktions-UI.
-     *
-     * @param {object} elements
-     * @param {HTMLElement}       elements.container     - Wrapper (display: none/block)
-     * @param {HTMLElement}       elements.nameEl        - Gebaeudename
-     * @param {HTMLElement}       elements.messageEl     - Nachrichtentext
-     * @param {HTMLButtonElement} elements.enterButton   - "Betreten"-Button
-     * @param {HTMLButtonElement} [elements.buyCredits]  - "Credits kaufen"-Button
-     * @param {HTMLButtonElement} [elements.cashOut]     - "Credits auszahlen"-Button
-     * @param {HTMLButtonElement} [elements.buyProperty] - "Immobilie kaufen"-Button
-     * @param {HTMLButtonElement} [elements.sellProperty] - "Immobilie verkaufen"-Button
-     * @param {HTMLButtonElement} [elements.moveInButton] - "Einziehen"-Button
      */
     initUI(elements) {
         this.interactionUI = elements.container ?? null;
@@ -7310,6 +7450,8 @@ class InteractionSystem {
         this.enterBuildingButton = elements.enterButton ?? null;
         this.buyCasinoCreditsButton = elements.buyCredits ?? null;
         this.cashOutCasinoCreditsButton = elements.cashOut ?? null;
+        this.rentPropertyButton = elements.rentProperty ?? null;
+        this.cancelRentalButton = elements.cancelRental ?? null;
         this.buyPropertyButton = elements.buyProperty ?? null;
         this.sellPropertyButton = elements.sellProperty ?? null;
         this.moveInButton = elements.moveInButton ?? null;
@@ -7319,17 +7461,13 @@ class InteractionSystem {
 
     /**
      * Setzt die Casino-Instanz fuer Credits-Konvertierung.
-     *
-     * @param {import('../interiors/Casino.js').Casino} casino
      */
     setCasino(casino) {
         this.casino = casino;
     }
 
     /**
-     * Setzt das RealEstateSystem fuer Immobilien-Kauf/Verkauf.
-     *
-     * @param {RealEstateSystem} realEstateSystem
+     * Setzt das RealEstateSystem fuer Immobilien-Kauf/Verkauf/Miete.
      */
     setRealEstateSystem(realEstateSystem) {
         this.realEstateSystem = realEstateSystem;
@@ -7341,15 +7479,6 @@ class InteractionSystem {
 
     /**
      * Prueft Proximity zu interaktiven Gebaeuden und steuert die UI.
-     * Wird jeden Frame aufgerufen.
-     *
-     * Die UI erscheint NICHT automatisch bei Annaeherung, sondern erst
-     * wenn der Spieler E drueckt und vor dem Eingang (Suedseite) steht.
-     *
-     * WICHTIG: Veraendert KEINE Positionen.
-     *
-     * @param {object} player - Spieler-Entity
-     * @param {import('./InputSystem.js').InputSystem} inputSystem
      */
     update(player, inputSystem) {
         // Im Interior keine Overworld-Interaktionen pruefen
@@ -7375,15 +7504,12 @@ class InteractionSystem {
 
             if (!this.interactionRequiresKeyRelease && inputSystem.isKeyPressed('e')) {
                 if (!this.isInteractionVisible) {
-                    // Erstes E: Menue oeffnen
                     this.showInteractionUI(nearest, player);
                 } else {
-                    // Zweites E: Gebaeude betreten
                     this.performEntry(nearest, player);
                 }
             }
         } else {
-            // Nicht am Eingang -> UI verstecken
             if (this.isInteractionVisible) {
                 this.hideInteractionUI();
             }
@@ -7394,14 +7520,6 @@ class InteractionSystem {
     //  Proximity-Erkennung (nur Suedseite / Eingang)
     // ===================================================================
 
-    /**
-     * Findet ein interaktives Gebaeude, vor dessen Eingang (Suedseite)
-     * der Spieler steht. Nur die Unterkante des Gebaeudes wird geprueft.
-     *
-     * @param {object} player
-     * @returns {object|null}
-     * @private
-     */
     _findBuildingAtEntrance(player) {
         const buildings = this.buildings;
         if (!Array.isArray(buildings) || buildings.length === 0) {
@@ -7430,10 +7548,7 @@ class InteractionSystem {
                 const bh = rect.height;
                 const bottomEdge = by + bh;
 
-                // Spieler muss horizontal im Bereich des Gebaeudes sein
                 const xOverlap = px + pw > bx && px < bx + bw;
-
-                // Spieler muss an der Suedseite stehen (unterhalb der Unterkante)
                 const atSouth = py > bottomEdge - 4 && py < bottomEdge + range;
 
                 if (xOverlap && atSouth) {
@@ -7445,14 +7560,6 @@ class InteractionSystem {
         return null;
     }
 
-    /**
-     * Ermittelt die Collision-Rects eines Gebaeudes fuer Proximity-Erkennung.
-     * Nutzt collisionRects falls vorhanden, sonst Fallback auf Basis-Geometrie.
-     *
-     * @param {object} building
-     * @returns {Array<{x: number, y: number, width: number, height: number}>}
-     * @private
-     */
     _getBuildingRects(building) {
         if (Array.isArray(building.collisionRects) && building.collisionRects.length > 0) {
             return building.collisionRects;
@@ -7469,16 +7576,8 @@ class InteractionSystem {
 
     // ===================================================================
     //  UI anzeigen / verstecken
-    //  Portiert aus showBuildingInteraction() Zeilen 11271-11363
-    //  und hideBuildingInteraction() Zeilen 11365-11429
     // ===================================================================
 
-    /**
-     * Zeigt die Interaktions-UI fuer ein Gebaeude an.
-     *
-     * @param {object} building
-     * @param {object} [player] - Spieler-Entity (fuer Casino-Anzeige)
-     */
     showInteractionUI(building, player) {
         if (!building || !this.interactionUI) {
             return;
@@ -7498,56 +7597,79 @@ class InteractionSystem {
             this.buildingNameEl.textContent = building.name ?? 'Unbekanntes Gebaeude';
         }
 
-        // Ist es eine Immobilie?
-        const isProperty = RealEstateSystem.isPropertyType(building.type);
-        const isOwned = isProperty && player && player.ownedProperties.has(building.id);
+        // Typ bestimmen
+        const isRental = isRentalType(building.type);
+        const isPurchasable = isPurchasableType(building.type);
+        const isRented = isRental && player && player.rentedPropertyId === building.id;
+        const isOwned = isPurchasable && player && player.ownedProperties.has(building.id);
 
-        // Button-Text anpassen
+        // Enter-Button anpassen
         if (this.enterBuildingButton) {
             if (building.type === 'weaponShop') {
                 this.enterBuildingButton.textContent = 'Shop betreten';
+                this.enterBuildingButton.style.display = 'inline-block';
             } else if (building.type === 'casino') {
                 this.enterBuildingButton.textContent = 'Casino betreten';
-            } else if (isProperty) {
+                this.enterBuildingButton.style.display = 'inline-block';
+            } else if (building.type === 'realEstateAgent') {
+                this.enterBuildingButton.style.display = 'none';
+            } else if (isRental || isPurchasable) {
                 this.enterBuildingButton.style.display = 'none';
             } else {
                 this.enterBuildingButton.textContent = 'Betreten';
-            }
-
-            if (!isProperty) {
                 this.enterBuildingButton.style.display = 'inline-block';
             }
         }
 
-        // Casino-Buttons sichtbar/unsichtbar
+        // Casino-Buttons
         if (this.buyCasinoCreditsButton) {
             this.buyCasinoCreditsButton.style.display =
                 building.type === 'casino' ? 'inline-block' : 'none';
         }
-
         if (this.cashOutCasinoCreditsButton) {
             this.cashOutCasinoCreditsButton.style.display =
                 building.type === 'casino' ? 'inline-block' : 'none';
         }
 
-        // Immobilien-Buttons sichtbar/unsichtbar
+        // Miet-Buttons (Motel/Apartment)
+        if (this.rentPropertyButton) {
+            this.rentPropertyButton.style.display =
+                isRental && !isRented ? 'inline-block' : 'none';
+            if (isRental && !isRented) {
+                const rental = RealEstateSystem.getRentalEntry(building.type);
+                if (rental) {
+                    this.rentPropertyButton.textContent =
+                        'Mieten (' + RealEstateSystem.formatMoney(rental.rent) + ' / Tag)';
+                }
+            }
+        }
+        if (this.cancelRentalButton) {
+            this.cancelRentalButton.style.display =
+                isRental && isRented ? 'inline-block' : 'none';
+            if (isRental && isRented) {
+                this.cancelRentalButton.textContent = 'Miete kuendigen';
+            }
+        }
+
+        // Kauf-Buttons (Bungalow etc. via Makler)
         if (this.buyPropertyButton) {
-            this.buyPropertyButton.style.display =
-                isProperty && !isOwned ? 'inline-block' : 'none';
-            if (isProperty && !isOwned) {
-                const catalog = RealEstateSystem.getCatalogEntry(building.type);
+            // Kaufen: nur bei Makler-Gebaeude fuer kaufbare Immobilien in der Naehe,
+            // oder direkt am Bungalow
+            const showBuy = isPurchasable && !isOwned;
+            this.buyPropertyButton.style.display = showBuy ? 'inline-block' : 'none';
+            if (showBuy) {
+                const catalog = RealEstateSystem.getPurchaseEntry(building.type);
                 if (catalog) {
                     this.buyPropertyButton.textContent =
                         'Kaufen (' + RealEstateSystem.formatMoney(catalog.price) + ')';
                 }
             }
         }
-
         if (this.sellPropertyButton) {
-            this.sellPropertyButton.style.display =
-                isProperty && isOwned ? 'inline-block' : 'none';
-            if (isProperty && isOwned) {
-                const catalog = RealEstateSystem.getCatalogEntry(building.type);
+            const showSell = isPurchasable && isOwned;
+            this.sellPropertyButton.style.display = showSell ? 'inline-block' : 'none';
+            if (showSell) {
+                const catalog = RealEstateSystem.getPurchaseEntry(building.type);
                 if (catalog) {
                     const refund = RealEstateSystem.getSellRefund(catalog.price);
                     this.sellPropertyButton.textContent =
@@ -7556,12 +7678,12 @@ class InteractionSystem {
             }
         }
 
-        // Einziehen-Button: nur bei eigenen Immobilien, nicht wenn bereits Wohnsitz
+        // Einziehen-Button: nur bei eigenen Kaufimmobilien
         if (this.moveInButton) {
             const isHome = isOwned && player && player.homePropertyId === building.id;
             this.moveInButton.style.display =
-                isProperty && isOwned && !isHome ? 'inline-block' : 'none';
-            if (isProperty && isOwned && !isHome) {
+                isPurchasable && isOwned && !isHome ? 'inline-block' : 'none';
+            if (isPurchasable && isOwned && !isHome) {
                 this.moveInButton.textContent = 'Einziehen';
             }
         }
@@ -7583,19 +7705,33 @@ class InteractionSystem {
                 this.buildingMessageEl.textContent = 'Schau dich um und teste neue Waffen.';
             } else if (building.type === 'house') {
                 this.buildingMessageEl.textContent = 'Privates Wohnhaus. Zutritt nur fuer Bewohner.';
-            } else if (isProperty) {
-                const catalog = RealEstateSystem.getCatalogEntry(building.type);
+            } else if (building.type === 'realEstateAgent') {
+                this.buildingMessageEl.textContent = 'Immobilienmakler - Hier kannst du Haeuser kaufen und verkaufen.';
+            } else if (isRental) {
+                const rental = RealEstateSystem.getRentalEntry(building.type);
+                if (rental) {
+                    if (isRented) {
+                        this.buildingMessageEl.textContent =
+                            'Deine gemietete Unterkunft! Miete: ' +
+                            RealEstateSystem.formatMoney(rental.rent) + ' / Tag';
+                    } else {
+                        this.buildingMessageEl.textContent =
+                            rental.description + ' | Miete: ' +
+                            RealEstateSystem.formatMoney(rental.rent) + ' / Tag';
+                    }
+                }
+            } else if (isPurchasable) {
+                const catalog = RealEstateSystem.getPurchaseEntry(building.type);
                 if (catalog) {
                     if (isOwned) {
                         const isHome = player && player.homePropertyId === building.id;
                         const homeLabel = isHome ? ' (Dein Wohnsitz!)' : '';
                         this.buildingMessageEl.textContent =
-                            'Dein Eigentum!' + homeLabel +
-                            ' Einkommen: ' + RealEstateSystem.formatMoney(catalog.income) + ' / Tag';
+                            'Dein Eigentum!' + homeLabel;
                     } else {
                         this.buildingMessageEl.textContent =
-                            catalog.description + ' | Einkommen: ' +
-                            RealEstateSystem.formatMoney(catalog.income) + ' / Tag';
+                            catalog.description + ' | Preis: ' +
+                            RealEstateSystem.formatMoney(catalog.price);
                     }
                 }
             } else {
@@ -7607,9 +7743,6 @@ class InteractionSystem {
         this.interactionUI.style.display = 'block';
     }
 
-    /**
-     * Versteckt die Interaktions-UI.
-     */
     hideInteractionUI() {
         const previousBuilding = this.pendingInteractionBuilding;
 
@@ -7632,7 +7765,6 @@ class InteractionSystem {
             this.buyCasinoCreditsButton.disabled = false;
             this.buyCasinoCreditsButton.textContent = 'Credits kaufen';
         }
-
         if (this.cashOutCasinoCreditsButton) {
             this.cashOutCasinoCreditsButton.style.display = 'none';
             this.cashOutCasinoCreditsButton.disabled = false;
@@ -7642,24 +7774,29 @@ class InteractionSystem {
         if (this.buildingMessageEl) {
             this.buildingMessageEl.textContent = '';
         }
-
         if (this.buildingNameEl) {
             this.buildingNameEl.textContent = 'Unbekanntes Gebaeude';
         }
-
         if (this.enterBuildingButton) {
             this.enterBuildingButton.textContent = 'Betreten';
             this.enterBuildingButton.style.display = 'inline-block';
         }
 
+        // Miet-Buttons
+        if (this.rentPropertyButton) {
+            this.rentPropertyButton.style.display = 'none';
+        }
+        if (this.cancelRentalButton) {
+            this.cancelRentalButton.style.display = 'none';
+        }
+
+        // Kauf-Buttons
         if (this.buyPropertyButton) {
             this.buyPropertyButton.style.display = 'none';
         }
-
         if (this.sellPropertyButton) {
             this.sellPropertyButton.style.display = 'none';
         }
-
         if (this.moveInButton) {
             this.moveInButton.style.display = 'none';
         }
@@ -7672,59 +7809,44 @@ class InteractionSystem {
 
     // ===================================================================
     //  Eintritt
-    //  Portiert aus performBuildingEntry() Zeilen 11201-11270
     // ===================================================================
 
-    /**
-     * Fuehrt den Eintritt in ein Gebaeude aus.
-     * Delegiert an InteriorManager fuer den eigentlichen Szenen-Wechsel.
-     *
-     * @param {object} building
-     * @param {object} player
-     */
     performEntry(building, player) {
         if (!building) {
             this.hideInteractionUI();
             return;
         }
 
-        // Wohnhaus: nur Hinweis anzeigen, nicht betretbar
+        // Wohnhaus: nur Hinweis
         if (building.type === 'house') {
             if (building._housePromptShown) {
                 this.hideInteractionUI();
                 return;
             }
-
             if (this.buildingMessageEl) {
                 this.buildingMessageEl.textContent = 'Dieses Wohnhaus ist derzeit nicht betretbar.';
             }
-
             building._housePromptShown = true;
             this.isInteractionVisible = true;
             this.interactionRequiresKeyRelease = true;
-
             if (this.interactionUI) {
                 this.interactionUI.style.display = 'block';
             }
-
             return;
         }
 
         this.hideInteractionUI();
 
-        // Casino: an Casino-Handler delegieren
         if (building.type === 'casino') {
             this._handleCasinoEntry(building, player);
             return;
         }
 
-        // Waffenladen: an InteriorManager delegieren
         if (building.type === 'weaponShop') {
             this.eventBus.emit('interaction:enterWeaponShop', { building, player });
             return;
         }
 
-        // Sonstiges interaktives Gebaeude
         if (building.interactive) {
             this.eventBus.emit('interaction:enterGeneric', { building, player });
         }
@@ -7732,17 +7854,8 @@ class InteractionSystem {
 
     // ===================================================================
     //  Casino-UI-Logik
-    //  Portiert aus Zeilen 751-920
     // ===================================================================
 
-    /**
-     * Behandelt den Casino-Eintritt.
-     * Portiert aus handleCasinoEntry() Zeilen 743-749.
-     *
-     * @param {object} building
-     * @param {object} player
-     * @private
-     */
     _handleCasinoEntry(building, player) {
         if (this.casino) {
             this.casino.refreshCreditsCache(player);
@@ -7750,37 +7863,15 @@ class InteractionSystem {
         this.eventBus.emit('interaction:enterCasino', { building, player });
     }
 
-    /**
-     * Aktualisiert die Casino-Nachricht in der Interaktions-UI.
-     * Portiert aus updateCasinoInteractionMessage() Zeilen 821-838.
-     *
-     * @param {object} player
-     * @private
-     */
     _updateCasinoInteractionMessage(player) {
-        if (!this.buildingMessageEl || !this.casino) {
-            return;
-        }
-
+        if (!this.buildingMessageEl || !this.casino) return;
         this.buildingMessageEl.textContent = this.casino.getInteractionMessage(player);
         this._updateCasinoButtonsState(player);
     }
 
-    /**
-     * Aktualisiert den Zustand der Casino-Buttons (enabled/disabled, Labels).
-     * Portiert aus updateCasinoButtonsState() Zeilen 841-893.
-     *
-     * @param {object} [player]
-     * @private
-     */
     _updateCasinoButtonsState(player) {
-        if (!this.buyCasinoCreditsButton && !this.cashOutCasinoCreditsButton) {
-            return;
-        }
-
-        if (!this.casino || !player) {
-            return;
-        }
+        if (!this.buyCasinoCreditsButton && !this.cashOutCasinoCreditsButton) return;
+        if (!this.casino || !player) return;
 
         const isCasino = this.pendingInteractionBuilding &&
             this.pendingInteractionBuilding.type === 'casino';
@@ -7793,7 +7884,6 @@ class InteractionSystem {
 
         if (this.buyCasinoCreditsButton) {
             this.buyCasinoCreditsButton.disabled = !canBuy;
-
             if (isCasino && canBuy) {
                 const creditsGain = state.dollarsAvailable * rate;
                 const dollarsLabel = state.dollarsAvailable.toLocaleString('de-DE');
@@ -7807,7 +7897,6 @@ class InteractionSystem {
 
         if (this.cashOutCasinoCreditsButton) {
             this.cashOutCasinoCreditsButton.disabled = !canCashOut;
-
             if (isCasino && canCashOut) {
                 const dollarsGain = Math.floor(state.creditsAvailable / rate);
                 const creditsUsed = dollarsGain * rate;
@@ -7821,29 +7910,14 @@ class InteractionSystem {
         }
     }
 
-    /**
-     * Behandelt den Kauf von Casino-Credits.
-     * Portiert aus handleBuyCasinoCredits() Zeilen 751-783.
-     *
-     * @param {object} player
-     */
     handleBuyCasinoCredits(player) {
-        if (!this.casino) {
-            return;
-        }
-
+        if (!this.casino) return;
         const result = this.casino.convertDollarsToCredits(player);
-
-        if (!this.buildingMessageEl) {
-            return;
-        }
+        if (!this.buildingMessageEl) return;
 
         if (!result.success) {
-            if (result.reason === 'noMoney') {
-                this.buildingMessageEl.textContent = 'Keine Dollars zum Umtauschen.';
-            } else {
-                this.buildingMessageEl.textContent = 'Umtausch derzeit nicht moeglich.';
-            }
+            this.buildingMessageEl.textContent =
+                result.reason === 'noMoney' ? 'Keine Dollars zum Umtauschen.' : 'Umtausch derzeit nicht moeglich.';
             this._updateCasinoButtonsState(player);
             return;
         }
@@ -7858,29 +7932,14 @@ class InteractionSystem {
         this._resetCasinoMessageWithDelay(player);
     }
 
-    /**
-     * Behandelt die Auszahlung von Casino-Credits.
-     * Portiert aus handleCashOutCasinoCredits() Zeilen 786-818.
-     *
-     * @param {object} player
-     */
     handleCashOutCasinoCredits(player) {
-        if (!this.casino) {
-            return;
-        }
-
+        if (!this.casino) return;
         const result = this.casino.convertCreditsToDollars(player);
-
-        if (!this.buildingMessageEl) {
-            return;
-        }
+        if (!this.buildingMessageEl) return;
 
         if (!result.success) {
-            if (result.reason === 'noCredits') {
-                this.buildingMessageEl.textContent = 'Keine Credits zum Auszahlen.';
-            } else {
-                this.buildingMessageEl.textContent = 'Auszahlung derzeit nicht moeglich.';
-            }
+            this.buildingMessageEl.textContent =
+                result.reason === 'noCredits' ? 'Keine Credits zum Auszahlen.' : 'Auszahlung derzeit nicht moeglich.';
             this._updateCasinoButtonsState(player);
             return;
         }
@@ -7895,22 +7954,11 @@ class InteractionSystem {
         this._resetCasinoMessageWithDelay(player);
     }
 
-    /**
-     * Setzt die Casino-Nachricht nach einer Verzoegerung zurueck auf den Standard.
-     * Portiert aus resetCasinoMessageWithDelay() Zeilen 896-920.
-     *
-     * @param {object} player
-     * @private
-     */
     _resetCasinoMessageWithDelay(player) {
-        if (typeof window === 'undefined') {
-            return;
-        }
-
+        if (typeof window === 'undefined') return;
         if (this.casinoMessageTimeout) {
             clearTimeout(this.casinoMessageTimeout);
         }
-
         this.casinoMessageTimeout = window.setTimeout(() => {
             if (this.pendingInteractionBuilding &&
                 this.pendingInteractionBuilding.type === 'casino') {
@@ -7920,23 +7968,75 @@ class InteractionSystem {
     }
 
     // ===================================================================
-    //  Immobilien-Kauf/Verkauf Handler
+    //  Miet-Handler (Motel/Apartment)
     // ===================================================================
 
-    /**
-     * Behandelt den Kauf einer Immobilie.
-     * @param {object} player
-     */
-    handleBuyProperty(player) {
-        if (!this.realEstateSystem || !this.pendingInteractionBuilding) {
+    handleRentProperty(player) {
+        if (!this.realEstateSystem || !this.pendingInteractionBuilding) return;
+
+        const result = this.realEstateSystem.rentProperty(player, this.pendingInteractionBuilding);
+        if (!this.buildingMessageEl) return;
+
+        if (!result.success) {
+            if (result.reason === 'noMoney') {
+                this.buildingMessageEl.textContent = 'Nicht genug Geld fuer die Miete!';
+            } else if (result.reason === 'alreadyRented') {
+                this.buildingMessageEl.textContent = 'Du mietest hier bereits!';
+            } else {
+                this.buildingMessageEl.textContent = 'Mieten nicht moeglich.';
+            }
             return;
         }
+
+        this.buildingMessageEl.textContent =
+            'Eingezogen! Miete: ' + RealEstateSystem.formatMoney(result.rental.rent) + ' / Tag. Respawn hier gesetzt.';
+
+        // Buttons aktualisieren
+        if (this.rentPropertyButton) {
+            this.rentPropertyButton.style.display = 'none';
+        }
+        if (this.cancelRentalButton) {
+            this.cancelRentalButton.textContent = 'Miete kuendigen';
+            this.cancelRentalButton.style.display = 'inline-block';
+        }
+    }
+
+    handleCancelRental(player) {
+        if (!this.realEstateSystem || !this.pendingInteractionBuilding) return;
+
+        const result = this.realEstateSystem.cancelRental(player, this.pendingInteractionBuilding);
+        if (!this.buildingMessageEl) return;
+
+        if (!result.success) {
+            this.buildingMessageEl.textContent = 'Kuendigung nicht moeglich.';
+            return;
+        }
+
+        this.buildingMessageEl.textContent = 'Miete gekuendigt. Du wohnst hier nicht mehr.';
+
+        // Buttons aktualisieren
+        if (this.cancelRentalButton) {
+            this.cancelRentalButton.style.display = 'none';
+        }
+        if (this.rentPropertyButton) {
+            const rental = RealEstateSystem.getRentalEntry(this.pendingInteractionBuilding.type);
+            if (rental) {
+                this.rentPropertyButton.textContent =
+                    'Mieten (' + RealEstateSystem.formatMoney(rental.rent) + ' / Tag)';
+            }
+            this.rentPropertyButton.style.display = 'inline-block';
+        }
+    }
+
+    // ===================================================================
+    //  Kauf/Verkauf Handler (Bungalow etc.)
+    // ===================================================================
+
+    handleBuyProperty(player) {
+        if (!this.realEstateSystem || !this.pendingInteractionBuilding) return;
 
         const result = this.realEstateSystem.buyProperty(player, this.pendingInteractionBuilding);
-
-        if (!this.buildingMessageEl) {
-            return;
-        }
+        if (!this.buildingMessageEl) return;
 
         if (!result.success) {
             if (result.reason === 'noMoney') {
@@ -7949,16 +8049,13 @@ class InteractionSystem {
             return;
         }
 
-        this.buildingMessageEl.textContent =
-            'Gekauft! Einkommen: ' + RealEstateSystem.formatMoney(result.property.income) +
-            ' alle ' + result.property.incomeInterval + ' Sek.';
+        this.buildingMessageEl.textContent = 'Gekauft! Du bist jetzt Eigentuemer.';
 
-        // Buttons aktualisieren
         if (this.buyPropertyButton) {
             this.buyPropertyButton.style.display = 'none';
         }
         if (this.sellPropertyButton) {
-            const catalog = RealEstateSystem.getCatalogEntry(this.pendingInteractionBuilding.type);
+            const catalog = RealEstateSystem.getPurchaseEntry(this.pendingInteractionBuilding.type);
             if (catalog) {
                 const refund = RealEstateSystem.getSellRefund(catalog.price);
                 this.sellPropertyButton.textContent =
@@ -7966,22 +8063,17 @@ class InteractionSystem {
             }
             this.sellPropertyButton.style.display = 'inline-block';
         }
+        if (this.moveInButton) {
+            this.moveInButton.textContent = 'Einziehen';
+            this.moveInButton.style.display = 'inline-block';
+        }
     }
 
-    /**
-     * Behandelt den Verkauf einer Immobilie.
-     * @param {object} player
-     */
     handleSellProperty(player) {
-        if (!this.realEstateSystem || !this.pendingInteractionBuilding) {
-            return;
-        }
+        if (!this.realEstateSystem || !this.pendingInteractionBuilding) return;
 
         const result = this.realEstateSystem.sellProperty(player, this.pendingInteractionBuilding);
-
-        if (!this.buildingMessageEl) {
-            return;
-        }
+        if (!this.buildingMessageEl) return;
 
         if (!result.success) {
             this.buildingMessageEl.textContent = 'Verkauf nicht moeglich.';
@@ -7991,12 +8083,14 @@ class InteractionSystem {
         this.buildingMessageEl.textContent =
             'Verkauft! ' + RealEstateSystem.formatMoney(result.refund) + ' erhalten.';
 
-        // Buttons aktualisieren
         if (this.sellPropertyButton) {
             this.sellPropertyButton.style.display = 'none';
         }
+        if (this.moveInButton) {
+            this.moveInButton.style.display = 'none';
+        }
         if (this.buyPropertyButton) {
-            const catalog = RealEstateSystem.getCatalogEntry(this.pendingInteractionBuilding.type);
+            const catalog = RealEstateSystem.getPurchaseEntry(this.pendingInteractionBuilding.type);
             if (catalog) {
                 this.buyPropertyButton.textContent =
                     'Kaufen (' + RealEstateSystem.formatMoney(catalog.price) + ')';
@@ -8005,30 +8099,19 @@ class InteractionSystem {
         }
     }
 
-    /**
-     * Behandelt das Einziehen in eine eigene Immobilie (Wohnsitz setzen).
-     * @param {object} player
-     */
     handleMoveIn(player) {
-        if (!this.realEstateSystem || !this.pendingInteractionBuilding) {
-            return;
-        }
+        if (!this.realEstateSystem || !this.pendingInteractionBuilding) return;
 
         const result = this.realEstateSystem.moveIn(player, this.pendingInteractionBuilding);
-
-        if (!this.buildingMessageEl) {
-            return;
-        }
+        if (!this.buildingMessageEl) return;
 
         if (!result.success) {
             this.buildingMessageEl.textContent = 'Einziehen nicht moeglich.';
             return;
         }
 
-        this.buildingMessageEl.textContent =
-            'Du wohnst jetzt hier! Respawn-Punkt gesetzt.';
+        this.buildingMessageEl.textContent = 'Du wohnst jetzt hier! Respawn-Punkt gesetzt.';
 
-        // Einziehen-Button verstecken
         if (this.moveInButton) {
             this.moveInButton.style.display = 'none';
         }
@@ -8038,10 +8121,6 @@ class InteractionSystem {
     //  Button-Event-Bindings
     // ===================================================================
 
-    /**
-     * Bindet Click-Handler an die UI-Buttons.
-     * @private
-     */
     _bindButtonEvents() {
         if (this.enterBuildingButton) {
             this.enterBuildingButton.addEventListener('click', () => {
@@ -8062,6 +8141,18 @@ class InteractionSystem {
         if (this.cashOutCasinoCreditsButton) {
             this.cashOutCasinoCreditsButton.addEventListener('click', () => {
                 this.eventBus.emit('interaction:cashOutCasinoCredits');
+            });
+        }
+
+        if (this.rentPropertyButton) {
+            this.rentPropertyButton.addEventListener('click', () => {
+                this.eventBus.emit('interaction:rentProperty');
+            });
+        }
+
+        if (this.cancelRentalButton) {
+            this.cancelRentalButton.addEventListener('click', () => {
+                this.eventBus.emit('interaction:cancelRental');
             });
         }
 
@@ -8170,7 +8261,6 @@ class Renderer {
  * Portiert aus overworld.js Zeilen 7124-8511.
  */
 
-
 class WorldRenderer {
 
     /**
@@ -8193,6 +8283,84 @@ class WorldRenderer {
     drawGrass(worldWidth, worldHeight) {
         this.ctx.fillStyle = "#4a7c3f";
         this.ctx.fillRect(0, 0, worldWidth, worldHeight);
+    }
+
+    // ------------------------------------------------------------------
+    //  Meer (westliche Seite - ohne Strand, direkte Klippe)
+    // ------------------------------------------------------------------
+
+    /** Breite der sichtbaren Meerflaeche links der Welt */
+    static OCEAN_WIDTH = 600;
+
+    /** Breite der Klippenkante */
+    static CLIFF_WIDTH = 12;
+
+    /**
+     * Zeichnet das Meer an der westlichen Seite der Welt.
+     * Kein Strand - das Land endet abrupt an einer Klippe.
+     * @param {number} worldHeight
+     */
+    drawOcean(worldHeight) {
+        const oceanW = WorldRenderer.OCEAN_WIDTH;
+        const cliffW = WorldRenderer.CLIFF_WIDTH;
+
+        this.ctx.save();
+
+        // Tiefes Meer
+        const oceanGrad = this.ctx.createLinearGradient(-oceanW, 0, 0, 0);
+        oceanGrad.addColorStop(0, '#0a3d6b');
+        oceanGrad.addColorStop(0.6, '#1a5f8a');
+        oceanGrad.addColorStop(1, '#2478a8');
+        this.ctx.fillStyle = oceanGrad;
+        this.ctx.fillRect(-oceanW, -oceanW, oceanW, worldHeight + oceanW * 2);
+
+        // Wellen-Effekt (statisch, einfache Linien)
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        this.ctx.lineWidth = 2;
+        for (let wy = -50; wy < worldHeight + 50; wy += 40) {
+            this.ctx.beginPath();
+            for (let wx = -oceanW + 20; wx < -cliffW; wx += 4) {
+                const waveY = wy + Math.sin(wx * 0.04 + wy * 0.01) * 6;
+                if (wx === -oceanW + 20) {
+                    this.ctx.moveTo(wx, waveY);
+                } else {
+                    this.ctx.lineTo(wx, waveY);
+                }
+            }
+            this.ctx.stroke();
+        }
+
+        // Klippe / Felskante (kein Strand!)
+        const cliffGrad = this.ctx.createLinearGradient(-cliffW, 0, 4, 0);
+        cliffGrad.addColorStop(0, '#4a4a42');
+        cliffGrad.addColorStop(0.5, '#5c5c52');
+        cliffGrad.addColorStop(1, '#3a3a32');
+        this.ctx.fillStyle = cliffGrad;
+        this.ctx.fillRect(-cliffW, -50, cliffW + 4, worldHeight + 100);
+
+        // Felstextur auf Klippe
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+        for (let ry = 0; ry < worldHeight; ry += 18) {
+            const rw = 3 + pseudoRandom2D(-5, ry) * 6;
+            const rx = -cliffW + pseudoRandom2D(-3, ry + 7) * (cliffW - 2);
+            this.ctx.fillRect(rx, ry, rw, 4);
+        }
+
+        // Gischt / Wellenbrecher an Klippe
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        this.ctx.lineWidth = 2.5;
+        this.ctx.beginPath();
+        for (let gy = -20; gy < worldHeight + 20; gy += 3) {
+            const gx = -cliffW - 2 + Math.sin(gy * 0.08) * 3;
+            if (gy === -20) {
+                this.ctx.moveTo(gx, gy);
+            } else {
+                this.ctx.lineTo(gx, gy);
+            }
+        }
+        this.ctx.stroke();
+
+        this.ctx.restore();
     }
 
     // ------------------------------------------------------------------
@@ -8908,7 +9076,6 @@ class WorldRenderer {
  * Portiert aus overworld.js Zeilen 8512-10894.
  */
 
-
 class BuildingRenderer {
 
     /**
@@ -8941,6 +9108,8 @@ class BuildingRenderer {
                 case 'weaponShop':    this.drawWeaponShop(building); break;
                 case 'motel':         this.drawMotel(building); break;
                 case 'apartmentComplex': this.drawApartmentComplex(building); break;
+                case 'realEstateAgent': this.drawRealEstateAgent(building); break;
+                case 'bungalow':      this.drawBungalow(building); break;
                 case 'restaurant':    this.drawRestaurant(building); break;
                 case 'shop':          this.drawShop(building); break;
                 case 'house':
@@ -10455,6 +10624,127 @@ class BuildingRenderer {
     }
 
     // --- Interaction Points ---
+
+    // --- drawRealEstateAgent ---
+
+    drawRealEstateAgent(building) {
+        const { x, y, width, height } = building;
+        this.ctx.save();
+
+        // Hauptgebaeude - elegantes Buero
+        const facade = this.ctx.createLinearGradient(x, y, x, y + height);
+        facade.addColorStop(0, '#e8e0d4');
+        facade.addColorStop(1, '#c9bfb0');
+        this.ctx.fillStyle = facade;
+        this.ctx.fillRect(x, y, width, height);
+
+        // Dach
+        this.ctx.fillStyle = '#6b4e3d';
+        this.ctx.fillRect(x - 4, y - 8, width + 8, 12);
+
+        // Grosses Schaufenster
+        this.ctx.fillStyle = 'rgba(140, 180, 220, 0.7)';
+        this.ctx.fillRect(x + 20, y + 20, width - 40, height * 0.4);
+        this.ctx.strokeStyle = '#5a4535';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(x + 20, y + 20, width - 40, height * 0.4);
+
+        // "Haus"-Symbol im Fenster
+        const cx = x + width / 2;
+        const wy = y + 20 + (height * 0.4) / 2;
+        this.ctx.fillStyle = '#3a6b4e';
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx - 20, wy + 5);
+        this.ctx.lineTo(cx, wy - 15);
+        this.ctx.lineTo(cx + 20, wy + 5);
+        this.ctx.closePath();
+        this.ctx.fill();
+        this.ctx.fillRect(cx - 14, wy + 5, 28, 18);
+
+        // Tuer
+        this.ctx.fillStyle = '#3d2e22';
+        this.ctx.fillRect(x + width / 2 - 16, y + height - 50, 32, 50);
+        this.ctx.fillStyle = '#c9a84c';
+        this.ctx.beginPath();
+        this.ctx.arc(x + width / 2 + 10, y + height - 24, 3, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // Schild
+        this.ctx.fillStyle = '#2c5f3e';
+        this.ctx.fillRect(x + width / 2 - 80, y + height + 4, 160, 24);
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 12px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('IMMOBILIEN SCHMIDT', x + width / 2, y + height + 20);
+
+        this.ctx.restore();
+    }
+
+    // --- drawBungalow ---
+
+    drawBungalow(building) {
+        const { x, y, width, height } = building;
+        this.ctx.save();
+
+        // Grundstueck / Rasen
+        this.ctx.fillStyle = '#5a8f4a';
+        this.ctx.fillRect(x - 10, y - 10, width + 20, height + 20);
+
+        // Hauptgebaeude
+        const facade = this.ctx.createLinearGradient(x, y, x, y + height);
+        facade.addColorStop(0, '#f5e6d3');
+        facade.addColorStop(1, '#e0cdb8');
+        this.ctx.fillStyle = facade;
+        this.ctx.fillRect(x + 20, y + 30, width - 40, height - 50);
+
+        // Dach (flaches Satteldach)
+        this.ctx.fillStyle = '#8b4513';
+        this.ctx.beginPath();
+        this.ctx.moveTo(x + 10, y + 34);
+        this.ctx.lineTo(x + width / 2, y);
+        this.ctx.lineTo(x + width - 10, y + 34);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Drei Fenster (drei Raeume)
+        const roomWidth = (width - 80) / 3;
+        for (let i = 0; i < 3; i++) {
+            const wx = x + 30 + i * (roomWidth + 5);
+            this.ctx.fillStyle = 'rgba(160, 200, 230, 0.6)';
+            this.ctx.fillRect(wx, y + 50, roomWidth - 10, 35);
+            this.ctx.strokeStyle = '#8b7355';
+            this.ctx.lineWidth = 1.5;
+            this.ctx.strokeRect(wx, y + 50, roomWidth - 10, 35);
+
+            // Kreuzstreben
+            this.ctx.beginPath();
+            this.ctx.moveTo(wx + (roomWidth - 10) / 2, y + 50);
+            this.ctx.lineTo(wx + (roomWidth - 10) / 2, y + 85);
+            this.ctx.stroke();
+        }
+
+        // Eingangstuer (Mitte)
+        this.ctx.fillStyle = '#5a3a1a';
+        this.ctx.fillRect(x + width / 2 - 14, y + height - 44, 28, 44);
+        this.ctx.fillStyle = '#c9a84c';
+        this.ctx.beginPath();
+        this.ctx.arc(x + width / 2 + 8, y + height - 22, 3, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // Vorgarten-Weg
+        this.ctx.fillStyle = '#c4b89a';
+        this.ctx.fillRect(x + width / 2 - 10, y + height - 20, 20, 30);
+
+        // Schild
+        this.ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        this.ctx.fillRect(x + width / 2 - 60, y + height + 14, 120, 20);
+        this.ctx.fillStyle = '#fff';
+        this.ctx.font = 'bold 11px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(building.name ?? 'BUNGALOW', x + width / 2, y + height + 28);
+
+        this.ctx.restore();
+    }
 
     drawInteractionPoints(buildings) {
         this.ctx.fillStyle = '#4CAF50';
@@ -12454,7 +12744,6 @@ class PhoneUI {
  * SSOT: Alle Interior-Wechsellogik hier zentralisiert.
  */
 
-
 /**
  * @typedef {object} OverworldReturnState
  * @property {{ x: number, y: number }} position
@@ -12613,7 +12902,6 @@ class InteriorManager {
  *
  * SSOT: Alle Waffenladen-Logik hier zentralisiert.
  */
-
 
 /** Standard-Waffenreihenfolge */
 const DEFAULT_WEAPON_ORDER = ["pistol", "smg", "assaultRifle", "shotgun", "sniperRifle", "lmg"];
@@ -13182,13 +13470,6 @@ class Casino {
  * Systeme und Renderer delegiert.
  */
 
-
-
-
-
-
-
-
 // ---------------------------------------------------------------------------
 // Welt-Konstanten (SSOT)
 // ---------------------------------------------------------------------------
@@ -13308,6 +13589,7 @@ class Game {
         const casinoCredits = loadCasinoCredits();
         const ownedProperties = loadOwnedProperties();
         const homePropertyId = loadHomeProperty();
+        const rentedPropertyId = loadRentedProperty();
 
         // ── Spieler ──────────────────────────────────────────────────────
         const returnPos = loadReturnPosition();
@@ -13321,6 +13603,7 @@ class Game {
             weaponLoadout,
             ownedProperties,
             homePropertyId,
+            rentedPropertyId,
         });
 
         // ── NPCs und Fahrzeuge ───────────────────────────────────────────
@@ -13339,6 +13622,7 @@ class Game {
         this.policeSystem = new PoliceSystem(eventBus, this.entityMover, this.weaponCatalog);
         this.combatSystem.setPoliceOfficers(this.policeSystem.officers);
         this.cameraSystem = new CameraSystem(this.renderer.width, this.renderer.height, CAMERA_ZOOM);
+        this.cameraSystem.oceanOverflow = WorldRenderer.OCEAN_WIDTH;
         if (returnPos) {
             this.cameraSystem.x = returnPos.cx || 0;
             this.cameraSystem.y = returnPos.cy || 0;
@@ -13438,7 +13722,18 @@ class Game {
             this._persistState();
         });
 
-        // Immobilie kaufen/verkaufen
+        // Unterkunft mieten/kuendigen
+        this.eventBus.on('interaction:rentProperty', () => {
+            this.interactionSystem.handleRentProperty(this.player);
+            this._persistState();
+        });
+
+        this.eventBus.on('interaction:cancelRental', () => {
+            this.interactionSystem.handleCancelRental(this.player);
+            this._persistState();
+        });
+
+        // Immobilie kaufen/verkaufen (Makler)
         this.eventBus.on('interaction:buyProperty', () => {
             this.interactionSystem.handleBuyProperty(this.player);
             this._persistState();
@@ -13495,6 +13790,8 @@ class Game {
         const cancelButton = document.getElementById('cancelInteraction');
         const buyCredits = document.getElementById('buyCasinoCredits');
         const cashOut = document.getElementById('cashOutCasinoCredits');
+        const rentProperty = document.getElementById('rentProperty');
+        const cancelRental = document.getElementById('cancelRental');
         const buyProperty = document.getElementById('buyProperty');
         const sellProperty = document.getElementById('sellProperty');
         const moveInButton = document.getElementById('moveInProperty');
@@ -13507,6 +13804,8 @@ class Game {
                 enterButton,
                 buyCredits,
                 cashOut,
+                rentProperty,
+                cancelRental,
                 buyProperty,
                 sellProperty,
                 moveInButton,
@@ -13570,6 +13869,7 @@ class Game {
         persistPlayerMoney(this.player.money);
         persistOwnedProperties(this.player.ownedProperties);
         persistHomeProperty(this.player.homePropertyId);
+        persistRentedProperty(this.player.rentedPropertyId);
     }
 
     // =====================================================================
@@ -13852,6 +14152,7 @@ class Game {
         this.renderer.translate(-camera.x, -camera.y);
 
         // Welt
+        this.worldRenderer.drawOcean(WORLD_HEIGHT);
         this.worldRenderer.drawGrass(WORLD_WIDTH, WORLD_HEIGHT);
         this.worldRenderer.drawRoads(this.roadLayout, this.crosswalks, ROAD_WIDTH, ROAD_HALF_WIDTH);
         this.worldRenderer.drawSidewalks(this.roadLayout, SIDEWALK_WIDTH, ROAD_WIDTH, ROAD_HALF_WIDTH);
@@ -14228,7 +14529,6 @@ class Game {
  * main.js - Entry Point fuer das Spiel.
  * Erstellt die Game-Instanz und startet die Game-Loop.
  */
-
 
 const canvas = document.getElementById('gameCanvas');
 const game = new Game(canvas);

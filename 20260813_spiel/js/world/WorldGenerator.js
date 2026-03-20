@@ -16,7 +16,7 @@ import { Vehicle } from '../entities/Vehicle.js';
 import { createHouseStyles } from '../data/HouseStyles.js';
 import { pseudoRandom2D } from '../core/MathUtils.js';
 import { createStreetDetails } from './StreetDetails.js';
-import { PROPERTY_CATALOG } from '../systems/RealEstateSystem.js';
+import { RENTAL_CATALOG, PROPERTY_CATALOG } from '../systems/RealEstateSystem.js';
 
 // ---------------------------------------------------------------------------
 // Residential-Blueprints (SSOT fuer alle Wohnhaus-Positionen)
@@ -145,13 +145,13 @@ export class WorldGenerator {
         // Motel
         buildings.push({
             x: 2540, y: 320, width: 340, height: 220,
-            name: PROPERTY_CATALOG.motel.name, type: "motel", interactive: true,
+            name: RENTAL_CATALOG.motel.name, type: "motel", interactive: true,
         });
 
         // Apartment-Komplex
         buildings.push({
             x: 1080, y: 320, width: 300, height: 400,
-            name: PROPERTY_CATALOG.apartmentComplex.name, type: "apartmentComplex", interactive: true,
+            name: RENTAL_CATALOG.apartmentComplex.name, type: "apartmentComplex", interactive: true,
         });
 
         // Downtown Hochhaeuser
@@ -173,6 +173,18 @@ export class WorldGenerator {
                 { label: "Stadtmarkt", accent: "#7fd491" },
                 { label: "Polizeiposten", accent: "#5da1ff" },
             ],
+        });
+
+        // Immobilienmakler
+        buildings.push({
+            x: 2920, y: 1820, width: 200, height: 160,
+            name: "Immobilienmakler Schmidt", type: "realEstateAgent", interactive: true,
+        });
+
+        // Bungalow (kaufbar ueber Makler)
+        buildings.push({
+            x: 2920, y: 2100, width: 280, height: 200,
+            name: PROPERTY_CATALOG.bungalow.name, type: "bungalow", interactive: true,
         });
 
         // Wohnhaeuser aus Blueprints

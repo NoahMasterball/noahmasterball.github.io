@@ -57,6 +57,8 @@ import {
     persistOwnedProperties,
     loadHomeProperty,
     persistHomeProperty,
+    loadRentedProperty,
+    persistRentedProperty,
 } from '../data/Persistence.js';
 
 // ---------------------------------------------------------------------------
@@ -178,6 +180,7 @@ export class Game {
         const casinoCredits = loadCasinoCredits();
         const ownedProperties = loadOwnedProperties();
         const homePropertyId = loadHomeProperty();
+        const rentedPropertyId = loadRentedProperty();
 
         // ── Spieler ──────────────────────────────────────────────────────
         const returnPos = loadReturnPosition();
@@ -191,6 +194,7 @@ export class Game {
             weaponLoadout,
             ownedProperties,
             homePropertyId,
+            rentedPropertyId,
         });
 
         // ── NPCs und Fahrzeuge ───────────────────────────────────────────
@@ -209,6 +213,7 @@ export class Game {
         this.policeSystem = new PoliceSystem(eventBus, this.entityMover, this.weaponCatalog);
         this.combatSystem.setPoliceOfficers(this.policeSystem.officers);
         this.cameraSystem = new CameraSystem(this.renderer.width, this.renderer.height, CAMERA_ZOOM);
+        this.cameraSystem.oceanOverflow = WorldRenderer.OCEAN_WIDTH;
         if (returnPos) {
             this.cameraSystem.x = returnPos.cx || 0;
             this.cameraSystem.y = returnPos.cy || 0;
@@ -308,7 +313,18 @@ export class Game {
             this._persistState();
         });
 
-        // Immobilie kaufen/verkaufen
+        // Unterkunft mieten/kuendigen
+        this.eventBus.on('interaction:rentProperty', () => {
+            this.interactionSystem.handleRentProperty(this.player);
+            this._persistState();
+        });
+
+        this.eventBus.on('interaction:cancelRental', () => {
+            this.interactionSystem.handleCancelRental(this.player);
+            this._persistState();
+        });
+
+        // Immobilie kaufen/verkaufen (Makler)
         this.eventBus.on('interaction:buyProperty', () => {
             this.interactionSystem.handleBuyProperty(this.player);
             this._persistState();
@@ -365,6 +381,8 @@ export class Game {
         const cancelButton = document.getElementById('cancelInteraction');
         const buyCredits = document.getElementById('buyCasinoCredits');
         const cashOut = document.getElementById('cashOutCasinoCredits');
+        const rentProperty = document.getElementById('rentProperty');
+        const cancelRental = document.getElementById('cancelRental');
         const buyProperty = document.getElementById('buyProperty');
         const sellProperty = document.getElementById('sellProperty');
         const moveInButton = document.getElementById('moveInProperty');
@@ -377,6 +395,8 @@ export class Game {
                 enterButton,
                 buyCredits,
                 cashOut,
+                rentProperty,
+                cancelRental,
                 buyProperty,
                 sellProperty,
                 moveInButton,
@@ -440,6 +460,7 @@ export class Game {
         persistPlayerMoney(this.player.money);
         persistOwnedProperties(this.player.ownedProperties);
         persistHomeProperty(this.player.homePropertyId);
+        persistRentedProperty(this.player.rentedPropertyId);
     }
 
     // =====================================================================
@@ -722,6 +743,7 @@ export class Game {
         this.renderer.translate(-camera.x, -camera.y);
 
         // Welt
+        this.worldRenderer.drawOcean(WORLD_HEIGHT);
         this.worldRenderer.drawGrass(WORLD_WIDTH, WORLD_HEIGHT);
         this.worldRenderer.drawRoads(this.roadLayout, this.crosswalks, ROAD_WIDTH, ROAD_HALF_WIDTH);
         this.worldRenderer.drawSidewalks(this.roadLayout, SIDEWALK_WIDTH, ROAD_WIDTH, ROAD_HALF_WIDTH);

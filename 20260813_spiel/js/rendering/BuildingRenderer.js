@@ -37,6 +37,8 @@ export class BuildingRenderer {
                 case 'weaponShop':    this.drawWeaponShop(building); break;
                 case 'motel':         this.drawMotel(building); break;
                 case 'apartmentComplex': this.drawApartmentComplex(building); break;
+                case 'realEstateAgent': this.drawRealEstateAgent(building); break;
+                case 'bungalow':      this.drawBungalow(building); break;
                 case 'restaurant':    this.drawRestaurant(building); break;
                 case 'shop':          this.drawShop(building); break;
                 case 'house':
@@ -1551,6 +1553,127 @@ export class BuildingRenderer {
     }
 
     // --- Interaction Points ---
+
+    // --- drawRealEstateAgent ---
+
+    drawRealEstateAgent(building) {
+        const { x, y, width, height } = building;
+        this.ctx.save();
+
+        // Hauptgebaeude - elegantes Buero
+        const facade = this.ctx.createLinearGradient(x, y, x, y + height);
+        facade.addColorStop(0, '#e8e0d4');
+        facade.addColorStop(1, '#c9bfb0');
+        this.ctx.fillStyle = facade;
+        this.ctx.fillRect(x, y, width, height);
+
+        // Dach
+        this.ctx.fillStyle = '#6b4e3d';
+        this.ctx.fillRect(x - 4, y - 8, width + 8, 12);
+
+        // Grosses Schaufenster
+        this.ctx.fillStyle = 'rgba(140, 180, 220, 0.7)';
+        this.ctx.fillRect(x + 20, y + 20, width - 40, height * 0.4);
+        this.ctx.strokeStyle = '#5a4535';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(x + 20, y + 20, width - 40, height * 0.4);
+
+        // "Haus"-Symbol im Fenster
+        const cx = x + width / 2;
+        const wy = y + 20 + (height * 0.4) / 2;
+        this.ctx.fillStyle = '#3a6b4e';
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx - 20, wy + 5);
+        this.ctx.lineTo(cx, wy - 15);
+        this.ctx.lineTo(cx + 20, wy + 5);
+        this.ctx.closePath();
+        this.ctx.fill();
+        this.ctx.fillRect(cx - 14, wy + 5, 28, 18);
+
+        // Tuer
+        this.ctx.fillStyle = '#3d2e22';
+        this.ctx.fillRect(x + width / 2 - 16, y + height - 50, 32, 50);
+        this.ctx.fillStyle = '#c9a84c';
+        this.ctx.beginPath();
+        this.ctx.arc(x + width / 2 + 10, y + height - 24, 3, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // Schild
+        this.ctx.fillStyle = '#2c5f3e';
+        this.ctx.fillRect(x + width / 2 - 80, y + height + 4, 160, 24);
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 12px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('IMMOBILIEN SCHMIDT', x + width / 2, y + height + 20);
+
+        this.ctx.restore();
+    }
+
+    // --- drawBungalow ---
+
+    drawBungalow(building) {
+        const { x, y, width, height } = building;
+        this.ctx.save();
+
+        // Grundstueck / Rasen
+        this.ctx.fillStyle = '#5a8f4a';
+        this.ctx.fillRect(x - 10, y - 10, width + 20, height + 20);
+
+        // Hauptgebaeude
+        const facade = this.ctx.createLinearGradient(x, y, x, y + height);
+        facade.addColorStop(0, '#f5e6d3');
+        facade.addColorStop(1, '#e0cdb8');
+        this.ctx.fillStyle = facade;
+        this.ctx.fillRect(x + 20, y + 30, width - 40, height - 50);
+
+        // Dach (flaches Satteldach)
+        this.ctx.fillStyle = '#8b4513';
+        this.ctx.beginPath();
+        this.ctx.moveTo(x + 10, y + 34);
+        this.ctx.lineTo(x + width / 2, y);
+        this.ctx.lineTo(x + width - 10, y + 34);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Drei Fenster (drei Raeume)
+        const roomWidth = (width - 80) / 3;
+        for (let i = 0; i < 3; i++) {
+            const wx = x + 30 + i * (roomWidth + 5);
+            this.ctx.fillStyle = 'rgba(160, 200, 230, 0.6)';
+            this.ctx.fillRect(wx, y + 50, roomWidth - 10, 35);
+            this.ctx.strokeStyle = '#8b7355';
+            this.ctx.lineWidth = 1.5;
+            this.ctx.strokeRect(wx, y + 50, roomWidth - 10, 35);
+
+            // Kreuzstreben
+            this.ctx.beginPath();
+            this.ctx.moveTo(wx + (roomWidth - 10) / 2, y + 50);
+            this.ctx.lineTo(wx + (roomWidth - 10) / 2, y + 85);
+            this.ctx.stroke();
+        }
+
+        // Eingangstuer (Mitte)
+        this.ctx.fillStyle = '#5a3a1a';
+        this.ctx.fillRect(x + width / 2 - 14, y + height - 44, 28, 44);
+        this.ctx.fillStyle = '#c9a84c';
+        this.ctx.beginPath();
+        this.ctx.arc(x + width / 2 + 8, y + height - 22, 3, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // Vorgarten-Weg
+        this.ctx.fillStyle = '#c4b89a';
+        this.ctx.fillRect(x + width / 2 - 10, y + height - 20, 20, 30);
+
+        // Schild
+        this.ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        this.ctx.fillRect(x + width / 2 - 60, y + height + 14, 120, 20);
+        this.ctx.fillStyle = '#fff';
+        this.ctx.font = 'bold 11px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(building.name ?? 'BUNGALOW', x + width / 2, y + height + 28);
+
+        this.ctx.restore();
+    }
 
     drawInteractionPoints(buildings) {
         this.ctx.fillStyle = '#4CAF50';

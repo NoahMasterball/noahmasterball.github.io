@@ -36,6 +36,7 @@ export class Player extends Entity {
      * @param {Array|null} [options.weaponLoadout=null]
      * @param {Set|null} [options.ownedProperties=null]
      * @param {string|null} [options.homePropertyId=null]
+     * @param {string|null} [options.rentedPropertyId=null]
      */
     constructor(options = {}) {
         super({
@@ -65,9 +66,10 @@ export class Player extends Entity {
         this.money = options.money ?? 1500;
         this.casinoCredits = options.casinoCredits ?? 0;
 
-        // Immobilien-Besitz
+        // Immobilien-Besitz und Miete
         this.ownedProperties = options.ownedProperties ?? new Set();
         this.homePropertyId = options.homePropertyId ?? null;
+        this.rentedPropertyId = options.rentedPropertyId ?? null;
 
         // Stamina (Sprint-Ausdauer)
         this.stamina = 1;          // 0-1, startet voll

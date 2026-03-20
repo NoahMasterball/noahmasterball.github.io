@@ -32,6 +32,84 @@ export class WorldRenderer {
     }
 
     // ------------------------------------------------------------------
+    //  Meer (westliche Seite - ohne Strand, direkte Klippe)
+    // ------------------------------------------------------------------
+
+    /** Breite der sichtbaren Meerflaeche links der Welt */
+    static OCEAN_WIDTH = 600;
+
+    /** Breite der Klippenkante */
+    static CLIFF_WIDTH = 12;
+
+    /**
+     * Zeichnet das Meer an der westlichen Seite der Welt.
+     * Kein Strand - das Land endet abrupt an einer Klippe.
+     * @param {number} worldHeight
+     */
+    drawOcean(worldHeight) {
+        const oceanW = WorldRenderer.OCEAN_WIDTH;
+        const cliffW = WorldRenderer.CLIFF_WIDTH;
+
+        this.ctx.save();
+
+        // Tiefes Meer
+        const oceanGrad = this.ctx.createLinearGradient(-oceanW, 0, 0, 0);
+        oceanGrad.addColorStop(0, '#0a3d6b');
+        oceanGrad.addColorStop(0.6, '#1a5f8a');
+        oceanGrad.addColorStop(1, '#2478a8');
+        this.ctx.fillStyle = oceanGrad;
+        this.ctx.fillRect(-oceanW, -oceanW, oceanW, worldHeight + oceanW * 2);
+
+        // Wellen-Effekt (statisch, einfache Linien)
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        this.ctx.lineWidth = 2;
+        for (let wy = -50; wy < worldHeight + 50; wy += 40) {
+            this.ctx.beginPath();
+            for (let wx = -oceanW + 20; wx < -cliffW; wx += 4) {
+                const waveY = wy + Math.sin(wx * 0.04 + wy * 0.01) * 6;
+                if (wx === -oceanW + 20) {
+                    this.ctx.moveTo(wx, waveY);
+                } else {
+                    this.ctx.lineTo(wx, waveY);
+                }
+            }
+            this.ctx.stroke();
+        }
+
+        // Klippe / Felskante (kein Strand!)
+        const cliffGrad = this.ctx.createLinearGradient(-cliffW, 0, 4, 0);
+        cliffGrad.addColorStop(0, '#4a4a42');
+        cliffGrad.addColorStop(0.5, '#5c5c52');
+        cliffGrad.addColorStop(1, '#3a3a32');
+        this.ctx.fillStyle = cliffGrad;
+        this.ctx.fillRect(-cliffW, -50, cliffW + 4, worldHeight + 100);
+
+        // Felstextur auf Klippe
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+        for (let ry = 0; ry < worldHeight; ry += 18) {
+            const rw = 3 + pseudoRandom2D(-5, ry) * 6;
+            const rx = -cliffW + pseudoRandom2D(-3, ry + 7) * (cliffW - 2);
+            this.ctx.fillRect(rx, ry, rw, 4);
+        }
+
+        // Gischt / Wellenbrecher an Klippe
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        this.ctx.lineWidth = 2.5;
+        this.ctx.beginPath();
+        for (let gy = -20; gy < worldHeight + 20; gy += 3) {
+            const gx = -cliffW - 2 + Math.sin(gy * 0.08) * 3;
+            if (gy === -20) {
+                this.ctx.moveTo(gx, gy);
+            } else {
+                this.ctx.lineTo(gx, gy);
+            }
+        }
+        this.ctx.stroke();
+
+        this.ctx.restore();
+    }
+
+    // ------------------------------------------------------------------
     //  Strassen  (portiert aus drawImprovedRoadSystem, Zeilen 7124-7225)
     // ------------------------------------------------------------------
 

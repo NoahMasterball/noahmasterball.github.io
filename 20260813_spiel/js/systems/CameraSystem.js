@@ -33,8 +33,9 @@ export class CameraSystem {
         this.x = targetEntity.x - vw / 2;
         this.y = targetEntity.y - vh / 2;
 
-        // An Weltgrenzen clampen
-        this.x = Math.max(0, Math.min(this.x, worldBounds.width - vw));
+        // An Weltgrenzen clampen (westliche Grenze erlaubt Blick aufs Meer)
+        const westLimit = -(this.oceanOverflow ?? 0);
+        this.x = Math.max(westLimit, Math.min(this.x, worldBounds.width - vw));
         this.y = Math.max(0, Math.min(this.y, worldBounds.height - vh));
     }
 

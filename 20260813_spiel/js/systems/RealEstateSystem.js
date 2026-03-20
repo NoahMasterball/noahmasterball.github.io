@@ -1,36 +1,69 @@
 /**
- * RealEstateSystem - Immobilienmarkt: Kauf und Verwaltung von Gebaeuden.
+ * RealEstateSystem - Immobilienmarkt: Miete und Kauf von Gebaeuden.
  *
- * SSOT: Alle Immobilien-Preise, Einkuenfte und Kauf-Logik hier zentralisiert.
- * Einkommen wird pro Ingame-Tag ausgezahlt (1 voller Tag/Nacht-Zyklus).
+ * SSOT: Alle Immobilien-Preise, Mieten und Kauf-Logik hier zentralisiert.
+ * - Motel/Apartment: Mietbar (taegliche Miete wird abgezogen)
+ * - Bungalow/Haeuser: Kaufbar ueber Immobilienmaklbuero
+ * Miet-/Kauf-Abrechnung erfolgt pro Ingame-Tag (1 voller Tag/Nacht-Zyklus).
  */
 
 // ---------------------------------------------------------------------------
-// Immobilien-Katalog (SSOT fuer alle kaufbaren Immobilien)
+// Miet-Katalog (SSOT fuer alle mietbaren Unterkuenfte)
 // ---------------------------------------------------------------------------
 
 /**
- * Gibt den Immobilien-Katalog zurueck.
- * Schluessel = Building-Type, Wert = Kauf-Details.
- * income = Einkommen pro Ingame-Tag.
+ * Mietbare Unterkuenfte: Schluessel = Building-Type, Wert = Miet-Details.
+ * rent = Miete pro Ingame-Tag.
  */
+export const RENTAL_CATALOG = {
+    motel: {
+        name: 'Sunrise Motel',
+        rent: 50,
+        description: 'Kleines Motelzimmer mit Bett, Waschbecken und Toilette.',
+    },
+    apartmentComplex: {
+        name: 'Parkview Apartments',
+        rent: 150,
+        description: 'Gemuetliche Wohnung mit Bad, Doppelbett, Fernseher und mehr.',
+    },
+};
+
+// ---------------------------------------------------------------------------
+// Kauf-Katalog (SSOT fuer alle kaufbaren Immobilien ueber Makler)
+// ---------------------------------------------------------------------------
+
 /** Verkaufsrate: Anteil des Kaufpreises bei Verkauf (SSOT) */
 export const PROPERTY_SELL_RATE = 0.5;
 
 export const PROPERTY_CATALOG = {
-    motel: {
-        name: 'Sunrise Motel',
-        price: 8000,
-        income: 200,
-        description: 'Ein kleines Motel am Stadtrand. Generiert taegliches Einkommen.',
-    },
-    apartmentComplex: {
-        name: 'Parkview Apartments',
-        price: 25000,
-        income: 750,
-        description: 'Ein Apartmentkomplex mit mehreren Einheiten. Hohe Mieteinnahmen.',
+    bungalow: {
+        name: 'Bungalow am Stadtrand',
+        price: 35000,
+        description: 'Ein gemuetlicher Bungalow mit drei Raeumen: Wohnzimmer, Schlafzimmer und Kueche.',
     },
 };
+
+// ---------------------------------------------------------------------------
+// Kompatibilitaet: isPropertyType prueft beide Kataloge
+// ---------------------------------------------------------------------------
+
+/**
+ * Prueft ob ein Gebaeudetyp mietbar ist.
+ * @param {string} type
+ * @returns {boolean}
+ */
+export function isRentalType(type) {
+    return type in RENTAL_CATALOG;
+}
+
+/**
+ * Prueft ob ein Gebaeudetyp kaufbar ist (ueber Makler).
+ * @param {string} type
+ * @returns {boolean}
+ */
+export function isPurchasableType(type) {
+    return type in PROPERTY_CATALOG;
+}
 
 export class RealEstateSystem {
 
@@ -46,19 +79,93 @@ export class RealEstateSystem {
         /** @type {number} Zaehlt wie oft phaseIndex auf 0 zurueckspringt (= neuer Tag) */
         this._dayCount = 0;
 
-        /** @type {number} Letzter Tag an dem Einkommen gezahlt wurde */
-        this._lastIncomeDay = 0;
+        /** @type {number} Letzter Tag an dem Miete/Einkommen abgerechnet wurde */
+        this._lastRentDay = 0;
     }
 
     // ===================================================================
-    //  Kauf / Verkauf
+    //  Miete (Motel / Apartment)
     // ===================================================================
 
     /**
-     * Versucht eine Immobilie zu kaufen.
+     * Mietet eine Unterkunft. Spieler zahlt taegliche Miete.
      *
-     * @param {object} player - Spieler-Entity
-     * @param {object} building - Gebaeude-Objekt
+     * @param {object} player
+     * @param {object} building
+     * @returns {{ success: boolean, reason?: string, rental?: object }}
+     */
+    rentProperty(player, building) {
+        if (!building || !building.id) {
+            return { success: false, reason: 'invalidBuilding' };
+        }
+
+        const rental = RENTAL_CATALOG[building.type];
+        if (!rental) {
+            return { success: false, reason: 'notRentable' };
+        }
+
+        // Bereits gemietet?
+        if (player.rentedPropertyId === building.id) {
+            return { success: false, reason: 'alreadyRented' };
+        }
+
+        // Erste Miete sofort zahlen
+        if (player.money < rental.rent) {
+            return { success: false, reason: 'noMoney' };
+        }
+
+        player.money -= rental.rent;
+        player.rentedPropertyId = building.id;
+        player.homePropertyId = building.id;
+
+        this.eventBus.emit('realEstate:rented', {
+            buildingId: building.id,
+            type: building.type,
+            rent: rental.rent,
+        });
+
+        return { success: true, rental };
+    }
+
+    /**
+     * Kuendigt die aktuelle Miete.
+     *
+     * @param {object} player
+     * @param {object} building
+     * @returns {{ success: boolean, reason?: string }}
+     */
+    cancelRental(player, building) {
+        if (!building || !building.id) {
+            return { success: false, reason: 'invalidBuilding' };
+        }
+
+        if (player.rentedPropertyId !== building.id) {
+            return { success: false, reason: 'notRented' };
+        }
+
+        player.rentedPropertyId = null;
+
+        // Wohnsitz nur entfernen wenn es die gemietete Unterkunft war
+        if (player.homePropertyId === building.id) {
+            player.homePropertyId = null;
+        }
+
+        this.eventBus.emit('realEstate:rentalCancelled', {
+            buildingId: building.id,
+        });
+
+        return { success: true };
+    }
+
+    // ===================================================================
+    //  Kauf / Verkauf (Bungalow etc. ueber Makler)
+    // ===================================================================
+
+    /**
+     * Kauft eine Immobilie (Bungalow etc.).
+     *
+     * @param {object} player
+     * @param {object} building
      * @returns {{ success: boolean, reason?: string, property?: object }}
      */
     buyProperty(player, building) {
@@ -88,10 +195,7 @@ export class RealEstateSystem {
             price: catalog.price,
         });
 
-        return {
-            success: true,
-            property: catalog,
-        };
+        return { success: true, property: catalog };
     }
 
     /**
@@ -119,7 +223,6 @@ export class RealEstateSystem {
         player.money += refund;
         player.ownedProperties.delete(building.id);
 
-        // Falls der Spieler dort wohnt, Wohnsitz entfernen
         if (player.homePropertyId === building.id) {
             player.homePropertyId = null;
         }
@@ -134,7 +237,7 @@ export class RealEstateSystem {
     }
 
     // ===================================================================
-    //  Einziehen (Wohnsitz setzen)
+    //  Einziehen (Wohnsitz setzen - nur bei eigenen Immobilien)
     // ===================================================================
 
     /**
@@ -163,32 +266,24 @@ export class RealEstateSystem {
     }
 
     // ===================================================================
-    //  Passives Einkommen (pro Ingame-Tag)
+    //  Taegliche Miet-Abrechnung (pro Ingame-Tag)
     // ===================================================================
 
     /**
-     * Aktualisiert das passive Einkommen aus besessenen Immobilien.
-     * Einkommen wird einmal pro Ingame-Tag ausgezahlt.
+     * Zieht taegliche Miete ab wenn Spieler eine Unterkunft gemietet hat.
+     * Bei fehlendem Geld wird die Miete automatisch gekuendigt.
      *
      * @param {object} player
      * @param {Array} buildings - Alle Gebaeude der Welt
-     * @param {number} deltaTime - Sekunden seit letztem Frame (unused, Tageswechsel-basiert)
-     * @param {object} dayNightSystem - DayNightSystem-Instanz
+     * @param {number} deltaTime
+     * @param {object} dayNightSystem
      */
     update(player, buildings, deltaTime, dayNightSystem) {
-        if (!player.ownedProperties || player.ownedProperties.size === 0) {
-            return;
-        }
+        if (!dayNightSystem) return;
 
-        if (!dayNightSystem) {
-            return;
-        }
-
-        // Tag-Wechsel erkennen: phaseIndex springt auf 0 (Tag beginnt)
         const currentPhaseIndex = dayNightSystem.phaseIndex ?? 0;
 
         if (this._lastPhaseIndex < 0) {
-            // Erster Frame: initialisieren
             this._lastPhaseIndex = currentPhaseIndex;
             return;
         }
@@ -197,25 +292,35 @@ export class RealEstateSystem {
         if (currentPhaseIndex === 0 && this._lastPhaseIndex !== 0) {
             this._dayCount++;
 
-            // Einkommen auszahlen
-            if (this._dayCount > this._lastIncomeDay) {
-                let totalIncome = 0;
-                for (const buildingId of player.ownedProperties) {
-                    const building = buildings.find((b) => b && b.id === buildingId);
-                    if (!building) continue;
-                    const catalog = PROPERTY_CATALOG[building.type];
-                    if (!catalog) continue;
-                    totalIncome += catalog.income;
-                }
+            if (this._dayCount > this._lastRentDay) {
+                this._lastRentDay = this._dayCount;
 
-                if (totalIncome > 0) {
-                    player.money += totalIncome;
-                    this._lastIncomeDay = this._dayCount;
-
-                    this.eventBus.emit('realEstate:income', {
-                        amount: totalIncome,
-                        day: this._dayCount,
-                    });
+                // Miete abziehen
+                if (player.rentedPropertyId) {
+                    const building = buildings.find((b) => b && b.id === player.rentedPropertyId);
+                    if (building) {
+                        const rental = RENTAL_CATALOG[building.type];
+                        if (rental) {
+                            if (player.money >= rental.rent) {
+                                player.money -= rental.rent;
+                                this.eventBus.emit('realEstate:rentPaid', {
+                                    buildingId: building.id,
+                                    rent: rental.rent,
+                                    day: this._dayCount,
+                                });
+                            } else {
+                                // Kein Geld -> Miete kuendigen
+                                player.rentedPropertyId = null;
+                                if (player.homePropertyId === building.id) {
+                                    player.homePropertyId = null;
+                                }
+                                this.eventBus.emit('realEstate:evicted', {
+                                    buildingId: building.id,
+                                    day: this._dayCount,
+                                });
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -228,21 +333,39 @@ export class RealEstateSystem {
     // ===================================================================
 
     /**
-     * Gibt die Katalog-Infos fuer einen Gebaeudetyp zurueck.
+     * Gibt die Katalog-Infos fuer einen Gebaeudetyp zurueck (Miet- oder Kauf-Katalog).
      * @param {string} type
      * @returns {object|null}
      */
     static getCatalogEntry(type) {
+        return RENTAL_CATALOG[type] ?? PROPERTY_CATALOG[type] ?? null;
+    }
+
+    /**
+     * Gibt den Miet-Katalog-Eintrag zurueck.
+     * @param {string} type
+     * @returns {object|null}
+     */
+    static getRentalEntry(type) {
+        return RENTAL_CATALOG[type] ?? null;
+    }
+
+    /**
+     * Gibt den Kauf-Katalog-Eintrag zurueck.
+     * @param {string} type
+     * @returns {object|null}
+     */
+    static getPurchaseEntry(type) {
         return PROPERTY_CATALOG[type] ?? null;
     }
 
     /**
-     * Prueft ob ein Gebaeudetyp kaufbar ist.
+     * Prueft ob ein Gebaeudetyp mietbar oder kaufbar ist.
      * @param {string} type
      * @returns {boolean}
      */
     static isPropertyType(type) {
-        return type in PROPERTY_CATALOG;
+        return type in RENTAL_CATALOG || type in PROPERTY_CATALOG;
     }
 
     /**
