@@ -358,6 +358,13 @@ export class CombatSystem {
             this.bloodDecals.shift();
         }
     }
+
+    /**
+     * Entfernt alle Blut-Decals (z.B. nach Respawn).
+     */
+    clearBloodDecals() {
+        this.bloodDecals.length = 0;
+    }
 }
 
 export default CombatSystem;

@@ -27,6 +27,7 @@ const FILES = [
     'js/systems/VehicleSystem.js',
     'js/systems/CombatSystem.js',
     'js/systems/DayNightSystem.js',
+    'js/systems/RealEstateSystem.js',
     'js/world/BuildingFactory.js',
     'js/world/StreetDetails.js',
     'js/world/WorldGenerator.js',
@@ -40,6 +41,8 @@ const FILES = [
     'js/rendering/EntityRenderer.js',
     'js/rendering/EffectsRenderer.js',
     'js/rendering/UIRenderer.js',
+    'js/rendering/PhoneUI.js',
+    'js/systems/PoliceSystem.js',
     'js/core/Game.js',
     'js/main.js',
 ];

@@ -447,6 +447,15 @@ export class Game {
 
         this.policeSystem.reset();
         this.combatSystem.setPoliceOfficers(this.policeSystem.officers);
+        this.combatSystem.clearBloodDecals();
+
+        // Tote NPCs wiederbeleben
+        for (const npc of this.npcs) {
+            if (npc && npc.dead) {
+                npc.revive();
+                npc.panicTimer = 0;
+            }
+        }
     }
 
     // =====================================================================

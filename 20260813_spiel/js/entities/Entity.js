@@ -43,6 +43,15 @@ export class Entity {
     }
 
     /**
+     * Setzt die Entity in den lebendigen Zustand zurueck.
+     */
+    revive() {
+        this.dead = false;
+        this.health = this.maxHealth;
+        this.moving = false;
+    }
+
+    /**
      * Gibt die Bounding-Box als {x, y, width, height} zurueck.
      */
     getBounds() {
