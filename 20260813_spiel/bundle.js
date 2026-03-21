@@ -1,6 +1,8 @@
-// Auto-generated bundle — 2026-03-21T11:02:58.436Z
+// Auto-generated bundle — 2026-03-21T11:58:56.000Z
 (function() {
 'use strict';
+
+
 
 
 // ═══════════════════════════════════════════════════════
@@ -165,6 +167,1032 @@ class EventBus {
 
 /** Singleton-Instanz */
 const eventBus = new EventBus();
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/core/EntityMover.js
+// ═══════════════════════════════════════════════════════
+/**
+ * EntityMover - SSOT (Single Source of Truth) fuer alle Entity-Bewegungen.
+ *
+ * KRITISCH: Dies ist die EINZIGE Stelle im gesamten Code, die entity.x/y setzen darf.
+ * Alle Bewegungen muessen durch move() oder teleport() laufen.
+ *
+ * Pipeline: Kollision -> Sidewalk-Constraint -> Entity-Bounds -> World-Bounds -> entity.x/y setzen
+ */
+
+class EntityMover {
+    /**
+     * @param {Object|null} collisionSystem - System fuer Gebaeude-Kollision (muss .resolve(entity, x, y) haben)
+     * @param {import('../world/RoadNetwork.js').RoadNetwork|null} roadNetwork - Strassennetz fuer Buergersteig-Constraints
+     */
+    constructor(collisionSystem, roadNetwork) {
+        this.collisionSystem = collisionSystem || null;
+        this.roadNetwork = roadNetwork || null;
+        this.worldWidth = Infinity;
+        this.worldHeight = Infinity;
+    }
+
+    /**
+     * Bewegt eine Entity zur Zielposition durch die komplette Pipeline.
+     * EINZIGE oeffentliche Methode fuer regulaere Bewegung.
+     *
+     * @param {Object} entity - Entity mit x, y und optionalen Properties:
+     *   - stayOnSidewalks {boolean}       - ob Buergersteig-Constraint aktiv ist
+     *   - currentSidewalkSegment {Object}  - letztes Segment (fuer Tracking)
+     *   - bounds {{ left, right, top, bottom }} - optionale Entity-spezifische Bounds
+     * @param {number} targetX - gewuenschte X-Position
+     * @param {number} targetY - gewuenschte Y-Position
+     * @param {Object} [options]
+     * @param {boolean} [options.ignoreSidewalk=false] - Buergersteig-Constraint ignorieren
+     * @param {boolean} [options.ignoreCollision=false] - Kollision ignorieren
+     * @param {boolean} [options.ignoreWorldBounds=false] - World-Bounds ignorieren
+     * @returns {{ x: number, y: number, moved: boolean }}
+     */
+    move(entity, targetX, targetY, options = {}) {
+        let newX = targetX;
+        let newY = targetY;
+
+        // 1. Kollision mit Gebaeuden aufloesen
+        if (this.collisionSystem && !options.ignoreCollision) {
+            const resolved = this.collisionSystem.resolve(entity, newX, newY);
+            newX = resolved.x;
+            newY = resolved.y;
+        }
+
+        // 2. Buergersteig-Constraint (nur wenn entity.stayOnSidewalks)
+        if (entity.stayOnSidewalks && !options.ignoreSidewalk && this.roadNetwork) {
+            const sidewalk = this.roadNetwork.constrainToSidewalk(
+                newX, newY, entity.currentSidewalkSegment
+            );
+            newX = sidewalk.x;
+            newY = sidewalk.y;
+            entity.currentSidewalkSegment = sidewalk.segment;
+        }
+
+        // 3. Entity-spezifische Bounds
+        if (entity.bounds) {
+            newX = Math.max(entity.bounds.left, Math.min(newX, entity.bounds.right));
+            newY = Math.max(entity.bounds.top, Math.min(newY, entity.bounds.bottom));
+        }
+
+        // 4. World-Bounds
+        if (!options.ignoreWorldBounds) {
+            newX = Math.max(0, Math.min(newX, this.worldWidth));
+            newY = Math.max(0, Math.min(newY, this.worldHeight));
+        }
+
+        // 5. Position setzen (EINZIGE STELLE!)
+        const moved = newX !== entity.x || newY !== entity.y;
+        entity.x = newX;
+        entity.y = newY;
+
+        return { x: newX, y: newY, moved };
+    }
+
+    /**
+     * Teleportiert eine Entity direkt an eine Position.
+     * Umgeht alle Constraints - nur fuer stuck-NPCs oder Spawn verwenden.
+     *
+     * @param {Object} entity
+     * @param {number} x
+     * @param {number} y
+     */
+    teleport(entity, x, y) {
+        entity.x = x;
+        entity.y = y;
+    }
+
+    /**
+     * Setzt die Weltgrenzen.
+     *
+     * @param {number} width
+     * @param {number} height
+     */
+    setWorldBounds(width, height) {
+        this.worldWidth = width;
+        this.worldHeight = height;
+    }
+}
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/entities/Entity.js
+// ═══════════════════════════════════════════════════════
+/**
+ * Entity - Basisklasse fuer alle Spielobjekte (Spieler, NPCs, Objekte).
+ *
+ * WICHTIG: Entity setzt x/y nicht direkt.
+ * Bewegung und Positionsaenderungen werden ausschliesslich ueber EntityMover gesteuert.
+ */
+
+let _nextEntityId = 1;
+
+class Entity {
+    /**
+     * @param {object} [options]
+     * @param {number} [options.x=0]
+     * @param {number} [options.y=0]
+     * @param {number} [options.width=32]
+     * @param {number} [options.height=32]
+     * @param {number} [options.speed=2]
+     * @param {number} [options.health=100]
+     */
+    constructor(options = {}) {
+        this.id = _nextEntityId++;
+        this.x = options.x ?? 0;
+        this.y = options.y ?? 0;
+        this.width = options.width ?? 32;
+        this.height = options.height ?? 32;
+        this.speed = options.speed ?? 2;
+        this.moving = false;
+
+        /** @type {{minX: number, minY: number, maxX: number, maxY: number} | null} */
+        this.bounds = options.bounds ?? null;
+
+        this.maxHealth = options.health ?? 100;
+        this.health = this.maxHealth;
+        this.dead = false;
+        this.hidden = false;
+    }
+
+    /**
+     * Gibt true zurueck wenn die Entity lebt (health > 0, nicht dead).
+     */
+    isAlive() {
+        return !this.dead && this.health > 0;
+    }
+
+    /**
+     * Setzt die Entity in den lebendigen Zustand zurueck.
+     */
+    revive() {
+        this.dead = false;
+        this.health = this.maxHealth;
+        this.moving = false;
+    }
+
+    /**
+     * Gibt die Bounding-Box als {x, y, width, height} zurueck.
+     */
+    getBounds() {
+        return {
+            x: this.x - this.width / 2,
+            y: this.y - this.height / 2,
+            width: this.width,
+            height: this.height,
+        };
+    }
+
+    /**
+     * Gibt das Zentrum als {x, y} zurueck.
+     */
+    getCenter() {
+        return { x: this.x, y: this.y };
+    }
+
+    /**
+     * Berechnet die Distanz zu einer anderen Entity.
+     * @param {Entity} other
+     * @returns {number}
+     */
+    distanceTo(other) {
+        const dx = this.x - other.x;
+        const dy = this.y - other.y;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+}
+
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/entities/buildHumanoidParts.js
+// ═══════════════════════════════════════════════════════
+/**
+ * buildHumanoidParts - SSOT fuer die visuellen Koerperteile
+ * aller humanoiden Entities (Spieler, NPCs).
+ *
+ * Wird von Player und NPC gemeinsam genutzt.
+ *
+ * @param {object} [palette={}]
+ * @param {string} [palette.head]
+ * @param {string} [palette.torso]
+ * @param {string} [palette.limbs]
+ * @param {string} [palette.accent]
+ * @param {string} [palette.hair]
+ * @param {string} [palette.eyes]
+ * @param {string} [palette.pupil]
+ * @returns {Array<object>}
+ */
+function buildHumanoidParts(palette = {}) {
+    const headColor = palette.head ?? '#f2d6c1';
+    const torsoColor = palette.torso ?? '#2b6777';
+    const limbColor = palette.limbs ?? '#1b3a4b';
+    const accentColor = palette.accent ?? '#f2f2f2';
+    const hairColor = palette.hair ?? '#2b2118';
+    const eyeColor = palette.eyes ?? '#ffffff';
+    const pupilColor = palette.pupil ?? '#1b1b1b';
+
+    return [
+        { id: 'shadow', type: 'circle', radius: 10, offsetX: 0, offsetY: 12, color: 'rgba(0, 0, 0, 0.15)', damaged: false },
+        { id: 'torso', type: 'rect', width: 14, height: 18, offsetX: -7, offsetY: -12, color: torsoColor, damaged: false },
+        { id: 'leftArm', type: 'rect', width: 4, height: 16, offsetX: -11, offsetY: -10, color: limbColor, damaged: false },
+        { id: 'rightArm', type: 'rect', width: 4, height: 16, offsetX: 7, offsetY: -10, color: limbColor, damaged: false },
+        { id: 'leftLeg', type: 'rect', width: 4, height: 18, offsetX: -4, offsetY: 6, color: accentColor, damaged: false },
+        { id: 'rightLeg', type: 'rect', width: 4, height: 18, offsetX: 0, offsetY: 6, color: accentColor, damaged: false },
+        { id: 'hairBack', type: 'circle', radius: 8, offsetX: 0, offsetY: -24, color: hairColor, damaged: false },
+        { id: 'head', type: 'circle', radius: 6, offsetX: 0, offsetY: -20, color: headColor, damaged: false },
+        { id: 'hairFringe', type: 'rect', width: 16, height: 3, offsetX: -8, offsetY: -22, color: hairColor, damaged: false },
+        { id: 'leftEye', type: 'circle', radius: 1.8, offsetX: -3, offsetY: -17, color: eyeColor, damaged: false },
+        { id: 'rightEye', type: 'circle', radius: 1.8, offsetX: 3, offsetY: -17, color: eyeColor, damaged: false },
+        { id: 'leftPupil', type: 'circle', radius: 0.9, offsetX: -3, offsetY: -17, color: pupilColor, damaged: false },
+        { id: 'rightPupil', type: 'circle', radius: 0.9, offsetX: 3, offsetY: -17, color: pupilColor, damaged: false },
+    ];
+}
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/entities/Player.js
+// ═══════════════════════════════════════════════════════
+/**
+ * Player - Spieler-Entity.
+ *
+ * WICHTIG: Setzt NIEMALS this.x/this.y direkt (ausser Initialisierung im Constructor).
+ * Alle Positionsaenderungen gehen durch EntityMover.move().
+ */
+
+/** Standard-Palette fuer den Spieler */
+const DEFAULT_PLAYER_PALETTE = {
+    head: '#f6d7c4',
+    torso: '#1b4965',
+    limbs: '#16324f',
+    accent: '#5fa8d3',
+    hair: '#2b2118',
+    eyes: '#ffffff',
+    pupil: '#1b1b1b',
+};
+
+class Player extends Entity {
+    /**
+     * @param {object} [options]
+     * @param {number} [options.x=400]
+     * @param {number} [options.y=300]
+     * @param {number} [options.width=30]
+     * @param {number} [options.height=30]
+     * @param {number} [options.speed=1.5]
+     * @param {number} [options.sprintMultiplier=2]
+     * @param {object} [options.palette] - Farbpalette fuer Spieler-Teile
+     * @param {number} [options.money=1500]
+     * @param {number} [options.casinoCredits=0]
+     * @param {string|null} [options.currentWeaponId=null]
+     * @param {Set|null} [options.weaponInventory=null]
+     * @param {Array|null} [options.weaponLoadout=null]
+     * @param {Set|null} [options.ownedProperties=null]
+     * @param {string|null} [options.homePropertyId=null]
+     * @param {string|null} [options.rentedPropertyId=null]
+     */
+    constructor(options = {}) {
+        super({
+            x: options.x ?? 400,
+            y: options.y ?? 300,
+            width: options.width ?? 30,
+            height: options.height ?? 30,
+            speed: options.speed ?? 1.5,
+            health: options.health ?? 100,
+        });
+
+        this.baseSpeed = this.speed;
+        this.sprintMultiplier = options.sprintMultiplier ?? 2;
+
+        this.animationPhase = 0;
+        this.color = options.color ?? '#FF0000';
+
+        // Waffen-Zustand
+        this.currentWeaponId = options.currentWeaponId ?? null;
+        this.weaponInventory = options.weaponInventory ?? new Set();
+        this.weaponLoadout = options.weaponLoadout ?? [];
+
+        // Taschenlampe
+        this.flashlightOn = false;
+
+        // Geld
+        this.money = options.money ?? 1500;
+        this.casinoCredits = options.casinoCredits ?? 0;
+
+        // Immobilien-Besitz und Miete
+        this.ownedProperties = options.ownedProperties ?? new Set();
+        this.homePropertyId = options.homePropertyId ?? null;
+        this.rentedPropertyId = options.rentedPropertyId ?? null;
+
+        // Stamina (Sprint-Ausdauer)
+        this.stamina = 1;          // 0-1, startet voll
+        this.maxStaminaDuration = 5; // Sekunden Sprint
+        this.staminaRegenDelay = 1;  // Sekunden bis Regen startet
+        this.staminaRegenRate = 0.25; // pro Sekunde (4s fuer volle Regen)
+        this._staminaCooldown = 0;   // Sekunden seit Sprint-Ende
+
+        // Polizei-Effekte (Stun/Slow)
+        this.stunTimer = 0;
+        this.slowTimer = 0;
+
+        // Visuelle Teile
+        const palette = options.palette ?? DEFAULT_PLAYER_PALETTE;
+        this.parts = buildHumanoidParts(palette);
+    }
+
+    /**
+     * Prueft ob Sprint moeglich ist und aktualisiert Stamina.
+     * SSOT fuer Sprint-Bedingung und Stamina-Verbrauch/-Regeneration.
+     *
+     * @param {boolean} wantsSprint - Shift gedrueckt?
+     * @param {boolean} isMoving - Bewegt sich der Spieler?
+     * @param {number} deltaTime - Vergangene Zeit in Sekunden
+     * @returns {boolean} Ob tatsaechlich gesprintet wird
+     */
+    trySprintAndUpdateStamina(wantsSprint, isMoving, deltaTime) {
+        const sprinting = wantsSprint && isMoving && this.stamina > 0;
+        if (sprinting) {
+            this.stamina = Math.max(0, this.stamina - deltaTime / this.maxStaminaDuration);
+            this._staminaCooldown = 0;
+        } else {
+            this._staminaCooldown += deltaTime;
+            if (this._staminaCooldown >= this.staminaRegenDelay) {
+                this.stamina = Math.min(1, this.stamina + deltaTime * this.staminaRegenRate);
+            }
+        }
+        return sprinting;
+    }
+
+    /**
+     * Gibt das Zentrum des Spielers zurueck.
+     * Beruecksichtigt die halbe Breite/Hoehe (Top-Down-Ansicht).
+     * @returns {{ x: number, y: number }}
+     */
+    getCenter() {
+        return {
+            x: this.x + this.width / 2,
+            y: this.y + this.height / 2,
+        };
+    }
+
+    /**
+     * Gibt die Muendungsposition fuer die aktuelle Waffe zurueck.
+     * @returns {{ x: number, y: number }}
+     */
+    getMuzzlePosition() {
+        const center = this.getCenter();
+        return { x: center.x, y: center.y };
+    }
+
+    /**
+     * Delegiert an die gemeinsame buildHumanoidParts-Funktion (SSOT).
+     * @param {object} palette
+     * @returns {Array<object>}
+     */
+    static buildParts(palette) {
+        return buildHumanoidParts(palette);
+    }
+}
+
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/entities/NPC.js
+// ═══════════════════════════════════════════════════════
+/**
+ * NPC - Nicht-Spieler-Charakter-Entity.
+ *
+ * WICHTIG: Setzt NIEMALS this.x/this.y direkt (ausser Initialisierung im Constructor).
+ * Alle Positionsaenderungen gehen durch EntityMover.move().
+ *
+ * Diese Klasse definiert nur Zustand und Logik-Daten.
+ * Bewegung wird von MovementSystem / EntityMover gesteuert.
+ */
+
+/** Standard-Werte fuer den Movement-Tracker */
+const TRACKER_DEFAULTS = {
+    motionThreshold: 0.45,
+    idleThreshold: 3500,
+    sampleWindow: 4000,
+    minDisplacement: 12,
+    maxStuckSamples: 2,
+    teleportCooldown: 4000,
+};
+
+class NPC extends Entity {
+    /**
+     * @param {object} config - Konfiguration aus buildNPC-Daten
+     * @param {Array<object>} config.waypoints - Pfad-Wegpunkte (mind. 2)
+     * @param {object} [config.spawnPoint] - Optionaler fester Spawnpunkt
+     * @param {boolean} [config.useBoundsSpawn=false] - Spawn in Bounds-Mitte
+     * @param {object} [config.bounds] - Entity-spezifische Bewegungsgrenzen
+     * @param {number} [config.speed=1.2]
+     * @param {boolean} [config.stayOnSidewalks=true]
+     * @param {boolean} [config.ignoreSidewalkObstacles=true]
+     * @param {boolean} [config.hitboxDisabled=true]
+     * @param {boolean} [config.fixedSpawn]
+     * @param {object} [config.palette] - Farbpalette fuer NPC-Teile
+     * @param {number} [config.maxHealth=100]
+     * @param {number} [config.hitRadius=14]
+     */
+    constructor(config = {}) {
+        const path = NPC._buildPath(config);
+
+        if (path.length < 2) {
+            throw new Error('NPC needs at least two waypoints to move.');
+        }
+
+        const spawnPoint = NPC._resolveSpawnPoint(config, path);
+        const start = path[0];
+        const initialX = spawnPoint ? spawnPoint.x : start.x;
+        const initialY = spawnPoint ? spawnPoint.y : start.y;
+
+        super({
+            x: initialX,
+            y: initialY,
+            speed: config.speed ?? 1.2,
+            health: config.maxHealth ?? 100,
+        });
+
+        // Pfad und Navigation
+        this.path = path;
+        this.waypointIndex = path.length > 1 ? 1 : 0;
+        this.waitTimer = start.wait ?? 0;
+
+        // Buergersteig-Verhalten
+        this.stayOnSidewalks = config.stayOnSidewalks !== false;
+        this.ignoreSidewalkObstacles = config.ignoreSidewalkObstacles !== false;
+        this.hitboxDisabled = config.hitboxDisabled !== false;
+        this.currentSidewalkSegment = null;
+
+        // Dynamische Navigation (statt fester Wegpunkt-Schleife)
+        this.dynamicNavigation = config.dynamicNavigation ?? false;
+        this._lastNavDir = null;
+
+        // Crosswalk-Zustand
+        this.waitingForCrosswalk = start.crosswalkIndex ?? null;
+        this.isCrossing = false;
+
+        // Spawn
+        this.fixedSpawn = (config.fixedSpawn != null)
+            ? Boolean(config.fixedSpawn)
+            : Boolean(spawnPoint);
+        this.spawnPoint = spawnPoint
+            ? { x: spawnPoint.x, y: spawnPoint.y }
+            : null;
+
+        // Gebaeude-Zustand
+        const startBuildingId = start?.buildingId ?? null;
+        const startInside = Boolean(start?.interior === true || start?.action === 'enter');
+        const startHidden = startInside || Boolean(start?.hidden);
+        this.insideBuilding = startInside ? (startBuildingId ?? true) : null;
+        this.hidden = startHidden;
+        this.lastBuildingId = startBuildingId;
+
+        // Taschenlampe (zufaellig ~40% der NPCs)
+        this.hasFlashlight = Math.random() < 0.4;
+
+        // Zustand
+        this.animationPhase = 0;
+        this.panicTimer = 0;
+        this.deathRotation = 0;
+        this.hitRadius = config.hitRadius ?? 14;
+
+        // Bounds
+        this.bounds = config.bounds ?? null;
+
+        // Visuelle Teile
+        this.palette = config.palette ?? null;
+        this.parts = buildHumanoidParts(config.palette ?? {});
+
+        // Movement-Tracker (lazy-init via ensureMovementTracker)
+        this.movementTracker = null;
+    }
+
+    // ---- Waypoint-Methoden ----
+
+    /**
+     * Gibt den aktuellen Ziel-Wegpunkt zurueck.
+     * @returns {object|null}
+     */
+    getCurrentWaypoint() {
+        return this.path[this.waypointIndex] ?? null;
+    }
+
+    /**
+     * Setzt den Wegpunkt-Index auf den naechsten Punkt (zyklisch).
+     */
+    advanceWaypoint() {
+        this.waypointIndex = (this.waypointIndex + 1) % this.path.length;
+    }
+
+    /**
+     * Prueft ob der NPC nah genug am aktuellen Wegpunkt ist.
+     * @param {number} [threshold=2] - Entfernung in Pixeln
+     * @returns {boolean}
+     */
+    isAtWaypoint(threshold = 2) {
+        const wp = this.getCurrentWaypoint();
+        if (!wp) return false;
+        const dx = this.x - wp.x;
+        const dy = this.y - wp.y;
+        return (dx * dx + dy * dy) <= threshold * threshold;
+    }
+
+    // ---- Zustandsabfragen ----
+
+    /**
+     * Gibt true zurueck wenn der NPC in Panik ist.
+     * @returns {boolean}
+     */
+    isPanicking() {
+        return this.panicTimer > 0;
+    }
+
+    /**
+     * Gibt true zurueck wenn der NPC wartet (idle).
+     * @returns {boolean}
+     */
+    isIdle() {
+        return this.waitTimer > 0 && !this.moving;
+    }
+
+    // ---- Movement-Tracker ----
+
+    /**
+     * Stellt sicher, dass der movementTracker initialisiert ist.
+     * Portiert von ensureNpcMovementTracker() aus dem alten Code.
+     *
+     * @param {number} [timestamp] - Aktueller Zeitstempel
+     * @returns {object} Der movementTracker
+     */
+    ensureMovementTracker(timestamp) {
+        const time = Number.isFinite(timestamp)
+            ? timestamp
+            : (typeof performance !== 'undefined' && performance.now
+                ? performance.now()
+                : Date.now());
+
+        if (!this.movementTracker) {
+            this.movementTracker = {
+                samplePosition: { x: this.x, y: this.y },
+                sampleTime: time,
+                lastUpdateTime: time,
+                idleTime: 0,
+                stuckSamples: 0,
+                lastTeleportAt: -Infinity,
+                ...TRACKER_DEFAULTS,
+            };
+        } else {
+            // Sicherstellen dass alle Felder vorhanden sind (Migrationssicherheit)
+            const t = this.movementTracker;
+            for (const [key, val] of Object.entries(TRACKER_DEFAULTS)) {
+                if (typeof t[key] !== 'number') {
+                    t[key] = val;
+                }
+            }
+            if (typeof t.stuckSamples !== 'number') t.stuckSamples = 0;
+            if (typeof t.lastTeleportAt !== 'number') t.lastTeleportAt = -Infinity;
+        }
+
+        return this.movementTracker;
+    }
+
+    // ---- Statische Hilfsmethoden ----
+
+    /**
+     * Baut den Pfad aus der Konfiguration.
+     * @param {object} config
+     * @returns {Array<object>}
+     * @private
+     */
+    static _buildPath(config) {
+        return (config.waypoints ?? []).map((wp) => ({ ...wp }));
+    }
+
+    /**
+     * Ermittelt den Spawnpunkt aus der Konfiguration.
+     * @param {object} config
+     * @param {Array<object>} path - bereits aufgebauter Pfad
+     * @returns {object|null}
+     * @private
+     */
+    static _resolveSpawnPoint(config, path) {
+        const hasFiniteNumber = (value) =>
+            value !== null && value !== undefined && Number.isFinite(Number(value));
+
+        let spawnPoint = null;
+
+        if (config.spawnPoint
+            && hasFiniteNumber(config.spawnPoint.x)
+            && hasFiniteNumber(config.spawnPoint.y)) {
+            const spawnX = Number(config.spawnPoint.x);
+            const spawnY = Number(config.spawnPoint.y);
+            spawnPoint = {
+                x: spawnX,
+                y: spawnY,
+                wait: hasFiniteNumber(config.spawnPoint.wait)
+                    ? Number(config.spawnPoint.wait) : null,
+                allowOffSidewalk: config.spawnPoint.allowOffSidewalk !== false,
+            };
+        } else if (config.useBoundsSpawn === true && config.bounds) {
+            const left = Number(config.bounds.left);
+            const right = Number(config.bounds.right);
+            const top = Number(config.bounds.top);
+            const bottom = Number(config.bounds.bottom);
+            if (hasFiniteNumber(left) && hasFiniteNumber(right)
+                && hasFiniteNumber(top) && hasFiniteNumber(bottom)) {
+                spawnPoint = {
+                    x: (left + right) / 2,
+                    y: (top + bottom) / 2,
+                    wait: null,
+                    allowOffSidewalk: true,
+                };
+            }
+        }
+
+        // Spawnpunkt in Pfad einarbeiten
+        if (spawnPoint) {
+            if (path.length === 0) {
+                path.push({
+                    x: spawnPoint.x,
+                    y: spawnPoint.y,
+                    wait: spawnPoint.wait ?? 0,
+                    allowOffSidewalk: spawnPoint.allowOffSidewalk,
+                });
+            } else {
+                path[0].x = spawnPoint.x;
+                path[0].y = spawnPoint.y;
+                if (spawnPoint.wait != null) {
+                    path[0].wait = spawnPoint.wait;
+                }
+                if (spawnPoint.allowOffSidewalk) {
+                    path[0].allowOffSidewalk = true;
+                }
+            }
+        }
+
+        return spawnPoint;
+    }
+
+    /**
+     * Delegiert an die gemeinsame buildHumanoidParts-Funktion (SSOT).
+     * @param {object} palette
+     * @returns {Array<object>}
+     */
+    static buildParts(palette) {
+        return buildHumanoidParts(palette);
+    }
+}
+
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/entities/Vehicle.js
+// ═══════════════════════════════════════════════════════
+/**
+ * Vehicle - Fahrzeug-Entity.
+ *
+ * WICHTIG: Setzt NIEMALS this.x/this.y direkt (ausser Initialisierung im Constructor).
+ * Alle Positionsaenderungen gehen durch EntityMover.move().
+ */
+
+class Vehicle extends Entity {
+    /**
+     * @param {object} config
+     * @param {Array<object>} config.path - Pfad-Wegpunkte (mind. 2)
+     * @param {number} [config.width=96]
+     * @param {number} [config.height=44]
+     * @param {number} [config.speed=2.2]
+     * @param {string} [config.baseColor='#555555']
+     * @param {string} [config.accentColor='#888888']
+     */
+    constructor(config = {}) {
+        const path = (config.path ?? []).map((wp) => ({ ...wp }));
+
+        if (path.length < 2) {
+            throw new Error('Vehicle needs at least two waypoints to move.');
+        }
+
+        const start = path[0];
+        const width = config.width ?? 96;
+        const height = config.height ?? 44;
+
+        super({
+            x: start.x,
+            y: start.y,
+            width,
+            height,
+            speed: config.speed ?? 2.2,
+        });
+
+        // Pfad und Navigation
+        this.path = path;
+        this.waypointIndex = path.length > 1 ? 1 : 0;
+        this.waitTimer = start.wait ?? 0;
+        this.stopTimer = 0;
+        this.rotation = 0;
+
+        // Farben
+        this.baseColor = config.baseColor ?? '#555555';
+        this.accentColor = config.accentColor ?? '#888888';
+
+        // Yield-Verhalten (Vorfahrt gewaehren)
+        this.yielding = false;
+        this.yieldTimer = 0;
+
+        // Visuelle Teile
+        this.parts = Vehicle.buildParts({
+            baseColor: this.baseColor,
+            accentColor: this.accentColor,
+            width: this.width,
+            height: this.height,
+        });
+    }
+
+    // ---- Waypoint-Methoden ----
+
+    /**
+     * Gibt den aktuellen Ziel-Wegpunkt zurueck.
+     * @returns {object|null}
+     */
+    getCurrentWaypoint() {
+        return this.path[this.waypointIndex] ?? null;
+    }
+
+    /**
+     * Setzt den Wegpunkt-Index auf den naechsten Punkt (zyklisch).
+     */
+    advanceWaypoint() {
+        this.waypointIndex = (this.waypointIndex + 1) % this.path.length;
+    }
+
+    /**
+     * Prueft ob das Fahrzeug nah genug am aktuellen Wegpunkt ist.
+     * @param {number} [threshold=2] - Entfernung in Pixeln
+     * @returns {boolean}
+     */
+    isAtWaypoint(threshold = 2) {
+        const wp = this.getCurrentWaypoint();
+        if (!wp) return false;
+        const dx = this.x - wp.x;
+        const dy = this.y - wp.y;
+        return (dx * dx + dy * dy) <= threshold * threshold;
+    }
+
+    // ---- Statische Factory-Methoden ----
+
+    /**
+     * Baut die visuellen Fahrzeug-Teile.
+     * Portiert von buildVehicleParts() aus dem alten Code.
+     *
+     * @param {object} config
+     * @param {string} config.baseColor
+     * @param {string} config.accentColor
+     * @param {number} config.width
+     * @param {number} config.height
+     * @returns {Array<object>}
+     */
+    static buildParts(config) {
+        const width = config.width;
+        const height = config.height;
+        const halfWidth = width / 2;
+        const halfHeight = height / 2;
+        const wheelRadius = Math.max(5, Math.floor(height * 0.24));
+
+        const windowColor = 'rgba(132, 188, 226, 0.9)';
+        const rearWindowColor = 'rgba(96, 140, 180, 0.85)';
+        const trimColor = '#1f2a36';
+        const lightFront = '#ffe8a3';
+        const lightRear = '#ff6464';
+
+        const parts = [];
+
+        const addRect = (id, centerX, centerY, rectWidth, rectHeight, color, extra = {}) => {
+            parts.push({
+                id,
+                type: 'rect',
+                width: rectWidth,
+                height: rectHeight,
+                offsetX: centerX - rectWidth / 2,
+                offsetY: centerY - rectHeight / 2,
+                color,
+                damaged: false,
+                ...extra,
+            });
+        };
+
+        const addCircle = (id, centerX, centerY, radius, color, extra = {}) => {
+            parts.push({
+                id,
+                type: 'circle',
+                radius,
+                offsetX: centerX,
+                offsetY: centerY,
+                color,
+                damaged: false,
+                ...extra,
+            });
+        };
+
+        // Chassis
+        addRect('chassis', 0, 0, width, height, config.baseColor);
+
+        // Streifen
+        const stripeHeight = height * 0.22;
+        addRect('stripe', 0, 0, width * 0.86, stripeHeight, config.accentColor);
+
+        // Dach
+        const roofWidth = width * 0.58;
+        const roofHeight = height * 0.5;
+        addRect('roof', 0, 0, roofWidth, roofHeight, config.accentColor);
+
+        // Windschutzscheibe
+        const windshieldWidth = width * 0.32;
+        const windshieldHeight = height * 0.46;
+        const windshieldCenterX = halfWidth - windshieldWidth * 0.6;
+        addRect('windshield', windshieldCenterX, 0, windshieldWidth, windshieldHeight, windowColor);
+
+        // Heckscheibe
+        const rearGlassWidth = width * 0.3;
+        const rearGlassHeight = height * 0.42;
+        const rearGlassCenterX = -halfWidth + rearGlassWidth * 0.6;
+        addRect('rearGlass', rearGlassCenterX, 0, rearGlassWidth, rearGlassHeight, rearWindowColor);
+
+        // Stossstangen
+        const bumperWidth = width * 0.08;
+        const bumperHeight = height * 0.74;
+        addRect('trimFront', halfWidth - bumperWidth / 2, 0, bumperWidth, bumperHeight, trimColor);
+        addRect('trimRear', -halfWidth + bumperWidth / 2, 0, bumperWidth, bumperHeight, trimColor);
+
+        // Lichter
+        const lightWidth = width * 0.06;
+        const lightHeight = height * 0.22;
+        const lateralOffset = halfHeight - lightHeight * 0.6;
+        const lightInset = width * 0.04 + bumperWidth;
+        const frontLightCenterX = halfWidth - lightInset - lightWidth / 2;
+        const rearLightCenterX = -frontLightCenterX;
+
+        addRect('frontLightLeft', frontLightCenterX, -lateralOffset, lightWidth, lightHeight, lightFront);
+        addRect('frontLightRight', frontLightCenterX, lateralOffset, lightWidth, lightHeight, lightFront);
+        addRect('rearLightLeft', rearLightCenterX, -lateralOffset, lightWidth, lightHeight, lightRear);
+        addRect('rearLightRight', rearLightCenterX, lateralOffset, lightWidth, lightHeight, lightRear);
+
+        // Seitenpanele
+        const sidePanelHeight = height * 0.12;
+        const sidePanelOffsetY = halfHeight - sidePanelHeight / 2;
+        addRect('sidePanelTop', 0, -sidePanelOffsetY, width * 0.78, sidePanelHeight, config.accentColor);
+        addRect('sidePanelBottom', 0, sidePanelOffsetY, width * 0.78, sidePanelHeight, config.accentColor);
+
+        // Raeder
+        addCircle('wheelFrontLeft', halfWidth * 0.45, halfHeight - wheelRadius, wheelRadius, trimColor, { visible: false });
+        addCircle('wheelFrontRight', halfWidth * 0.45, -halfHeight + wheelRadius, wheelRadius, trimColor, { visible: false });
+        addCircle('wheelRearLeft', -halfWidth * 0.45, halfHeight - wheelRadius, wheelRadius, trimColor, { visible: false });
+        addCircle('wheelRearRight', -halfWidth * 0.45, -halfHeight + wheelRadius, wheelRadius, trimColor, { visible: false });
+
+        return parts;
+    }
+}
+
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/data/WeaponCatalog.js
+// ═══════════════════════════════════════════════════════
+/**
+ * WeaponCatalog - Zentrale Waffendefinitionen (reine Daten, keine Logik).
+ * Portiert aus gta_old/overworld/js/overworld.js createWeaponCatalog() (Z.2553-2655)
+ * und getWeaponDefinition() (Z.2535-2546).
+ */
+
+/**
+ * Kanonische Waffenreihenfolge - SSOT fuer alle Module die Waffen sortieren.
+ * @type {ReadonlyArray<string>}
+ */
+const WEAPON_ORDER = Object.freeze([
+    'pistol',
+    'smg',
+    'assaultRifle',
+    'shotgun',
+    'sniperRifle',
+    'lmg',
+]);
+
+/**
+ * Erstellt den Waffenkatalog als Map.
+ * @returns {Map<string, object>}
+ */
+function createWeaponCatalog() {
+    const catalog = new Map();
+
+    catalog.set('pistol', {
+        id: 'pistol',
+        name: '9mm Dienstpistole',
+        damage: 24,
+        fireRate: 420,
+        projectileSpeed: 11,
+        spread: 0.02,
+        automatic: false,
+        range: 660,
+        displayColor: '#fca311',
+        price: 250,
+        shortLabel: '9mm',
+    });
+
+    catalog.set('smg', {
+        id: 'smg',
+        name: 'MP5 Maschinenpistole',
+        damage: 26,
+        fireRate: 120,
+        projectileSpeed: 12,
+        spread: 0.06,
+        automatic: true,
+        range: 640,
+        displayColor: '#00f5d4',
+        price: 650,
+        shortLabel: 'MP5',
+    });
+
+    catalog.set('assaultRifle', {
+        id: 'assaultRifle',
+        name: 'AR-15 Sturmgewehr',
+        damage: 48,
+        fireRate: 180,
+        projectileSpeed: 14,
+        spread: 0.04,
+        automatic: true,
+        range: 860,
+        displayColor: '#ef476f',
+        price: 1400,
+        shortLabel: 'AR-15',
+    });
+
+    catalog.set('shotgun', {
+        id: 'shotgun',
+        name: 'Pump-Action Schrotflinte',
+        damage: 22,
+        fireRate: 1900,
+        projectileSpeed: 10,
+        spread: 0.18,
+        automatic: false,
+        pellets: 6,
+        range: 360,
+        displayColor: '#7209b7',
+        price: 900,
+        shortLabel: 'Shotgun',
+    });
+
+    catalog.set('sniperRifle', {
+        id: 'sniperRifle',
+        name: 'AX-50 Scharfschuetzengewehr',
+        damage: 160,
+        fireRate: 1700,
+        projectileSpeed: 18,
+        spread: 0.004,
+        automatic: false,
+        range: 1400,
+        displayColor: '#3f37c9',
+        price: 3200,
+        shortLabel: 'Sniper',
+    });
+
+    catalog.set('lmg', {
+        id: 'lmg',
+        name: 'M249 Leichtes MG',
+        damage: 44,
+        fireRate: 140,
+        projectileSpeed: 13,
+        spread: 0.07,
+        automatic: true,
+        range: 900,
+        displayColor: '#06d6a0',
+        price: 2600,
+        shortLabel: 'M249',
+    });
+
+    return catalog;
+}
+
+/**
+ * Gibt die Waffendefinition fuer eine ID zurueck.
+ * @param {Map<string, object>} catalog - Der Waffenkatalog
+ * @param {string} id - Waffen-ID
+ * @returns {object|null}
+ */
+function getWeaponDefinition(catalog, id) {
+    if (!id) {
+        return null;
+    }
+    return catalog.get(id) ?? null;
+}
+
 
 
 // ═══════════════════════════════════════════════════════
@@ -374,7 +1402,6 @@ function createHouseStyles() {
  *   loadPlayerMoney()          (neu, war im Originalcode nicht persistiert)
  *   persistPlayerMoney()       (neu)
  */
-
 
 // ───────────────────── Hilfsfunktionen ─────────────────────
 
@@ -774,927 +1801,675 @@ function persistRentedProperty(buildingId) {
 
 
 // ═══════════════════════════════════════════════════════
-// js/data/WeaponCatalog.js
+// js/systems/RealEstateSystem.js
 // ═══════════════════════════════════════════════════════
 /**
- * WeaponCatalog - Zentrale Waffendefinitionen (reine Daten, keine Logik).
- * Portiert aus gta_old/overworld/js/overworld.js createWeaponCatalog() (Z.2553-2655)
- * und getWeaponDefinition() (Z.2535-2546).
- */
-
-/**
- * Kanonische Waffenreihenfolge - SSOT fuer alle Module die Waffen sortieren.
- * @type {ReadonlyArray<string>}
- */
-const WEAPON_ORDER = Object.freeze([
-    'pistol',
-    'smg',
-    'assaultRifle',
-    'shotgun',
-    'sniperRifle',
-    'lmg',
-]);
-
-/**
- * Erstellt den Waffenkatalog als Map.
- * @returns {Map<string, object>}
- */
-function createWeaponCatalog() {
-    const catalog = new Map();
-
-    catalog.set('pistol', {
-        id: 'pistol',
-        name: '9mm Dienstpistole',
-        damage: 24,
-        fireRate: 420,
-        projectileSpeed: 11,
-        spread: 0.02,
-        automatic: false,
-        range: 660,
-        displayColor: '#fca311',
-        price: 250,
-        shortLabel: '9mm',
-    });
-
-    catalog.set('smg', {
-        id: 'smg',
-        name: 'MP5 Maschinenpistole',
-        damage: 26,
-        fireRate: 120,
-        projectileSpeed: 12,
-        spread: 0.06,
-        automatic: true,
-        range: 640,
-        displayColor: '#00f5d4',
-        price: 650,
-        shortLabel: 'MP5',
-    });
-
-    catalog.set('assaultRifle', {
-        id: 'assaultRifle',
-        name: 'AR-15 Sturmgewehr',
-        damage: 48,
-        fireRate: 180,
-        projectileSpeed: 14,
-        spread: 0.04,
-        automatic: true,
-        range: 860,
-        displayColor: '#ef476f',
-        price: 1400,
-        shortLabel: 'AR-15',
-    });
-
-    catalog.set('shotgun', {
-        id: 'shotgun',
-        name: 'Pump-Action Schrotflinte',
-        damage: 22,
-        fireRate: 1900,
-        projectileSpeed: 10,
-        spread: 0.18,
-        automatic: false,
-        pellets: 6,
-        range: 360,
-        displayColor: '#7209b7',
-        price: 900,
-        shortLabel: 'Shotgun',
-    });
-
-    catalog.set('sniperRifle', {
-        id: 'sniperRifle',
-        name: 'AX-50 Scharfschuetzengewehr',
-        damage: 160,
-        fireRate: 1700,
-        projectileSpeed: 18,
-        spread: 0.004,
-        automatic: false,
-        range: 1400,
-        displayColor: '#3f37c9',
-        price: 3200,
-        shortLabel: 'Sniper',
-    });
-
-    catalog.set('lmg', {
-        id: 'lmg',
-        name: 'M249 Leichtes MG',
-        damage: 44,
-        fireRate: 140,
-        projectileSpeed: 13,
-        spread: 0.07,
-        automatic: true,
-        range: 900,
-        displayColor: '#06d6a0',
-        price: 2600,
-        shortLabel: 'M249',
-    });
-
-    return catalog;
-}
-
-/**
- * Gibt die Waffendefinition fuer eine ID zurueck.
- * @param {Map<string, object>} catalog - Der Waffenkatalog
- * @param {string} id - Waffen-ID
- * @returns {object|null}
- */
-function getWeaponDefinition(catalog, id) {
-    if (!id) {
-        return null;
-    }
-    return catalog.get(id) ?? null;
-}
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/entities/Entity.js
-// ═══════════════════════════════════════════════════════
-/**
- * Entity - Basisklasse fuer alle Spielobjekte (Spieler, NPCs, Objekte).
+ * RealEstateSystem - Immobilienmarkt: Miete und Kauf von Gebaeuden.
  *
- * WICHTIG: Entity setzt x/y nicht direkt.
- * Bewegung und Positionsaenderungen werden ausschliesslich ueber EntityMover gesteuert.
+ * SSOT: Alle Immobilien-Preise, Mieten und Kauf-Logik hier zentralisiert.
+ * - Motel/Apartment: Mietbar (taegliche Miete wird abgezogen)
+ * - Bungalow/Haeuser: Kaufbar ueber Immobilienmaklbuero
+ * Miet-/Kauf-Abrechnung erfolgt pro Ingame-Tag (1 voller Tag/Nacht-Zyklus).
  */
 
-let _nextEntityId = 1;
+// ---------------------------------------------------------------------------
+// Miet-Katalog (SSOT fuer alle mietbaren Unterkuenfte)
+// ---------------------------------------------------------------------------
 
-class Entity {
+/**
+ * Mietbare Unterkuenfte: Schluessel = Building-Type, Wert = Miet-Details.
+ * rent = Miete pro Ingame-Tag.
+ */
+const RENTAL_CATALOG = {
+    motel: {
+        name: 'Sunrise Motel',
+        rent: 50,
+        description: 'Kleines Motelzimmer mit Bett, Waschbecken und Toilette.',
+    },
+    apartmentComplex: {
+        name: 'Parkview Apartments',
+        rent: 150,
+        description: 'Gemuetliche Wohnung mit Bad, Doppelbett, Fernseher und mehr.',
+    },
+};
+
+// ---------------------------------------------------------------------------
+// Kauf-Katalog (SSOT fuer alle kaufbaren Immobilien ueber Makler)
+// ---------------------------------------------------------------------------
+
+/** Verkaufsrate: Anteil des Kaufpreises bei Verkauf (SSOT) */
+const PROPERTY_SELL_RATE = 0.5;
+
+const PROPERTY_CATALOG = {
+    bungalow: {
+        name: 'Bungalow am Stadtrand',
+        price: 35000,
+        description: 'Ein gemuetlicher Bungalow mit drei Raeumen: Wohnzimmer, Schlafzimmer und Kueche.',
+    },
+};
+
+// ---------------------------------------------------------------------------
+// Kompatibilitaet: isPropertyType prueft beide Kataloge
+// ---------------------------------------------------------------------------
+
+/**
+ * Prueft ob ein Gebaeudetyp mietbar ist.
+ * @param {string} type
+ * @returns {boolean}
+ */
+function isRentalType(type) {
+    return type in RENTAL_CATALOG;
+}
+
+/**
+ * Prueft ob ein Gebaeudetyp kaufbar ist (ueber Makler).
+ * @param {string} type
+ * @returns {boolean}
+ */
+function isPurchasableType(type) {
+    return type in PROPERTY_CATALOG;
+}
+
+class RealEstateSystem {
+
     /**
-     * @param {object} [options]
-     * @param {number} [options.x=0]
-     * @param {number} [options.y=0]
-     * @param {number} [options.width=32]
-     * @param {number} [options.height=32]
-     * @param {number} [options.speed=2]
-     * @param {number} [options.health=100]
+     * @param {import('../core/EventBus.js').EventBus} eventBus
      */
-    constructor(options = {}) {
-        this.id = _nextEntityId++;
-        this.x = options.x ?? 0;
-        this.y = options.y ?? 0;
-        this.width = options.width ?? 32;
-        this.height = options.height ?? 32;
-        this.speed = options.speed ?? 2;
-        this.moving = false;
+    constructor(eventBus) {
+        this.eventBus = eventBus;
 
-        /** @type {{minX: number, minY: number, maxX: number, maxY: number} | null} */
-        this.bounds = options.bounds ?? null;
+        /** @type {number} Letzter bekannter phaseIndex des DayNightSystem */
+        this._lastPhaseIndex = -1;
 
-        this.maxHealth = options.health ?? 100;
-        this.health = this.maxHealth;
-        this.dead = false;
-        this.hidden = false;
+        /** @type {number} Zaehlt wie oft phaseIndex auf 0 zurueckspringt (= neuer Tag) */
+        this._dayCount = 0;
+
+        /** @type {number} Letzter Tag an dem Miete/Einkommen abgerechnet wurde */
+        this._lastRentDay = 0;
+    }
+
+    // ===================================================================
+    //  Miete (Motel / Apartment)
+    // ===================================================================
+
+    /**
+     * Mietet eine Unterkunft. Spieler zahlt taegliche Miete.
+     *
+     * @param {object} player
+     * @param {object} building
+     * @returns {{ success: boolean, reason?: string, rental?: object }}
+     */
+    rentProperty(player, building) {
+        if (!building || !building.id) {
+            return { success: false, reason: 'invalidBuilding' };
+        }
+
+        const rental = RENTAL_CATALOG[building.type];
+        if (!rental) {
+            return { success: false, reason: 'notRentable' };
+        }
+
+        // Bereits gemietet?
+        if (player.rentedPropertyId === building.id) {
+            return { success: false, reason: 'alreadyRented' };
+        }
+
+        // Erste Miete sofort zahlen
+        if (player.money < rental.rent) {
+            return { success: false, reason: 'noMoney' };
+        }
+
+        player.money -= rental.rent;
+        player.rentedPropertyId = building.id;
+        player.homePropertyId = building.id;
+
+        this.eventBus.emit('realEstate:rented', {
+            buildingId: building.id,
+            type: building.type,
+            rent: rental.rent,
+        });
+
+        return { success: true, rental };
     }
 
     /**
-     * Gibt true zurueck wenn die Entity lebt (health > 0, nicht dead).
+     * Kuendigt die aktuelle Miete.
+     *
+     * @param {object} player
+     * @param {object} building
+     * @returns {{ success: boolean, reason?: string }}
      */
-    isAlive() {
-        return !this.dead && this.health > 0;
+    cancelRental(player, building) {
+        if (!building || !building.id) {
+            return { success: false, reason: 'invalidBuilding' };
+        }
+
+        if (player.rentedPropertyId !== building.id) {
+            return { success: false, reason: 'notRented' };
+        }
+
+        player.rentedPropertyId = null;
+
+        // Wohnsitz nur entfernen wenn es die gemietete Unterkunft war
+        if (player.homePropertyId === building.id) {
+            player.homePropertyId = null;
+        }
+
+        this.eventBus.emit('realEstate:rentalCancelled', {
+            buildingId: building.id,
+        });
+
+        return { success: true };
+    }
+
+    // ===================================================================
+    //  Kauf / Verkauf (Bungalow etc. ueber Makler)
+    // ===================================================================
+
+    /**
+     * Kauft eine Immobilie (Bungalow etc.).
+     *
+     * @param {object} player
+     * @param {object} building
+     * @returns {{ success: boolean, reason?: string, property?: object }}
+     */
+    buyProperty(player, building) {
+        if (!building || !building.id) {
+            return { success: false, reason: 'invalidBuilding' };
+        }
+
+        const catalog = PROPERTY_CATALOG[building.type];
+        if (!catalog) {
+            return { success: false, reason: 'notForSale' };
+        }
+
+        if (player.ownedProperties.has(building.id)) {
+            return { success: false, reason: 'alreadyOwned' };
+        }
+
+        if (player.money < catalog.price) {
+            return { success: false, reason: 'noMoney' };
+        }
+
+        player.money -= catalog.price;
+        player.ownedProperties.add(building.id);
+
+        this.eventBus.emit('realEstate:purchased', {
+            buildingId: building.id,
+            type: building.type,
+            price: catalog.price,
+        });
+
+        return { success: true, property: catalog };
     }
 
     /**
-     * Setzt die Entity in den lebendigen Zustand zurueck.
+     * Verkauft eine Immobilie (50% des Kaufpreises).
+     *
+     * @param {object} player
+     * @param {object} building
+     * @returns {{ success: boolean, reason?: string, refund?: number }}
      */
-    revive() {
-        this.dead = false;
-        this.health = this.maxHealth;
-        this.moving = false;
+    sellProperty(player, building) {
+        if (!building || !building.id) {
+            return { success: false, reason: 'invalidBuilding' };
+        }
+
+        if (!player.ownedProperties.has(building.id)) {
+            return { success: false, reason: 'notOwned' };
+        }
+
+        const catalog = PROPERTY_CATALOG[building.type];
+        if (!catalog) {
+            return { success: false, reason: 'notForSale' };
+        }
+
+        const refund = RealEstateSystem.getSellRefund(catalog.price);
+        player.money += refund;
+        player.ownedProperties.delete(building.id);
+
+        if (player.homePropertyId === building.id) {
+            player.homePropertyId = null;
+        }
+
+        this.eventBus.emit('realEstate:sold', {
+            buildingId: building.id,
+            type: building.type,
+            refund,
+        });
+
+        return { success: true, refund };
+    }
+
+    // ===================================================================
+    //  Einziehen (Wohnsitz setzen - nur bei eigenen Immobilien)
+    // ===================================================================
+
+    /**
+     * Setzt eine eigene Immobilie als Wohnsitz (Respawn-Punkt).
+     *
+     * @param {object} player
+     * @param {object} building
+     * @returns {{ success: boolean, reason?: string }}
+     */
+    moveIn(player, building) {
+        if (!building || !building.id) {
+            return { success: false, reason: 'invalidBuilding' };
+        }
+
+        if (!player.ownedProperties.has(building.id)) {
+            return { success: false, reason: 'notOwned' };
+        }
+
+        player.homePropertyId = building.id;
+
+        this.eventBus.emit('realEstate:movedIn', {
+            buildingId: building.id,
+        });
+
+        return { success: true };
+    }
+
+    // ===================================================================
+    //  Taegliche Miet-Abrechnung (pro Ingame-Tag)
+    // ===================================================================
+
+    /**
+     * Zieht taegliche Miete ab wenn Spieler eine Unterkunft gemietet hat.
+     * Bei fehlendem Geld wird die Miete automatisch gekuendigt.
+     *
+     * @param {object} player
+     * @param {Array} buildings - Alle Gebaeude der Welt
+     * @param {number} deltaTime
+     * @param {object} dayNightSystem
+     */
+    update(player, buildings, deltaTime, dayNightSystem) {
+        if (!dayNightSystem) return;
+
+        const currentPhaseIndex = dayNightSystem.phaseIndex ?? 0;
+
+        if (this._lastPhaseIndex < 0) {
+            this._lastPhaseIndex = currentPhaseIndex;
+            return;
+        }
+
+        // Tageswechsel: Phase springt von letzter Phase (dawn=3) auf erste (day=0)
+        if (currentPhaseIndex === 0 && this._lastPhaseIndex !== 0) {
+            this._dayCount++;
+
+            if (this._dayCount > this._lastRentDay) {
+                this._lastRentDay = this._dayCount;
+
+                // Miete abziehen
+                if (player.rentedPropertyId) {
+                    const building = buildings.find((b) => b && b.id === player.rentedPropertyId);
+                    if (building) {
+                        const rental = RENTAL_CATALOG[building.type];
+                        if (rental) {
+                            if (player.money >= rental.rent) {
+                                player.money -= rental.rent;
+                                this.eventBus.emit('realEstate:rentPaid', {
+                                    buildingId: building.id,
+                                    rent: rental.rent,
+                                    day: this._dayCount,
+                                });
+                            } else {
+                                // Kein Geld -> Miete kuendigen
+                                player.rentedPropertyId = null;
+                                if (player.homePropertyId === building.id) {
+                                    player.homePropertyId = null;
+                                }
+                                this.eventBus.emit('realEstate:evicted', {
+                                    buildingId: building.id,
+                                    day: this._dayCount,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        this._lastPhaseIndex = currentPhaseIndex;
+    }
+
+    // ===================================================================
+    //  Hilfsfunktionen
+    // ===================================================================
+
+    /**
+     * Gibt die Katalog-Infos fuer einen Gebaeudetyp zurueck (Miet- oder Kauf-Katalog).
+     * @param {string} type
+     * @returns {object|null}
+     */
+    static getCatalogEntry(type) {
+        return RENTAL_CATALOG[type] ?? PROPERTY_CATALOG[type] ?? null;
     }
 
     /**
-     * Gibt die Bounding-Box als {x, y, width, height} zurueck.
+     * Gibt den Miet-Katalog-Eintrag zurueck.
+     * @param {string} type
+     * @returns {object|null}
      */
-    getBounds() {
-        return {
-            x: this.x - this.width / 2,
-            y: this.y - this.height / 2,
-            width: this.width,
-            height: this.height,
-        };
+    static getRentalEntry(type) {
+        return RENTAL_CATALOG[type] ?? null;
     }
 
     /**
-     * Gibt das Zentrum als {x, y} zurueck.
+     * Gibt den Kauf-Katalog-Eintrag zurueck.
+     * @param {string} type
+     * @returns {object|null}
      */
-    getCenter() {
-        return { x: this.x, y: this.y };
+    static getPurchaseEntry(type) {
+        return PROPERTY_CATALOG[type] ?? null;
     }
 
     /**
-     * Berechnet die Distanz zu einer anderen Entity.
-     * @param {Entity} other
+     * Prueft ob ein Gebaeudetyp mietbar oder kaufbar ist.
+     * @param {string} type
+     * @returns {boolean}
+     */
+    static isPropertyType(type) {
+        return type in RENTAL_CATALOG || type in PROPERTY_CATALOG;
+    }
+
+    /**
+     * Berechnet den Verkaufserloes einer Immobilie (SSOT).
+     * @param {number} price - Kaufpreis
      * @returns {number}
      */
-    distanceTo(other) {
-        const dx = this.x - other.x;
-        const dy = this.y - other.y;
-        return Math.sqrt(dx * dx + dy * dy);
+    static getSellRefund(price) {
+        return Math.floor(price * PROPERTY_SELL_RATE);
+    }
+
+    /**
+     * Formatiert einen Geldbetrag.
+     * @param {number} amount
+     * @returns {string}
+     */
+    static formatMoney(amount) {
+        return Math.floor(amount).toLocaleString('de-DE') + '$';
     }
 }
 
-Entity;
+
 
 
 // ═══════════════════════════════════════════════════════
-// js/entities/buildHumanoidParts.js
+// js/world/BuildingFactory.js
 // ═══════════════════════════════════════════════════════
 /**
- * buildHumanoidParts - SSOT fuer die visuellen Koerperteile
- * aller humanoiden Entities (Spieler, NPCs).
+ * BuildingFactory - Erstellt Gebaeude-Objekte und Collider.
  *
- * Wird von Player und NPC gemeinsam genutzt.
+ * Portiert aus gta_old/overworld/js/overworld.js:
+ *   createBuildingColliders() Zeilen 12025-12142
  *
- * @param {object} [palette={}]
- * @param {string} [palette.head]
- * @param {string} [palette.torso]
- * @param {string} [palette.limbs]
- * @param {string} [palette.accent]
- * @param {string} [palette.hair]
- * @param {string} [palette.eyes]
- * @param {string} [palette.pupil]
- * @returns {Array<object>}
+ * SSOT: Alle Gebaeude-Erstellung und Collider-Logik hier zentralisiert.
  */
-function buildHumanoidParts(palette = {}) {
-    const headColor = palette.head ?? '#f2d6c1';
-    const torsoColor = palette.torso ?? '#2b6777';
-    const limbColor = palette.limbs ?? '#1b3a4b';
-    const accentColor = palette.accent ?? '#f2f2f2';
-    const hairColor = palette.hair ?? '#2b2118';
-    const eyeColor = palette.eyes ?? '#ffffff';
-    const pupilColor = palette.pupil ?? '#1b1b1b';
 
-    return [
-        { id: 'shadow', type: 'circle', radius: 10, offsetX: 0, offsetY: 12, color: 'rgba(0, 0, 0, 0.15)', damaged: false },
-        { id: 'torso', type: 'rect', width: 14, height: 18, offsetX: -7, offsetY: -12, color: torsoColor, damaged: false },
-        { id: 'leftArm', type: 'rect', width: 4, height: 16, offsetX: -11, offsetY: -10, color: limbColor, damaged: false },
-        { id: 'rightArm', type: 'rect', width: 4, height: 16, offsetX: 7, offsetY: -10, color: limbColor, damaged: false },
-        { id: 'leftLeg', type: 'rect', width: 4, height: 18, offsetX: -4, offsetY: 6, color: accentColor, damaged: false },
-        { id: 'rightLeg', type: 'rect', width: 4, height: 18, offsetX: 0, offsetY: 6, color: accentColor, damaged: false },
-        { id: 'hairBack', type: 'circle', radius: 8, offsetX: 0, offsetY: -24, color: hairColor, damaged: false },
-        { id: 'head', type: 'circle', radius: 6, offsetX: 0, offsetY: -20, color: headColor, damaged: false },
-        { id: 'hairFringe', type: 'rect', width: 16, height: 3, offsetX: -8, offsetY: -22, color: hairColor, damaged: false },
-        { id: 'leftEye', type: 'circle', radius: 1.8, offsetX: -3, offsetY: -17, color: eyeColor, damaged: false },
-        { id: 'rightEye', type: 'circle', radius: 1.8, offsetX: 3, offsetY: -17, color: eyeColor, damaged: false },
-        { id: 'leftPupil', type: 'circle', radius: 0.9, offsetX: -3, offsetY: -17, color: pupilColor, damaged: false },
-        { id: 'rightPupil', type: 'circle', radius: 0.9, offsetX: 3, offsetY: -17, color: pupilColor, damaged: false },
-    ];
+/**
+ * Erstellt ein Gebaeude-Objekt mit den gegebenen Parametern.
+ *
+ * @param {string} type - Gebaeudetyp (z.B. 'house', 'police', 'casino', 'weaponShop')
+ * @param {number} x
+ * @param {number} y
+ * @param {number} width
+ * @param {number} height
+ * @param {object} [options={}]
+ * @param {string} [options.name]
+ * @param {boolean} [options.interactive=false]
+ * @param {object} [options.variant]
+ * @param {number} [options.colorIndex]
+ * @param {number} [options.lotPadding]
+ * @param {number} [options.collisionPadding]
+ * @param {Array}  [options.subUnits]
+ * @param {Array}  [options.collisionRects]
+ * @returns {object} Gebaeude-Objekt
+ */
+function createBuilding(type, x, y, width, height, options = {}) {
+    const building = {
+        x,
+        y,
+        width,
+        height,
+        type,
+        name: options.name ?? type,
+        interactive: options.interactive ?? false,
+    };
+
+    if (options.variant !== undefined) {
+        building.variant = options.variant;
+    }
+    if (options.colorIndex !== undefined) {
+        building.colorIndex = options.colorIndex;
+    }
+    if (options.lotPadding !== undefined) {
+        building.lotPadding = options.lotPadding;
+    }
+    if (options.collisionPadding !== undefined) {
+        building.collisionPadding = options.collisionPadding;
+    }
+    if (options.subUnits !== undefined) {
+        building.subUnits = options.subUnits;
+    }
+    if (options.collisionRects !== undefined) {
+        building.collisionRects = options.collisionRects;
+    }
+
+    return building;
 }
 
-
-
-// ═══════════════════════════════════════════════════════
-// js/entities/Player.js
-// ═══════════════════════════════════════════════════════
 /**
- * Player - Spieler-Entity.
+ * Berechnet die Metriken (Abmessungen, Tuer, Eingang, etc.) fuer ein Haus.
+ * SSOT: Einzige Quelle fuer Haus-Geometrie-Berechnungen.
  *
- * WICHTIG: Setzt NIEMALS this.x/this.y direkt (ausser Initialisierung im Constructor).
- * Alle Positionsaenderungen gehen durch EntityMover.move().
+ * @param {object} building - Gebaeude-Objekt
+ * @param {Array}  [houseStyles] - Hausstile (optional, fuer Palette)
+ * @returns {object|null}
  */
-
-
-
-/** Standard-Palette fuer den Spieler */
-const DEFAULT_PLAYER_PALETTE = {
-    head: '#f6d7c4',
-    torso: '#1b4965',
-    limbs: '#16324f',
-    accent: '#5fa8d3',
-    hair: '#2b2118',
-    eyes: '#ffffff',
-    pupil: '#1b1b1b',
-};
-
-class Player extends Entity {
-    /**
-     * @param {object} [options]
-     * @param {number} [options.x=400]
-     * @param {number} [options.y=300]
-     * @param {number} [options.width=30]
-     * @param {number} [options.height=30]
-     * @param {number} [options.speed=1.5]
-     * @param {number} [options.sprintMultiplier=2]
-     * @param {object} [options.palette] - Farbpalette fuer Spieler-Teile
-     * @param {number} [options.money=1500]
-     * @param {number} [options.casinoCredits=0]
-     * @param {string|null} [options.currentWeaponId=null]
-     * @param {Set|null} [options.weaponInventory=null]
-     * @param {Array|null} [options.weaponLoadout=null]
-     * @param {Set|null} [options.ownedProperties=null]
-     * @param {string|null} [options.homePropertyId=null]
-     * @param {string|null} [options.rentedPropertyId=null]
-     */
-    constructor(options = {}) {
-        super({
-            x: options.x ?? 400,
-            y: options.y ?? 300,
-            width: options.width ?? 30,
-            height: options.height ?? 30,
-            speed: options.speed ?? 1.5,
-            health: options.health ?? 100,
-        });
-
-        this.baseSpeed = this.speed;
-        this.sprintMultiplier = options.sprintMultiplier ?? 2;
-
-        this.animationPhase = 0;
-        this.color = options.color ?? '#FF0000';
-
-        // Waffen-Zustand
-        this.currentWeaponId = options.currentWeaponId ?? null;
-        this.weaponInventory = options.weaponInventory ?? new Set();
-        this.weaponLoadout = options.weaponLoadout ?? [];
-
-        // Taschenlampe
-        this.flashlightOn = false;
-
-        // Geld
-        this.money = options.money ?? 1500;
-        this.casinoCredits = options.casinoCredits ?? 0;
-
-        // Immobilien-Besitz und Miete
-        this.ownedProperties = options.ownedProperties ?? new Set();
-        this.homePropertyId = options.homePropertyId ?? null;
-        this.rentedPropertyId = options.rentedPropertyId ?? null;
-
-        // Stamina (Sprint-Ausdauer)
-        this.stamina = 1;          // 0-1, startet voll
-        this.maxStaminaDuration = 5; // Sekunden Sprint
-        this.staminaRegenDelay = 1;  // Sekunden bis Regen startet
-        this.staminaRegenRate = 0.25; // pro Sekunde (4s fuer volle Regen)
-        this._staminaCooldown = 0;   // Sekunden seit Sprint-Ende
-
-        // Polizei-Effekte (Stun/Slow)
-        this.stunTimer = 0;
-        this.slowTimer = 0;
-
-        // Visuelle Teile
-        const palette = options.palette ?? DEFAULT_PLAYER_PALETTE;
-        this.parts = buildHumanoidParts(palette);
+function computeHouseMetrics(building, houseStyles) {
+    if (!building || building.type !== "house") {
+        return null;
     }
 
-    /**
-     * Prueft ob Sprint moeglich ist und aktualisiert Stamina.
-     * SSOT fuer Sprint-Bedingung und Stamina-Verbrauch/-Regeneration.
-     *
-     * @param {boolean} wantsSprint - Shift gedrueckt?
-     * @param {boolean} isMoving - Bewegt sich der Spieler?
-     * @param {number} deltaTime - Vergangene Zeit in Sekunden
-     * @returns {boolean} Ob tatsaechlich gesprintet wird
-     */
-    trySprintAndUpdateStamina(wantsSprint, isMoving, deltaTime) {
-        const sprinting = wantsSprint && isMoving && this.stamina > 0;
-        if (sprinting) {
-            this.stamina = Math.max(0, this.stamina - deltaTime / this.maxStaminaDuration);
-            this._staminaCooldown = 0;
-        } else {
-            this._staminaCooldown += deltaTime;
-            if (this._staminaCooldown >= this.staminaRegenDelay) {
-                this.stamina = Math.min(1, this.stamina + deltaTime * this.staminaRegenRate);
-            }
-        }
-        return sprinting;
+    const lotWidth = Number(building.width ?? 0);
+    const lotHeight = Number(building.height ?? 0);
+
+    if (!(lotWidth > 0 && lotHeight > 0)) {
+        return null;
     }
 
-    /**
-     * Gibt das Zentrum des Spielers zurueck.
-     * Beruecksichtigt die halbe Breite/Hoehe (Top-Down-Ansicht).
-     * @returns {{ x: number, y: number }}
-     */
-    getCenter() {
-        return {
-            x: this.x + this.width / 2,
-            y: this.y + this.height / 2,
-        };
+    const variant = building.variant ?? {};
+    const styleIndex = variant.styleIndex ?? building.colorIndex ?? 0;
+    const palettes = Array.isArray(houseStyles) ? houseStyles : [];
+    const palette = palettes.length > 0 ? palettes[styleIndex % palettes.length] : {};
+
+    const lotPaddingBase = building.lotPadding ?? Math.min(36, Math.min(lotWidth, lotHeight) * 0.22);
+    const sideMax = Math.max(12, (lotWidth - 140) / 2);
+    const sidePadding = Math.min(Math.max(14, lotPaddingBase), sideMax);
+
+    let rearPadding = Math.min(lotHeight * 0.22, Math.max(12, lotPaddingBase * 0.65));
+    const minHouseHeight = 120;
+    const maxFrontSpace = Math.max(20, lotHeight - rearPadding - minHouseHeight);
+
+    let desiredFront = Math.min(maxFrontSpace, Math.max(48, lotPaddingBase * 1.45, lotHeight * 0.26));
+    if (desiredFront < 32) {
+        desiredFront = Math.min(maxFrontSpace, Math.max(32, lotPaddingBase * 1.15));
     }
 
-    /**
-     * Gibt die Muendungsposition fuer die aktuelle Waffe zurueck.
-     * @returns {{ x: number, y: number }}
-     */
-    getMuzzlePosition() {
-        const center = this.getCenter();
-        return { x: center.x, y: center.y };
+    let houseHeight = lotHeight - rearPadding - desiredFront;
+    if (houseHeight < minHouseHeight) {
+        houseHeight = minHouseHeight;
+        desiredFront = lotHeight - rearPadding - houseHeight;
     }
 
-    /**
-     * Delegiert an die gemeinsame buildHumanoidParts-Funktion (SSOT).
-     * @param {object} palette
-     * @returns {Array<object>}
-     */
-    static buildParts(palette) {
-        return buildHumanoidParts(palette);
+    const houseWidth = Math.max(120, lotWidth - sidePadding * 2);
+    const houseX = (lotWidth - houseWidth) / 2;
+    const houseY = Math.max(10, rearPadding);
+    const houseBottom = houseY + houseHeight;
+    const frontDepth = Math.max(10, desiredFront);
+
+    let roofDepth = Math.max(32, Math.min(houseHeight * 0.32, 88));
+    if (houseHeight - roofDepth < 96) {
+        roofDepth = Math.max(24, houseHeight - 96);
     }
+
+    const facadeHeight = houseHeight - roofDepth;
+    const facadeTop = houseY + roofDepth;
+    const walkwayWidth = Math.min(48, houseWidth * 0.28);
+    const walkwayX = lotWidth / 2 - walkwayWidth / 2;
+    const walkwayY = houseBottom;
+    const walkwayHeight = frontDepth;
+
+    const doorWidth = Math.min(houseWidth * 0.26, 68);
+    const doorHeight = Math.max(58, Math.min(facadeHeight * 0.44, 104));
+    const doorX = houseX + houseWidth / 2 - doorWidth / 2;
+    const doorY = facadeTop + facadeHeight - doorHeight;
+
+    const houseWorldX = Number(building.x ?? 0);
+    const houseWorldY = Number(building.y ?? 0);
+
+    const doorWorldX = houseWorldX + doorX + doorWidth / 2;
+    const doorWorldBottom = houseWorldY + doorY + doorHeight;
+    const doorWorldCenterY = houseWorldY + doorY + doorHeight / 2;
+    const doorWorldInsideY = houseWorldY + doorY + doorHeight * 0.35;
+    const walkwayWorldBottom = doorWorldBottom + walkwayHeight;
+
+    const entranceY = doorWorldBottom + Math.max(6, walkwayHeight * 0.35);
+    const approachY = walkwayWorldBottom + Math.max(12, walkwayHeight * 0.4);
+
+    const interiorX = houseWorldX + houseX + houseWidth / 2;
+    const interiorY = houseWorldY + houseY + Math.max(40, facadeHeight * 0.45);
+
+    const boundsLeft = houseWorldX + houseX - Math.max(20, walkwayWidth * 0.6);
+    const boundsRight = houseWorldX + houseX + houseWidth + Math.max(20, walkwayWidth * 0.6);
+    const boundsTop = houseWorldY + houseY - Math.max(20, roofDepth * 0.4);
+    const minBoundsHeight = Math.max(60, facadeHeight * 0.5);
+    const boundsBottom = Math.max(
+        boundsTop + minBoundsHeight,
+        approachY + Math.max(16, walkwayHeight * 0.2)
+    );
+
+    return {
+        houseX, houseY, houseWidth, houseHeight, houseBottom,
+        roofDepth, facadeTop, facadeHeight, frontDepth,
+        walkway: { x: walkwayX, y: walkwayY, width: walkwayWidth, height: walkwayHeight },
+        door: {
+            x: doorX, y: doorY, width: doorWidth, height: doorHeight,
+            world: {
+                x: doorWorldX, y: doorWorldCenterY,
+                bottom: doorWorldBottom, insideY: doorWorldInsideY,
+            },
+        },
+        entrance: { x: doorWorldX, y: entranceY },
+        approach: { x: doorWorldX, y: approachY },
+        interior: { x: interiorX, y: interiorY },
+        bounds: { left: boundsLeft, right: boundsRight, top: boundsTop, bottom: boundsBottom },
+        palette,
+    };
 }
 
-Player;
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/entities/NPC.js
-// ═══════════════════════════════════════════════════════
 /**
- * NPC - Nicht-Spieler-Charakter-Entity.
+ * Berechnet die Casino-Podium-Geometrie.
+ * SSOT: Einzige Quelle fuer Casino-Podium-Abmessungen.
  *
- * WICHTIG: Setzt NIEMALS this.x/this.y direkt (ausser Initialisierung im Constructor).
- * Alle Positionsaenderungen gehen durch EntityMover.move().
- *
- * Diese Klasse definiert nur Zustand und Logik-Daten.
- * Bewegung wird von MovementSystem / EntityMover gesteuert.
+ * @param {object} casinoTower - Casino-Gebaeude mit x, y, width, height
+ * @returns {{ apron: number, podiumWidth: number, podiumHeight: number, plinthHeight: number, podiumX: number, podiumY: number }}
  */
+function computeCasinoPodiumGeometry(casinoTower) {
+    const apron = Math.max(60, Math.round(casinoTower.width * 0.3));
+    const podiumHeight = Math.max(72, Math.min(120, Math.round(casinoTower.height * 0.22)));
+    const plinthHeight = 40;
+    const podiumWidth = casinoTower.width + apron * 2;
+    const podiumX = casinoTower.x - apron;
+    const podiumY = casinoTower.y + casinoTower.height - 16;
 
+    return { apron, podiumWidth, podiumHeight, plinthHeight, podiumX, podiumY };
+}
 
+/**
+ * Erstellt Collider-Objekte aus einer Liste von Gebaeuden.
+ * Jedes Gebaeude kann eigene collisionRects haben, andernfalls
+ * wird die Basisgeometrie als Collider verwendet.
+ *
+ * Portiert aus createBuildingColliders() Zeilen 12025-12142.
+ *
+ * @param {Array} buildings
+ * @returns {Array<{type: string, id: string|null, left: number, right: number, top: number, bottom: number}>}
+ */
+function createBuildingColliders(buildings) {
+    if (!Array.isArray(buildings)) {
+        return [];
+    }
 
-/** Standard-Werte fuer den Movement-Tracker */
-const TRACKER_DEFAULTS = {
-    motionThreshold: 0.45,
-    idleThreshold: 3500,
-    sampleWindow: 4000,
-    minDisplacement: 12,
-    maxStuckSamples: 2,
-    teleportCooldown: 4000,
-};
+    const colliders = [];
 
-class NPC extends Entity {
-    /**
-     * @param {object} config - Konfiguration aus buildNPC-Daten
-     * @param {Array<object>} config.waypoints - Pfad-Wegpunkte (mind. 2)
-     * @param {object} [config.spawnPoint] - Optionaler fester Spawnpunkt
-     * @param {boolean} [config.useBoundsSpawn=false] - Spawn in Bounds-Mitte
-     * @param {object} [config.bounds] - Entity-spezifische Bewegungsgrenzen
-     * @param {number} [config.speed=1.2]
-     * @param {boolean} [config.stayOnSidewalks=true]
-     * @param {boolean} [config.ignoreSidewalkObstacles=true]
-     * @param {boolean} [config.hitboxDisabled=true]
-     * @param {boolean} [config.fixedSpawn]
-     * @param {object} [config.palette] - Farbpalette fuer NPC-Teile
-     * @param {number} [config.maxHealth=100]
-     * @param {number} [config.hitRadius=14]
-     */
-    constructor(config = {}) {
-        const path = NPC._buildPath(config);
-
-        if (path.length < 2) {
-            throw new Error('NPC needs at least two waypoints to move.');
+    for (const building of buildings) {
+        if (!building) {
+            continue;
         }
 
-        const spawnPoint = NPC._resolveSpawnPoint(config, path);
-        const start = path[0];
-        const initialX = spawnPoint ? spawnPoint.x : start.x;
-        const initialY = spawnPoint ? spawnPoint.y : start.y;
+        const rects = [];
 
-        super({
-            x: initialX,
-            y: initialY,
-            speed: config.speed ?? 1.2,
-            health: config.maxHealth ?? 100,
-        });
-
-        // Pfad und Navigation
-        this.path = path;
-        this.waypointIndex = path.length > 1 ? 1 : 0;
-        this.waitTimer = start.wait ?? 0;
-
-        // Buergersteig-Verhalten
-        this.stayOnSidewalks = config.stayOnSidewalks !== false;
-        this.ignoreSidewalkObstacles = config.ignoreSidewalkObstacles !== false;
-        this.hitboxDisabled = config.hitboxDisabled !== false;
-        this.currentSidewalkSegment = null;
-
-        // Dynamische Navigation (statt fester Wegpunkt-Schleife)
-        this.dynamicNavigation = config.dynamicNavigation ?? false;
-        this._lastNavDir = null;
-
-        // Crosswalk-Zustand
-        this.waitingForCrosswalk = start.crosswalkIndex ?? null;
-        this.isCrossing = false;
-
-        // Spawn
-        this.fixedSpawn = (config.fixedSpawn != null)
-            ? Boolean(config.fixedSpawn)
-            : Boolean(spawnPoint);
-        this.spawnPoint = spawnPoint
-            ? { x: spawnPoint.x, y: spawnPoint.y }
-            : null;
-
-        // Gebaeude-Zustand
-        const startBuildingId = start?.buildingId ?? null;
-        const startInside = Boolean(start?.interior === true || start?.action === 'enter');
-        const startHidden = startInside || Boolean(start?.hidden);
-        this.insideBuilding = startInside ? (startBuildingId ?? true) : null;
-        this.hidden = startHidden;
-        this.lastBuildingId = startBuildingId;
-
-        // Taschenlampe (zufaellig ~40% der NPCs)
-        this.hasFlashlight = Math.random() < 0.4;
-
-        // Zustand
-        this.animationPhase = 0;
-        this.panicTimer = 0;
-        this.deathRotation = 0;
-        this.hitRadius = config.hitRadius ?? 14;
-
-        // Bounds
-        this.bounds = config.bounds ?? null;
-
-        // Visuelle Teile
-        this.palette = config.palette ?? null;
-        this.parts = buildHumanoidParts(config.palette ?? {});
-
-        // Movement-Tracker (lazy-init via ensureMovementTracker)
-        this.movementTracker = null;
-    }
-
-    // ---- Waypoint-Methoden ----
-
-    /**
-     * Gibt den aktuellen Ziel-Wegpunkt zurueck.
-     * @returns {object|null}
-     */
-    getCurrentWaypoint() {
-        return this.path[this.waypointIndex] ?? null;
-    }
-
-    /**
-     * Setzt den Wegpunkt-Index auf den naechsten Punkt (zyklisch).
-     */
-    advanceWaypoint() {
-        this.waypointIndex = (this.waypointIndex + 1) % this.path.length;
-    }
-
-    /**
-     * Prueft ob der NPC nah genug am aktuellen Wegpunkt ist.
-     * @param {number} [threshold=2] - Entfernung in Pixeln
-     * @returns {boolean}
-     */
-    isAtWaypoint(threshold = 2) {
-        const wp = this.getCurrentWaypoint();
-        if (!wp) return false;
-        const dx = this.x - wp.x;
-        const dy = this.y - wp.y;
-        return (dx * dx + dy * dy) <= threshold * threshold;
-    }
-
-    // ---- Zustandsabfragen ----
-
-    /**
-     * Gibt true zurueck wenn der NPC in Panik ist.
-     * @returns {boolean}
-     */
-    isPanicking() {
-        return this.panicTimer > 0;
-    }
-
-    /**
-     * Gibt true zurueck wenn der NPC wartet (idle).
-     * @returns {boolean}
-     */
-    isIdle() {
-        return this.waitTimer > 0 && !this.moving;
-    }
-
-    // ---- Movement-Tracker ----
-
-    /**
-     * Stellt sicher, dass der movementTracker initialisiert ist.
-     * Portiert von ensureNpcMovementTracker() aus dem alten Code.
-     *
-     * @param {number} [timestamp] - Aktueller Zeitstempel
-     * @returns {object} Der movementTracker
-     */
-    ensureMovementTracker(timestamp) {
-        const time = Number.isFinite(timestamp)
-            ? timestamp
-            : (typeof performance !== 'undefined' && performance.now
-                ? performance.now()
-                : Date.now());
-
-        if (!this.movementTracker) {
-            this.movementTracker = {
-                samplePosition: { x: this.x, y: this.y },
-                sampleTime: time,
-                lastUpdateTime: time,
-                idleTime: 0,
-                stuckSamples: 0,
-                lastTeleportAt: -Infinity,
-                ...TRACKER_DEFAULTS,
-            };
-        } else {
-            // Sicherstellen dass alle Felder vorhanden sind (Migrationssicherheit)
-            const t = this.movementTracker;
-            for (const [key, val] of Object.entries(TRACKER_DEFAULTS)) {
-                if (typeof t[key] !== 'number') {
-                    t[key] = val;
+        if (Array.isArray(building.collisionRects) && building.collisionRects.length > 0) {
+            for (const rect of building.collisionRects) {
+                if (!rect) {
+                    continue;
                 }
-            }
-            if (typeof t.stuckSamples !== 'number') t.stuckSamples = 0;
-            if (typeof t.lastTeleportAt !== 'number') t.lastTeleportAt = -Infinity;
-        }
 
-        return this.movementTracker;
-    }
+                const width = Number(rect.width ?? 0);
+                const height = Number(rect.height ?? 0);
 
-    // ---- Statische Hilfsmethoden ----
+                if (!(width > 0 && height > 0)) {
+                    continue;
+                }
 
-    /**
-     * Baut den Pfad aus der Konfiguration.
-     * @param {object} config
-     * @returns {Array<object>}
-     * @private
-     */
-    static _buildPath(config) {
-        return (config.waypoints ?? []).map((wp) => ({ ...wp }));
-    }
+                const left = Number(rect.x ?? building.x ?? 0);
+                const top = Number(rect.y ?? building.y ?? 0);
 
-    /**
-     * Ermittelt den Spawnpunkt aus der Konfiguration.
-     * @param {object} config
-     * @param {Array<object>} path - bereits aufgebauter Pfad
-     * @returns {object|null}
-     * @private
-     */
-    static _resolveSpawnPoint(config, path) {
-        const hasFiniteNumber = (value) =>
-            value !== null && value !== undefined && Number.isFinite(Number(value));
+                if (!Number.isFinite(left) || !Number.isFinite(top)) {
+                    continue;
+                }
 
-        let spawnPoint = null;
-
-        if (config.spawnPoint
-            && hasFiniteNumber(config.spawnPoint.x)
-            && hasFiniteNumber(config.spawnPoint.y)) {
-            const spawnX = Number(config.spawnPoint.x);
-            const spawnY = Number(config.spawnPoint.y);
-            spawnPoint = {
-                x: spawnX,
-                y: spawnY,
-                wait: hasFiniteNumber(config.spawnPoint.wait)
-                    ? Number(config.spawnPoint.wait) : null,
-                allowOffSidewalk: config.spawnPoint.allowOffSidewalk !== false,
-            };
-        } else if (config.useBoundsSpawn === true && config.bounds) {
-            const left = Number(config.bounds.left);
-            const right = Number(config.bounds.right);
-            const top = Number(config.bounds.top);
-            const bottom = Number(config.bounds.bottom);
-            if (hasFiniteNumber(left) && hasFiniteNumber(right)
-                && hasFiniteNumber(top) && hasFiniteNumber(bottom)) {
-                spawnPoint = {
-                    x: (left + right) / 2,
-                    y: (top + bottom) / 2,
-                    wait: null,
-                    allowOffSidewalk: true,
-                };
-            }
-        }
-
-        // Spawnpunkt in Pfad einarbeiten
-        if (spawnPoint) {
-            if (path.length === 0) {
-                path.push({
-                    x: spawnPoint.x,
-                    y: spawnPoint.y,
-                    wait: spawnPoint.wait ?? 0,
-                    allowOffSidewalk: spawnPoint.allowOffSidewalk,
+                rects.push({
+                    left,
+                    right: left + width,
+                    top,
+                    bottom: top + height,
                 });
-            } else {
-                path[0].x = spawnPoint.x;
-                path[0].y = spawnPoint.y;
-                if (spawnPoint.wait != null) {
-                    path[0].wait = spawnPoint.wait;
-                }
-                if (spawnPoint.allowOffSidewalk) {
-                    path[0].allowOffSidewalk = true;
-                }
             }
         }
 
-        return spawnPoint;
-    }
+        if (rects.length === 0) {
+            const width = Number(building.width ?? 0);
+            const height = Number(building.height ?? 0);
+            const left = Number(building.x ?? 0);
+            const top = Number(building.y ?? 0);
 
-    /**
-     * Delegiert an die gemeinsame buildHumanoidParts-Funktion (SSOT).
-     * @param {object} palette
-     * @returns {Array<object>}
-     */
-    static buildParts(palette) {
-        return buildHumanoidParts(palette);
-    }
-}
-
-NPC;
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/entities/Vehicle.js
-// ═══════════════════════════════════════════════════════
-/**
- * Vehicle - Fahrzeug-Entity.
- *
- * WICHTIG: Setzt NIEMALS this.x/this.y direkt (ausser Initialisierung im Constructor).
- * Alle Positionsaenderungen gehen durch EntityMover.move().
- */
-
-
-class Vehicle extends Entity {
-    /**
-     * @param {object} config
-     * @param {Array<object>} config.path - Pfad-Wegpunkte (mind. 2)
-     * @param {number} [config.width=96]
-     * @param {number} [config.height=44]
-     * @param {number} [config.speed=2.2]
-     * @param {string} [config.baseColor='#555555']
-     * @param {string} [config.accentColor='#888888']
-     */
-    constructor(config = {}) {
-        const path = (config.path ?? []).map((wp) => ({ ...wp }));
-
-        if (path.length < 2) {
-            throw new Error('Vehicle needs at least two waypoints to move.');
+            if (width > 0 && height > 0 && Number.isFinite(left) && Number.isFinite(top)) {
+                rects.push({
+                    left,
+                    right: left + width,
+                    top,
+                    bottom: top + height,
+                });
+            }
         }
 
-        const start = path[0];
-        const width = config.width ?? 96;
-        const height = config.height ?? 44;
-
-        super({
-            x: start.x,
-            y: start.y,
-            width,
-            height,
-            speed: config.speed ?? 2.2,
-        });
-
-        // Pfad und Navigation
-        this.path = path;
-        this.waypointIndex = path.length > 1 ? 1 : 0;
-        this.waitTimer = start.wait ?? 0;
-        this.stopTimer = 0;
-        this.rotation = 0;
-
-        // Farben
-        this.baseColor = config.baseColor ?? '#555555';
-        this.accentColor = config.accentColor ?? '#888888';
-
-        // Yield-Verhalten (Vorfahrt gewaehren)
-        this.yielding = false;
-        this.yieldTimer = 0;
-
-        // Visuelle Teile
-        this.parts = Vehicle.buildParts({
-            baseColor: this.baseColor,
-            accentColor: this.accentColor,
-            width: this.width,
-            height: this.height,
-        });
-    }
-
-    // ---- Waypoint-Methoden ----
-
-    /**
-     * Gibt den aktuellen Ziel-Wegpunkt zurueck.
-     * @returns {object|null}
-     */
-    getCurrentWaypoint() {
-        return this.path[this.waypointIndex] ?? null;
-    }
-
-    /**
-     * Setzt den Wegpunkt-Index auf den naechsten Punkt (zyklisch).
-     */
-    advanceWaypoint() {
-        this.waypointIndex = (this.waypointIndex + 1) % this.path.length;
-    }
-
-    /**
-     * Prueft ob das Fahrzeug nah genug am aktuellen Wegpunkt ist.
-     * @param {number} [threshold=2] - Entfernung in Pixeln
-     * @returns {boolean}
-     */
-    isAtWaypoint(threshold = 2) {
-        const wp = this.getCurrentWaypoint();
-        if (!wp) return false;
-        const dx = this.x - wp.x;
-        const dy = this.y - wp.y;
-        return (dx * dx + dy * dy) <= threshold * threshold;
-    }
-
-    // ---- Statische Factory-Methoden ----
-
-    /**
-     * Baut die visuellen Fahrzeug-Teile.
-     * Portiert von buildVehicleParts() aus dem alten Code.
-     *
-     * @param {object} config
-     * @param {string} config.baseColor
-     * @param {string} config.accentColor
-     * @param {number} config.width
-     * @param {number} config.height
-     * @returns {Array<object>}
-     */
-    static buildParts(config) {
-        const width = config.width;
-        const height = config.height;
-        const halfWidth = width / 2;
-        const halfHeight = height / 2;
-        const wheelRadius = Math.max(5, Math.floor(height * 0.24));
-
-        const windowColor = 'rgba(132, 188, 226, 0.9)';
-        const rearWindowColor = 'rgba(96, 140, 180, 0.85)';
-        const trimColor = '#1f2a36';
-        const lightFront = '#ffe8a3';
-        const lightRear = '#ff6464';
-
-        const parts = [];
-
-        const addRect = (id, centerX, centerY, rectWidth, rectHeight, color, extra = {}) => {
-            parts.push({
-                id,
-                type: 'rect',
-                width: rectWidth,
-                height: rectHeight,
-                offsetX: centerX - rectWidth / 2,
-                offsetY: centerY - rectHeight / 2,
-                color,
-                damaged: false,
-                ...extra,
+        for (const rect of rects) {
+            colliders.push({
+                type: 'building',
+                id: building.id ?? building.name ?? null,
+                left: rect.left,
+                right: rect.right,
+                top: rect.top,
+                bottom: rect.bottom,
             });
-        };
-
-        const addCircle = (id, centerX, centerY, radius, color, extra = {}) => {
-            parts.push({
-                id,
-                type: 'circle',
-                radius,
-                offsetX: centerX,
-                offsetY: centerY,
-                color,
-                damaged: false,
-                ...extra,
-            });
-        };
-
-        // Chassis
-        addRect('chassis', 0, 0, width, height, config.baseColor);
-
-        // Streifen
-        const stripeHeight = height * 0.22;
-        addRect('stripe', 0, 0, width * 0.86, stripeHeight, config.accentColor);
-
-        // Dach
-        const roofWidth = width * 0.58;
-        const roofHeight = height * 0.5;
-        addRect('roof', 0, 0, roofWidth, roofHeight, config.accentColor);
-
-        // Windschutzscheibe
-        const windshieldWidth = width * 0.32;
-        const windshieldHeight = height * 0.46;
-        const windshieldCenterX = halfWidth - windshieldWidth * 0.6;
-        addRect('windshield', windshieldCenterX, 0, windshieldWidth, windshieldHeight, windowColor);
-
-        // Heckscheibe
-        const rearGlassWidth = width * 0.3;
-        const rearGlassHeight = height * 0.42;
-        const rearGlassCenterX = -halfWidth + rearGlassWidth * 0.6;
-        addRect('rearGlass', rearGlassCenterX, 0, rearGlassWidth, rearGlassHeight, rearWindowColor);
-
-        // Stossstangen
-        const bumperWidth = width * 0.08;
-        const bumperHeight = height * 0.74;
-        addRect('trimFront', halfWidth - bumperWidth / 2, 0, bumperWidth, bumperHeight, trimColor);
-        addRect('trimRear', -halfWidth + bumperWidth / 2, 0, bumperWidth, bumperHeight, trimColor);
-
-        // Lichter
-        const lightWidth = width * 0.06;
-        const lightHeight = height * 0.22;
-        const lateralOffset = halfHeight - lightHeight * 0.6;
-        const lightInset = width * 0.04 + bumperWidth;
-        const frontLightCenterX = halfWidth - lightInset - lightWidth / 2;
-        const rearLightCenterX = -frontLightCenterX;
-
-        addRect('frontLightLeft', frontLightCenterX, -lateralOffset, lightWidth, lightHeight, lightFront);
-        addRect('frontLightRight', frontLightCenterX, lateralOffset, lightWidth, lightHeight, lightFront);
-        addRect('rearLightLeft', rearLightCenterX, -lateralOffset, lightWidth, lightHeight, lightRear);
-        addRect('rearLightRight', rearLightCenterX, lateralOffset, lightWidth, lightHeight, lightRear);
-
-        // Seitenpanele
-        const sidePanelHeight = height * 0.12;
-        const sidePanelOffsetY = halfHeight - sidePanelHeight / 2;
-        addRect('sidePanelTop', 0, -sidePanelOffsetY, width * 0.78, sidePanelHeight, config.accentColor);
-        addRect('sidePanelBottom', 0, sidePanelOffsetY, width * 0.78, sidePanelHeight, config.accentColor);
-
-        // Raeder
-        addCircle('wheelFrontLeft', halfWidth * 0.45, halfHeight - wheelRadius, wheelRadius, trimColor, { visible: false });
-        addCircle('wheelFrontRight', halfWidth * 0.45, -halfHeight + wheelRadius, wheelRadius, trimColor, { visible: false });
-        addCircle('wheelRearLeft', -halfWidth * 0.45, halfHeight - wheelRadius, wheelRadius, trimColor, { visible: false });
-        addCircle('wheelRearRight', -halfWidth * 0.45, -halfHeight + wheelRadius, wheelRadius, trimColor, { visible: false });
-
-        return parts;
+        }
     }
+
+    return colliders;
 }
-
-Vehicle;
 
 
 
@@ -1899,15 +2674,15 @@ class RoadNetwork {
      */
     static createCrosswalks() {
         return [
-            { orientation: "horizontal", x: 1100, y: 1700, span: 260 },
-            { orientation: "horizontal", x: 2050, y: 1700, span: 260 },
-            { orientation: "horizontal", x: 1040, y: 1680, span: 180 },
-            { orientation: "horizontal", x: 1860, y: 1680, span: 180 },
-            { orientation: "vertical", x: 950, y: 900, span: 300 },
-            { orientation: "vertical", x: 1700, y: 900, span: 300 },
-            { orientation: "vertical", x: 2050, y: 1700, span: 300 },
-            { orientation: "horizontal", x: 2950, y: 1100, span: 260 },
-            { orientation: "horizontal", x: 3040, y: 1500, span: 280 },
+            { orientation: "horizontal", x: 1100, y: 1700, span: 80 },
+            { orientation: "horizontal", x: 2050, y: 1700, span: 80 },
+            { orientation: "horizontal", x: 1040, y: 1680, span: 80 },
+            { orientation: "horizontal", x: 1860, y: 1680, span: 80 },
+            { orientation: "vertical", x: 950, y: 900, span: 80 },
+            { orientation: "vertical", x: 1700, y: 900, span: 80 },
+            { orientation: "vertical", x: 2050, y: 1700, span: 80 },
+            { orientation: "horizontal", x: 2950, y: 1100, span: 80 },
+            { orientation: "horizontal", x: 3040, y: 1500, span: 80 },
         ];
     }
 
@@ -2616,6 +3391,1121 @@ class RoadNetwork {
 
 
 // ═══════════════════════════════════════════════════════
+// js/world/StreetDetails.js
+// ═══════════════════════════════════════════════════════
+/**
+ * StreetDetails - Erstellt Strassendetails (Baeume, Baenke, Laternen, etc.).
+ *
+ * Portiert aus gta_old/overworld/js/overworld.js:
+ *   createStreetDetails() Zeilen 3596-3777
+ *
+ * SSOT: Alle Strassendetail-Positionen hier zentralisiert.
+ */
+
+/** Standard-Strassenkonfiguration */
+const DEFAULT_ROAD_HALF_WIDTH = 35;
+const DEFAULT_SIDEWALK_WIDTH = 36;
+
+/**
+ * Erstellt alle Strassendetails (Baeume, Baenke, Laternen, Muelltonnen, etc.).
+ *
+ * @param {object} [config={}]
+ * @param {number} [config.roadHalfWidth=35] - Halbe Strassenbreite
+ * @param {number} [config.sidewalkWidth=36] - Buergersteigbreite
+ * @returns {object} Detail-Objekt mit parkingLots, parkingBays, trees, benches, etc.
+ */
+function createStreetDetails(config = {}) {
+    const roadHalfWidth = config.roadHalfWidth ?? DEFAULT_ROAD_HALF_WIDTH;
+    const sidewalkWidth = config.sidewalkWidth ?? DEFAULT_SIDEWALK_WIDTH;
+
+    const details = {
+        parkingLots: [],
+        parkingBays: [],
+        trees: [],
+        benches: [],
+        bikeRacks: [],
+        lamps: [],
+        bins: [],
+        busStops: [],
+        puddles: [],
+        planters: [],
+    };
+
+    // Deduplizierung fuer Baeume
+    const treePositions = new Set();
+
+    const addTree = (x, y, size = 30, variant = 0) => {
+        const key = `${Math.round(x)}_${Math.round(y)}`;
+        if (treePositions.has(key)) {
+            return;
+        }
+        treePositions.add(key);
+        details.trees.push({ x, y, size, variant });
+    };
+
+    // Baeume entlang horizontaler Strassen
+    const horizontalRows = [900, 1700];
+    for (const y of horizontalRows) {
+        const upper = y - roadHalfWidth - sidewalkWidth / 2;
+        const lower = y + roadHalfWidth + sidewalkWidth / 2;
+        for (let x = 260; x <= 3240; x += 220) {
+            addTree(x, upper, 30, (x / 220) % 3);
+            addTree(x, lower, 32, ((x + 110) / 180) % 3);
+        }
+    }
+
+    // Parkplatz
+    details.parkingLots.push({
+        x: 2490,
+        y: 1500,
+        width: 420,
+        height: 140,
+        rows: 2,
+        slots: 6,
+        aisle: 26,
+        padding: 14,
+        surfaceColor: '#2d2f34',
+    });
+
+    // Baeume entlang vertikaler Strassen
+    const verticalColumns = [950, 1700, 2950, 3350];
+    for (const x of verticalColumns) {
+        const left = x - roadHalfWidth - sidewalkWidth / 2;
+        const right = x + roadHalfWidth + sidewalkWidth / 2;
+        for (let y = 260; y <= 2360; y += 220) {
+            addTree(left, y, 28, (y / 210) % 3);
+            addTree(right, y, 28, ((y + 90) / 190) % 3);
+        }
+    }
+
+    // Baenke
+    details.benches.push({ x: 1130, y: 1780, orientation: "horizontal" });
+    details.benches.push({ x: 1280, y: 1780, orientation: "horizontal" });
+    details.benches.push({ x: 1430, y: 1780, orientation: "horizontal" });
+    details.benches.push({ x: 1560, y: 980, orientation: "vertical" });
+    details.benches.push({ x: 560, y: 1720, orientation: "horizontal" });
+
+    // Fahrradstaender
+    details.bikeRacks.push({ x: 1220, y: 1885, orientation: "horizontal" });
+    details.bikeRacks.push({ x: 1380, y: 1885, orientation: "horizontal" });
+    details.bikeRacks.push({ x: 1520, y: 840, orientation: "vertical" });
+
+    // Bushaltestellen
+    details.busStops.push({ x: 1040, y: 1680, orientation: "horizontal", length: 140 });
+    details.busStops.push({ x: 1860, y: 1680, orientation: "horizontal", length: 140 });
+
+    // Strassenlampen
+    const lampRows = [
+        { y: 1860, start: 1100, end: 1620, step: 120 },
+        { y: 820, start: 1180, end: 1540, step: 120 },
+        { y: 2120, start: 1780, end: 2320, step: 140 },
+        { y: 1180, start: 2760, end: 3260, step: 120 },
+    ];
+    for (const row of lampRows) {
+        for (let x = row.start; x <= row.end; x += row.step) {
+            details.lamps.push({ x, y: row.y });
+        }
+    }
+    details.lamps.push({ x: 360, y: 860 });
+    details.lamps.push({ x: 360, y: 1740 });
+
+    // Muelltonnen
+    details.bins.push({ x: 1180, y: 1760 });
+    details.bins.push({ x: 1340, y: 1760 });
+    details.bins.push({ x: 1500, y: 1760 });
+    details.bins.push({ x: 560, y: 1700 });
+
+    // Parkbuchten
+    details.parkingBays.push({ x: 240, y: 870, width: 110, height: 42, orientation: "horizontal" });
+    details.parkingBays.push({ x: 360, y: 870, width: 110, height: 42, orientation: "horizontal" });
+    details.parkingBays.push({ x: 480, y: 870, width: 110, height: 42, orientation: "horizontal" });
+    details.parkingBays.push({ x: 1880, y: 880, width: 120, height: 46, orientation: "horizontal" });
+    details.parkingBays.push({ x: 2980, y: 1140, width: 140, height: 46, orientation: "horizontal" });
+
+    // Pflanzkaesten
+    details.planters.push({ x: 1160, y: 1840, width: 80, height: 32 });
+    details.planters.push({ x: 1320, y: 1840, width: 80, height: 32 });
+    details.planters.push({ x: 1480, y: 1840, width: 80, height: 32 });
+
+    // Pfuetzen
+    details.puddles.push({ x: 960, y: 880, radius: 26 });
+    details.puddles.push({ x: 1620, y: 1680, radius: 32 });
+    details.puddles.push({ x: 420, y: 1680, radius: 22 });
+
+    return details;
+}
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/world/WorldGenerator.js
+// ═══════════════════════════════════════════════════════
+/**
+ * WorldGenerator - Erstellt die gesamte Spielwelt (Gebaeude, NPCs, Fahrzeuge).
+ *
+ * Portiert aus gta_old/overworld/js/overworld.js:
+ *   createCityBuildings()      Zeilen 3247-3595
+ *   createDynamicAgents()      Zeilen 4550-4999
+ *   createHouseVisitorNPCs()   Zeilen 3784-4169
+ *
+ * SSOT: Alle Welterzeugungs-Daten hier zentralisiert.
+ * Gebaeude-Objekte werden ueber BuildingFactory erstellt,
+ * NPC/Vehicle-Instanzen ueber NPC.js/Vehicle.js.
+ */
+
+// ---------------------------------------------------------------------------
+// Residential-Blueprints (SSOT fuer alle Wohnhaus-Positionen)
+// ---------------------------------------------------------------------------
+const RESIDENTIAL_BLUEPRINTS = [
+    { x: 280, y: 980, width: 250, height: 300, styleIndex: 0, floors: 6, roofGarden: true, balconyRhythm: 2, erker: true, walkwayExtension: 48, walkwaySpurLength: 220, walkwaySpurWidth: 22 },
+    { x: 560, y: 960, width: 300, height: 280, styleIndex: 1, floors: 5, roofGarden: false, balconyRhythm: 3, walkwayExtension: 48, walkwaySpurLength: 220, walkwaySpurWidth: 22 },
+    { x: 280, y: 1300, width: 240, height: 320, styleIndex: 3, floors: 4, roofGarden: true, balconyRhythm: 2 },
+    { x: 560, y: 1310, width: 300, height: 300, styleIndex: 4, floors: 7, roofGarden: false, balconyRhythm: 4 },
+    { x: 980, y: 960, width: 260, height: 260, styleIndex: 2, floors: 7, roofGarden: true, balconyRhythm: 3 },
+    { x: 1260, y: 960, width: 280, height: 240, styleIndex: 5, floors: 5, roofGarden: false, balconyRhythm: 2, stepped: true },
+    { x: 980, y: 1300, width: 260, height: 260, styleIndex: 0, floors: 5, roofGarden: true, balconyRhythm: 3 },
+    { x: 1270, y: 1280, width: 340, height: 280, styleIndex: 1, floors: 6, roofGarden: true, balconyRhythm: 3, erker: true },
+    { x: 1760, y: 320, width: 300, height: 320, styleIndex: 2, floors: 6, roofGarden: true, balconyRhythm: 2 },
+    { x: 2080, y: 320, width: 300, height: 280, styleIndex: 4, floors: 5, roofGarden: false, balconyRhythm: 3 },
+    { x: 1760, y: 660, width: 520, height: 180, styleIndex: 5, floors: 4, roofGarden: true, balconyRhythm: 2 },
+    { x: 1760, y: 980, width: 300, height: 260, styleIndex: 1, floors: 6, roofGarden: true, balconyRhythm: 3 },
+    { x: 2080, y: 980, width: 300, height: 260, styleIndex: 3, floors: 5, roofGarden: false, balconyRhythm: 2 },
+    { x: 1760, y: 1320, width: 300, height: 300, styleIndex: 2, floors: 7, roofGarden: true, balconyRhythm: 3, erker: true },
+    { x: 2080, y: 1320, width: 300, height: 300, styleIndex: 0, floors: 5, roofGarden: true, balconyRhythm: 2 },
+    { x: 1760, y: 1790, width: 300, height: 320, styleIndex: 4, floors: 5, roofGarden: true, balconyRhythm: 2 },
+    { x: 2080, y: 1790, width: 300, height: 320, styleIndex: 5, floors: 4, roofGarden: true, balconyRhythm: 3 },
+    { x: 1760, y: 2120, width: 300, height: 200, styleIndex: 3, floors: 5, roofGarden: true, balconyRhythm: 2 },
+    { x: 2080, y: 2120, width: 300, height: 200, styleIndex: 1, floors: 6, roofGarden: false, balconyRhythm: 3 },
+    { x: 280, y: 1790, width: 260, height: 320, styleIndex: 2, floors: 5, roofGarden: true, balconyRhythm: 2 },
+    { x: 580, y: 1790, width: 260, height: 320, styleIndex: 5, floors: 4, roofGarden: true, balconyRhythm: 3 },
+    { x: 280, y: 2120, width: 260, height: 200, styleIndex: 0, floors: 5, roofGarden: true, balconyRhythm: 3 },
+    { x: 580, y: 2120, width: 260, height: 200, styleIndex: 4, floors: 6, roofGarden: false, balconyRhythm: 2, weaponShop: true },
+];
+
+// ---------------------------------------------------------------------------
+// NPC-Paletten fuer Haus-Besucher (SSOT)
+// ---------------------------------------------------------------------------
+const VISITOR_PALETTES = [
+    { head: "#f2d1b3", torso: "#355070", limbs: "#2a3d66", accent: "#b1e5f2", hair: "#2f1b25" },
+    { head: "#f8cbbb", torso: "#6d597a", limbs: "#463764", accent: "#ffb4a2", hair: "#2d142c" },
+    { head: "#f6d5a5", torso: "#588157", limbs: "#3a5a40", accent: "#a3b18a", hair: "#5b3711" },
+    { head: "#f1d3ce", torso: "#0081a7", limbs: "#005f73", accent: "#83c5be", hair: "#0d1b2a" },
+    { head: "#f7d6bf", torso: "#bc4749", limbs: "#6a040f", accent: "#fcbf49", hair: "#432818" },
+    { head: "#efd3b4", torso: "#2a9d8f", limbs: "#1d6f6a", accent: "#e9c46a", hair: "#264653" },
+    { head: "#f2ceb9", torso: "#4361ee", limbs: "#3a0ca3", accent: "#4cc9f0", hair: "#1a1b41" },
+    { head: "#f9d5c4", torso: "#f3722c", limbs: "#d8572a", accent: "#f8961e", hair: "#7f5539" },
+    { head: "#f5d2bc", torso: "#2b9348", limbs: "#007f5f", accent: "#80ed99", hair: "#2f2f2f" },
+    { head: "#f0cfd0", torso: "#9d4edd", limbs: "#7b2cbf", accent: "#c77dff", hair: "#3c096c" },
+];
+
+// ---------------------------------------------------------------------------
+// Standard Tag/Nacht Phasen-Dauern
+// ---------------------------------------------------------------------------
+const DEFAULT_PHASE_DURATIONS = [
+    { id: "day", duration: 300000 },
+    { id: "dusk", duration: 120000 },
+    { id: "night", duration: 300000 },
+    { id: "dawn", duration: 120000 },
+];
+
+// ---------------------------------------------------------------------------
+// WorldGenerator
+// ---------------------------------------------------------------------------
+class WorldGenerator {
+
+    /**
+     * @param {object} [config={}]
+     * @param {Array}  [config.houseStyles] - Hausstile (aus HouseStyles.js)
+     * @param {boolean} [config.enableHouseResidents=true]
+     * @param {object} [config.dayNightCycle] - Tag/Nacht-Zyklus-Konfiguration
+     * @param {object} [config.roadNetwork] - RoadNetwork-Instanz (fuer Sidewalk-Projektion)
+     * @param {number} [config.sidewalkWidth=36]
+     */
+    constructor(config = {}) {
+        this.houseStyles = config.houseStyles ?? createHouseStyles();
+        this.enableHouseResidents = config.enableHouseResidents !== false;
+        this.dayNightCycle = config.dayNightCycle ?? null;
+        this.roadNetwork = config.roadNetwork ?? null;
+        this.sidewalkWidth = config.sidewalkWidth ?? 36;
+    }
+
+    // -----------------------------------------------------------------------
+    // Public API
+    // -----------------------------------------------------------------------
+
+    /**
+     * Generiert die komplette Spielwelt.
+     *
+     * @returns {{ buildings: Array, streetDetails: object, dynamicAgents: { npcs: Array<NPC>, vehicles: Array<Vehicle> } }}
+     */
+    generateWorld() {
+        const buildings = this._createCityBuildings();
+        const streetDetails = createStreetDetails({
+            roadHalfWidth: 35,
+            sidewalkWidth: this.sidewalkWidth,
+        });
+        const dynamicAgents = this._createDynamicAgents(buildings);
+
+        return { buildings, streetDetails, dynamicAgents };
+    }
+
+    // -----------------------------------------------------------------------
+    // createCityBuildings - Portiert aus Zeilen 3247-3595
+    // -----------------------------------------------------------------------
+
+    _createCityBuildings() {
+        const buildings = [];
+
+        // Polizeihauptquartier
+        buildings.push({
+            x: 320, y: 340, width: 520, height: 420,
+            name: "Polizeihauptquartier", type: "police", interactive: true,
+        });
+
+        // Casino Tower mit Podium-Collision
+        const casinoTower = {
+            x: 3040, y: 860, width: 238, height: 560,
+            name: "Starlight Casino Tower", type: "casino", interactive: true,
+        };
+        const casinoPodium = computeCasinoPodiumGeometry(casinoTower);
+        casinoTower.collisionRects = [
+            { x: casinoPodium.podiumX, y: casinoPodium.podiumY, width: casinoPodium.podiumWidth, height: casinoPodium.podiumHeight + casinoPodium.plinthHeight },
+        ];
+        buildings.push(casinoTower);
+
+        // Motel
+        buildings.push({
+            x: 2540, y: 320, width: 340, height: 220,
+            name: RENTAL_CATALOG.motel.name, type: "motel", interactive: true,
+        });
+
+        // Apartment-Komplex
+        buildings.push({
+            x: 1080, y: 320, width: 300, height: 400,
+            name: RENTAL_CATALOG.apartmentComplex.name, type: "apartmentComplex", interactive: true,
+        });
+
+        // Downtown Hochhaeuser
+        buildings.push({
+            x: 2540, y: 940, width: 160, height: 540,
+            name: "Aurora Financial Center", type: "officeTower", interactive: false,
+            collisionRects: [{ x: 2540, y: 1360, width: 160, height: 120 }],
+        });
+        buildings.push({
+            x: 2720, y: 980, width: 150, height: 500,
+            name: "Skyline Exchange", type: "residentialTower", interactive: false,
+            collisionRects: [{ x: 2720, y: 1360, width: 150, height: 120 }],
+        });
+
+        // Mixed-Use Block
+        buildings.push({
+            x: 1000, y: 1820, width: 600, height: 420,
+            name: "Aurora Quartier", type: "mixedUse", interactive: true,
+            subUnits: [
+                { label: "Aurora Restaurant", accent: "#f78f5c" },
+                { label: "Stadtmarkt", accent: "#7fd491" },
+                { label: "Polizeiposten", accent: "#5da1ff" },
+            ],
+        });
+
+        // Immobilienmakler
+        buildings.push({
+            x: 2920, y: 1820, width: 200, height: 160,
+            name: "Immobilienmakler Schmidt", type: "realEstateAgent", interactive: true,
+        });
+
+        // Bungalow (kaufbar ueber Makler)
+        buildings.push({
+            x: 2920, y: 2100, width: 280, height: 200,
+            name: PROPERTY_CATALOG.bungalow.name, type: "bungalow", interactive: true,
+        });
+
+        // Wohnhaeuser aus Blueprints
+        let houseCounter = 1;
+        for (const blueprint of RESIDENTIAL_BLUEPRINTS) {
+            if (blueprint.weaponShop) {
+                buildings.push({
+                    x: blueprint.x, y: blueprint.y,
+                    width: blueprint.width, height: blueprint.height,
+                    name: "Ammu-Nation", type: "weaponShop", interactive: true,
+                });
+                continue;
+            }
+
+            const styleIndex = blueprint.styleIndex % this.houseStyles.length;
+            const lotPaddingBase = Math.min(36, Math.min(blueprint.width, blueprint.height) * 0.22);
+            const maxInset = Math.max(0, Math.min(blueprint.width, blueprint.height) / 2 - 20);
+            const collisionPadding = Math.max(0, Math.min(lotPaddingBase * 0.95, maxInset));
+
+            buildings.push({
+                x: blueprint.x, y: blueprint.y,
+                width: blueprint.width, height: blueprint.height,
+                lotPadding: lotPaddingBase,
+                collisionPadding,
+                name: `Wohnhaus ${houseCounter}`,
+                type: "house",
+                interactive: true,
+                colorIndex: styleIndex,
+                variant: {
+                    styleIndex,
+                    floors: blueprint.floors,
+                    roofGarden: blueprint.roofGarden,
+                    balconyRhythm: blueprint.balconyRhythm,
+                    erker: Boolean(blueprint.erker),
+                    stepped: Boolean(blueprint.stepped),
+                    walkwayExtension: blueprint.walkwayExtension ?? 0,
+                    walkwaySpurLength: blueprint.walkwaySpurLength ?? 0,
+                    walkwaySpurWidth: blueprint.walkwaySpurWidth ?? 0,
+                },
+            });
+            houseCounter++;
+        }
+
+        // IDs und Metriken zuweisen
+        let buildingIdCounter = 1;
+        for (const building of buildings) {
+            if (!building) {
+                continue;
+            }
+
+            building.id = `building_${buildingIdCounter++}`;
+
+            if (building.type === "house") {
+                const metrics = computeHouseMetrics(building, this.houseStyles);
+                if (metrics) {
+                    building.metrics = metrics;
+                    building.entrance = metrics.entrance;
+                    building.approach = metrics.approach;
+                    building.interiorPoint = metrics.interior;
+
+                    if (!building.bounds) {
+                        building.bounds = metrics.bounds;
+                    }
+
+                    const houseBodyWidth = Math.max(0, Number(metrics.houseWidth ?? 0));
+                    const houseBodyHeight = Math.max(0, Number(metrics.houseHeight ?? 0));
+
+                    if (houseBodyWidth > 0 && houseBodyHeight > 0) {
+                        const houseBodyX = Number(building.x ?? 0) + Number(metrics.houseX ?? 0);
+                        const houseBodyY = Number(building.y ?? 0) + Number(metrics.houseY ?? 0);
+                        const variantDetails = building.variant ?? {};
+                        const walkway = metrics.walkway ?? {};
+                        const walkwayHeight = Math.max(0, Number(walkway.height ?? 0));
+                        const walkwayExtension = Math.max(0, Number(variantDetails.walkwayExtension ?? 0));
+                        const frontDepth = Math.max(0, Number(metrics.frontDepth ?? walkwayHeight));
+                        const frontBuffer = Math.max(14, Math.min(houseBodyHeight - 4, frontDepth + walkwayExtension));
+                        const clippedHeight = Math.max(0, houseBodyHeight - frontBuffer);
+
+                        if (clippedHeight > 0) {
+                            building.collisionRects = [{
+                                x: houseBodyX,
+                                y: houseBodyY,
+                                width: houseBodyWidth,
+                                height: clippedHeight,
+                            }];
+                        }
+                    }
+                }
+            }
+        }
+
+        return buildings;
+    }
+
+    // -----------------------------------------------------------------------
+    // createDynamicAgents - Portiert aus Zeilen 4550-4999
+    // -----------------------------------------------------------------------
+
+    /**
+     * @param {Array} buildings
+     * @returns {{ npcs: Array<NPC>, vehicles: Array<Vehicle> }}
+     */
+    _createDynamicAgents(buildings) {
+        // Casino-Podium Pfad berechnen
+        const casinoTower = Array.isArray(buildings) ? buildings.find((b) => b && b.type === "casino") : null;
+        let casinoPodiumPlan = null;
+
+        if (casinoTower) {
+            const { podiumWidth, podiumHeight, podiumX, podiumY } = computeCasinoPodiumGeometry(casinoTower);
+            const margin = Math.max(18, Math.min(32, this.sidewalkWidth));
+            const topY = podiumY + margin;
+            const bottomY = podiumY + podiumHeight - margin;
+            const leftX = podiumX + margin;
+            const rightX = podiumX + podiumWidth - margin;
+
+            casinoPodiumPlan = {
+                path: [
+                    { x: leftX, y: topY, wait: 6 },
+                    { x: rightX, y: topY, wait: 6 },
+                    { x: rightX, y: bottomY, wait: 6 },
+                    { x: leftX, y: bottomY, wait: 6 },
+                ],
+                bounds: {
+                    left: podiumX + margin / 1.5,
+                    right: podiumX + podiumWidth - margin / 1.5,
+                    top: podiumY + margin / 1.5,
+                    bottom: podiumY + podiumHeight - margin / 1.5,
+                },
+            };
+        }
+
+        // Statische NPCs
+        const npcConfigs = [
+            {
+                palette: { head: "#f1d2b6", torso: "#3c6e71", limbs: "#284b52", accent: "#f7ede2", hair: '#3b2c1e' },
+                spawnPoint: { x: 1140, y: 1647 },
+                waypoints: [
+                    { x: 1140, y: 1647, wait: 0 },
+                    { x: 1300, y: 1647, wait: 6 },
+                ],
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.25,
+            },
+            {
+                palette: { head: "#f8cfd2", torso: "#6a4c93", limbs: "#413c58", accent: "#ffb5a7", hair: '#2e1f36' },
+                spawnPoint: { x: 3060, y: 1647 },
+                waypoints: [
+                    { x: 3060, y: 1647, wait: 0 },
+                    { x: 3200, y: 1647, wait: 6 },
+                ],
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.05,
+            },
+            {
+                palette: { head: "#fbe2b4", torso: "#ff914d", limbs: "#583101", accent: "#ffd166", hair: '#3c2a1f' },
+                spawnPoint: { x: 660, y: 1753 },
+                waypoints: [
+                    { x: 660, y: 1753, wait: 0 },
+                    { x: 500, y: 1753, wait: 6 },
+                ],
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.35,
+            },
+            {
+                palette: { head: "#f0cfa0", torso: "#264653", limbs: "#1d3557", accent: "#f4a261", hair: '#2a1d13' },
+                spawnPoint: { x: 1335, y: 1753 },
+                waypoints: [
+                    { x: 1335, y: 1753, wait: 0 },
+                    { x: 1500, y: 1753, wait: 6 },
+                ],
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.18,
+            },
+            {
+                palette: { head: "#f3d7c6", torso: "#274060", limbs: "#1b2845", accent: "#7dbad1", hair: '#0f1c2c' },
+                spawnPoint: { x: 2920, y: 847 },
+                waypoints: [
+                    { x: 2920, y: 847, wait: 0 },
+                    { x: 2700, y: 847, wait: 6 },
+                ],
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.08,
+            },
+            {
+                palette: { head: "#f2d0b5", torso: "#7a8b99", limbs: "#45525f", accent: "#d9ed92", hair: '#2f1d18' },
+                spawnPoint: { x: 570, y: 847 },
+                waypoints: [
+                    { x: 570, y: 847, wait: 0 },
+                    { x: 400, y: 847, wait: 6 },
+                ],
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.12,
+            },
+            {
+                palette: { head: "#f9d6c1", torso: "#bc4749", limbs: "#6a040f", accent: "#ffb703", hair: '#311019' },
+                spawnPoint: { x: 1910, y: 1647 },
+                waypoints: [
+                    { x: 1910, y: 1647, wait: 0 },
+                    { x: 2100, y: 1647, wait: 6 },
+                ],
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.22,
+            },
+            {
+                palette: { head: "#f5ccb2", torso: "#457b9d", limbs: "#1d3557", accent: "#a8dadc", hair: '#16324f' },
+                spawnPoint: { x: 2410, y: 2347 },
+                waypoints: [
+                    { x: 2410, y: 2347, wait: 0 },
+                    { x: 2600, y: 2347, wait: 6 },
+                ],
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.14,
+            },
+            {
+                palette: { head: "#f4ceb8", torso: "#2a9d8f", limbs: "#1f6f78", accent: "#e9c46a", hair: '#274046' },
+                spawnPoint: { x: 510, y: 2453 },
+                waypoints: [
+                    { x: 510, y: 2453, wait: 0 },
+                    { x: 700, y: 2453, wait: 6 },
+                ],
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.02,
+            },
+            {
+                palette: { head: "#f7d6bf", torso: "#1b263b", limbs: "#0d1b2a", accent: "#415a77", hair: '#0b132b' },
+                spawnPoint: { x: 3155, y: 1753 },
+                waypoints: [
+                    { x: 3155, y: 1753, wait: 0 },
+                    { x: 3300, y: 1753, wait: 6 },
+                ],
+                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.35,
+            },
+        ];
+
+        const npcs = npcConfigs.map((cfg) => new NPC(cfg));
+
+        // Casino-Podium NPC
+        if (casinoPodiumPlan) {
+            npcs.push(new NPC({
+                palette: { head: "#f4d7c8", torso: "#1b3a4b", limbs: "#12263a", accent: "#9ad1d4", hair: '#261d1a' },
+                waypoints: casinoPodiumPlan.path,
+                bounds: casinoPodiumPlan.bounds,
+                speed: 1.08,
+                stayOnSidewalks: true,
+            }));
+        }
+
+        // Haus-Besucher NPCs
+        const houseVisitors = this._createHouseVisitorNPCs(buildings);
+        if (houseVisitors.length) {
+            npcs.push(...houseVisitors);
+        }
+
+        // Fahrzeuge
+        const vehicles = [
+            new Vehicle({
+                baseColor: "#d35400", accentColor: "#f5c16f",
+                width: 96, height: 44, speed: 2.6,
+                path: [
+                    { x: 240, y: 1700, wait: 0 },
+                    { x: 3320, y: 1700, wait: 18 },
+                ],
+            }),
+            new Vehicle({
+                baseColor: "#2980b9", accentColor: "#8fd3fe",
+                width: 110, height: 48, speed: 2.4,
+                path: [
+                    { x: 1700, y: 2600, wait: 20 },
+                    { x: 1700, y: 260, wait: 24 },
+                ],
+            }),
+            new Vehicle({
+                baseColor: "#6c5ce7", accentColor: "#fd79a8",
+                width: 102, height: 46, speed: 2.2,
+                path: [
+                    { x: 2450, y: 1700, wait: 12 },
+                    { x: 3350, y: 1700, wait: 10 },
+                    { x: 3350, y: 2400, wait: 12 },
+                    { x: 2450, y: 2400, wait: 10 },
+                ],
+            }),
+        ];
+
+        return { npcs, vehicles };
+    }
+
+    // -----------------------------------------------------------------------
+    // createHouseVisitorNPCs - Portiert aus Zeilen 3784-4169
+    // -----------------------------------------------------------------------
+
+    /**
+     * @param {Array} buildings
+     * @returns {Array<NPC>}
+     */
+    _createHouseVisitorNPCs(buildings) {
+        if (!this.enableHouseResidents) {
+            return [];
+        }
+
+        if (!Array.isArray(buildings)) {
+            return [];
+        }
+
+        const houses = buildings.filter(
+            (b) => b && b.type === "house" && b.entrance && b.approach && b.interiorPoint
+        );
+
+        if (!houses.length) {
+            return [];
+        }
+
+        // Tag/Nacht-Zyklus Timing
+        const cycle = this.dayNightCycle ?? null;
+        const phaseDurations = (Array.isArray(cycle?.phases) && cycle.phases.length)
+            ? cycle.phases
+            : DEFAULT_PHASE_DURATIONS;
+
+        const totalCycleMs = phaseDurations.reduce(
+            (sum, phase) => sum + Math.max(0, Number(phase.duration) || 0), 0
+        );
+        const halfDayMs = Math.max(180000, totalCycleMs > 0 ? totalCycleMs / 2 : 360000);
+
+        const framesFromMs = (ms, minFrames = 60) => {
+            const frames = Math.round((Math.max(0, Number(ms) || 0) / 1000) * 60);
+            return Math.max(minFrames, frames);
+        };
+
+        const distanceSq = (a, b) => {
+            if (!a || !b) return Infinity;
+            const dx = (a.x ?? 0) - (b.x ?? 0);
+            const dy = (a.y ?? 0) - (b.y ?? 0);
+            return dx * dx + dy * dy;
+        };
+
+        const visitors = [];
+
+        for (let index = 0; index < houses.length; index++) {
+            const house = houses[index];
+            const metrics = house.metrics ?? computeHouseMetrics(house, this.houseStyles);
+
+            if (!metrics) {
+                continue;
+            }
+
+            const approach = metrics.approach ?? house.approach;
+            const entrance = metrics.entrance ?? house.entrance;
+            const interior = metrics.interior ?? house.interiorPoint;
+            const doorWorld = metrics.door?.world ?? null;
+
+            if (!approach || !entrance || !interior || !doorWorld) {
+                continue;
+            }
+
+            const walkway = metrics.walkway ?? { width: 32, height: 18 };
+            const direction = index % 2 === 0 ? 1 : -1;
+
+            const door = {
+                x: doorWorld.x,
+                y: doorWorld.bottom ?? doorWorld.y,
+            };
+
+            const seedX = (Number(house.x ?? 0) + index * 37.17) * 0.0031;
+            const seedY = (Number(house.y ?? 0) + index * 19.91) * 0.0042;
+            const rng = pseudoRandom2D(seedX, seedY);
+
+            const baseHalfFrames = framesFromMs(halfDayMs, 1200);
+            const insideFrames = Math.max(1200, Math.round(baseHalfFrames * (0.85 + (1 - rng) * 0.3)));
+            const outsideFrames = Math.max(900, Math.round(baseHalfFrames * (0.85 + rng * 0.3)));
+
+            const palette = VISITOR_PALETTES[index % VISITOR_PALETTES.length];
+            const stride = Math.max(140, (walkway.width ?? 32) * 5.5);
+            const travelDepth = Math.max(120, (walkway.height ?? 18) * 8);
+
+            // Sidewalk-Projektion (wenn RoadNetwork verfuegbar)
+            const project = (dx, dy) => {
+                if (this.roadNetwork) {
+                    const projected = this.roadNetwork.findNearestSidewalkSpot(
+                        approach.x + dx, approach.y + dy
+                    );
+                    if (projected && Number.isFinite(projected.x) && Number.isFinite(projected.y)) {
+                        return { x: projected.x, y: projected.y };
+                    }
+                }
+                // Fallback: direkte Position
+                return { x: approach.x + dx, y: approach.y + dy };
+            };
+
+            const pickUniqueSidewalkPoint = (attempts, reference, fallback) => {
+                for (const [dx, dy] of attempts) {
+                    const candidate = project(dx, dy);
+                    if (!candidate) continue;
+                    if (reference && distanceSq(candidate, reference) < 64) continue;
+                    return candidate;
+                }
+                return fallback;
+            };
+
+            const defaultSidewalk = project(0, 0) ?? { x: approach.x, y: approach.y };
+
+            const sidewalkStart = pickUniqueSidewalkPoint([
+                [direction * stride * 0.45, (walkway.height ?? 18) * 0.15],
+                [direction * stride * 0.35, 0],
+                [direction * stride * 0.55, (walkway.height ?? 18) * 0.35],
+            ], null, defaultSidewalk) ?? defaultSidewalk;
+
+            const plazaPoint = pickUniqueSidewalkPoint([
+                [direction * stride, travelDepth],
+                [direction * stride * 0.95, travelDepth * 1.1],
+                [direction * stride * 0.8, travelDepth * 0.9],
+                [direction * stride * 0.6, travelDepth],
+            ], sidewalkStart, sidewalkStart) ?? sidewalkStart;
+
+            let returnPoint = pickUniqueSidewalkPoint([
+                [-direction * stride * 0.3, travelDepth * 0.6],
+                [0, travelDepth * 0.75],
+                [-direction * stride * 0.45, travelDepth * 0.9],
+                [-direction * stride * 0.2, travelDepth * 0.5],
+            ], plazaPoint, sidewalkStart) ?? sidewalkStart;
+
+            if (distanceSq(returnPoint, plazaPoint) < 64) {
+                const alternate = project(-direction * stride * 0.15, travelDepth * 0.4);
+                if (alternate) {
+                    returnPoint = alternate;
+                }
+            }
+
+            // Wait-Zeiten berechnen
+            const minWait = 90;
+            let walkwayOutWait = Math.max(minWait, Math.round(outsideFrames * 0.12));
+            let walkwayBackWait = Math.max(minWait, Math.round(outsideFrames * 0.1));
+            let porchWait = Math.max(minWait, Math.round(outsideFrames * 0.08));
+            let plazaWait = outsideFrames - walkwayOutWait - walkwayBackWait - porchWait;
+
+            if (plazaWait < minWait * 2) {
+                const deficit = (minWait * 2) - plazaWait;
+                plazaWait = minWait * 2;
+                const adjustable = walkwayOutWait + walkwayBackWait + porchWait;
+                if (adjustable > deficit && adjustable > 0) {
+                    const ratio = deficit / adjustable;
+                    walkwayOutWait = Math.max(minWait, Math.round(walkwayOutWait - walkwayOutWait * ratio));
+                    walkwayBackWait = Math.max(minWait, Math.round(walkwayBackWait - walkwayBackWait * ratio));
+                    porchWait = Math.max(minWait, Math.round(porchWait - porchWait * ratio));
+                }
+            }
+
+            const totalWait = walkwayOutWait + walkwayBackWait + porchWait + plazaWait;
+            if (totalWait > outsideFrames) {
+                const over = totalWait - outsideFrames;
+                plazaWait = Math.max(minWait * 2, plazaWait - over);
+            }
+
+            const entranceOut = { x: entrance.x, y: entrance.y, wait: 18 };
+            const entranceReturn = {
+                x: entrance.x, y: entrance.y,
+                wait: Math.max(minWait, Math.round(outsideFrames * 0.06)),
+            };
+
+            const lateralOffset = Math.min(18, (walkway.width ?? 32) * 0.35) * direction;
+            const porchSpot = {
+                x: entrance.x + lateralOffset,
+                y: entrance.y + (walkway.height ?? 18) * 0.4,
+                wait: porchWait,
+            };
+
+            const path = [
+                { x: interior.x, y: interior.y, wait: insideFrames, interior: true, buildingId: house.id, allowOffSidewalk: true },
+                { x: door.x, y: door.y, wait: 6, action: 'exit', buildingId: house.id, allowOffSidewalk: true },
+                entranceOut,
+                { x: sidewalkStart.x, y: sidewalkStart.y, wait: walkwayOutWait },
+                { x: plazaPoint.x, y: plazaPoint.y, wait: plazaWait },
+                { x: returnPoint.x, y: returnPoint.y, wait: walkwayBackWait },
+                entranceReturn,
+                porchSpot,
+                { x: door.x, y: door.y, wait: 6, action: 'enter', buildingId: house.id, allowOffSidewalk: true },
+            ];
+
+            const bounds = house.bounds ?? metrics.bounds;
+            const speed = 0.98 + rng * 0.32;
+
+            const npc = new NPC({
+                palette,
+                speed,
+                stayOnSidewalks: true,
+                ignoreSidewalkObstacles: true,
+                waypoints: path,
+                bounds,
+            });
+
+            npc.home = {
+                buildingId: house.id,
+                entrance: { x: entrance.x, y: entrance.y },
+                approach: { x: approach.x, y: approach.y },
+                interior: { x: interior.x, y: interior.y },
+                door: { x: door.x, y: door.y },
+            };
+
+            npc.homeSchedule = { insideFrames, outsideFrames };
+            npc.houseResident = true;
+            npc.homeId = house.id;
+            npc.homeBounds = bounds
+                ? { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom }
+                : null;
+
+            visitors.push(npc);
+        }
+
+        return visitors;
+    }
+
+    // -----------------------------------------------------------------------
+}
+
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/systems/InputSystem.js
+// ═══════════════════════════════════════════════════════
+/**
+ * InputSystem — Keyboard- und Maus-Eingaben
+ * Portiert aus gta_old/overworld/js/overworld.js setupInput() (Z.456-687)
+ * und updateMouseWorldPosition() (Z.2517-2532)
+ */
+class InputSystem {
+
+    /**
+     * @param {HTMLCanvasElement} canvas
+     */
+    constructor(canvas) {
+        this.canvas = canvas;
+
+        // Keyboard-State
+        this.keys = {};           // aktuelle Taste gedrückt
+        this._justPressed = {};   // einmalig pro Frame true
+        this._justPressedConsumed = {}; // schon abgefragt in diesem Frame
+
+        // Maus-State
+        this.mouse = { x: 0, y: 0, worldX: 0, worldY: 0, down: false };
+        this._fireJustPressed = false;
+        this._fireJustPressedConsumed = false;
+
+        this._bindEvents();
+    }
+
+    // ───────────────────── Event-Bindings ─────────────────────
+
+    _bindEvents() {
+        document.addEventListener("keydown", (e) => {
+            const key = e.key.toLowerCase();
+            if (!this.keys[key]) {
+                // Taste war vorher nicht gedrückt → justPressed setzen
+                this._justPressed[key] = true;
+                this._justPressedConsumed[key] = false;
+            }
+            this.keys[key] = true;
+        });
+
+        document.addEventListener("keyup", (e) => {
+            const key = e.key.toLowerCase();
+            this.keys[key] = false;
+            this._justPressed[key] = false;
+        });
+
+        this.canvas.addEventListener("mousemove", (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            this.mouse.x = e.clientX - rect.left;
+            this.mouse.y = e.clientY - rect.top;
+        });
+
+        this.canvas.addEventListener("mousedown", (e) => {
+            if (e.button === 0) {
+                this.mouse.down = true;
+                this._fireJustPressed = true;
+                this._fireJustPressedConsumed = false;
+            }
+        });
+
+        document.addEventListener("mouseup", (e) => {
+            if (e.button === 0) {
+                this.mouse.down = false;
+                this._fireJustPressed = false;
+            }
+        });
+    }
+
+    // ───────────────────── Abfragen ─────────────────────
+
+    /** Taste momentan gehalten? */
+    isKeyDown(key) {
+        return !!this.keys[key.toLowerCase()];
+    }
+
+    /** Taste in diesem Frame erstmals gedrückt? (nur einmal true pro Tastendruck) */
+    isKeyPressed(key) {
+        const k = key.toLowerCase();
+        if (this._justPressed[k] && !this._justPressedConsumed[k]) {
+            this._justPressedConsumed[k] = true;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Bewegungsvektor aus WASD / Pfeiltasten, normalisiert.
+     * @returns {{dx: number, dy: number}}
+     */
+    getMovementVector() {
+        let dx = 0;
+        let dy = 0;
+
+        if (this.keys["w"] || this.keys["arrowup"])    dy -= 1;
+        if (this.keys["s"] || this.keys["arrowdown"])  dy += 1;
+        if (this.keys["a"] || this.keys["arrowleft"])  dx -= 1;
+        if (this.keys["d"] || this.keys["arrowright"]) dx += 1;
+
+        // Normalisieren bei Diagonalbewegung
+        if (dx !== 0 && dy !== 0) {
+            const len = Math.sqrt(dx * dx + dy * dy);
+            dx /= len;
+            dy /= len;
+        }
+
+        return { dx, dy };
+    }
+
+    /** Shift gedrückt → Sprint */
+    isSprinting() {
+        return !!this.keys["shift"];
+    }
+
+    /**
+     * Maus-Weltposition (erfordert vorheriges updateMouseWorldPosition).
+     * @returns {{x: number, y: number}}
+     */
+    getMouseWorldPosition() {
+        return { x: this.mouse.worldX, y: this.mouse.worldY };
+    }
+
+    /** Linke Maustaste in diesem Frame erstmals gedrückt? */
+    isFirePressed() {
+        if (this._fireJustPressed && !this._fireJustPressedConsumed) {
+            this._fireJustPressedConsumed = true;
+            return true;
+        }
+        return false;
+    }
+
+    /** Linke Maustaste gehalten? */
+    isFireDown() {
+        return this.mouse.down;
+    }
+
+    // ───────────────────── Frame-Update ─────────────────────
+
+    /**
+     * Maus-Weltkoordinaten aktualisieren.
+     * Portiert aus updateMouseWorldPosition() (Z.2517-2532).
+     *
+     * @param {object} camera  - CameraSystem-Instanz (braucht x, y)
+     * @param {object} [interiorOffset] - optional {originX, originY} für Interior-Szenen
+     */
+    updateMouseWorldPosition(camera, interiorOffset) {
+        if (interiorOffset) {
+            this.mouse.worldX = this.mouse.x - interiorOffset.originX;
+            this.mouse.worldY = this.mouse.y - interiorOffset.originY;
+            return;
+        }
+        const zoom = camera.zoom || 1;
+        this.mouse.worldX = this.mouse.x / zoom + camera.x;
+        this.mouse.worldY = this.mouse.y / zoom + camera.y;
+    }
+
+    /**
+     * Am Ende jedes Frames aufrufen — setzt justPressed-Flags zurück.
+     */
+    update() {
+        // Alle justPressed-Flags löschen
+        for (const key in this._justPressed) {
+            this._justPressed[key] = false;
+            this._justPressedConsumed[key] = false;
+        }
+        this._fireJustPressed = false;
+        this._fireJustPressedConsumed = false;
+    }
+}
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/systems/MovementSystem.js
+// ═══════════════════════════════════════════════════════
+/**
+ * MovementSystem - Verarbeitet Entity-Bewegung pro Frame.
+ *
+ * Berechnet Zielpositionen basierend auf Velocity/Target und delegiert
+ * die tatsaechliche Positionsaenderung an EntityMover.
+ *
+ * WICHTIG: Dieses System setzt NIEMALS entity.x/y direkt.
+ * Alle Positionsaenderungen laufen ueber EntityMover.move().
+ */
+
+class MovementSystem {
+    /**
+     * @param {import('../core/EntityMover.js').EntityMover} entityMover
+     */
+    constructor(entityMover) {
+        this.entityMover = entityMover;
+    }
+
+    /**
+     * Aktualisiert alle Entities fuer diesen Frame.
+     *
+     * @param {Array} entities - Liste aller beweglichen Entities
+     * @param {number} deltaTime - Zeit seit letztem Frame in Sekunden
+     */
+    update(entities, deltaTime) {
+        if (!Array.isArray(entities) || !entities.length || !deltaTime) {
+            return;
+        }
+
+        for (const entity of entities) {
+            if (!entity) {
+                continue;
+            }
+
+            // Entities die eingefroren/inaktiv sind ueberspringen
+            if (entity.frozen || entity.inactive) {
+                continue;
+            }
+
+            this._updateEntity(entity, deltaTime);
+        }
+    }
+
+    /**
+     * Berechnet die Zielposition einer Entity und bewegt sie ueber EntityMover.
+     *
+     * Unterstuetzt zwei Bewegungsmodi:
+     * 1. Velocity-basiert: entity hat vx/vy (Pixel pro Sekunde)
+     * 2. Target-basiert:   entity hat targetX/targetY und speed
+     *
+     * @param {Object} entity
+     * @param {number} deltaTime
+     */
+    _updateEntity(entity, deltaTime) {
+        let targetX = entity.x;
+        let targetY = entity.y;
+
+        // Modus 1: Direkte Velocity (vx/vy in Pixel/Sekunde)
+        if (entity.vx !== undefined || entity.vy !== undefined) {
+            const vx = Number(entity.vx) || 0;
+            const vy = Number(entity.vy) || 0;
+
+            if (vx === 0 && vy === 0) {
+                return; // Keine Bewegung noetig
+            }
+
+            targetX = entity.x + vx * deltaTime;
+            targetY = entity.y + vy * deltaTime;
+        }
+        // Modus 2: Target-basiert (bewege dich Richtung targetX/targetY)
+        else if (entity.targetX !== undefined && entity.targetY !== undefined) {
+            const speed = Number(entity.speed) || 0;
+
+            if (speed <= 0) {
+                return;
+            }
+
+            const dist = distanceBetween(entity.x, entity.y, entity.targetX, entity.targetY);
+
+            if (dist < 1) {
+                // Ziel erreicht
+                entity.targetX = undefined;
+                entity.targetY = undefined;
+                return;
+            }
+
+            const step = Math.min(speed * deltaTime, dist);
+            const ratio = step / dist;
+
+            targetX = entity.x + (entity.targetX - entity.x) * ratio;
+            targetY = entity.y + (entity.targetY - entity.y) * ratio;
+        } else {
+            // Keine Bewegungsdaten - nichts tun
+            return;
+        }
+
+        // Delegiere an EntityMover (SSOT fuer Positionsaenderungen)
+        this.entityMover.move(entity, targetX, targetY, {
+            ignoreSidewalk: entity.ignoreSidewalkConstraint || false,
+        });
+    }
+}
+
+
+
+// ═══════════════════════════════════════════════════════
 // js/systems/CollisionSystem.js
 // ═══════════════════════════════════════════════════════
 /**
@@ -2623,7 +4513,6 @@ class RoadNetwork {
  * Portiert aus OverworldGame: checkBuildingCollisions, resolveCircleRectCollision,
  * isPointInsideAnyCollider, collectVehicleColliders.
  */
-
 
 class CollisionSystem {
 
@@ -3094,468 +4983,882 @@ class CollisionSystem {
     }
 }
 
-CollisionSystem;
 
 
 
 // ═══════════════════════════════════════════════════════
-// js/core/EntityMover.js
+// js/systems/CombatSystem.js
 // ═══════════════════════════════════════════════════════
 /**
- * EntityMover - SSOT (Single Source of Truth) fuer alle Entity-Bewegungen.
- *
- * KRITISCH: Dies ist die EINZIGE Stelle im gesamten Code, die entity.x/y setzen darf.
- * Alle Bewegungen muessen durch move() oder teleport() laufen.
- *
- * Pipeline: Kollision -> Sidewalk-Constraint -> Entity-Bounds -> World-Bounds -> entity.x/y setzen
+ * CombatSystem - Verwaltet Projektile, Treffer und Kampf-Logik.
+ * Portiert aus gta_old/overworld/js/overworld.js:
+ *   processPlayerFiring()            (Z.2991-3017)
+ *   spawnProjectilesForWeapon()      (Z.3019-3036)
+ *   createProjectile()               (Z.3038-3064)
+ *   updateProjectiles()              (Z.3065-3103)
+ *   checkProjectileNpcCollision()    (Z.3180-3201)
+ *   onNpcHit()                       (Z.3203-3214)
+ *   killNpc()                        (Z.3216-3232)
+ *   spawnBloodDecal()                (Z.3234-3243)
  */
 
-class EntityMover {
+/** Maximale Anzahl an Blood-Decals bevor aelteste entfernt werden */
+const MAX_BLOOD_DECALS = 150;
+
+/** Offset vom Spielerzentrum zur Muendung in Pixeln */
+const MUZZLE_OFFSET = 18;
+
+class CombatSystem {
+
     /**
-     * @param {Object|null} collisionSystem - System fuer Gebaeude-Kollision (muss .resolve(entity, x, y) haben)
-     * @param {import('../world/RoadNetwork.js').RoadNetwork|null} roadNetwork - Strassennetz fuer Buergersteig-Constraints
+     * @param {import('../core/EventBus.js').EventBus} eventBus
+     * @param {Map<string, object>} weaponCatalog - Ergebnis von createWeaponCatalog()
      */
-    constructor(collisionSystem, roadNetwork) {
-        this.collisionSystem = collisionSystem || null;
-        this.roadNetwork = roadNetwork || null;
-        this.worldWidth = Infinity;
-        this.worldHeight = Infinity;
+    constructor(eventBus, weaponCatalog) {
+        this.eventBus = eventBus;
+        this.weaponCatalog = weaponCatalog;
+
+        /** @type {Array<object>} Aktive Projektile */
+        this.projectiles = [];
+
+        /** @type {Array<object>} Blut-Decals auf dem Boden */
+        this.bloodDecals = [];
+
+        /** Feuer-Zustand (Timing fuer Fire-Rate) */
+        this._lastShotAt = 0;
+    }
+
+    // ───────────────────── Public API ─────────────────────
+
+    /**
+     * Setzt die Polizei-Referenz fuer Projektil-Kollision.
+     * @param {Array<object>} policeOfficers
+     */
+    setPoliceOfficers(policeOfficers) {
+        this._policeOfficers = policeOfficers;
     }
 
     /**
-     * Bewegt eine Entity zur Zielposition durch die komplette Pipeline.
-     * EINZIGE oeffentliche Methode fuer regulaere Bewegung.
-     *
-     * @param {Object} entity - Entity mit x, y und optionalen Properties:
-     *   - stayOnSidewalks {boolean}       - ob Buergersteig-Constraint aktiv ist
-     *   - currentSidewalkSegment {Object}  - letztes Segment (fuer Tracking)
-     *   - bounds {{ left, right, top, bottom }} - optionale Entity-spezifische Bounds
-     * @param {number} targetX - gewuenschte X-Position
-     * @param {number} targetY - gewuenschte Y-Position
-     * @param {Object} [options]
-     * @param {boolean} [options.ignoreSidewalk=false] - Buergersteig-Constraint ignorieren
-     * @param {boolean} [options.ignoreCollision=false] - Kollision ignorieren
-     * @param {boolean} [options.ignoreWorldBounds=false] - World-Bounds ignorieren
-     * @returns {{ x: number, y: number, moved: boolean }}
+     * Haupt-Update pro Frame.
+     * @param {import('../entities/Player.js').Player} player
+     * @param {Array<import('../entities/NPC.js').NPC>} npcs
+     * @param {number} _deltaTime - (reserviert, aktuell nicht genutzt)
      */
-    move(entity, targetX, targetY, options = {}) {
-        let newX = targetX;
-        let newY = targetY;
-
-        // 1. Kollision mit Gebaeuden aufloesen
-        if (this.collisionSystem && !options.ignoreCollision) {
-            const resolved = this.collisionSystem.resolve(entity, newX, newY);
-            newX = resolved.x;
-            newY = resolved.y;
-        }
-
-        // 2. Buergersteig-Constraint (nur wenn entity.stayOnSidewalks)
-        if (entity.stayOnSidewalks && !options.ignoreSidewalk && this.roadNetwork) {
-            const sidewalk = this.roadNetwork.constrainToSidewalk(
-                newX, newY, entity.currentSidewalkSegment
-            );
-            newX = sidewalk.x;
-            newY = sidewalk.y;
-            entity.currentSidewalkSegment = sidewalk.segment;
-        }
-
-        // 3. Entity-spezifische Bounds
-        if (entity.bounds) {
-            newX = Math.max(entity.bounds.left, Math.min(newX, entity.bounds.right));
-            newY = Math.max(entity.bounds.top, Math.min(newY, entity.bounds.bottom));
-        }
-
-        // 4. World-Bounds
-        if (!options.ignoreWorldBounds) {
-            newX = Math.max(0, Math.min(newX, this.worldWidth));
-            newY = Math.max(0, Math.min(newY, this.worldHeight));
-        }
-
-        // 5. Position setzen (EINZIGE STELLE!)
-        const moved = newX !== entity.x || newY !== entity.y;
-        entity.x = newX;
-        entity.y = newY;
-
-        return { x: newX, y: newY, moved };
+    update(player, npcs, _deltaTime) {
+        this._updateProjectiles(npcs);
     }
 
     /**
-     * Teleportiert eine Entity direkt an eine Position.
-     * Umgeht alle Constraints - nur fuer stuck-NPCs oder Spawn verwenden.
+     * Versucht mit der aktuellen Waffe zu feuern.
+     * Portiert aus processPlayerFiring() (Z.2991-3017).
      *
-     * @param {Object} entity
+     * @param {import('../entities/Player.js').Player} player
+     * @param {{x: number, y: number}} mouseWorldPos - Maus-Weltkoordinaten
+     * @param {object} fireInput - { justPressed: boolean, active: boolean }
+     * @param {number} now - performance.now()
+     */
+    fireWeapon(player, mouseWorldPos, fireInput, now) {
+        const weapon = getWeaponDefinition(this.weaponCatalog, player.currentWeaponId);
+
+        if (!weapon || !player.weaponInventory.has(weapon.id)) {
+            return;
+        }
+
+        if (!fireInput.active && !fireInput.justPressed) {
+            return;
+        }
+
+        if (!weapon.automatic && !fireInput.justPressed) {
+            return;
+        }
+
+        const interval = weapon.fireRate ?? 250;
+
+        if (now - this._lastShotAt < interval) {
+            return;
+        }
+
+        const muzzle = player.getMuzzlePosition();
+        this._spawnProjectilesForWeapon(weapon, muzzle, mouseWorldPos);
+
+        this._lastShotAt = now;
+    }
+
+    // ───────────────────── Projektil-Erzeugung ─────────────────────
+
+    /**
+     * Erzeugt Projektil(e) fuer eine Waffe (inkl. Pellets bei Shotgun).
+     * Portiert aus spawnProjectilesForWeapon() (Z.3019-3036).
+     *
+     * @param {object} weapon - Waffendefinition aus dem Katalog
+     * @param {{x: number, y: number}} muzzle - Muendungsposition
+     * @param {{x: number, y: number}} target - Zielposition (Maus-Welt)
+     * @private
+     */
+    _spawnProjectilesForWeapon(weapon, muzzle, target) {
+        const targetX = target.x ?? muzzle.x;
+        const targetY = target.y ?? muzzle.y;
+
+        let angle = Math.atan2(targetY - muzzle.y, targetX - muzzle.x);
+
+        if (!Number.isFinite(angle)) {
+            angle = 0;
+        }
+
+        const spread = weapon.spread ?? 0;
+        const pelletCount = weapon.pellets && weapon.pellets > 1 ? weapon.pellets : 1;
+
+        for (let i = 0; i < pelletCount; i++) {
+            const offset = spread ? (Math.random() - 0.5) * spread * 2 : 0;
+            this._createProjectile(weapon, muzzle.x, muzzle.y, angle + offset);
+        }
+    }
+
+    /**
+     * Erstellt ein einzelnes Projektil.
+     * Portiert aus createProjectile() (Z.3038-3064).
+     *
+     * @param {object} weapon
+     * @param {number} startX
+     * @param {number} startY
+     * @param {number} angle
+     * @private
+     */
+    _createProjectile(weapon, startX, startY, angle) {
+        const speed = weapon.projectileSpeed ?? 10;
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+
+        const originX = startX + Math.cos(angle) * MUZZLE_OFFSET;
+        const originY = startY + Math.sin(angle) * MUZZLE_OFFSET;
+
+        const projectile = {
+            x: originX,
+            y: originY,
+            vx,
+            vy,
+            speed,
+            damage: weapon.damage ?? 10,
+            weaponId: weapon.id,
+            color: weapon.displayColor ?? '#ffd166',
+            maxDistance: weapon.range ?? 600,
+            distance: 0,
+            createdAt: performance.now(),
+        };
+
+        this.projectiles.push(projectile);
+    }
+
+    // ───────────────────── Projektil-Update ─────────────────────
+
+    /**
+     * Bewegt alle Projektile und entfernt abgelaufene.
+     * Portiert aus updateProjectiles() (Z.3065-3103).
+     *
+     * @param {Array<import('../entities/NPC.js').NPC>} npcs
+     * @private
+     */
+    _updateProjectiles(npcs) {
+        if (!this.projectiles.length) {
+            return;
+        }
+
+        const survivors = [];
+
+        for (const projectile of this.projectiles) {
+            projectile.x += projectile.vx;
+            projectile.y += projectile.vy;
+            projectile.distance += projectile.speed;
+
+            let expired = projectile.distance >= projectile.maxDistance;
+
+            if (!expired) {
+                if (this._checkProjectileNpcCollision(projectile, npcs)) {
+                    expired = true;
+                }
+            }
+
+            // Polizei-Treffer pruefen
+            if (!expired && Array.isArray(this._policeOfficers)) {
+                if (this._checkProjectilePoliceCollision(projectile, this._policeOfficers)) {
+                    expired = true;
+                }
+            }
+
+            if (!expired) {
+                survivors.push(projectile);
+            }
+        }
+
+        this.projectiles = survivors;
+    }
+
+    // ───────────────────── Kollisionserkennung ─────────────────────
+
+    /**
+     * Prueft ob ein Projektil einen NPC trifft.
+     * Portiert aus checkProjectileNpcCollision() (Z.3180-3201).
+     *
+     * @param {object} projectile
+     * @param {Array<import('../entities/NPC.js').NPC>} npcs
+     * @returns {boolean} true wenn Treffer
+     * @private
+     */
+    _checkProjectileNpcCollision(projectile, npcs) {
+        if (!npcs || !Array.isArray(npcs)) {
+            return false;
+        }
+
+        for (const npc of npcs) {
+            if (!npc || npc.dead) {
+                continue;
+            }
+
+            const radius = npc.hitRadius ?? 14;
+            const dx = projectile.x - npc.x;
+            const dy = projectile.y - npc.y;
+
+            if (dx * dx + dy * dy <= radius * radius) {
+                this._onNpcHit(npc, projectile);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // ───────────────────── Polizei-Kollision ─────────────────────
+
+    /**
+     * Prueft ob ein Projektil einen Polizisten trifft.
+     * @param {object} projectile
+     * @param {Array<object>} officers
+     * @returns {boolean}
+     * @private
+     */
+    _checkProjectilePoliceCollision(projectile, officers) {
+        for (const cop of officers) {
+            if (!cop || cop.dead) continue;
+
+            const radius = cop.hitRadius ?? 14;
+            const dx = projectile.x - cop.x;
+            const dy = projectile.y - cop.y;
+
+            if (dx * dx + dy * dy <= radius * radius) {
+                this._onPoliceHit(cop, projectile);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Verarbeitet einen Treffer auf einen Polizisten.
+     * @param {object} cop
+     * @param {object} projectile
+     * @private
+     */
+    _onPoliceHit(cop, projectile) {
+        cop.health = Math.max(0, cop.health - projectile.damage);
+
+        this.eventBus.emit('police:hit', { cop, damage: projectile.damage });
+
+        if (cop.health <= 0) {
+            cop.dead = true;
+            cop.health = 0;
+            cop.moving = false;
+            cop.animationPhase = 0;
+            cop.deathRotation = (Math.random() * Math.PI) - Math.PI / 2;
+            this.spawnBloodDecal(cop.x, cop.y);
+            this.eventBus.emit('police:killed', { cop });
+        }
+    }
+
+    // ───────────────────── Treffer-Verarbeitung ─────────────────────
+
+    /**
+     * Verarbeitet einen Treffer auf einen NPC.
+     * Portiert aus onNpcHit() (Z.3203-3214).
+     *
+     * @param {import('../entities/NPC.js').NPC} npc
+     * @param {object} projectile
+     * @private
+     */
+    _onNpcHit(npc, projectile) {
+        const maxHealth = npc.maxHealth ?? 100;
+
+        npc.health = Math.max(0, (npc.health ?? maxHealth) - projectile.damage);
+
+        const panicDuration = 180 + Math.floor(Math.random() * 120);
+        npc.panicTimer = Math.max(npc.panicTimer ?? 0, panicDuration);
+
+        this.eventBus.emit('npc:hit', { npc, damage: projectile.damage, weaponId: projectile.weaponId });
+
+        if (npc.health <= 0) {
+            this._killNpc(npc);
+        }
+    }
+
+    /**
+     * Toetet einen NPC.
+     * Portiert aus killNpc() (Z.3216-3232).
+     *
+     * @param {import('../entities/NPC.js').NPC} npc
+     * @private
+     */
+    _killNpc(npc) {
+        if (npc.dead) {
+            return;
+        }
+
+        npc.dead = true;
+        npc.health = 0;
+        npc.moving = false;
+        npc.panicTimer = 0;
+        npc.waitTimer = 0;
+        npc.animationPhase = 0;
+        npc.isCrossing = false;
+        npc.waitingForCrosswalk = null;
+        npc.deathRotation = (Math.random() * Math.PI) - Math.PI / 2;
+
+        this.spawnBloodDecal(npc.x, npc.y);
+
+        this.eventBus.emit('npc:killed', { npc });
+    }
+
+    // ───────────────────── Blood-Decals ─────────────────────
+
+    /**
+     * Erzeugt einen Blut-Decal an der Position.
+     * Portiert aus spawnBloodDecal() (Z.3234-3243).
+     *
      * @param {number} x
      * @param {number} y
      */
-    teleport(entity, x, y) {
-        entity.x = x;
-        entity.y = y;
+    spawnBloodDecal(x, y) {
+        this.bloodDecals.push({
+            x,
+            y,
+            radius: 18 + Math.random() * 12,
+            createdAt: performance.now(),
+        });
+
+        if (this.bloodDecals.length > MAX_BLOOD_DECALS) {
+            this.bloodDecals.shift();
+        }
     }
 
     /**
-     * Setzt die Weltgrenzen.
-     *
-     * @param {number} width
-     * @param {number} height
+     * Entfernt alle Blut-Decals (z.B. nach Respawn).
      */
-    setWorldBounds(width, height) {
-        this.worldWidth = width;
-        this.worldHeight = height;
+    clearBloodDecals() {
+        this.bloodDecals.length = 0;
     }
 }
 
 
 
+
 // ═══════════════════════════════════════════════════════
-// js/systems/MovementSystem.js
+// js/systems/PoliceSystem.js
 // ═══════════════════════════════════════════════════════
 /**
- * MovementSystem - Verarbeitet Entity-Bewegung pro Frame.
+ * PoliceSystem - Verwaltet Polizei-Spawning, Verfolgung, Taser, Verhaftung,
+ * Eskalation und SWAT-Einsatz.
  *
- * Berechnet Zielpositionen basierend auf Velocity/Target und delegiert
- * die tatsaechliche Positionsaenderung an EntityMover.
- *
- * WICHTIG: Dieses System setzt NIEMALS entity.x/y direkt.
- * Alle Positionsaenderungen laufen ueber EntityMover.move().
+ * SSOT fuer alle Polizei-Konstanten und -Logik.
  */
 
+// ── Polizeistation (Respawn-Punkt) ──────────────────────────────────────
+const POLICE_STATION_POS = { x: 1800, y: 400 };
 
-class MovementSystem {
+// ── Paletten ────────────────────────────────────────────────────────────
+const POLICE_PALETTE = {
+    head: '#f2d6c1',
+    torso: '#1a3a6b',
+    limbs: '#152d54',
+    accent: '#2563eb',
+    hair: '#1a1a1a',
+    eyes: '#ffffff',
+    pupil: '#1b1b1b',
+};
+
+const SWAT_PALETTE = {
+    head: '#2a2a2a',
+    torso: '#1a1a1a',
+    limbs: '#0d0d0d',
+    accent: '#333333',
+    hair: '#1a1a1a',
+    eyes: '#c0c0c0',
+    pupil: '#222222',
+};
+
+// ── Geschwindigkeiten ───────────────────────────────────────────────────
+const POLICE_CHASE_SPEED = 1.8;
+const SWAT_CHASE_SPEED = 2.2;
+const POLICE_WALK_ANIM_SPEED = 0.1;
+
+// ── Taser ───────────────────────────────────────────────────────────────
+const TASER_RANGE = 180;
+const TASER_COOLDOWN = 4000;
+const TASER_PROJECTILE_SPEED = 8;
+const TASER_HIT_RADIUS = 18;
+
+// ── Stun / Slow ─────────────────────────────────────────────────────────
+const STUN_DURATION = 2000;
+const SLOW_DURATION = 2000;
+const SLOW_FACTOR = 0.4;
+
+// ── Verhaftung ──────────────────────────────────────────────────────────
+const ARREST_RADIUS = 45;
+const ARREST_TIME = 5000;
+
+// ── Spawning ────────────────────────────────────────────────────────────
+const POLICE_SPAWN_DISTANCE_MIN = 280;
+const POLICE_SPAWN_DISTANCE_MAX = 400;
+const SPAWN_DELAY_INITIAL = 2000;
+const SPAWN_INTERVAL = 4000;
+const MAX_POLICE_TOTAL = 8;
+
+// ── Gesundheit ──────────────────────────────────────────────────────────
+const POLICE_HEALTH = 150;
+const SWAT_HEALTH = 300;
+
+// ── Eskalation ──────────────────────────────────────────────────────────
+const ESCALATION_STAGES = [
+    { time: 0,     weaponId: 'pistol',       maxPolice: 2, fireRate: 900,  spawnSwat: false },
+    { time: 20000, weaponId: 'smg',          maxPolice: 3, fireRate: 350,  spawnSwat: false },
+    { time: 45000, weaponId: 'assaultRifle', maxPolice: 5, fireRate: 280,  spawnSwat: true  },
+];
+
+// ── Polizei-Schussverhalten ─────────────────────────────────────────────
+const POLICE_GUN_RANGE = 350;
+const POLICE_BULLET_SPREAD = 0.08;
+
+let _nextPoliceId = 1;
+
+class PoliceSystem {
     /**
+     * @param {import('../core/EventBus.js').EventBus} eventBus
      * @param {import('../core/EntityMover.js').EntityMover} entityMover
+     * @param {Map<string, object>} weaponCatalog
      */
-    constructor(entityMover) {
+    constructor(eventBus, entityMover, weaponCatalog) {
+        this.eventBus = eventBus;
         this.entityMover = entityMover;
+        this.weaponCatalog = weaponCatalog;
+
+        /** @type {Array<object>} Aktive Polizisten */
+        this.officers = [];
+
+        /** @type {Array<object>} Polizei-Projektile (Taser + Kugeln) */
+        this.projectiles = [];
+
+        /** Wanted-Status */
+        this.wanted = false;
+        this.wantedSince = 0;
+        this.policeShootBack = false;
+        this.shootBackSince = 0;
+
+        /** Spawn-Timing */
+        this._spawnDelayRemaining = 0;
+        this._lastSpawnAt = 0;
+
+        /** Verhaftungs-Fortschritt (ms) */
+        this.arrestProgress = 0;
+
+        /** Aktueller Eskalations-Index */
+        this._escalationIndex = 0;
+    }
+
+    // =====================================================================
+    //  Public API
+    // =====================================================================
+
+    /**
+     * Aktiviert den Wanted-Status (z.B. nach NPC-Kill).
+     * @param {number} now - performance.now()
+     */
+    setWanted(now) {
+        if (this.wanted) return;
+        this.wanted = true;
+        this.wantedSince = now;
+        this._spawnDelayRemaining = SPAWN_DELAY_INITIAL;
+        this._escalationIndex = 0;
+        this.policeShootBack = false;
+        this.arrestProgress = 0;
     }
 
     /**
-     * Aktualisiert alle Entities fuer diesen Frame.
-     *
-     * @param {Array} entities - Liste aller beweglichen Entities
-     * @param {number} deltaTime - Zeit seit letztem Frame in Sekunden
+     * Wird aufgerufen wenn ein Polizist vom Spieler getroffen wird.
+     * @param {number} now
      */
-    update(entities, deltaTime) {
-        if (!Array.isArray(entities) || !entities.length || !deltaTime) {
-            return;
-        }
-
-        for (const entity of entities) {
-            if (!entity) {
-                continue;
-            }
-
-            // Entities die eingefroren/inaktiv sind ueberspringen
-            if (entity.frozen || entity.inactive) {
-                continue;
-            }
-
-            this._updateEntity(entity, deltaTime);
+    onPoliceShot(now) {
+        if (!this.policeShootBack) {
+            this.policeShootBack = true;
+            this.shootBackSince = now;
         }
     }
 
     /**
-     * Berechnet die Zielposition einer Entity und bewegt sie ueber EntityMover.
-     *
-     * Unterstuetzt zwei Bewegungsmodi:
-     * 1. Velocity-basiert: entity hat vx/vy (Pixel pro Sekunde)
-     * 2. Target-basiert:   entity hat targetX/targetY und speed
-     *
-     * @param {Object} entity
-     * @param {number} deltaTime
+     * Setzt den gesamten Polizei-Zustand zurueck (z.B. nach Respawn).
      */
-    _updateEntity(entity, deltaTime) {
-        let targetX = entity.x;
-        let targetY = entity.y;
+    reset() {
+        this.officers = [];
+        this.projectiles = [];
+        this.wanted = false;
+        this.wantedSince = 0;
+        this.policeShootBack = false;
+        this.shootBackSince = 0;
+        this._spawnDelayRemaining = 0;
+        this._lastSpawnAt = 0;
+        this.arrestProgress = 0;
+        this._escalationIndex = 0;
+    }
 
-        // Modus 1: Direkte Velocity (vx/vy in Pixel/Sekunde)
-        if (entity.vx !== undefined || entity.vy !== undefined) {
-            const vx = Number(entity.vx) || 0;
-            const vy = Number(entity.vy) || 0;
-
-            if (vx === 0 && vy === 0) {
-                return; // Keine Bewegung noetig
-            }
-
-            targetX = entity.x + vx * deltaTime;
-            targetY = entity.y + vy * deltaTime;
+    /**
+     * Haupt-Update pro Frame.
+     * @param {import('../entities/Player.js').Player} player
+     * @param {number} deltaTime - Sekunden seit letztem Frame
+     * @param {number} now - performance.now()
+     * @returns {{ wasted: boolean }} Ob der Spieler verhaftet/getoetet wurde
+     */
+    update(player, deltaTime, now) {
+        if (!this.wanted) {
+            return { wasted: false };
         }
-        // Modus 2: Target-basiert (bewege dich Richtung targetX/targetY)
-        else if (entity.targetX !== undefined && entity.targetY !== undefined) {
-            const speed = Number(entity.speed) || 0;
 
-            if (speed <= 0) {
-                return;
+        const deltaMs = deltaTime * 1000;
+
+        // Spawn-Delay
+        if (this._spawnDelayRemaining > 0) {
+            this._spawnDelayRemaining -= deltaMs;
+            if (this._spawnDelayRemaining > 0) {
+                return { wasted: false };
             }
+        }
 
-            const dist = distanceBetween(entity.x, entity.y, entity.targetX, entity.targetY);
+        // Eskalation aktualisieren
+        this._updateEscalation(now);
 
-            if (dist < 1) {
-                // Ziel erreicht
-                entity.targetX = undefined;
-                entity.targetY = undefined;
-                return;
+        // Polizisten spawnen
+        this._spawnIfNeeded(player, now);
+
+        // Polizisten-KI
+        let anyNearby = false;
+        for (const cop of this.officers) {
+            if (cop.dead) continue;
+            this._updateOfficerAI(cop, player, now);
+            if (this._distanceTo(cop, player) <= ARREST_RADIUS) {
+                anyNearby = true;
             }
+        }
 
-            const step = Math.min(speed * deltaTime, dist);
-            const ratio = step / dist;
-
-            targetX = entity.x + (entity.targetX - entity.x) * ratio;
-            targetY = entity.y + (entity.targetY - entity.y) * ratio;
+        // Verhaftungs-Timer
+        if (anyNearby && player.stunTimer > 0) {
+            this.arrestProgress += deltaMs;
+        } else if (anyNearby) {
+            this.arrestProgress += deltaMs * 0.3;
         } else {
-            // Keine Bewegungsdaten - nichts tun
-            return;
+            this.arrestProgress = Math.max(0, this.arrestProgress - deltaMs * 0.5);
         }
 
-        // Delegiere an EntityMover (SSOT fuer Positionsaenderungen)
-        this.entityMover.move(entity, targetX, targetY, {
-            ignoreSidewalk: entity.ignoreSidewalkConstraint || false,
-        });
-    }
-}
+        if (this.arrestProgress >= ARREST_TIME) {
+            return { wasted: true, reason: 'arrested' };
+        }
 
-
-
-// ═══════════════════════════════════════════════════════
-// js/systems/InputSystem.js
-// ═══════════════════════════════════════════════════════
-/**
- * InputSystem — Keyboard- und Maus-Eingaben
- * Portiert aus gta_old/overworld/js/overworld.js setupInput() (Z.456-687)
- * und updateMouseWorldPosition() (Z.2517-2532)
- */
-class InputSystem {
-
-    /**
-     * @param {HTMLCanvasElement} canvas
-     */
-    constructor(canvas) {
-        this.canvas = canvas;
-
-        // Keyboard-State
-        this.keys = {};           // aktuelle Taste gedrückt
-        this._justPressed = {};   // einmalig pro Frame true
-        this._justPressedConsumed = {}; // schon abgefragt in diesem Frame
-
-        // Maus-State
-        this.mouse = { x: 0, y: 0, worldX: 0, worldY: 0, down: false };
-        this._fireJustPressed = false;
-        this._fireJustPressedConsumed = false;
-
-        this._bindEvents();
-    }
-
-    // ───────────────────── Event-Bindings ─────────────────────
-
-    _bindEvents() {
-        document.addEventListener("keydown", (e) => {
-            const key = e.key.toLowerCase();
-            if (!this.keys[key]) {
-                // Taste war vorher nicht gedrückt → justPressed setzen
-                this._justPressed[key] = true;
-                this._justPressedConsumed[key] = false;
+        // Projektile aktualisieren
+        const playerHit = this._updateProjectiles(player);
+        if (playerHit.taser) {
+            player.stunTimer = STUN_DURATION;
+            player.slowTimer = SLOW_DURATION;
+        }
+        if (playerHit.damage > 0) {
+            player.health = Math.max(0, player.health - playerHit.damage);
+            if (player.health <= 0) {
+                return { wasted: true, reason: 'killed' };
             }
-            this.keys[key] = true;
-        });
+        }
 
-        document.addEventListener("keyup", (e) => {
-            const key = e.key.toLowerCase();
-            this.keys[key] = false;
-            this._justPressed[key] = false;
-        });
-
-        this.canvas.addEventListener("mousemove", (e) => {
-            const rect = this.canvas.getBoundingClientRect();
-            this.mouse.x = e.clientX - rect.left;
-            this.mouse.y = e.clientY - rect.top;
-        });
-
-        this.canvas.addEventListener("mousedown", (e) => {
-            if (e.button === 0) {
-                this.mouse.down = true;
-                this._fireJustPressed = true;
-                this._fireJustPressedConsumed = false;
+        // Tote Polizisten aufraeuemen
+        this.officers = this.officers.filter(c => !c.dead || c._deathAge < 10000);
+        for (const cop of this.officers) {
+            if (cop.dead) {
+                cop._deathAge = (cop._deathAge ?? 0) + deltaMs;
             }
-        });
+        }
 
-        document.addEventListener("mouseup", (e) => {
-            if (e.button === 0) {
-                this.mouse.down = false;
-                this._fireJustPressed = false;
+        return { wasted: false };
+    }
+
+    // =====================================================================
+    //  Eskalation
+    // =====================================================================
+
+    /** @param {number} now */
+    _updateEscalation(now) {
+        const elapsed = now - this.wantedSince;
+        for (let i = ESCALATION_STAGES.length - 1; i >= 0; i--) {
+            if (elapsed >= ESCALATION_STAGES[i].time) {
+                this._escalationIndex = i;
+                break;
             }
-        });
-    }
-
-    // ───────────────────── Abfragen ─────────────────────
-
-    /** Taste momentan gehalten? */
-    isKeyDown(key) {
-        return !!this.keys[key.toLowerCase()];
-    }
-
-    /** Taste in diesem Frame erstmals gedrückt? (nur einmal true pro Tastendruck) */
-    isKeyPressed(key) {
-        const k = key.toLowerCase();
-        if (this._justPressed[k] && !this._justPressedConsumed[k]) {
-            this._justPressedConsumed[k] = true;
-            return true;
         }
-        return false;
     }
 
+    /** @returns {object} Aktuelle Eskalationsstufe */
+    _getCurrentStage() {
+        return ESCALATION_STAGES[this._escalationIndex] ?? ESCALATION_STAGES[0];
+    }
+
+    // =====================================================================
+    //  Spawning
+    // =====================================================================
+
     /**
-     * Bewegungsvektor aus WASD / Pfeiltasten, normalisiert.
-     * @returns {{dx: number, dy: number}}
+     * @param {object} player
+     * @param {number} now
      */
-    getMovementVector() {
-        let dx = 0;
-        let dy = 0;
+    _spawnIfNeeded(player, now) {
+        const stage = this._getCurrentStage();
+        const aliveCount = this.officers.filter(c => !c.dead).length;
 
-        if (this.keys["w"] || this.keys["arrowup"])    dy -= 1;
-        if (this.keys["s"] || this.keys["arrowdown"])  dy += 1;
-        if (this.keys["a"] || this.keys["arrowleft"])  dx -= 1;
-        if (this.keys["d"] || this.keys["arrowright"]) dx += 1;
+        if (aliveCount >= stage.maxPolice || aliveCount >= MAX_POLICE_TOTAL) return;
+        if (now - this._lastSpawnAt < SPAWN_INTERVAL) return;
 
-        // Normalisieren bei Diagonalbewegung
-        if (dx !== 0 && dy !== 0) {
-            const len = Math.sqrt(dx * dx + dy * dy);
-            dx /= len;
-            dy /= len;
+        const shouldSpawnSwat = stage.spawnSwat && !this.officers.some(c => c.type === 'swat' && !c.dead);
+        const type = shouldSpawnSwat ? 'swat' : 'police';
+
+        const cop = this._createOfficer(player, type, stage.weaponId);
+        if (cop) {
+            this.officers.push(cop);
+            this._lastSpawnAt = now;
         }
-
-        return { dx, dy };
-    }
-
-    /** Shift gedrückt → Sprint */
-    isSprinting() {
-        return !!this.keys["shift"];
     }
 
     /**
-     * Maus-Weltposition (erfordert vorheriges updateMouseWorldPosition).
-     * @returns {{x: number, y: number}}
+     * Erstellt einen Polizisten an einer zufaelligen Position um den Spieler.
+     * @param {object} player
+     * @param {'police'|'swat'} type
+     * @param {string} weaponId
+     * @returns {object|null}
      */
-    getMouseWorldPosition() {
-        return { x: this.mouse.worldX, y: this.mouse.worldY };
-    }
+    _createOfficer(player, type, weaponId) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = POLICE_SPAWN_DISTANCE_MIN + Math.random() * (POLICE_SPAWN_DISTANCE_MAX - POLICE_SPAWN_DISTANCE_MIN);
+        const x = player.x + Math.cos(angle) * dist;
+        const y = player.y + Math.sin(angle) * dist;
 
-    /** Linke Maustaste in diesem Frame erstmals gedrückt? */
-    isFirePressed() {
-        if (this._fireJustPressed && !this._fireJustPressedConsumed) {
-            this._fireJustPressedConsumed = true;
-            return true;
-        }
-        return false;
-    }
+        const isSwat = type === 'swat';
+        const palette = isSwat ? SWAT_PALETTE : POLICE_PALETTE;
 
-    /** Linke Maustaste gehalten? */
-    isFireDown() {
-        return this.mouse.down;
-    }
-
-    // ───────────────────── Frame-Update ─────────────────────
-
-    /**
-     * Maus-Weltkoordinaten aktualisieren.
-     * Portiert aus updateMouseWorldPosition() (Z.2517-2532).
-     *
-     * @param {object} camera  - CameraSystem-Instanz (braucht x, y)
-     * @param {object} [interiorOffset] - optional {originX, originY} für Interior-Szenen
-     */
-    updateMouseWorldPosition(camera, interiorOffset) {
-        if (interiorOffset) {
-            this.mouse.worldX = this.mouse.x - interiorOffset.originX;
-            this.mouse.worldY = this.mouse.y - interiorOffset.originY;
-            return;
-        }
-        const zoom = camera.zoom || 1;
-        this.mouse.worldX = this.mouse.x / zoom + camera.x;
-        this.mouse.worldY = this.mouse.y / zoom + camera.y;
-    }
-
-    /**
-     * Am Ende jedes Frames aufrufen — setzt justPressed-Flags zurück.
-     */
-    update() {
-        // Alle justPressed-Flags löschen
-        for (const key in this._justPressed) {
-            this._justPressed[key] = false;
-            this._justPressedConsumed[key] = false;
-        }
-        this._fireJustPressed = false;
-        this._fireJustPressedConsumed = false;
-    }
-}
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/systems/CameraSystem.js
-// ═══════════════════════════════════════════════════════
-/**
- * CameraSystem — Kamera folgt dem Spieler, clampt an Weltgrenzen.
- * Portiert aus gta_old/overworld/js/overworld.js updateCamera() (Z.1205-1223)
- */
-class CameraSystem {
-
-    /**
-     * @param {number} viewportWidth  - Canvas-Breite
-     * @param {number} viewportHeight - Canvas-Höhe
-     * @param {number} [zoom=1]       - Zoom-Faktor (1 = kein Zoom)
-     */
-    constructor(viewportWidth, viewportHeight, zoom = 1) {
-        this.x = 0;
-        this.y = 0;
-        this.width = viewportWidth;
-        this.height = viewportHeight;
-        this.zoom = zoom;
-    }
-
-    /**
-     * Kamera auf Ziel-Entity zentrieren und an Weltgrenzen clampen.
-     * Portiert aus updateCamera() (Z.1205-1223).
-     *
-     * @param {object} targetEntity - Objekt mit {x, y}
-     * @param {object} worldBounds  - {width, height} der Welt
-     */
-    update(targetEntity, worldBounds) {
-        // Effektive Viewport-Größe (berücksichtigt Zoom)
-        const vw = this.width / this.zoom;
-        const vh = this.height / this.zoom;
-
-        // Kamera zentriert auf Entity
-        this.x = targetEntity.x - vw / 2;
-        this.y = targetEntity.y - vh / 2;
-
-        // An Weltgrenzen clampen (westliche Grenze erlaubt Blick aufs Meer)
-        const westLimit = -(this.oceanOverflow ?? 0);
-        this.x = Math.max(westLimit, Math.min(this.x, worldBounds.width - vw));
-        this.y = Math.max(0, Math.min(this.y, worldBounds.height - vh));
-    }
-
-    /**
-     * Weltkoordinaten → Bildschirmkoordinaten.
-     * @param {number} wx
-     * @param {number} wy
-     * @returns {{sx: number, sy: number}}
-     */
-    worldToScreen(wx, wy) {
         return {
-            sx: (wx - this.x) * this.zoom,
-            sy: (wy - this.y) * this.zoom
+            id: _nextPoliceId++,
+            x, y,
+            width: 30,
+            height: 30,
+            speed: isSwat ? SWAT_CHASE_SPEED : POLICE_CHASE_SPEED,
+            health: isSwat ? SWAT_HEALTH : POLICE_HEALTH,
+            maxHealth: isSwat ? SWAT_HEALTH : POLICE_HEALTH,
+            dead: false,
+            moving: false,
+            hidden: false,
+            type,
+            isPolice: true,
+            parts: buildHumanoidParts(palette),
+            palette,
+            animationPhase: 0,
+            hitRadius: 14,
+            weaponId,
+            taserCooldownUntil: 0,
+            gunCooldownUntil: 0,
+            nearPlayerTimer: 0,
+            deathRotation: 0,
+            stayOnSidewalks: false,
         };
     }
 
+    // =====================================================================
+    //  KI-Update pro Polizist
+    // =====================================================================
+
     /**
-     * Bildschirmkoordinaten → Weltkoordinaten.
-     * @param {number} sx
-     * @param {number} sy
-     * @returns {{wx: number, wy: number}}
+     * @param {object} cop
+     * @param {object} player
+     * @param {number} now
      */
-    screenToWorld(sx, sy) {
-        return {
-            wx: sx / this.zoom + this.x,
-            wy: sy / this.zoom + this.y
-        };
+    _updateOfficerAI(cop, player, now) {
+        const dx = player.x - cop.x;
+        const dy = player.y - cop.y;
+        const dist = Math.hypot(dx, dy);
+
+        // Bewegung zum Spieler
+        if (dist > 20) {
+            const ratio = cop.speed / dist;
+            const targetX = cop.x + dx * ratio;
+            const targetY = cop.y + dy * ratio;
+            this.entityMover.move(cop, targetX, targetY, { ignoreSidewalk: true });
+            cop.moving = true;
+        } else {
+            cop.moving = false;
+        }
+
+        // Animation
+        if (cop.moving) {
+            cop.animationPhase = (cop.animationPhase + cop.speed * POLICE_WALK_ANIM_SPEED) % (Math.PI * 2);
+        } else {
+            cop.animationPhase *= 0.85;
+        }
+
+        // Taser (immer verfuegbar)
+        if (dist <= TASER_RANGE && now >= cop.taserCooldownUntil) {
+            this._fireTaser(cop, player, now);
+            cop.taserCooldownUntil = now + TASER_COOLDOWN;
+        }
+
+        // Schusswaffen (nur wenn provoziert)
+        if (this.policeShootBack && dist <= POLICE_GUN_RANGE) {
+            const stage = this._getCurrentStage();
+            const weapon = getWeaponDefinition(this.weaponCatalog, cop.weaponId);
+            if (weapon && now >= cop.gunCooldownUntil) {
+                this._fireGun(cop, player, weapon, now);
+                cop.gunCooldownUntil = now + (stage.fireRate ?? weapon.fireRate ?? 500);
+            }
+        }
+    }
+
+    // =====================================================================
+    //  Taser
+    // =====================================================================
+
+    /**
+     * @param {object} cop
+     * @param {object} player
+     * @param {number} now
+     */
+    _fireTaser(cop, player, now) {
+        const dx = player.x - cop.x;
+        const dy = player.y - cop.y;
+        const angle = Math.atan2(dy, dx);
+
+        this.projectiles.push({
+            x: cop.x + Math.cos(angle) * 16,
+            y: cop.y + Math.sin(angle) * 16,
+            vx: Math.cos(angle) * TASER_PROJECTILE_SPEED,
+            vy: Math.sin(angle) * TASER_PROJECTILE_SPEED,
+            speed: TASER_PROJECTILE_SPEED,
+            type: 'taser',
+            damage: 0,
+            color: '#ffee00',
+            maxDistance: TASER_RANGE + 40,
+            distance: 0,
+            createdAt: now,
+        });
+    }
+
+    // =====================================================================
+    //  Schusswaffen
+    // =====================================================================
+
+    /**
+     * @param {object} cop
+     * @param {object} player
+     * @param {object} weapon
+     * @param {number} now
+     */
+    _fireGun(cop, player, weapon, now) {
+        const dx = player.x - cop.x;
+        const dy = player.y - cop.y;
+        const baseAngle = Math.atan2(dy, dx);
+        const spread = POLICE_BULLET_SPREAD;
+        const angle = baseAngle + (Math.random() - 0.5) * spread * 2;
+        const projSpeed = weapon.projectileSpeed ?? 10;
+
+        this.projectiles.push({
+            x: cop.x + Math.cos(angle) * 16,
+            y: cop.y + Math.sin(angle) * 16,
+            vx: Math.cos(angle) * projSpeed,
+            vy: Math.sin(angle) * projSpeed,
+            speed: projSpeed,
+            type: 'bullet',
+            damage: weapon.damage ?? 15,
+            color: weapon.displayColor ?? '#fca311',
+            maxDistance: weapon.range ?? 600,
+            distance: 0,
+            createdAt: now,
+        });
+    }
+
+    // =====================================================================
+    //  Projektil-Update
+    // =====================================================================
+
+    /**
+     * @param {object} player
+     * @returns {{ taser: boolean, damage: number }}
+     */
+    _updateProjectiles(player) {
+        const result = { taser: false, damage: 0 };
+        if (!this.projectiles.length) return result;
+
+        const survivors = [];
+        const playerHitRadius = 16;
+
+        for (const proj of this.projectiles) {
+            proj.x += proj.vx;
+            proj.y += proj.vy;
+            proj.distance += proj.speed;
+
+            if (proj.distance >= proj.maxDistance) continue;
+
+            // Treffer auf Spieler pruefen
+            const dx = proj.x - (player.x + player.width / 2);
+            const dy = proj.y - (player.y + player.height / 2);
+            if (dx * dx + dy * dy <= playerHitRadius * playerHitRadius) {
+                if (proj.type === 'taser') {
+                    result.taser = true;
+                } else {
+                    result.damage += proj.damage;
+                }
+                continue;
+            }
+
+            survivors.push(proj);
+        }
+
+        this.projectiles = survivors;
+        return result;
+    }
+
+    // =====================================================================
+    //  Hilfsfunktionen
+    // =====================================================================
+
+    /**
+     * @param {object} a
+     * @param {object} b
+     * @returns {number}
+     */
+    _distanceTo(a, b) {
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        return Math.hypot(dx, dy);
+    }
+
+    /**
+     * Gibt die Anzahl lebender Polizisten zurueck.
+     * @returns {number}
+     */
+    getAliveCount() {
+        return this.officers.filter(c => !c.dead).length;
+    }
+
+    /**
+     * Gibt den Verhaftungs-Fortschritt als 0-1 zurueck.
+     * @returns {number}
+     */
+    getArrestProgress() {
+        return Math.min(1, this.arrestProgress / ARREST_TIME);
     }
 }
 
@@ -4414,7 +6717,6 @@ class AISystem {
     }
 }
 
-AISystem;
 
 
 
@@ -4664,382 +6966,79 @@ function _isPointInsideArea(x, y, area) {
     return x >= area.left && x <= area.right && y >= area.top && y <= area.bottom;
 }
 
-VehicleSystem;
 
 
 
 // ═══════════════════════════════════════════════════════
-// js/systems/CombatSystem.js
+// js/systems/CameraSystem.js
 // ═══════════════════════════════════════════════════════
 /**
- * CombatSystem - Verwaltet Projektile, Treffer und Kampf-Logik.
- * Portiert aus gta_old/overworld/js/overworld.js:
- *   processPlayerFiring()            (Z.2991-3017)
- *   spawnProjectilesForWeapon()      (Z.3019-3036)
- *   createProjectile()               (Z.3038-3064)
- *   updateProjectiles()              (Z.3065-3103)
- *   checkProjectileNpcCollision()    (Z.3180-3201)
- *   onNpcHit()                       (Z.3203-3214)
- *   killNpc()                        (Z.3216-3232)
- *   spawnBloodDecal()                (Z.3234-3243)
+ * CameraSystem — Kamera folgt dem Spieler, clampt an Weltgrenzen.
+ * Portiert aus gta_old/overworld/js/overworld.js updateCamera() (Z.1205-1223)
  */
-
-
-/** Maximale Anzahl an Blood-Decals bevor aelteste entfernt werden */
-const MAX_BLOOD_DECALS = 150;
-
-/** Offset vom Spielerzentrum zur Muendung in Pixeln */
-const MUZZLE_OFFSET = 18;
-
-class CombatSystem {
+class CameraSystem {
 
     /**
-     * @param {import('../core/EventBus.js').EventBus} eventBus
-     * @param {Map<string, object>} weaponCatalog - Ergebnis von createWeaponCatalog()
+     * @param {number} viewportWidth  - Canvas-Breite
+     * @param {number} viewportHeight - Canvas-Höhe
+     * @param {number} [zoom=1]       - Zoom-Faktor (1 = kein Zoom)
      */
-    constructor(eventBus, weaponCatalog) {
-        this.eventBus = eventBus;
-        this.weaponCatalog = weaponCatalog;
-
-        /** @type {Array<object>} Aktive Projektile */
-        this.projectiles = [];
-
-        /** @type {Array<object>} Blut-Decals auf dem Boden */
-        this.bloodDecals = [];
-
-        /** Feuer-Zustand (Timing fuer Fire-Rate) */
-        this._lastShotAt = 0;
-    }
-
-    // ───────────────────── Public API ─────────────────────
-
-    /**
-     * Setzt die Polizei-Referenz fuer Projektil-Kollision.
-     * @param {Array<object>} policeOfficers
-     */
-    setPoliceOfficers(policeOfficers) {
-        this._policeOfficers = policeOfficers;
+    constructor(viewportWidth, viewportHeight, zoom = 1) {
+        this.x = 0;
+        this.y = 0;
+        this.width = viewportWidth;
+        this.height = viewportHeight;
+        this.zoom = zoom;
     }
 
     /**
-     * Haupt-Update pro Frame.
-     * @param {import('../entities/Player.js').Player} player
-     * @param {Array<import('../entities/NPC.js').NPC>} npcs
-     * @param {number} _deltaTime - (reserviert, aktuell nicht genutzt)
-     */
-    update(player, npcs, _deltaTime) {
-        this._updateProjectiles(npcs);
-    }
-
-    /**
-     * Versucht mit der aktuellen Waffe zu feuern.
-     * Portiert aus processPlayerFiring() (Z.2991-3017).
+     * Kamera auf Ziel-Entity zentrieren und an Weltgrenzen clampen.
+     * Portiert aus updateCamera() (Z.1205-1223).
      *
-     * @param {import('../entities/Player.js').Player} player
-     * @param {{x: number, y: number}} mouseWorldPos - Maus-Weltkoordinaten
-     * @param {object} fireInput - { justPressed: boolean, active: boolean }
-     * @param {number} now - performance.now()
+     * @param {object} targetEntity - Objekt mit {x, y}
+     * @param {object} worldBounds  - {width, height} der Welt
      */
-    fireWeapon(player, mouseWorldPos, fireInput, now) {
-        const weapon = getWeaponDefinition(this.weaponCatalog, player.currentWeaponId);
+    update(targetEntity, worldBounds) {
+        // Effektive Viewport-Größe (berücksichtigt Zoom)
+        const vw = this.width / this.zoom;
+        const vh = this.height / this.zoom;
 
-        if (!weapon || !player.weaponInventory.has(weapon.id)) {
-            return;
-        }
+        // Kamera zentriert auf Entity
+        this.x = targetEntity.x - vw / 2;
+        this.y = targetEntity.y - vh / 2;
 
-        if (!fireInput.active && !fireInput.justPressed) {
-            return;
-        }
-
-        if (!weapon.automatic && !fireInput.justPressed) {
-            return;
-        }
-
-        const interval = weapon.fireRate ?? 250;
-
-        if (now - this._lastShotAt < interval) {
-            return;
-        }
-
-        const muzzle = player.getMuzzlePosition();
-        this._spawnProjectilesForWeapon(weapon, muzzle, mouseWorldPos);
-
-        this._lastShotAt = now;
-    }
-
-    // ───────────────────── Projektil-Erzeugung ─────────────────────
-
-    /**
-     * Erzeugt Projektil(e) fuer eine Waffe (inkl. Pellets bei Shotgun).
-     * Portiert aus spawnProjectilesForWeapon() (Z.3019-3036).
-     *
-     * @param {object} weapon - Waffendefinition aus dem Katalog
-     * @param {{x: number, y: number}} muzzle - Muendungsposition
-     * @param {{x: number, y: number}} target - Zielposition (Maus-Welt)
-     * @private
-     */
-    _spawnProjectilesForWeapon(weapon, muzzle, target) {
-        const targetX = target.x ?? muzzle.x;
-        const targetY = target.y ?? muzzle.y;
-
-        let angle = Math.atan2(targetY - muzzle.y, targetX - muzzle.x);
-
-        if (!Number.isFinite(angle)) {
-            angle = 0;
-        }
-
-        const spread = weapon.spread ?? 0;
-        const pelletCount = weapon.pellets && weapon.pellets > 1 ? weapon.pellets : 1;
-
-        for (let i = 0; i < pelletCount; i++) {
-            const offset = spread ? (Math.random() - 0.5) * spread * 2 : 0;
-            this._createProjectile(weapon, muzzle.x, muzzle.y, angle + offset);
-        }
+        // An Weltgrenzen clampen (westliche Grenze erlaubt Blick aufs Meer)
+        const westLimit = -(this.oceanOverflow ?? 0);
+        this.x = Math.max(westLimit, Math.min(this.x, worldBounds.width - vw));
+        this.y = Math.max(0, Math.min(this.y, worldBounds.height - vh));
     }
 
     /**
-     * Erstellt ein einzelnes Projektil.
-     * Portiert aus createProjectile() (Z.3038-3064).
-     *
-     * @param {object} weapon
-     * @param {number} startX
-     * @param {number} startY
-     * @param {number} angle
-     * @private
+     * Weltkoordinaten → Bildschirmkoordinaten.
+     * @param {number} wx
+     * @param {number} wy
+     * @returns {{sx: number, sy: number}}
      */
-    _createProjectile(weapon, startX, startY, angle) {
-        const speed = weapon.projectileSpeed ?? 10;
-        const vx = Math.cos(angle) * speed;
-        const vy = Math.sin(angle) * speed;
-
-        const originX = startX + Math.cos(angle) * MUZZLE_OFFSET;
-        const originY = startY + Math.sin(angle) * MUZZLE_OFFSET;
-
-        const projectile = {
-            x: originX,
-            y: originY,
-            vx,
-            vy,
-            speed,
-            damage: weapon.damage ?? 10,
-            weaponId: weapon.id,
-            color: weapon.displayColor ?? '#ffd166',
-            maxDistance: weapon.range ?? 600,
-            distance: 0,
-            createdAt: performance.now(),
+    worldToScreen(wx, wy) {
+        return {
+            sx: (wx - this.x) * this.zoom,
+            sy: (wy - this.y) * this.zoom
         };
-
-        this.projectiles.push(projectile);
-    }
-
-    // ───────────────────── Projektil-Update ─────────────────────
-
-    /**
-     * Bewegt alle Projektile und entfernt abgelaufene.
-     * Portiert aus updateProjectiles() (Z.3065-3103).
-     *
-     * @param {Array<import('../entities/NPC.js').NPC>} npcs
-     * @private
-     */
-    _updateProjectiles(npcs) {
-        if (!this.projectiles.length) {
-            return;
-        }
-
-        const survivors = [];
-
-        for (const projectile of this.projectiles) {
-            projectile.x += projectile.vx;
-            projectile.y += projectile.vy;
-            projectile.distance += projectile.speed;
-
-            let expired = projectile.distance >= projectile.maxDistance;
-
-            if (!expired) {
-                if (this._checkProjectileNpcCollision(projectile, npcs)) {
-                    expired = true;
-                }
-            }
-
-            // Polizei-Treffer pruefen
-            if (!expired && Array.isArray(this._policeOfficers)) {
-                if (this._checkProjectilePoliceCollision(projectile, this._policeOfficers)) {
-                    expired = true;
-                }
-            }
-
-            if (!expired) {
-                survivors.push(projectile);
-            }
-        }
-
-        this.projectiles = survivors;
-    }
-
-    // ───────────────────── Kollisionserkennung ─────────────────────
-
-    /**
-     * Prueft ob ein Projektil einen NPC trifft.
-     * Portiert aus checkProjectileNpcCollision() (Z.3180-3201).
-     *
-     * @param {object} projectile
-     * @param {Array<import('../entities/NPC.js').NPC>} npcs
-     * @returns {boolean} true wenn Treffer
-     * @private
-     */
-    _checkProjectileNpcCollision(projectile, npcs) {
-        if (!npcs || !Array.isArray(npcs)) {
-            return false;
-        }
-
-        for (const npc of npcs) {
-            if (!npc || npc.dead) {
-                continue;
-            }
-
-            const radius = npc.hitRadius ?? 14;
-            const dx = projectile.x - npc.x;
-            const dy = projectile.y - npc.y;
-
-            if (dx * dx + dy * dy <= radius * radius) {
-                this._onNpcHit(npc, projectile);
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // ───────────────────── Polizei-Kollision ─────────────────────
-
-    /**
-     * Prueft ob ein Projektil einen Polizisten trifft.
-     * @param {object} projectile
-     * @param {Array<object>} officers
-     * @returns {boolean}
-     * @private
-     */
-    _checkProjectilePoliceCollision(projectile, officers) {
-        for (const cop of officers) {
-            if (!cop || cop.dead) continue;
-
-            const radius = cop.hitRadius ?? 14;
-            const dx = projectile.x - cop.x;
-            const dy = projectile.y - cop.y;
-
-            if (dx * dx + dy * dy <= radius * radius) {
-                this._onPoliceHit(cop, projectile);
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
-     * Verarbeitet einen Treffer auf einen Polizisten.
-     * @param {object} cop
-     * @param {object} projectile
-     * @private
+     * Bildschirmkoordinaten → Weltkoordinaten.
+     * @param {number} sx
+     * @param {number} sy
+     * @returns {{wx: number, wy: number}}
      */
-    _onPoliceHit(cop, projectile) {
-        cop.health = Math.max(0, cop.health - projectile.damage);
-
-        this.eventBus.emit('police:hit', { cop, damage: projectile.damage });
-
-        if (cop.health <= 0) {
-            cop.dead = true;
-            cop.health = 0;
-            cop.moving = false;
-            cop.animationPhase = 0;
-            cop.deathRotation = (Math.random() * Math.PI) - Math.PI / 2;
-            this.spawnBloodDecal(cop.x, cop.y);
-            this.eventBus.emit('police:killed', { cop });
-        }
-    }
-
-    // ───────────────────── Treffer-Verarbeitung ─────────────────────
-
-    /**
-     * Verarbeitet einen Treffer auf einen NPC.
-     * Portiert aus onNpcHit() (Z.3203-3214).
-     *
-     * @param {import('../entities/NPC.js').NPC} npc
-     * @param {object} projectile
-     * @private
-     */
-    _onNpcHit(npc, projectile) {
-        const maxHealth = npc.maxHealth ?? 100;
-
-        npc.health = Math.max(0, (npc.health ?? maxHealth) - projectile.damage);
-
-        const panicDuration = 180 + Math.floor(Math.random() * 120);
-        npc.panicTimer = Math.max(npc.panicTimer ?? 0, panicDuration);
-
-        this.eventBus.emit('npc:hit', { npc, damage: projectile.damage, weaponId: projectile.weaponId });
-
-        if (npc.health <= 0) {
-            this._killNpc(npc);
-        }
-    }
-
-    /**
-     * Toetet einen NPC.
-     * Portiert aus killNpc() (Z.3216-3232).
-     *
-     * @param {import('../entities/NPC.js').NPC} npc
-     * @private
-     */
-    _killNpc(npc) {
-        if (npc.dead) {
-            return;
-        }
-
-        npc.dead = true;
-        npc.health = 0;
-        npc.moving = false;
-        npc.panicTimer = 0;
-        npc.waitTimer = 0;
-        npc.animationPhase = 0;
-        npc.isCrossing = false;
-        npc.waitingForCrosswalk = null;
-        npc.deathRotation = (Math.random() * Math.PI) - Math.PI / 2;
-
-        this.spawnBloodDecal(npc.x, npc.y);
-
-        this.eventBus.emit('npc:killed', { npc });
-    }
-
-    // ───────────────────── Blood-Decals ─────────────────────
-
-    /**
-     * Erzeugt einen Blut-Decal an der Position.
-     * Portiert aus spawnBloodDecal() (Z.3234-3243).
-     *
-     * @param {number} x
-     * @param {number} y
-     */
-    spawnBloodDecal(x, y) {
-        this.bloodDecals.push({
-            x,
-            y,
-            radius: 18 + Math.random() * 12,
-            createdAt: performance.now(),
-        });
-
-        if (this.bloodDecals.length > MAX_BLOOD_DECALS) {
-            this.bloodDecals.shift();
-        }
-    }
-
-    /**
-     * Entfernt alle Blut-Decals (z.B. nach Respawn).
-     */
-    clearBloodDecals() {
-        this.bloodDecals.length = 0;
+    screenToWorld(sx, sy) {
+        return {
+            wx: sx / this.zoom + this.x,
+            wy: sy / this.zoom + this.y
+        };
     }
 }
-
-CombatSystem;
 
 
 
@@ -5369,2245 +7368,6 @@ class DayNightSystem {
 
 
 // ═══════════════════════════════════════════════════════
-// js/systems/RealEstateSystem.js
-// ═══════════════════════════════════════════════════════
-/**
- * RealEstateSystem - Immobilienmarkt: Miete und Kauf von Gebaeuden.
- *
- * SSOT: Alle Immobilien-Preise, Mieten und Kauf-Logik hier zentralisiert.
- * - Motel/Apartment: Mietbar (taegliche Miete wird abgezogen)
- * - Bungalow/Haeuser: Kaufbar ueber Immobilienmaklbuero
- * Miet-/Kauf-Abrechnung erfolgt pro Ingame-Tag (1 voller Tag/Nacht-Zyklus).
- */
-
-// ---------------------------------------------------------------------------
-// Miet-Katalog (SSOT fuer alle mietbaren Unterkuenfte)
-// ---------------------------------------------------------------------------
-
-/**
- * Mietbare Unterkuenfte: Schluessel = Building-Type, Wert = Miet-Details.
- * rent = Miete pro Ingame-Tag.
- */
-const RENTAL_CATALOG = {
-    motel: {
-        name: 'Sunrise Motel',
-        rent: 50,
-        description: 'Kleines Motelzimmer mit Bett, Waschbecken und Toilette.',
-    },
-    apartmentComplex: {
-        name: 'Parkview Apartments',
-        rent: 150,
-        description: 'Gemuetliche Wohnung mit Bad, Doppelbett, Fernseher und mehr.',
-    },
-};
-
-// ---------------------------------------------------------------------------
-// Kauf-Katalog (SSOT fuer alle kaufbaren Immobilien ueber Makler)
-// ---------------------------------------------------------------------------
-
-/** Verkaufsrate: Anteil des Kaufpreises bei Verkauf (SSOT) */
-const PROPERTY_SELL_RATE = 0.5;
-
-const PROPERTY_CATALOG = {
-    bungalow: {
-        name: 'Bungalow am Stadtrand',
-        price: 35000,
-        description: 'Ein gemuetlicher Bungalow mit drei Raeumen: Wohnzimmer, Schlafzimmer und Kueche.',
-    },
-};
-
-// ---------------------------------------------------------------------------
-// Kompatibilitaet: isPropertyType prueft beide Kataloge
-// ---------------------------------------------------------------------------
-
-/**
- * Prueft ob ein Gebaeudetyp mietbar ist.
- * @param {string} type
- * @returns {boolean}
- */
-function isRentalType(type) {
-    return type in RENTAL_CATALOG;
-}
-
-/**
- * Prueft ob ein Gebaeudetyp kaufbar ist (ueber Makler).
- * @param {string} type
- * @returns {boolean}
- */
-function isPurchasableType(type) {
-    return type in PROPERTY_CATALOG;
-}
-
-class RealEstateSystem {
-
-    /**
-     * @param {import('../core/EventBus.js').EventBus} eventBus
-     */
-    constructor(eventBus) {
-        this.eventBus = eventBus;
-
-        /** @type {number} Letzter bekannter phaseIndex des DayNightSystem */
-        this._lastPhaseIndex = -1;
-
-        /** @type {number} Zaehlt wie oft phaseIndex auf 0 zurueckspringt (= neuer Tag) */
-        this._dayCount = 0;
-
-        /** @type {number} Letzter Tag an dem Miete/Einkommen abgerechnet wurde */
-        this._lastRentDay = 0;
-    }
-
-    // ===================================================================
-    //  Miete (Motel / Apartment)
-    // ===================================================================
-
-    /**
-     * Mietet eine Unterkunft. Spieler zahlt taegliche Miete.
-     *
-     * @param {object} player
-     * @param {object} building
-     * @returns {{ success: boolean, reason?: string, rental?: object }}
-     */
-    rentProperty(player, building) {
-        if (!building || !building.id) {
-            return { success: false, reason: 'invalidBuilding' };
-        }
-
-        const rental = RENTAL_CATALOG[building.type];
-        if (!rental) {
-            return { success: false, reason: 'notRentable' };
-        }
-
-        // Bereits gemietet?
-        if (player.rentedPropertyId === building.id) {
-            return { success: false, reason: 'alreadyRented' };
-        }
-
-        // Erste Miete sofort zahlen
-        if (player.money < rental.rent) {
-            return { success: false, reason: 'noMoney' };
-        }
-
-        player.money -= rental.rent;
-        player.rentedPropertyId = building.id;
-        player.homePropertyId = building.id;
-
-        this.eventBus.emit('realEstate:rented', {
-            buildingId: building.id,
-            type: building.type,
-            rent: rental.rent,
-        });
-
-        return { success: true, rental };
-    }
-
-    /**
-     * Kuendigt die aktuelle Miete.
-     *
-     * @param {object} player
-     * @param {object} building
-     * @returns {{ success: boolean, reason?: string }}
-     */
-    cancelRental(player, building) {
-        if (!building || !building.id) {
-            return { success: false, reason: 'invalidBuilding' };
-        }
-
-        if (player.rentedPropertyId !== building.id) {
-            return { success: false, reason: 'notRented' };
-        }
-
-        player.rentedPropertyId = null;
-
-        // Wohnsitz nur entfernen wenn es die gemietete Unterkunft war
-        if (player.homePropertyId === building.id) {
-            player.homePropertyId = null;
-        }
-
-        this.eventBus.emit('realEstate:rentalCancelled', {
-            buildingId: building.id,
-        });
-
-        return { success: true };
-    }
-
-    // ===================================================================
-    //  Kauf / Verkauf (Bungalow etc. ueber Makler)
-    // ===================================================================
-
-    /**
-     * Kauft eine Immobilie (Bungalow etc.).
-     *
-     * @param {object} player
-     * @param {object} building
-     * @returns {{ success: boolean, reason?: string, property?: object }}
-     */
-    buyProperty(player, building) {
-        if (!building || !building.id) {
-            return { success: false, reason: 'invalidBuilding' };
-        }
-
-        const catalog = PROPERTY_CATALOG[building.type];
-        if (!catalog) {
-            return { success: false, reason: 'notForSale' };
-        }
-
-        if (player.ownedProperties.has(building.id)) {
-            return { success: false, reason: 'alreadyOwned' };
-        }
-
-        if (player.money < catalog.price) {
-            return { success: false, reason: 'noMoney' };
-        }
-
-        player.money -= catalog.price;
-        player.ownedProperties.add(building.id);
-
-        this.eventBus.emit('realEstate:purchased', {
-            buildingId: building.id,
-            type: building.type,
-            price: catalog.price,
-        });
-
-        return { success: true, property: catalog };
-    }
-
-    /**
-     * Verkauft eine Immobilie (50% des Kaufpreises).
-     *
-     * @param {object} player
-     * @param {object} building
-     * @returns {{ success: boolean, reason?: string, refund?: number }}
-     */
-    sellProperty(player, building) {
-        if (!building || !building.id) {
-            return { success: false, reason: 'invalidBuilding' };
-        }
-
-        if (!player.ownedProperties.has(building.id)) {
-            return { success: false, reason: 'notOwned' };
-        }
-
-        const catalog = PROPERTY_CATALOG[building.type];
-        if (!catalog) {
-            return { success: false, reason: 'notForSale' };
-        }
-
-        const refund = RealEstateSystem.getSellRefund(catalog.price);
-        player.money += refund;
-        player.ownedProperties.delete(building.id);
-
-        if (player.homePropertyId === building.id) {
-            player.homePropertyId = null;
-        }
-
-        this.eventBus.emit('realEstate:sold', {
-            buildingId: building.id,
-            type: building.type,
-            refund,
-        });
-
-        return { success: true, refund };
-    }
-
-    // ===================================================================
-    //  Einziehen (Wohnsitz setzen - nur bei eigenen Immobilien)
-    // ===================================================================
-
-    /**
-     * Setzt eine eigene Immobilie als Wohnsitz (Respawn-Punkt).
-     *
-     * @param {object} player
-     * @param {object} building
-     * @returns {{ success: boolean, reason?: string }}
-     */
-    moveIn(player, building) {
-        if (!building || !building.id) {
-            return { success: false, reason: 'invalidBuilding' };
-        }
-
-        if (!player.ownedProperties.has(building.id)) {
-            return { success: false, reason: 'notOwned' };
-        }
-
-        player.homePropertyId = building.id;
-
-        this.eventBus.emit('realEstate:movedIn', {
-            buildingId: building.id,
-        });
-
-        return { success: true };
-    }
-
-    // ===================================================================
-    //  Taegliche Miet-Abrechnung (pro Ingame-Tag)
-    // ===================================================================
-
-    /**
-     * Zieht taegliche Miete ab wenn Spieler eine Unterkunft gemietet hat.
-     * Bei fehlendem Geld wird die Miete automatisch gekuendigt.
-     *
-     * @param {object} player
-     * @param {Array} buildings - Alle Gebaeude der Welt
-     * @param {number} deltaTime
-     * @param {object} dayNightSystem
-     */
-    update(player, buildings, deltaTime, dayNightSystem) {
-        if (!dayNightSystem) return;
-
-        const currentPhaseIndex = dayNightSystem.phaseIndex ?? 0;
-
-        if (this._lastPhaseIndex < 0) {
-            this._lastPhaseIndex = currentPhaseIndex;
-            return;
-        }
-
-        // Tageswechsel: Phase springt von letzter Phase (dawn=3) auf erste (day=0)
-        if (currentPhaseIndex === 0 && this._lastPhaseIndex !== 0) {
-            this._dayCount++;
-
-            if (this._dayCount > this._lastRentDay) {
-                this._lastRentDay = this._dayCount;
-
-                // Miete abziehen
-                if (player.rentedPropertyId) {
-                    const building = buildings.find((b) => b && b.id === player.rentedPropertyId);
-                    if (building) {
-                        const rental = RENTAL_CATALOG[building.type];
-                        if (rental) {
-                            if (player.money >= rental.rent) {
-                                player.money -= rental.rent;
-                                this.eventBus.emit('realEstate:rentPaid', {
-                                    buildingId: building.id,
-                                    rent: rental.rent,
-                                    day: this._dayCount,
-                                });
-                            } else {
-                                // Kein Geld -> Miete kuendigen
-                                player.rentedPropertyId = null;
-                                if (player.homePropertyId === building.id) {
-                                    player.homePropertyId = null;
-                                }
-                                this.eventBus.emit('realEstate:evicted', {
-                                    buildingId: building.id,
-                                    day: this._dayCount,
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        this._lastPhaseIndex = currentPhaseIndex;
-    }
-
-    // ===================================================================
-    //  Hilfsfunktionen
-    // ===================================================================
-
-    /**
-     * Gibt die Katalog-Infos fuer einen Gebaeudetyp zurueck (Miet- oder Kauf-Katalog).
-     * @param {string} type
-     * @returns {object|null}
-     */
-    static getCatalogEntry(type) {
-        return RENTAL_CATALOG[type] ?? PROPERTY_CATALOG[type] ?? null;
-    }
-
-    /**
-     * Gibt den Miet-Katalog-Eintrag zurueck.
-     * @param {string} type
-     * @returns {object|null}
-     */
-    static getRentalEntry(type) {
-        return RENTAL_CATALOG[type] ?? null;
-    }
-
-    /**
-     * Gibt den Kauf-Katalog-Eintrag zurueck.
-     * @param {string} type
-     * @returns {object|null}
-     */
-    static getPurchaseEntry(type) {
-        return PROPERTY_CATALOG[type] ?? null;
-    }
-
-    /**
-     * Prueft ob ein Gebaeudetyp mietbar oder kaufbar ist.
-     * @param {string} type
-     * @returns {boolean}
-     */
-    static isPropertyType(type) {
-        return type in RENTAL_CATALOG || type in PROPERTY_CATALOG;
-    }
-
-    /**
-     * Berechnet den Verkaufserloes einer Immobilie (SSOT).
-     * @param {number} price - Kaufpreis
-     * @returns {number}
-     */
-    static getSellRefund(price) {
-        return Math.floor(price * PROPERTY_SELL_RATE);
-    }
-
-    /**
-     * Formatiert einen Geldbetrag.
-     * @param {number} amount
-     * @returns {string}
-     */
-    static formatMoney(amount) {
-        return Math.floor(amount).toLocaleString('de-DE') + '$';
-    }
-}
-
-RealEstateSystem;
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/world/BuildingFactory.js
-// ═══════════════════════════════════════════════════════
-/**
- * BuildingFactory - Erstellt Gebaeude-Objekte und Collider.
- *
- * Portiert aus gta_old/overworld/js/overworld.js:
- *   createBuildingColliders() Zeilen 12025-12142
- *
- * SSOT: Alle Gebaeude-Erstellung und Collider-Logik hier zentralisiert.
- */
-
-/**
- * Erstellt ein Gebaeude-Objekt mit den gegebenen Parametern.
- *
- * @param {string} type - Gebaeudetyp (z.B. 'house', 'police', 'casino', 'weaponShop')
- * @param {number} x
- * @param {number} y
- * @param {number} width
- * @param {number} height
- * @param {object} [options={}]
- * @param {string} [options.name]
- * @param {boolean} [options.interactive=false]
- * @param {object} [options.variant]
- * @param {number} [options.colorIndex]
- * @param {number} [options.lotPadding]
- * @param {number} [options.collisionPadding]
- * @param {Array}  [options.subUnits]
- * @param {Array}  [options.collisionRects]
- * @returns {object} Gebaeude-Objekt
- */
-function createBuilding(type, x, y, width, height, options = {}) {
-    const building = {
-        x,
-        y,
-        width,
-        height,
-        type,
-        name: options.name ?? type,
-        interactive: options.interactive ?? false,
-    };
-
-    if (options.variant !== undefined) {
-        building.variant = options.variant;
-    }
-    if (options.colorIndex !== undefined) {
-        building.colorIndex = options.colorIndex;
-    }
-    if (options.lotPadding !== undefined) {
-        building.lotPadding = options.lotPadding;
-    }
-    if (options.collisionPadding !== undefined) {
-        building.collisionPadding = options.collisionPadding;
-    }
-    if (options.subUnits !== undefined) {
-        building.subUnits = options.subUnits;
-    }
-    if (options.collisionRects !== undefined) {
-        building.collisionRects = options.collisionRects;
-    }
-
-    return building;
-}
-
-/**
- * Erstellt Collider-Objekte aus einer Liste von Gebaeuden.
- * Jedes Gebaeude kann eigene collisionRects haben, andernfalls
- * wird die Basisgeometrie als Collider verwendet.
- *
- * Portiert aus createBuildingColliders() Zeilen 12025-12142.
- *
- * @param {Array} buildings
- * @returns {Array<{type: string, id: string|null, left: number, right: number, top: number, bottom: number}>}
- */
-function createBuildingColliders(buildings) {
-    if (!Array.isArray(buildings)) {
-        return [];
-    }
-
-    const colliders = [];
-
-    for (const building of buildings) {
-        if (!building) {
-            continue;
-        }
-
-        const rects = [];
-
-        if (Array.isArray(building.collisionRects) && building.collisionRects.length > 0) {
-            for (const rect of building.collisionRects) {
-                if (!rect) {
-                    continue;
-                }
-
-                const width = Number(rect.width ?? 0);
-                const height = Number(rect.height ?? 0);
-
-                if (!(width > 0 && height > 0)) {
-                    continue;
-                }
-
-                const left = Number(rect.x ?? building.x ?? 0);
-                const top = Number(rect.y ?? building.y ?? 0);
-
-                if (!Number.isFinite(left) || !Number.isFinite(top)) {
-                    continue;
-                }
-
-                rects.push({
-                    left,
-                    right: left + width,
-                    top,
-                    bottom: top + height,
-                });
-            }
-        }
-
-        if (rects.length === 0) {
-            const width = Number(building.width ?? 0);
-            const height = Number(building.height ?? 0);
-            const left = Number(building.x ?? 0);
-            const top = Number(building.y ?? 0);
-
-            if (width > 0 && height > 0 && Number.isFinite(left) && Number.isFinite(top)) {
-                rects.push({
-                    left,
-                    right: left + width,
-                    top,
-                    bottom: top + height,
-                });
-            }
-        }
-
-        for (const rect of rects) {
-            colliders.push({
-                type: 'building',
-                id: building.id ?? building.name ?? null,
-                left: rect.left,
-                right: rect.right,
-                top: rect.top,
-                bottom: rect.bottom,
-            });
-        }
-    }
-
-    return colliders;
-}
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/world/StreetDetails.js
-// ═══════════════════════════════════════════════════════
-/**
- * StreetDetails - Erstellt Strassendetails (Baeume, Baenke, Laternen, etc.).
- *
- * Portiert aus gta_old/overworld/js/overworld.js:
- *   createStreetDetails() Zeilen 3596-3777
- *
- * SSOT: Alle Strassendetail-Positionen hier zentralisiert.
- */
-
-/** Standard-Strassenkonfiguration */
-const DEFAULT_ROAD_HALF_WIDTH = 35;
-const DEFAULT_SIDEWALK_WIDTH = 36;
-
-/**
- * Erstellt alle Strassendetails (Baeume, Baenke, Laternen, Muelltonnen, etc.).
- *
- * @param {object} [config={}]
- * @param {number} [config.roadHalfWidth=35] - Halbe Strassenbreite
- * @param {number} [config.sidewalkWidth=36] - Buergersteigbreite
- * @returns {object} Detail-Objekt mit parkingLots, parkingBays, trees, benches, etc.
- */
-function createStreetDetails(config = {}) {
-    const roadHalfWidth = config.roadHalfWidth ?? DEFAULT_ROAD_HALF_WIDTH;
-    const sidewalkWidth = config.sidewalkWidth ?? DEFAULT_SIDEWALK_WIDTH;
-
-    const details = {
-        parkingLots: [],
-        parkingBays: [],
-        trees: [],
-        benches: [],
-        bikeRacks: [],
-        lamps: [],
-        bins: [],
-        busStops: [],
-        puddles: [],
-        planters: [],
-    };
-
-    // Deduplizierung fuer Baeume
-    const treePositions = new Set();
-
-    const addTree = (x, y, size = 30, variant = 0) => {
-        const key = `${Math.round(x)}_${Math.round(y)}`;
-        if (treePositions.has(key)) {
-            return;
-        }
-        treePositions.add(key);
-        details.trees.push({ x, y, size, variant });
-    };
-
-    // Baeume entlang horizontaler Strassen
-    const horizontalRows = [900, 1700];
-    for (const y of horizontalRows) {
-        const upper = y - roadHalfWidth - sidewalkWidth / 2;
-        const lower = y + roadHalfWidth + sidewalkWidth / 2;
-        for (let x = 260; x <= 3240; x += 220) {
-            addTree(x, upper, 30, (x / 220) % 3);
-            addTree(x, lower, 32, ((x + 110) / 180) % 3);
-        }
-    }
-
-    // Parkplatz
-    details.parkingLots.push({
-        x: 2490,
-        y: 1500,
-        width: 420,
-        height: 140,
-        rows: 2,
-        slots: 6,
-        aisle: 26,
-        padding: 14,
-        surfaceColor: '#2d2f34',
-    });
-
-    // Baeume entlang vertikaler Strassen
-    const verticalColumns = [950, 1700, 2950, 3350];
-    for (const x of verticalColumns) {
-        const left = x - roadHalfWidth - sidewalkWidth / 2;
-        const right = x + roadHalfWidth + sidewalkWidth / 2;
-        for (let y = 260; y <= 2360; y += 220) {
-            addTree(left, y, 28, (y / 210) % 3);
-            addTree(right, y, 28, ((y + 90) / 190) % 3);
-        }
-    }
-
-    // Baenke
-    details.benches.push({ x: 1130, y: 1780, orientation: "horizontal" });
-    details.benches.push({ x: 1280, y: 1780, orientation: "horizontal" });
-    details.benches.push({ x: 1430, y: 1780, orientation: "horizontal" });
-    details.benches.push({ x: 1560, y: 980, orientation: "vertical" });
-    details.benches.push({ x: 560, y: 1720, orientation: "horizontal" });
-
-    // Fahrradstaender
-    details.bikeRacks.push({ x: 1220, y: 1885, orientation: "horizontal" });
-    details.bikeRacks.push({ x: 1380, y: 1885, orientation: "horizontal" });
-    details.bikeRacks.push({ x: 1520, y: 840, orientation: "vertical" });
-
-    // Bushaltestellen
-    details.busStops.push({ x: 1040, y: 1680, orientation: "horizontal", length: 140 });
-    details.busStops.push({ x: 1860, y: 1680, orientation: "horizontal", length: 140 });
-
-    // Strassenlampen
-    const lampRows = [
-        { y: 1860, start: 1100, end: 1620, step: 120 },
-        { y: 820, start: 1180, end: 1540, step: 120 },
-        { y: 2120, start: 1780, end: 2320, step: 140 },
-        { y: 1180, start: 2760, end: 3260, step: 120 },
-    ];
-    for (const row of lampRows) {
-        for (let x = row.start; x <= row.end; x += row.step) {
-            details.lamps.push({ x, y: row.y });
-        }
-    }
-    details.lamps.push({ x: 360, y: 860 });
-    details.lamps.push({ x: 360, y: 1740 });
-
-    // Muelltonnen
-    details.bins.push({ x: 1180, y: 1760 });
-    details.bins.push({ x: 1340, y: 1760 });
-    details.bins.push({ x: 1500, y: 1760 });
-    details.bins.push({ x: 560, y: 1700 });
-
-    // Parkbuchten
-    details.parkingBays.push({ x: 240, y: 870, width: 110, height: 42, orientation: "horizontal" });
-    details.parkingBays.push({ x: 360, y: 870, width: 110, height: 42, orientation: "horizontal" });
-    details.parkingBays.push({ x: 480, y: 870, width: 110, height: 42, orientation: "horizontal" });
-    details.parkingBays.push({ x: 1880, y: 880, width: 120, height: 46, orientation: "horizontal" });
-    details.parkingBays.push({ x: 2980, y: 1140, width: 140, height: 46, orientation: "horizontal" });
-
-    // Pflanzkaesten
-    details.planters.push({ x: 1160, y: 1840, width: 80, height: 32 });
-    details.planters.push({ x: 1320, y: 1840, width: 80, height: 32 });
-    details.planters.push({ x: 1480, y: 1840, width: 80, height: 32 });
-
-    // Pfuetzen
-    details.puddles.push({ x: 960, y: 880, radius: 26 });
-    details.puddles.push({ x: 1620, y: 1680, radius: 32 });
-    details.puddles.push({ x: 420, y: 1680, radius: 22 });
-
-    return details;
-}
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/world/WorldGenerator.js
-// ═══════════════════════════════════════════════════════
-/**
- * WorldGenerator - Erstellt die gesamte Spielwelt (Gebaeude, NPCs, Fahrzeuge).
- *
- * Portiert aus gta_old/overworld/js/overworld.js:
- *   createCityBuildings()      Zeilen 3247-3595
- *   createDynamicAgents()      Zeilen 4550-4999
- *   createHouseVisitorNPCs()   Zeilen 3784-4169
- *
- * SSOT: Alle Welterzeugungs-Daten hier zentralisiert.
- * Gebaeude-Objekte werden ueber BuildingFactory erstellt,
- * NPC/Vehicle-Instanzen ueber NPC.js/Vehicle.js.
- */
-
-
-
-
-
-
-
-// ---------------------------------------------------------------------------
-// Residential-Blueprints (SSOT fuer alle Wohnhaus-Positionen)
-// ---------------------------------------------------------------------------
-const RESIDENTIAL_BLUEPRINTS = [
-    { x: 280, y: 980, width: 250, height: 300, styleIndex: 0, floors: 6, roofGarden: true, balconyRhythm: 2, erker: true, walkwayExtension: 48, walkwaySpurLength: 220, walkwaySpurWidth: 22 },
-    { x: 560, y: 960, width: 300, height: 280, styleIndex: 1, floors: 5, roofGarden: false, balconyRhythm: 3, walkwayExtension: 48, walkwaySpurLength: 220, walkwaySpurWidth: 22 },
-    { x: 280, y: 1300, width: 240, height: 320, styleIndex: 3, floors: 4, roofGarden: true, balconyRhythm: 2 },
-    { x: 560, y: 1310, width: 300, height: 300, styleIndex: 4, floors: 7, roofGarden: false, balconyRhythm: 4 },
-    { x: 980, y: 960, width: 260, height: 260, styleIndex: 2, floors: 7, roofGarden: true, balconyRhythm: 3 },
-    { x: 1260, y: 960, width: 280, height: 240, styleIndex: 5, floors: 5, roofGarden: false, balconyRhythm: 2, stepped: true },
-    { x: 980, y: 1300, width: 260, height: 260, styleIndex: 0, floors: 5, roofGarden: true, balconyRhythm: 3 },
-    { x: 1270, y: 1280, width: 340, height: 280, styleIndex: 1, floors: 6, roofGarden: true, balconyRhythm: 3, erker: true },
-    { x: 1760, y: 320, width: 300, height: 320, styleIndex: 2, floors: 6, roofGarden: true, balconyRhythm: 2 },
-    { x: 2080, y: 320, width: 300, height: 280, styleIndex: 4, floors: 5, roofGarden: false, balconyRhythm: 3 },
-    { x: 1760, y: 660, width: 520, height: 180, styleIndex: 5, floors: 4, roofGarden: true, balconyRhythm: 2 },
-    { x: 1760, y: 980, width: 300, height: 260, styleIndex: 1, floors: 6, roofGarden: true, balconyRhythm: 3 },
-    { x: 2080, y: 980, width: 300, height: 260, styleIndex: 3, floors: 5, roofGarden: false, balconyRhythm: 2 },
-    { x: 1760, y: 1320, width: 300, height: 300, styleIndex: 2, floors: 7, roofGarden: true, balconyRhythm: 3, erker: true },
-    { x: 2080, y: 1320, width: 300, height: 300, styleIndex: 0, floors: 5, roofGarden: true, balconyRhythm: 2 },
-    { x: 1760, y: 1790, width: 300, height: 320, styleIndex: 4, floors: 5, roofGarden: true, balconyRhythm: 2 },
-    { x: 2080, y: 1790, width: 300, height: 320, styleIndex: 5, floors: 4, roofGarden: true, balconyRhythm: 3 },
-    { x: 1760, y: 2120, width: 300, height: 200, styleIndex: 3, floors: 5, roofGarden: true, balconyRhythm: 2 },
-    { x: 2080, y: 2120, width: 300, height: 200, styleIndex: 1, floors: 6, roofGarden: false, balconyRhythm: 3 },
-    { x: 280, y: 1790, width: 260, height: 320, styleIndex: 2, floors: 5, roofGarden: true, balconyRhythm: 2 },
-    { x: 580, y: 1790, width: 260, height: 320, styleIndex: 5, floors: 4, roofGarden: true, balconyRhythm: 3 },
-    { x: 280, y: 2120, width: 260, height: 200, styleIndex: 0, floors: 5, roofGarden: true, balconyRhythm: 3 },
-    { x: 580, y: 2120, width: 260, height: 200, styleIndex: 4, floors: 6, roofGarden: false, balconyRhythm: 2, weaponShop: true },
-];
-
-// ---------------------------------------------------------------------------
-// NPC-Paletten fuer Haus-Besucher (SSOT)
-// ---------------------------------------------------------------------------
-const VISITOR_PALETTES = [
-    { head: "#f2d1b3", torso: "#355070", limbs: "#2a3d66", accent: "#b1e5f2", hair: "#2f1b25" },
-    { head: "#f8cbbb", torso: "#6d597a", limbs: "#463764", accent: "#ffb4a2", hair: "#2d142c" },
-    { head: "#f6d5a5", torso: "#588157", limbs: "#3a5a40", accent: "#a3b18a", hair: "#5b3711" },
-    { head: "#f1d3ce", torso: "#0081a7", limbs: "#005f73", accent: "#83c5be", hair: "#0d1b2a" },
-    { head: "#f7d6bf", torso: "#bc4749", limbs: "#6a040f", accent: "#fcbf49", hair: "#432818" },
-    { head: "#efd3b4", torso: "#2a9d8f", limbs: "#1d6f6a", accent: "#e9c46a", hair: "#264653" },
-    { head: "#f2ceb9", torso: "#4361ee", limbs: "#3a0ca3", accent: "#4cc9f0", hair: "#1a1b41" },
-    { head: "#f9d5c4", torso: "#f3722c", limbs: "#d8572a", accent: "#f8961e", hair: "#7f5539" },
-    { head: "#f5d2bc", torso: "#2b9348", limbs: "#007f5f", accent: "#80ed99", hair: "#2f2f2f" },
-    { head: "#f0cfd0", torso: "#9d4edd", limbs: "#7b2cbf", accent: "#c77dff", hair: "#3c096c" },
-];
-
-// ---------------------------------------------------------------------------
-// Standard Tag/Nacht Phasen-Dauern
-// ---------------------------------------------------------------------------
-const DEFAULT_PHASE_DURATIONS = [
-    { id: "day", duration: 300000 },
-    { id: "dusk", duration: 120000 },
-    { id: "night", duration: 300000 },
-    { id: "dawn", duration: 120000 },
-];
-
-// ---------------------------------------------------------------------------
-// WorldGenerator
-// ---------------------------------------------------------------------------
-class WorldGenerator {
-
-    /**
-     * @param {object} [config={}]
-     * @param {Array}  [config.houseStyles] - Hausstile (aus HouseStyles.js)
-     * @param {boolean} [config.enableHouseResidents=true]
-     * @param {object} [config.dayNightCycle] - Tag/Nacht-Zyklus-Konfiguration
-     * @param {object} [config.roadNetwork] - RoadNetwork-Instanz (fuer Sidewalk-Projektion)
-     * @param {number} [config.sidewalkWidth=36]
-     */
-    constructor(config = {}) {
-        this.houseStyles = config.houseStyles ?? createHouseStyles();
-        this.enableHouseResidents = config.enableHouseResidents !== false;
-        this.dayNightCycle = config.dayNightCycle ?? null;
-        this.roadNetwork = config.roadNetwork ?? null;
-        this.sidewalkWidth = config.sidewalkWidth ?? 36;
-    }
-
-    // -----------------------------------------------------------------------
-    // Public API
-    // -----------------------------------------------------------------------
-
-    /**
-     * Generiert die komplette Spielwelt.
-     *
-     * @returns {{ buildings: Array, streetDetails: object, dynamicAgents: { npcs: Array<NPC>, vehicles: Array<Vehicle> } }}
-     */
-    generateWorld() {
-        const buildings = this._createCityBuildings();
-        const streetDetails = createStreetDetails({
-            roadHalfWidth: 35,
-            sidewalkWidth: this.sidewalkWidth,
-        });
-        const dynamicAgents = this._createDynamicAgents(buildings);
-
-        return { buildings, streetDetails, dynamicAgents };
-    }
-
-    // -----------------------------------------------------------------------
-    // createCityBuildings - Portiert aus Zeilen 3247-3595
-    // -----------------------------------------------------------------------
-
-    _createCityBuildings() {
-        const buildings = [];
-
-        // Polizeihauptquartier
-        buildings.push({
-            x: 320, y: 340, width: 520, height: 420,
-            name: "Polizeihauptquartier", type: "police", interactive: true,
-        });
-
-        // Casino Tower mit Podium-Collision
-        const casinoTower = {
-            x: 3040, y: 860, width: 238, height: 560,
-            name: "Starlight Casino Tower", type: "casino", interactive: true,
-        };
-        const casinoApron = Math.max(60, Math.round(casinoTower.width * 0.3));
-        const casinoPodiumHeight = Math.max(72, Math.min(120, Math.round(casinoTower.height * 0.22)));
-        const casinoPlinthHeight = 40;
-        const casinoPodiumY = casinoTower.y + casinoTower.height - 16;
-        casinoTower.collisionRects = [
-            { x: casinoTower.x, y: casinoTower.y, width: casinoTower.width, height: casinoTower.height },
-            { x: casinoTower.x - casinoApron, y: casinoPodiumY, width: casinoTower.width + casinoApron * 2, height: casinoPodiumHeight + casinoPlinthHeight },
-        ];
-        buildings.push(casinoTower);
-
-        // Motel
-        buildings.push({
-            x: 2540, y: 320, width: 340, height: 220,
-            name: RENTAL_CATALOG.motel.name, type: "motel", interactive: true,
-        });
-
-        // Apartment-Komplex
-        buildings.push({
-            x: 1080, y: 320, width: 300, height: 400,
-            name: RENTAL_CATALOG.apartmentComplex.name, type: "apartmentComplex", interactive: true,
-        });
-
-        // Downtown Hochhaeuser
-        buildings.push({
-            x: 2540, y: 940, width: 160, height: 540,
-            name: "Aurora Financial Center", type: "officeTower", interactive: false,
-        });
-        buildings.push({
-            x: 2720, y: 980, width: 150, height: 500,
-            name: "Skyline Exchange", type: "residentialTower", interactive: false,
-        });
-
-        // Mixed-Use Block
-        buildings.push({
-            x: 1000, y: 1820, width: 600, height: 420,
-            name: "Aurora Quartier", type: "mixedUse", interactive: true,
-            subUnits: [
-                { label: "Aurora Restaurant", accent: "#f78f5c" },
-                { label: "Stadtmarkt", accent: "#7fd491" },
-                { label: "Polizeiposten", accent: "#5da1ff" },
-            ],
-        });
-
-        // Immobilienmakler
-        buildings.push({
-            x: 2920, y: 1820, width: 200, height: 160,
-            name: "Immobilienmakler Schmidt", type: "realEstateAgent", interactive: true,
-        });
-
-        // Bungalow (kaufbar ueber Makler)
-        buildings.push({
-            x: 2920, y: 2100, width: 280, height: 200,
-            name: PROPERTY_CATALOG.bungalow.name, type: "bungalow", interactive: true,
-        });
-
-        // Wohnhaeuser aus Blueprints
-        let houseCounter = 1;
-        for (const blueprint of RESIDENTIAL_BLUEPRINTS) {
-            if (blueprint.weaponShop) {
-                buildings.push({
-                    x: blueprint.x, y: blueprint.y,
-                    width: blueprint.width, height: blueprint.height,
-                    name: "Ammu-Nation", type: "weaponShop", interactive: true,
-                });
-                continue;
-            }
-
-            const styleIndex = blueprint.styleIndex % this.houseStyles.length;
-            const lotPaddingBase = Math.min(36, Math.min(blueprint.width, blueprint.height) * 0.22);
-            const maxInset = Math.max(0, Math.min(blueprint.width, blueprint.height) / 2 - 20);
-            const collisionPadding = Math.max(0, Math.min(lotPaddingBase * 0.95, maxInset));
-
-            buildings.push({
-                x: blueprint.x, y: blueprint.y,
-                width: blueprint.width, height: blueprint.height,
-                lotPadding: lotPaddingBase,
-                collisionPadding,
-                name: `Wohnhaus ${houseCounter}`,
-                type: "house",
-                interactive: true,
-                colorIndex: styleIndex,
-                variant: {
-                    styleIndex,
-                    floors: blueprint.floors,
-                    roofGarden: blueprint.roofGarden,
-                    balconyRhythm: blueprint.balconyRhythm,
-                    erker: Boolean(blueprint.erker),
-                    stepped: Boolean(blueprint.stepped),
-                    walkwayExtension: blueprint.walkwayExtension ?? 0,
-                    walkwaySpurLength: blueprint.walkwaySpurLength ?? 0,
-                    walkwaySpurWidth: blueprint.walkwaySpurWidth ?? 0,
-                },
-            });
-            houseCounter++;
-        }
-
-        // IDs und Metriken zuweisen
-        let buildingIdCounter = 1;
-        for (const building of buildings) {
-            if (!building) {
-                continue;
-            }
-
-            building.id = `building_${buildingIdCounter++}`;
-
-            if (building.type === "house") {
-                const metrics = WorldGenerator.computeHouseMetrics(building, this.houseStyles);
-                if (metrics) {
-                    building.metrics = metrics;
-                    building.entrance = metrics.entrance;
-                    building.approach = metrics.approach;
-                    building.interiorPoint = metrics.interior;
-
-                    if (!building.bounds) {
-                        building.bounds = metrics.bounds;
-                    }
-
-                    const houseBodyWidth = Math.max(0, Number(metrics.houseWidth ?? 0));
-                    const houseBodyHeight = Math.max(0, Number(metrics.houseHeight ?? 0));
-
-                    if (houseBodyWidth > 0 && houseBodyHeight > 0) {
-                        const houseBodyX = Number(building.x ?? 0) + Number(metrics.houseX ?? 0);
-                        const houseBodyY = Number(building.y ?? 0) + Number(metrics.houseY ?? 0);
-                        const variantDetails = building.variant ?? {};
-                        const walkway = metrics.walkway ?? {};
-                        const walkwayHeight = Math.max(0, Number(walkway.height ?? 0));
-                        const walkwayExtension = Math.max(0, Number(variantDetails.walkwayExtension ?? 0));
-                        const frontDepth = Math.max(0, Number(metrics.frontDepth ?? walkwayHeight));
-                        const frontBuffer = Math.max(14, Math.min(houseBodyHeight - 4, frontDepth + walkwayExtension));
-                        const clippedHeight = Math.max(0, houseBodyHeight - frontBuffer);
-
-                        if (clippedHeight > 0) {
-                            building.collisionRects = [{
-                                x: houseBodyX,
-                                y: houseBodyY,
-                                width: houseBodyWidth,
-                                height: clippedHeight,
-                            }];
-                        }
-                    }
-                }
-            }
-        }
-
-        return buildings;
-    }
-
-    // -----------------------------------------------------------------------
-    // createDynamicAgents - Portiert aus Zeilen 4550-4999
-    // -----------------------------------------------------------------------
-
-    /**
-     * @param {Array} buildings
-     * @returns {{ npcs: Array<NPC>, vehicles: Array<Vehicle> }}
-     */
-    _createDynamicAgents(buildings) {
-        // Casino-Podium Pfad berechnen
-        const casinoTower = Array.isArray(buildings) ? buildings.find((b) => b && b.type === "casino") : null;
-        let casinoPodiumPlan = null;
-
-        if (casinoTower) {
-            const apron = Math.max(60, Math.round(casinoTower.width * 0.3));
-            const podiumHeight = Math.max(72, Math.min(120, Math.round(casinoTower.height * 0.22)));
-            const podiumWidth = casinoTower.width + apron * 2;
-            const podiumX = casinoTower.x - apron;
-            const podiumY = casinoTower.y + casinoTower.height - 16;
-            const margin = Math.max(18, Math.min(32, this.sidewalkWidth));
-            const topY = podiumY + margin;
-            const bottomY = podiumY + podiumHeight - margin;
-            const leftX = podiumX + margin;
-            const rightX = podiumX + podiumWidth - margin;
-
-            casinoPodiumPlan = {
-                path: [
-                    { x: leftX, y: topY, wait: 6 },
-                    { x: rightX, y: topY, wait: 6 },
-                    { x: rightX, y: bottomY, wait: 6 },
-                    { x: leftX, y: bottomY, wait: 6 },
-                ],
-                bounds: {
-                    left: podiumX + margin / 1.5,
-                    right: podiumX + podiumWidth - margin / 1.5,
-                    top: podiumY + margin / 1.5,
-                    bottom: podiumY + podiumHeight - margin / 1.5,
-                },
-            };
-        }
-
-        // Statische NPCs
-        const npcConfigs = [
-            {
-                palette: { head: "#f1d2b6", torso: "#3c6e71", limbs: "#284b52", accent: "#f7ede2", hair: '#3b2c1e' },
-                spawnPoint: { x: 1140, y: 1647 },
-                waypoints: [
-                    { x: 1140, y: 1647, wait: 0 },
-                    { x: 1300, y: 1647, wait: 6 },
-                ],
-                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.25,
-            },
-            {
-                palette: { head: "#f8cfd2", torso: "#6a4c93", limbs: "#413c58", accent: "#ffb5a7", hair: '#2e1f36' },
-                spawnPoint: { x: 3060, y: 1647 },
-                waypoints: [
-                    { x: 3060, y: 1647, wait: 0 },
-                    { x: 3200, y: 1647, wait: 6 },
-                ],
-                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.05,
-            },
-            {
-                palette: { head: "#fbe2b4", torso: "#ff914d", limbs: "#583101", accent: "#ffd166", hair: '#3c2a1f' },
-                spawnPoint: { x: 660, y: 1753 },
-                waypoints: [
-                    { x: 660, y: 1753, wait: 0 },
-                    { x: 500, y: 1753, wait: 6 },
-                ],
-                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.35,
-            },
-            {
-                palette: { head: "#f0cfa0", torso: "#264653", limbs: "#1d3557", accent: "#f4a261", hair: '#2a1d13' },
-                spawnPoint: { x: 1335, y: 1753 },
-                waypoints: [
-                    { x: 1335, y: 1753, wait: 0 },
-                    { x: 1500, y: 1753, wait: 6 },
-                ],
-                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.18,
-            },
-            {
-                palette: { head: "#f3d7c6", torso: "#274060", limbs: "#1b2845", accent: "#7dbad1", hair: '#0f1c2c' },
-                spawnPoint: { x: 2920, y: 847 },
-                waypoints: [
-                    { x: 2920, y: 847, wait: 0 },
-                    { x: 2700, y: 847, wait: 6 },
-                ],
-                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.08,
-            },
-            {
-                palette: { head: "#f2d0b5", torso: "#7a8b99", limbs: "#45525f", accent: "#d9ed92", hair: '#2f1d18' },
-                spawnPoint: { x: 570, y: 847 },
-                waypoints: [
-                    { x: 570, y: 847, wait: 0 },
-                    { x: 400, y: 847, wait: 6 },
-                ],
-                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.12,
-            },
-            {
-                palette: { head: "#f9d6c1", torso: "#bc4749", limbs: "#6a040f", accent: "#ffb703", hair: '#311019' },
-                spawnPoint: { x: 1910, y: 1647 },
-                waypoints: [
-                    { x: 1910, y: 1647, wait: 0 },
-                    { x: 2100, y: 1647, wait: 6 },
-                ],
-                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.22,
-            },
-            {
-                palette: { head: "#f5ccb2", torso: "#457b9d", limbs: "#1d3557", accent: "#a8dadc", hair: '#16324f' },
-                spawnPoint: { x: 2410, y: 2347 },
-                waypoints: [
-                    { x: 2410, y: 2347, wait: 0 },
-                    { x: 2600, y: 2347, wait: 6 },
-                ],
-                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.14,
-            },
-            {
-                palette: { head: "#f4ceb8", torso: "#2a9d8f", limbs: "#1f6f78", accent: "#e9c46a", hair: '#274046' },
-                spawnPoint: { x: 510, y: 2453 },
-                waypoints: [
-                    { x: 510, y: 2453, wait: 0 },
-                    { x: 700, y: 2453, wait: 6 },
-                ],
-                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.02,
-            },
-            {
-                palette: { head: "#f7d6bf", torso: "#1b263b", limbs: "#0d1b2a", accent: "#415a77", hair: '#0b132b' },
-                spawnPoint: { x: 3155, y: 1753 },
-                waypoints: [
-                    { x: 3155, y: 1753, wait: 0 },
-                    { x: 3300, y: 1753, wait: 6 },
-                ],
-                dynamicNavigation: true, stayOnSidewalks: true, speed: 1.35,
-            },
-        ];
-
-        const npcs = npcConfigs.map((cfg) => new NPC(cfg));
-
-        // Casino-Podium NPC
-        if (casinoPodiumPlan) {
-            npcs.push(new NPC({
-                palette: { head: "#f4d7c8", torso: "#1b3a4b", limbs: "#12263a", accent: "#9ad1d4", hair: '#261d1a' },
-                waypoints: casinoPodiumPlan.path,
-                bounds: casinoPodiumPlan.bounds,
-                speed: 1.08,
-                stayOnSidewalks: true,
-            }));
-        }
-
-        // Haus-Besucher NPCs
-        const houseVisitors = this._createHouseVisitorNPCs(buildings);
-        if (houseVisitors.length) {
-            npcs.push(...houseVisitors);
-        }
-
-        // Fahrzeuge
-        const vehicles = [
-            new Vehicle({
-                baseColor: "#d35400", accentColor: "#f5c16f",
-                width: 96, height: 44, speed: 2.6,
-                path: [
-                    { x: 240, y: 1700, wait: 0 },
-                    { x: 3320, y: 1700, wait: 18 },
-                ],
-            }),
-            new Vehicle({
-                baseColor: "#2980b9", accentColor: "#8fd3fe",
-                width: 110, height: 48, speed: 2.4,
-                path: [
-                    { x: 1700, y: 2600, wait: 20 },
-                    { x: 1700, y: 260, wait: 24 },
-                ],
-            }),
-            new Vehicle({
-                baseColor: "#6c5ce7", accentColor: "#fd79a8",
-                width: 102, height: 46, speed: 2.2,
-                path: [
-                    { x: 2450, y: 1700, wait: 12 },
-                    { x: 3350, y: 1700, wait: 10 },
-                    { x: 3350, y: 2400, wait: 12 },
-                    { x: 2450, y: 2400, wait: 10 },
-                ],
-            }),
-        ];
-
-        return { npcs, vehicles };
-    }
-
-    // -----------------------------------------------------------------------
-    // createHouseVisitorNPCs - Portiert aus Zeilen 3784-4169
-    // -----------------------------------------------------------------------
-
-    /**
-     * @param {Array} buildings
-     * @returns {Array<NPC>}
-     */
-    _createHouseVisitorNPCs(buildings) {
-        if (!this.enableHouseResidents) {
-            return [];
-        }
-
-        if (!Array.isArray(buildings)) {
-            return [];
-        }
-
-        const houses = buildings.filter(
-            (b) => b && b.type === "house" && b.entrance && b.approach && b.interiorPoint
-        );
-
-        if (!houses.length) {
-            return [];
-        }
-
-        // Tag/Nacht-Zyklus Timing
-        const cycle = this.dayNightCycle ?? null;
-        const phaseDurations = (Array.isArray(cycle?.phases) && cycle.phases.length)
-            ? cycle.phases
-            : DEFAULT_PHASE_DURATIONS;
-
-        const totalCycleMs = phaseDurations.reduce(
-            (sum, phase) => sum + Math.max(0, Number(phase.duration) || 0), 0
-        );
-        const halfDayMs = Math.max(180000, totalCycleMs > 0 ? totalCycleMs / 2 : 360000);
-
-        const framesFromMs = (ms, minFrames = 60) => {
-            const frames = Math.round((Math.max(0, Number(ms) || 0) / 1000) * 60);
-            return Math.max(minFrames, frames);
-        };
-
-        const distanceSq = (a, b) => {
-            if (!a || !b) return Infinity;
-            const dx = (a.x ?? 0) - (b.x ?? 0);
-            const dy = (a.y ?? 0) - (b.y ?? 0);
-            return dx * dx + dy * dy;
-        };
-
-        const visitors = [];
-
-        for (let index = 0; index < houses.length; index++) {
-            const house = houses[index];
-            const metrics = house.metrics ?? WorldGenerator.computeHouseMetrics(house, this.houseStyles);
-
-            if (!metrics) {
-                continue;
-            }
-
-            const approach = metrics.approach ?? house.approach;
-            const entrance = metrics.entrance ?? house.entrance;
-            const interior = metrics.interior ?? house.interiorPoint;
-            const doorWorld = metrics.door?.world ?? null;
-
-            if (!approach || !entrance || !interior || !doorWorld) {
-                continue;
-            }
-
-            const walkway = metrics.walkway ?? { width: 32, height: 18 };
-            const direction = index % 2 === 0 ? 1 : -1;
-
-            const door = {
-                x: doorWorld.x,
-                y: doorWorld.bottom ?? doorWorld.y,
-            };
-
-            const seedX = (Number(house.x ?? 0) + index * 37.17) * 0.0031;
-            const seedY = (Number(house.y ?? 0) + index * 19.91) * 0.0042;
-            const rng = pseudoRandom2D(seedX, seedY);
-
-            const baseHalfFrames = framesFromMs(halfDayMs, 1200);
-            const insideFrames = Math.max(1200, Math.round(baseHalfFrames * (0.85 + (1 - rng) * 0.3)));
-            const outsideFrames = Math.max(900, Math.round(baseHalfFrames * (0.85 + rng * 0.3)));
-
-            const palette = VISITOR_PALETTES[index % VISITOR_PALETTES.length];
-            const stride = Math.max(140, (walkway.width ?? 32) * 5.5);
-            const travelDepth = Math.max(120, (walkway.height ?? 18) * 8);
-
-            // Sidewalk-Projektion (wenn RoadNetwork verfuegbar)
-            const project = (dx, dy) => {
-                if (this.roadNetwork) {
-                    const projected = this.roadNetwork.findNearestSidewalkSpot(
-                        approach.x + dx, approach.y + dy
-                    );
-                    if (projected && Number.isFinite(projected.x) && Number.isFinite(projected.y)) {
-                        return { x: projected.x, y: projected.y };
-                    }
-                }
-                // Fallback: direkte Position
-                return { x: approach.x + dx, y: approach.y + dy };
-            };
-
-            const pickUniqueSidewalkPoint = (attempts, reference, fallback) => {
-                for (const [dx, dy] of attempts) {
-                    const candidate = project(dx, dy);
-                    if (!candidate) continue;
-                    if (reference && distanceSq(candidate, reference) < 64) continue;
-                    return candidate;
-                }
-                return fallback;
-            };
-
-            const defaultSidewalk = project(0, 0) ?? { x: approach.x, y: approach.y };
-
-            const sidewalkStart = pickUniqueSidewalkPoint([
-                [direction * stride * 0.45, (walkway.height ?? 18) * 0.15],
-                [direction * stride * 0.35, 0],
-                [direction * stride * 0.55, (walkway.height ?? 18) * 0.35],
-            ], null, defaultSidewalk) ?? defaultSidewalk;
-
-            const plazaPoint = pickUniqueSidewalkPoint([
-                [direction * stride, travelDepth],
-                [direction * stride * 0.95, travelDepth * 1.1],
-                [direction * stride * 0.8, travelDepth * 0.9],
-                [direction * stride * 0.6, travelDepth],
-            ], sidewalkStart, sidewalkStart) ?? sidewalkStart;
-
-            let returnPoint = pickUniqueSidewalkPoint([
-                [-direction * stride * 0.3, travelDepth * 0.6],
-                [0, travelDepth * 0.75],
-                [-direction * stride * 0.45, travelDepth * 0.9],
-                [-direction * stride * 0.2, travelDepth * 0.5],
-            ], plazaPoint, sidewalkStart) ?? sidewalkStart;
-
-            if (distanceSq(returnPoint, plazaPoint) < 64) {
-                const alternate = project(-direction * stride * 0.15, travelDepth * 0.4);
-                if (alternate) {
-                    returnPoint = alternate;
-                }
-            }
-
-            // Wait-Zeiten berechnen
-            const minWait = 90;
-            let walkwayOutWait = Math.max(minWait, Math.round(outsideFrames * 0.12));
-            let walkwayBackWait = Math.max(minWait, Math.round(outsideFrames * 0.1));
-            let porchWait = Math.max(minWait, Math.round(outsideFrames * 0.08));
-            let plazaWait = outsideFrames - walkwayOutWait - walkwayBackWait - porchWait;
-
-            if (plazaWait < minWait * 2) {
-                const deficit = (minWait * 2) - plazaWait;
-                plazaWait = minWait * 2;
-                const adjustable = walkwayOutWait + walkwayBackWait + porchWait;
-                if (adjustable > deficit && adjustable > 0) {
-                    const ratio = deficit / adjustable;
-                    walkwayOutWait = Math.max(minWait, Math.round(walkwayOutWait - walkwayOutWait * ratio));
-                    walkwayBackWait = Math.max(minWait, Math.round(walkwayBackWait - walkwayBackWait * ratio));
-                    porchWait = Math.max(minWait, Math.round(porchWait - porchWait * ratio));
-                }
-            }
-
-            const totalWait = walkwayOutWait + walkwayBackWait + porchWait + plazaWait;
-            if (totalWait > outsideFrames) {
-                const over = totalWait - outsideFrames;
-                plazaWait = Math.max(minWait * 2, plazaWait - over);
-            }
-
-            const entranceOut = { x: entrance.x, y: entrance.y, wait: 18 };
-            const entranceReturn = {
-                x: entrance.x, y: entrance.y,
-                wait: Math.max(minWait, Math.round(outsideFrames * 0.06)),
-            };
-
-            const lateralOffset = Math.min(18, (walkway.width ?? 32) * 0.35) * direction;
-            const porchSpot = {
-                x: entrance.x + lateralOffset,
-                y: entrance.y + (walkway.height ?? 18) * 0.4,
-                wait: porchWait,
-            };
-
-            const path = [
-                { x: interior.x, y: interior.y, wait: insideFrames, interior: true, buildingId: house.id, allowOffSidewalk: true },
-                { x: door.x, y: door.y, wait: 6, action: 'exit', buildingId: house.id, allowOffSidewalk: true },
-                entranceOut,
-                { x: sidewalkStart.x, y: sidewalkStart.y, wait: walkwayOutWait },
-                { x: plazaPoint.x, y: plazaPoint.y, wait: plazaWait },
-                { x: returnPoint.x, y: returnPoint.y, wait: walkwayBackWait },
-                entranceReturn,
-                porchSpot,
-                { x: door.x, y: door.y, wait: 6, action: 'enter', buildingId: house.id, allowOffSidewalk: true },
-            ];
-
-            const bounds = house.bounds ?? metrics.bounds;
-            const speed = 0.98 + rng * 0.32;
-
-            const npc = new NPC({
-                palette,
-                speed,
-                stayOnSidewalks: true,
-                ignoreSidewalkObstacles: true,
-                waypoints: path,
-                bounds,
-            });
-
-            npc.home = {
-                buildingId: house.id,
-                entrance: { x: entrance.x, y: entrance.y },
-                approach: { x: approach.x, y: approach.y },
-                interior: { x: interior.x, y: interior.y },
-                door: { x: door.x, y: door.y },
-            };
-
-            npc.homeSchedule = { insideFrames, outsideFrames };
-            npc.houseResident = true;
-            npc.homeId = house.id;
-            npc.homeBounds = bounds
-                ? { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom }
-                : null;
-
-            visitors.push(npc);
-        }
-
-        return visitors;
-    }
-
-    // -----------------------------------------------------------------------
-    // computeHouseMetrics - Statische Methode (SSOT fuer Haus-Geometrie)
-    // Portiert aus Zeilen 8748-8970
-    // -----------------------------------------------------------------------
-
-    /**
-     * Berechnet die Metriken (Abmessungen, Tuer, Eingang, etc.) fuer ein Haus.
-     *
-     * @param {object} building - Gebaeude-Objekt
-     * @param {Array}  [houseStyles] - Hausstile (optional, fuer Palette)
-     * @returns {object|null}
-     */
-    static computeHouseMetrics(building, houseStyles) {
-        if (!building || building.type !== "house") {
-            return null;
-        }
-
-        const lotWidth = Number(building.width ?? 0);
-        const lotHeight = Number(building.height ?? 0);
-
-        if (!(lotWidth > 0 && lotHeight > 0)) {
-            return null;
-        }
-
-        const variant = building.variant ?? {};
-        const styleIndex = variant.styleIndex ?? building.colorIndex ?? 0;
-        const palettes = Array.isArray(houseStyles) ? houseStyles : [];
-        const palette = palettes.length > 0 ? palettes[styleIndex % palettes.length] : {};
-
-        const lotPaddingBase = building.lotPadding ?? Math.min(36, Math.min(lotWidth, lotHeight) * 0.22);
-        const sideMax = Math.max(12, (lotWidth - 140) / 2);
-        const sidePadding = Math.min(Math.max(14, lotPaddingBase), sideMax);
-
-        let rearPadding = Math.min(lotHeight * 0.22, Math.max(12, lotPaddingBase * 0.65));
-        const minHouseHeight = 120;
-        const maxFrontSpace = Math.max(20, lotHeight - rearPadding - minHouseHeight);
-
-        let desiredFront = Math.min(maxFrontSpace, Math.max(48, lotPaddingBase * 1.45, lotHeight * 0.26));
-        if (desiredFront < 32) {
-            desiredFront = Math.min(maxFrontSpace, Math.max(32, lotPaddingBase * 1.15));
-        }
-
-        let houseHeight = lotHeight - rearPadding - desiredFront;
-        if (houseHeight < minHouseHeight) {
-            houseHeight = minHouseHeight;
-            desiredFront = lotHeight - rearPadding - houseHeight;
-        }
-
-        const houseWidth = Math.max(120, lotWidth - sidePadding * 2);
-        const houseX = (lotWidth - houseWidth) / 2;
-        const houseY = Math.max(10, rearPadding);
-        const houseBottom = houseY + houseHeight;
-        const frontDepth = Math.max(10, desiredFront);
-
-        let roofDepth = Math.max(32, Math.min(houseHeight * 0.32, 88));
-        if (houseHeight - roofDepth < 96) {
-            roofDepth = Math.max(24, houseHeight - 96);
-        }
-
-        const facadeHeight = houseHeight - roofDepth;
-        const facadeTop = houseY + roofDepth;
-        const walkwayWidth = Math.min(48, houseWidth * 0.28);
-        const walkwayX = lotWidth / 2 - walkwayWidth / 2;
-        const walkwayY = houseBottom;
-        const walkwayHeight = frontDepth;
-
-        const doorWidth = Math.min(houseWidth * 0.26, 68);
-        const doorHeight = Math.max(58, Math.min(facadeHeight * 0.44, 104));
-        const doorX = houseX + houseWidth / 2 - doorWidth / 2;
-        const doorY = facadeTop + facadeHeight - doorHeight;
-
-        const houseWorldX = Number(building.x ?? 0);
-        const houseWorldY = Number(building.y ?? 0);
-
-        const doorWorldX = houseWorldX + doorX + doorWidth / 2;
-        const doorWorldBottom = houseWorldY + doorY + doorHeight;
-        const doorWorldCenterY = houseWorldY + doorY + doorHeight / 2;
-        const doorWorldInsideY = houseWorldY + doorY + doorHeight * 0.35;
-        const walkwayWorldBottom = doorWorldBottom + walkwayHeight;
-
-        const entranceY = doorWorldBottom + Math.max(6, walkwayHeight * 0.35);
-        const approachY = walkwayWorldBottom + Math.max(12, walkwayHeight * 0.4);
-
-        const interiorX = houseWorldX + houseX + houseWidth / 2;
-        const interiorY = houseWorldY + houseY + Math.max(40, facadeHeight * 0.45);
-
-        const boundsLeft = houseWorldX + houseX - Math.max(20, walkwayWidth * 0.6);
-        const boundsRight = houseWorldX + houseX + houseWidth + Math.max(20, walkwayWidth * 0.6);
-        const boundsTop = houseWorldY + houseY - Math.max(20, roofDepth * 0.4);
-        const minBoundsHeight = Math.max(60, facadeHeight * 0.5);
-        const boundsBottom = Math.max(
-            boundsTop + minBoundsHeight,
-            approachY + Math.max(16, walkwayHeight * 0.2)
-        );
-
-        return {
-            houseX, houseY, houseWidth, houseHeight, houseBottom,
-            roofDepth, facadeTop, facadeHeight, frontDepth,
-            walkway: { x: walkwayX, y: walkwayY, width: walkwayWidth, height: walkwayHeight },
-            door: {
-                x: doorX, y: doorY, width: doorWidth, height: doorHeight,
-                world: {
-                    x: doorWorldX, y: doorWorldCenterY,
-                    bottom: doorWorldBottom, insideY: doorWorldInsideY,
-                },
-            },
-            entrance: { x: doorWorldX, y: entranceY },
-            approach: { x: doorWorldX, y: approachY },
-            interior: { x: interiorX, y: interiorY },
-            bounds: { left: boundsLeft, right: boundsRight, top: boundsTop, bottom: boundsBottom },
-            palette,
-        };
-    }
-}
-
-WorldGenerator;
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/interiors/InteriorManager.js
-// ═══════════════════════════════════════════════════════
-/**
- * InteriorManager - Verwaltet den Wechsel zwischen Overworld und Interior-Szenen.
- *
- * Portiert aus gta_old/overworld/js/overworld.js:
- *   enterWeaponShop()  Zeilen 2363-2440
- *   exitInterior()     Zeilen 2441-2515
- *
- * SSOT: Alle Interior-Wechsellogik hier zentralisiert.
- */
-
-
-/**
- * @typedef {object} OverworldReturnState
- * @property {{ x: number, y: number }} position
- * @property {{ x: number, y: number }} camera
- */
-
-class InteriorManager {
-
-    constructor() {
-        /** @type {string} Aktuelle Szene ('overworld' oder Interior-Typ) */
-        this.scene = 'overworld';
-
-        /** @type {object|null} Aktives Interior-Objekt */
-        this.activeInterior = null;
-
-        /** @type {OverworldReturnState|null} Gespeicherter Overworld-Zustand */
-        this.overworldReturnState = null;
-    }
-
-    /**
-     * Prueft ob die aktuelle Szene ein Interior ist.
-     * @returns {boolean}
-     */
-    isInInterior() {
-        return this.scene !== 'overworld' && this.activeInterior !== null;
-    }
-
-    /**
-     * Gibt den Typ des aktiven Interiors zurueck (oder null).
-     * @returns {string|null}
-     */
-    getInteriorType() {
-        return this.isInInterior() ? this.scene : null;
-    }
-
-    /**
-     * Betritt ein Interior.
-     *
-     * @param {string} type - Interior-Typ (z.B. 'weaponShop', 'casino')
-     * @param {object} interiorData - Interior-Daten (von WeaponShop.createLayout() etc.)
-     * @param {object} player - Spieler-Entity
-     * @param {object} camera - Kamera-Objekt mit x, y
-     * @param {object} [inputSystem] - InputSystem zum Zuruecksetzen der Tasten
-     * @param {number} [canvasWidth=800] - Canvas-Breite (fuer Zentrierung)
-     * @param {number} [canvasHeight=600] - Canvas-Hoehe
-     */
-    enterInterior(type, interiorData, player, camera, inputSystem, canvasWidth = 800, canvasHeight = 600) {
-        if (this.scene === type) {
-            return;
-        }
-
-        // Interior zentrieren
-        interiorData.originX = Math.max(0, Math.floor((canvasWidth - interiorData.width) / 2));
-        interiorData.originY = Math.max(0, Math.floor((canvasHeight - interiorData.height) / 2));
-
-        // Overworld-Zustand sichern
-        this.overworldReturnState = {
-            position: { x: player.x, y: player.y },
-            camera: { x: camera.x, y: camera.y },
-        };
-
-        // Szene wechseln
-        this.scene = type;
-        this.activeInterior = interiorData;
-
-        // Spieler in Interior positionieren
-        player.x = interiorData.entry.x;
-        player.y = interiorData.entry.y;
-        player.moving = false;
-        player.animationPhase = 0;
-
-        // Kamera zuruecksetzen
-        camera.x = 0;
-        camera.y = 0;
-
-        // Input zuruecksetzen
-        if (inputSystem) {
-            this._resetInput(inputSystem);
-        }
-
-        eventBus.emit('interior:enter', { type, building: interiorData });
-    }
-
-    /**
-     * Verlaesst das aktuelle Interior und stellt den Overworld-Zustand wieder her.
-     *
-     * @param {object} player - Spieler-Entity
-     * @param {object} camera - Kamera-Objekt mit x, y
-     * @param {object} [inputSystem] - InputSystem zum Zuruecksetzen der Tasten
-     */
-    exitInterior(player, camera, inputSystem) {
-        if (this.scene === 'overworld') {
-            return;
-        }
-
-        const exitedType = this.scene;
-
-        // Menu im Interior schliessen
-        const interior = this.activeInterior;
-        if (interior) {
-            interior.menuOpen = false;
-        }
-
-        // Overworld-Zustand wiederherstellen
-        if (this.overworldReturnState) {
-            player.x = this.overworldReturnState.position.x;
-            player.y = this.overworldReturnState.position.y;
-            camera.x = this.overworldReturnState.camera.x;
-            camera.y = this.overworldReturnState.camera.y;
-        }
-
-        // Szene zuruecksetzen
-        this.scene = 'overworld';
-        this.activeInterior = null;
-        this.overworldReturnState = null;
-
-        // Spieler-Zustand zuruecksetzen
-        player.moving = false;
-        player.animationPhase = 0;
-
-        // Input zuruecksetzen
-        if (inputSystem) {
-            this._resetInput(inputSystem);
-        }
-
-        eventBus.emit('interior:exit', { type: exitedType });
-    }
-
-    /**
-     * Setzt alle Input-Keys zurueck.
-     * @param {object} inputSystem
-     * @private
-     */
-    _resetInput(inputSystem) {
-        if (inputSystem.keys) {
-            for (const key of Object.keys(inputSystem.keys)) {
-                inputSystem.keys[key] = false;
-            }
-        }
-    }
-}
-
-InteriorManager;
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/interiors/WeaponShop.js
-// ═══════════════════════════════════════════════════════
-/**
- * WeaponShop - Interior fuer den Waffenladen (Ammu-Nation).
- *
- * Portiert aus gta_old/overworld/js/overworld.js:
- *   createWeaponShopInterior()    Zeilen 2037-2129
- *   handleWeaponShopMovement()    Zeilen 2130-2183
- *   updateWeaponShopState()       Zeilen 2211-2243
- *
- * SSOT: Alle Waffenladen-Logik hier zentralisiert.
- */
-
-
-
-/** Standard-Waffenreihenfolge */
-const DEFAULT_WEAPON_ORDER = ["pistol", "smg", "assaultRifle", "shotgun", "sniperRifle", "lmg"];
-
-/** Interior-Abmessungen */
-const INTERIOR_WIDTH = 720;
-const INTERIOR_HEIGHT = 420;
-const INTERIOR_MARGIN = 36;
-const COUNTER_HEIGHT = 72;
-const PLAYER_RADIUS = 14;
-
-class WeaponShop {
-
-    /**
-     * @param {object} [config={}]
-     * @param {Array<string>} [config.weaponOrder] - Waffenreihenfolge
-     */
-    constructor(config = {}) {
-        this.weaponOrder = config.weaponOrder ?? DEFAULT_WEAPON_ORDER;
-    }
-
-    /**
-     * Erstellt das Interior-Layout fuer den Waffenladen.
-     *
-     * @returns {object} Interior-Datenobjekt
-     */
-    createLayout() {
-        const width = INTERIOR_WIDTH;
-        const height = INTERIOR_HEIGHT;
-        const margin = INTERIOR_MARGIN;
-        const counterHeight = COUNTER_HEIGHT;
-
-        const counter = {
-            x: margin,
-            y: 174,
-            width: width - margin * 2,
-            height: counterHeight,
-        };
-
-        const vendor = {
-            x: counter.x + counter.width / 2,
-            y: counter.y - 26,
-            interactionRadius: 140,
-            parts: buildHumanoidParts({
-                head: '#f0c1a1',
-                torso: '#1f2d3d',
-                limbs: '#131b24',
-                accent: '#3d5a80',
-                hair: '#2b2118',
-                eyes: '#ffffff',
-                pupil: '#0b132b',
-            }),
-            animationPhase: 0,
-            moving: false,
-        };
-
-        const showcaseGap = 18;
-        const showcaseHeight = 88;
-        const showcaseCount = Math.max(1, this.weaponOrder.length);
-        const availableWidth = counter.width - 48;
-        const showcaseWidth = Math.min(
-            200,
-            (availableWidth - showcaseGap * (showcaseCount - 1)) / showcaseCount
-        );
-        const showcaseY = Math.max(margin + 24, counter.y - showcaseHeight - 32);
-
-        const showcases = [];
-        let showcaseX = counter.x + 24;
-        for (const weaponId of this.weaponOrder) {
-            showcases.push({
-                id: `showcase_${weaponId}`,
-                weaponId,
-                x: showcaseX,
-                y: showcaseY,
-                width: showcaseWidth,
-                height: showcaseHeight,
-            });
-            showcaseX += showcaseWidth + showcaseGap;
-        }
-
-        const cabinets = [
-            { id: 'cabinet_left', x: counter.x - 18, y: counter.y - 20, width: 18, height: counterHeight + 56 },
-            { id: 'cabinet_right', x: counter.x + counter.width, y: counter.y - 20, width: 18, height: counterHeight + 56 },
-        ];
-
-        const serviceMat = {
-            x: counter.x + counter.width / 2 - 120,
-            y: counter.y + counter.height - 12,
-            width: 240,
-            height: 16,
-        };
-
-        const obstacles = [counter, ...cabinets];
-
-        return {
-            width,
-            height,
-            margin,
-            entry: { x: width / 2, y: height - margin - 60 },
-            exitZone: {
-                x: width / 2 - 80,
-                y: height - margin - 24,
-                width: 160,
-                height: 36,
-            },
-            counter,
-            vendor,
-            showcases,
-            cabinets,
-            serviceMat,
-            obstacles,
-            playerRadius: PLAYER_RADIUS,
-            playerNearVendor: false,
-            playerNearExit: false,
-            menuOpen: false,
-            menuSelection: 0,
-            menuOptions: this.weaponOrder.slice(),
-            messageText: null,
-            messageTimer: 0,
-        };
-    }
-
-    /**
-     * Aktualisiert die Spieler-Bewegung im Waffenladen.
-     * Portiert aus handleWeaponShopMovement() Zeilen 2130-2183.
-     *
-     * @param {object} interior - Interior-Datenobjekt (von createLayout())
-     * @param {object} player - Spieler-Entity
-     * @param {object} inputSystem - InputSystem
-     * @param {number} deltaTime - Zeit seit letztem Frame in Sekunden
-     */
-    handleMovement(interior, player, inputSystem, deltaTime) {
-        if (!interior) {
-            return;
-        }
-
-        if (interior.menuOpen) {
-            player.moving = false;
-            player.speed = 0;
-            player.trySprintAndUpdateStamina(false, false, deltaTime);
-            return;
-        }
-
-        const { dx, dy } = inputSystem.getMovementVector();
-        const isMoving = dx !== 0 || dy !== 0;
-        const sprinting = player.trySprintAndUpdateStamina(inputSystem.isSprinting(), isMoving, deltaTime);
-        const baseSpeed = player.baseSpeed * 0.9;
-        const speed = sprinting ? baseSpeed * 1.4 : baseSpeed;
-
-        player.speed = speed;
-
-        const scaledDx = dx * speed;
-        const scaledDy = dy * speed;
-
-        const radius = interior.playerRadius ?? PLAYER_RADIUS;
-        const margin = interior.margin ?? INTERIOR_MARGIN;
-
-        if (scaledDx !== 0) {
-            const candidateX = Math.max(
-                radius + margin,
-                Math.min(player.x + scaledDx, interior.width - radius - margin)
-            );
-            if (!WeaponShop._circleHitsAnyObstacle(candidateX, player.y, radius, interior.obstacles)) {
-                player.x = candidateX;
-            }
-        }
-
-        if (scaledDy !== 0) {
-            const candidateY = Math.max(
-                radius + margin,
-                Math.min(player.y + scaledDy, interior.height - radius - margin)
-            );
-            if (!WeaponShop._circleHitsAnyObstacle(player.x, candidateY, radius, interior.obstacles)) {
-                player.y = candidateY;
-            }
-        }
-
-        player.moving = dx !== 0 || dy !== 0;
-    }
-
-    /**
-     * Aktualisiert den Waffenladen-Zustand (Naehe zum Verkaeufer, Ausgang, etc.).
-     * Portiert aus updateWeaponShopState() Zeilen 2211-2243.
-     *
-     * @param {object} interior - Interior-Datenobjekt
-     * @param {object} player - Spieler-Entity
-     */
-    updateState(interior, player) {
-        if (!interior) {
-            return;
-        }
-
-        interior.playerNearVendor = false;
-        const radius = interior.playerRadius ?? PLAYER_RADIUS;
-        const vendor = interior.vendor;
-
-        if (vendor) {
-            const vendorRadius = vendor.interactionRadius ?? 100;
-            const distance = Math.hypot(player.x - vendor.x, player.y - vendor.y);
-            interior.playerNearVendor = distance <= vendorRadius;
-
-            if (interior.menuOpen && !interior.playerNearVendor) {
-                interior.menuOpen = false;
-            }
-        } else {
-            interior.menuOpen = false;
-        }
-
-        interior.playerNearExit = circleIntersectsRect(
-            player.x, player.y, radius,
-            interior.exitZone.x, interior.exitZone.y,
-            interior.exitZone.width, interior.exitZone.height
-        );
-
-        if (interior.messageTimer > 0) {
-            interior.messageTimer -= 1;
-            if (interior.messageTimer <= 0) {
-                interior.messageText = null;
-            }
-        }
-    }
-
-    /**
-     * Verarbeitet Interaktionen im Waffenladen (Menu oeffnen/schliessen).
-     *
-     * @param {object} interior - Interior-Datenobjekt
-     * @param {object} inputSystem - InputSystem
-     * @returns {{ action: string, data?: any }|null} Aktion oder null
-     */
-    handleInteraction(interior, inputSystem) {
-        if (!interior) {
-            return null;
-        }
-
-        // E-Taste fuer Interaktion
-        if (inputSystem.isKeyPressed('e')) {
-            if (interior.playerNearExit) {
-                return { action: 'exit' };
-            }
-
-            if (interior.playerNearVendor && !interior.menuOpen) {
-                interior.menuOpen = true;
-                interior.menuSelection = 0;
-                return { action: 'menuOpen' };
-            }
-        }
-
-        // Menu-Navigation
-        if (interior.menuOpen) {
-            if (inputSystem.isKeyPressed('escape') || inputSystem.isKeyPressed('q')) {
-                interior.menuOpen = false;
-                return { action: 'menuClose' };
-            }
-
-            if (inputSystem.isKeyPressed('arrowup') || inputSystem.isKeyPressed('w')) {
-                interior.menuSelection = Math.max(0, interior.menuSelection - 1);
-                return { action: 'menuNavigate', data: interior.menuSelection };
-            }
-
-            if (inputSystem.isKeyPressed('arrowdown') || inputSystem.isKeyPressed('s')) {
-                interior.menuSelection = Math.min(
-                    interior.menuOptions.length - 1,
-                    interior.menuSelection + 1
-                );
-                return { action: 'menuNavigate', data: interior.menuSelection };
-            }
-
-            if (inputSystem.isKeyPressed('enter') || inputSystem.isKeyPressed(' ')) {
-                const selectedWeapon = interior.menuOptions[interior.menuSelection];
-                return { action: 'purchase', data: selectedWeapon };
-            }
-        }
-
-        return null;
-    }
-
-    // -----------------------------------------------------------------------
-    // Private Hilfsmethoden
-    // -----------------------------------------------------------------------
-
-    /**
-     * Prueft ob ein Kreis ein Hindernis trifft.
-     * @private
-     */
-    static _circleHitsAnyObstacle(x, y, radius, obstacles) {
-        if (!Array.isArray(obstacles)) {
-            return false;
-        }
-
-        for (const obstacle of obstacles) {
-            if (circleIntersectsRect(x, y, radius, obstacle.x, obstacle.y, obstacle.width, obstacle.height)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-}
-
-WeaponShop;
-
-
-
-// ═══════════════════════════════════════════════════════
-// js/interiors/Casino.js
-// ═══════════════════════════════════════════════════════
-/**
- * Casino - Logik fuer den Starlight Casino Tower.
- *
- * Portiert aus gta_old/overworld/js/overworld.js:
- *   convertDollarsToCredits()    Zeilen 2708-2726
- *   convertCreditsToDollars()    Zeilen 2728-2746
- *   loadCasinoCredits()          Zeilen 2657-2678
- *   storeCasinoCredits()         Zeilen 2681-2694
- *   refreshCasinoCreditsCache()  Zeilen 2696-2705
- *   handleCasinoEntry()          Zeilen 743-749
- *   Casino-UI-Logik              Zeilen 751-920
- *
- * SSOT: Alle Casino-Konvertierungs- und Credits-Logik hier zentralisiert.
- */
-
-/** Standard-Wechselkurs: 1 Dollar = N Credits */
-const DEFAULT_CREDIT_RATE = 10;
-
-/** LocalStorage-Key fuer Credits */
-const CREDITS_STORAGE_KEY = "casinoCredits";
-
-class Casino {
-
-    /**
-     * @param {object} [config={}]
-     * @param {number} [config.creditRate=10] - Wechselkurs Dollar -> Credits
-     */
-    constructor(config = {}) {
-        this.creditRate = config.creditRate ?? DEFAULT_CREDIT_RATE;
-    }
-
-    // -----------------------------------------------------------------------
-    // Credits-Persistenz (LocalStorage)
-    // -----------------------------------------------------------------------
-
-    /**
-     * Laedt Casino-Credits aus dem LocalStorage.
-     *
-     * @param {number} [fallback=0] - Rueckgabewert wenn nichts gespeichert
-     * @returns {number}
-     */
-    loadCredits(fallback = 0) {
-        if (typeof window === "undefined" || !window.localStorage) {
-            return Math.max(0, fallback);
-        }
-
-        try {
-            const raw = window.localStorage.getItem(CREDITS_STORAGE_KEY);
-            if (raw == null) {
-                return Math.max(0, fallback);
-            }
-
-            const parsed = parseInt(raw, 10);
-            if (!Number.isFinite(parsed) || parsed < 0) {
-                return 0;
-            }
-
-            return parsed;
-        } catch (err) {
-            console.warn("Casino credits konnten nicht geladen werden:", err);
-            return Math.max(0, fallback);
-        }
-    }
-
-    /**
-     * Speichert Casino-Credits im LocalStorage.
-     *
-     * @param {number} amount
-     * @returns {number} Gespeicherter Wert
-     */
-    storeCredits(amount) {
-        const value = Math.max(0, Math.floor(Number(amount) || 0));
-
-        if (typeof window !== "undefined" && window.localStorage) {
-            try {
-                window.localStorage.setItem(CREDITS_STORAGE_KEY, String(value));
-            } catch (err) {
-                console.warn("Casino credits konnten nicht gespeichert werden:", err);
-            }
-        }
-
-        return value;
-    }
-
-    // -----------------------------------------------------------------------
-    // Konvertierung
-    // -----------------------------------------------------------------------
-
-    /**
-     * Konvertiert Dollars zu Casino-Credits.
-     * Portiert aus convertDollarsToCredits() Zeilen 2708-2726.
-     *
-     * @param {object} player - Spieler-Entity (braucht player.money)
-     * @param {number} [amount] - Betrag in Dollar (Standard: alles)
-     * @returns {{ success: boolean, reason?: string, dollarsSpent: number, creditsAdded: number, totalCredits: number }}
-     */
-    convertDollarsToCredits(player, amount) {
-        const rate = this.creditRate;
-        const availableDollars = amount !== undefined
-            ? Math.floor(Math.max(0, Math.min(Number(amount), Number(player.money ?? 0))))
-            : Math.floor(Math.max(0, Number(player.money ?? 0)));
-
-        if (!(availableDollars > 0)) {
-            return {
-                success: false,
-                reason: "noMoney",
-                dollarsSpent: 0,
-                creditsAdded: 0,
-                totalCredits: this.loadCredits(player.casinoCredits ?? 0),
-            };
-        }
-
-        const creditsAdded = availableDollars * rate;
-        const currentCredits = this.loadCredits(player.casinoCredits ?? 0);
-        const newTotal = currentCredits + creditsAdded;
-
-        player.money = Math.max(0, (player.money ?? 0) - availableDollars);
-        this.storeCredits(newTotal);
-        player.casinoCredits = newTotal;
-
-        return {
-            success: true,
-            dollarsSpent: availableDollars,
-            creditsAdded,
-            totalCredits: newTotal,
-        };
-    }
-
-    /**
-     * Konvertiert Casino-Credits zurueck zu Dollars.
-     * Portiert aus convertCreditsToDollars() Zeilen 2728-2746.
-     *
-     * @param {object} player - Spieler-Entity (braucht player.money, player.casinoCredits)
-     * @param {number} [amount] - Credits zum Umtauschen (Standard: alle)
-     * @returns {{ success: boolean, reason?: string, creditsSpent: number, dollarsGained: number, totalCredits: number }}
-     */
-    convertCreditsToDollars(player, amount) {
-        const rate = this.creditRate;
-        const currentCredits = this.loadCredits(player.casinoCredits ?? 0);
-
-        const maxCredits = amount !== undefined
-            ? Math.floor(Math.max(0, Math.min(Number(amount), currentCredits)))
-            : currentCredits;
-
-        const availableCredits = Math.floor(Math.max(0, Number(maxCredits)));
-
-        if (availableCredits < rate) {
-            return {
-                success: false,
-                reason: "noCredits",
-                creditsSpent: 0,
-                dollarsGained: 0,
-                totalCredits: availableCredits,
-            };
-        }
-
-        const dollarsGained = Math.floor(availableCredits / rate);
-        const creditsSpent = dollarsGained * rate;
-        const newTotal = currentCredits - creditsSpent;
-
-        this.storeCredits(newTotal);
-        player.money = (player.money ?? 0) + dollarsGained;
-        player.casinoCredits = newTotal;
-
-        return {
-            success: true,
-            creditsSpent,
-            dollarsGained,
-            totalCredits: newTotal,
-        };
-    }
-
-    // -----------------------------------------------------------------------
-    // Hilfsfunktionen
-    // -----------------------------------------------------------------------
-
-    /**
-     * Aktualisiert den Credits-Cache des Spielers aus dem LocalStorage.
-     *
-     * @param {object} player
-     */
-    refreshCreditsCache(player) {
-        player.casinoCredits = this.loadCredits(player.casinoCredits ?? 0);
-    }
-
-    /**
-     * Gibt den Casino-Eingangs-URL zurueck (fuer Navigation zum Casino-Spiel).
-     *
-     * @returns {string}
-     */
-    getCasinoGameUrl() {
-        return "../casinogame/index.html";
-    }
-
-    /**
-     * Formatiert einen Geldbetrag fuer die Anzeige.
-     *
-     * @param {number} dollars
-     * @returns {string}
-     */
-    formatMoney(dollars) {
-        const value = Math.floor(Math.max(0, Number(dollars) || 0));
-        return value.toLocaleString("de-DE") + "$";
-    }
-
-    /**
-     * Formatiert Credits fuer die Anzeige.
-     *
-     * @param {number} credits
-     * @returns {string}
-     */
-    formatCredits(credits) {
-        const value = Math.floor(Math.max(0, Number(credits) || 0));
-        return value.toLocaleString("de-DE");
-    }
-
-    /**
-     * Berechnet den Info-Text fuer die Casino-Interaktion.
-     *
-     * @param {object} player
-     * @returns {string}
-     */
-    getInteractionMessage(player) {
-        const rate = this.creditRate;
-        const moneyText = this.formatMoney(player.money ?? 0);
-        const creditText = this.formatCredits(player.casinoCredits ?? 0) + " Credits";
-        return `Kurs 1$ = ${rate} Credits | Bargeld: ${moneyText} | Credits: ${creditText}`;
-    }
-
-    /**
-     * Berechnet ob Kauf/Auszahlung moeglich ist.
-     *
-     * @param {object} player
-     * @returns {{ canBuy: boolean, canCashOut: boolean, dollarsAvailable: number, creditsAvailable: number }}
-     */
-    getButtonState(player) {
-        const rate = this.creditRate;
-        const dollarsAvailable = Math.floor(Math.max(0, Number(player.money ?? 0)));
-        const creditsAvailable = Math.floor(Math.max(0, Number(player.casinoCredits ?? 0)));
-
-        return {
-            canBuy: dollarsAvailable > 0,
-            canCashOut: creditsAvailable >= rate,
-            dollarsAvailable,
-            creditsAvailable,
-        };
-    }
-}
-
-Casino;
-
-
-
-// ═══════════════════════════════════════════════════════
 // js/systems/InteractionSystem.js
 // ═══════════════════════════════════════════════════════
 /**
@@ -7617,8 +7377,6 @@ Casino;
  * Dieses System veraendert KEINE Positionen. Es erkennt Proximity und
  * delegiert an InteriorManager fuer Szenen-Wechsel.
  */
-
-
 
 /** Reichweite in Pixeln, in der ein Gebaeude als "nah" gilt */
 const INTERACTION_RANGE = 60;
@@ -8446,7 +8204,6 @@ class InteractionSystem {
     }
 }
 
-InteractionSystem;
 
 
 
@@ -8531,7 +8288,6 @@ class Renderer {
  *
  * Portiert aus overworld.js Zeilen 7124-8511.
  */
-
 
 class WorldRenderer {
 
@@ -8744,33 +8500,85 @@ class WorldRenderer {
 
         for (const road of roadLayout) {
             if (road.type === "horizontal") {
-                const length = road.endX - road.startX;
                 const upperY = road.y - roadHalfWidth - sidewalkWidth;
                 const lowerY = road.y + roadHalfWidth;
 
-                this.ctx.fillStyle = surface;
-                this.ctx.fillRect(road.startX, upperY, length, sidewalkWidth);
-                this.ctx.fillRect(road.startX, lowerY, length, sidewalkWidth);
+                // Gaps where vertical roads cross this horizontal road
+                const gaps = [];
+                for (const other of roadLayout) {
+                    if (other.type === "vertical") {
+                        const oStart = Math.min(other.startY ?? other.y, other.endY ?? other.y);
+                        const oEnd = Math.max(other.startY ?? other.y, other.endY ?? other.y);
+                        if (oStart <= road.y && oEnd >= road.y) {
+                            gaps.push({ start: other.x - roadHalfWidth, end: other.x + roadHalfWidth });
+                        }
+                    }
+                }
+                gaps.sort((a, b) => a.start - b.start);
 
-                this.drawSidewalkPatternRect(road.startX, upperY, length, sidewalkWidth);
-                this.drawSidewalkPatternRect(road.startX, lowerY, length, sidewalkWidth);
+                const segments = this._splitSegment(road.startX, road.endX, gaps);
+                for (const seg of segments) {
+                    const segLen = seg.end - seg.start;
+                    this.ctx.fillStyle = surface;
+                    this.ctx.fillRect(seg.start, upperY, segLen, sidewalkWidth);
+                    this.ctx.fillRect(seg.start, lowerY, segLen, sidewalkWidth);
+                    this.drawSidewalkPatternRect(seg.start, upperY, segLen, sidewalkWidth);
+                    this.drawSidewalkPatternRect(seg.start, lowerY, segLen, sidewalkWidth);
+                }
 
             } else if (road.type === "vertical") {
-                const length = road.endY - road.startY;
                 const leftX = road.x - roadHalfWidth - sidewalkWidth;
                 const rightX = road.x + roadHalfWidth;
 
-                this.ctx.fillStyle = surface;
-                this.ctx.fillRect(leftX, road.startY, sidewalkWidth, length);
-                this.ctx.fillRect(rightX, road.startY, sidewalkWidth, length);
+                // Gaps where horizontal roads cross this vertical road
+                const gaps = [];
+                for (const other of roadLayout) {
+                    if (other.type === "horizontal") {
+                        const oStart = Math.min(other.startX ?? other.x, other.endX ?? other.x);
+                        const oEnd = Math.max(other.startX ?? other.x, other.endX ?? other.x);
+                        if (oStart <= road.x && oEnd >= road.x) {
+                            gaps.push({ start: other.y - roadHalfWidth, end: other.y + roadHalfWidth });
+                        }
+                    }
+                }
+                gaps.sort((a, b) => a.start - b.start);
 
-                this.drawSidewalkPatternRect(leftX, road.startY, sidewalkWidth, length);
-                this.drawSidewalkPatternRect(rightX, road.startY, sidewalkWidth, length);
+                const segments = this._splitSegment(road.startY, road.endY, gaps);
+                for (const seg of segments) {
+                    const segLen = seg.end - seg.start;
+                    this.ctx.fillStyle = surface;
+                    this.ctx.fillRect(leftX, seg.start, sidewalkWidth, segLen);
+                    this.ctx.fillRect(rightX, seg.start, sidewalkWidth, segLen);
+                    this.drawSidewalkPatternRect(leftX, seg.start, sidewalkWidth, segLen);
+                    this.drawSidewalkPatternRect(rightX, seg.start, sidewalkWidth, segLen);
+                }
 
             } else if (road.type === "diagonal") {
                 this._drawDiagonalSidewalks(road, sidewalkWidth, roadWidth);
             }
         }
+    }
+
+    /**
+     * Splits a range [start, end] into sub-segments by removing gaps.
+     * @param {number} start
+     * @param {number} end
+     * @param {Array<{start:number, end:number}>} gaps - sorted by start
+     * @returns {Array<{start:number, end:number}>}
+     */
+    _splitSegment(start, end, gaps) {
+        const segments = [];
+        let current = start;
+        for (const gap of gaps) {
+            if (gap.start > current) {
+                segments.push({ start: current, end: Math.min(gap.start, end) });
+            }
+            current = Math.max(current, gap.end);
+        }
+        if (current < end) {
+            segments.push({ start: current, end });
+        }
+        return segments;
     }
 
     // ------------------------------------------------------------------
@@ -9348,7 +9156,6 @@ class WorldRenderer {
  * Portiert aus overworld.js Zeilen 8512-10894.
  */
 
-
 class BuildingRenderer {
 
     /**
@@ -9392,95 +9199,6 @@ class BuildingRenderer {
 
         // Interaktions-Punkte nicht mehr visuell zeichnen (Funktion bleibt erhalten)
         // this.drawInteractionPoints(buildings);
-    }
-
-    // --- computeHouseMetrics ---
-
-    computeHouseMetrics(building) {
-        if (!building || building.type !== 'house') return null;
-
-        const lotWidth = Number(building.width ?? 0);
-        const lotHeight = Number(building.height ?? 0);
-        if (!(lotWidth > 0 && lotHeight > 0)) return null;
-
-        const variant = building.variant ?? {};
-        const styleIndex = variant.styleIndex ?? building.colorIndex ?? 0;
-        const palettes = Array.isArray(this.houseStyles) ? this.houseStyles : [];
-        const palette = palettes.length > 0 ? palettes[styleIndex % palettes.length] : {};
-
-        const lotPaddingBase = building.lotPadding ?? Math.min(36, Math.min(lotWidth, lotHeight) * 0.22);
-        const sideMax = Math.max(12, (lotWidth - 140) / 2);
-        const sidePadding = Math.min(Math.max(14, lotPaddingBase), sideMax);
-        let rearPadding = Math.min(lotHeight * 0.22, Math.max(12, lotPaddingBase * 0.65));
-        const minHouseHeight = 120;
-        const maxFrontSpace = Math.max(20, lotHeight - rearPadding - minHouseHeight);
-        let desiredFront = Math.min(maxFrontSpace, Math.max(48, lotPaddingBase * 1.45, lotHeight * 0.26));
-        if (desiredFront < 32) {
-            desiredFront = Math.min(maxFrontSpace, Math.max(32, lotPaddingBase * 1.15));
-        }
-
-        let houseHeight = lotHeight - rearPadding - desiredFront;
-        if (houseHeight < minHouseHeight) {
-            houseHeight = minHouseHeight;
-            desiredFront = lotHeight - rearPadding - houseHeight;
-        }
-
-        const houseWidth = Math.max(120, lotWidth - sidePadding * 2);
-        const houseX = (lotWidth - houseWidth) / 2;
-        const houseY = Math.max(10, rearPadding);
-        const houseBottom = houseY + houseHeight;
-        const frontDepth = Math.max(10, desiredFront);
-
-        let roofDepth = Math.max(32, Math.min(houseHeight * 0.32, 88));
-        if (houseHeight - roofDepth < 96) {
-            roofDepth = Math.max(24, houseHeight - 96);
-        }
-
-        const facadeHeight = houseHeight - roofDepth;
-        const facadeTop = houseY + roofDepth;
-
-        const walkwayWidth = Math.min(48, houseWidth * 0.28);
-        const walkwayX = lotWidth / 2 - walkwayWidth / 2;
-        const walkwayY = houseBottom;
-        const walkwayHeight = frontDepth;
-
-        const doorWidth = Math.min(houseWidth * 0.26, 68);
-        const doorHeight = Math.max(58, Math.min(facadeHeight * 0.44, 104));
-        const doorX = houseX + houseWidth / 2 - doorWidth / 2;
-        const doorY = facadeTop + facadeHeight - doorHeight;
-
-        const houseWorldX = Number(building.x ?? 0);
-        const houseWorldY = Number(building.y ?? 0);
-        const doorWorldX = houseWorldX + doorX + doorWidth / 2;
-        const doorWorldBottom = houseWorldY + doorY + doorHeight;
-        const doorWorldCenterY = houseWorldY + doorY + doorHeight / 2;
-        const doorWorldInsideY = houseWorldY + doorY + doorHeight * 0.35;
-        const walkwayWorldBottom = doorWorldBottom + walkwayHeight;
-        const entranceY = doorWorldBottom + Math.max(6, walkwayHeight * 0.35);
-        const approachY = walkwayWorldBottom + Math.max(12, walkwayHeight * 0.4);
-        const interiorX = houseWorldX + houseX + houseWidth / 2;
-        const interiorY = houseWorldY + houseY + Math.max(40, facadeHeight * 0.45);
-
-        const boundsLeft = houseWorldX + houseX - Math.max(20, walkwayWidth * 0.6);
-        const boundsRight = houseWorldX + houseX + houseWidth + Math.max(20, walkwayWidth * 0.6);
-        const boundsTop = houseWorldY + houseY - Math.max(20, roofDepth * 0.4);
-        const minBoundsHeight = Math.max(60, facadeHeight * 0.5);
-        const boundsBottom = Math.max(boundsTop + minBoundsHeight, approachY + Math.max(16, walkwayHeight * 0.2));
-
-        return {
-            houseX, houseY, houseWidth, houseHeight, houseBottom,
-            roofDepth, facadeTop, facadeHeight, frontDepth,
-            walkway: { x: walkwayX, y: walkwayY, width: walkwayWidth, height: walkwayHeight },
-            door: {
-                x: doorX, y: doorY, width: doorWidth, height: doorHeight,
-                world: { x: doorWorldX, y: doorWorldCenterY, bottom: doorWorldBottom, insideY: doorWorldInsideY }
-            },
-            entrance: { x: doorWorldX, y: entranceY },
-            approach: { x: doorWorldX, y: approachY },
-            interior: { x: interiorX, y: interiorY },
-            bounds: { left: boundsLeft, right: boundsRight, top: boundsTop, bottom: boundsBottom },
-            palette
-        };
     }
 
     // --- House Window Interior ---
@@ -9835,42 +9553,15 @@ class BuildingRenderer {
     // --- drawHouse ---
 
     drawHouse(building) {
+        const metrics = computeHouseMetrics(building, this.houseStyles);
+        if (!metrics) return;
+
         const { x: lotOriginX, y: lotOriginY, width: lotWidth, height: lotHeight, variant = {} } = building;
-        const styleIndex = variant.styleIndex ?? building.colorIndex ?? 0;
-        const palettes = Array.isArray(this.houseStyles) ? this.houseStyles : [];
-        const palette = palettes.length > 0 ? palettes[styleIndex % palettes.length] : {
-            base: '#b0a090', roof: '#444', accent: '#887766', highlight: '#ccbbaa',
-            metallic: '#8899aa', balcony: '#776655', windowFrame: 'rgba(28,32,40,0.78)'
-        };
+        const { houseX, houseY, houseWidth, houseHeight, houseBottom, roofDepth, facadeTop, facadeHeight, frontDepth, walkway, door, palette } = metrics;
+
         const floors = Math.max(2, variant.floors ?? palette.floors ?? 4);
         const roofGarden = Boolean(variant.roofGarden ?? palette.roofGarden ?? false);
         const balconyRhythm = Math.max(0, variant.balconyRhythm ?? 0);
-
-        const lotPaddingBase = building.lotPadding ?? Math.min(36, Math.min(lotWidth, lotHeight) * 0.22);
-        const sideMax = Math.max(12, (lotWidth - 140) / 2);
-        const sidePadding = Math.min(Math.max(14, lotPaddingBase), sideMax);
-        let rearPadding = Math.min(lotHeight * 0.22, Math.max(12, lotPaddingBase * 0.65));
-        const minHouseHeight = 120;
-        const maxFrontSpace = Math.max(20, lotHeight - rearPadding - minHouseHeight);
-        let desiredFront = Math.min(maxFrontSpace, Math.max(48, lotPaddingBase * 1.45, lotHeight * 0.26));
-        if (desiredFront < 32) desiredFront = Math.min(maxFrontSpace, Math.max(32, lotPaddingBase * 1.15));
-
-        let houseHeight = lotHeight - rearPadding - desiredFront;
-        if (houseHeight < minHouseHeight) {
-            houseHeight = minHouseHeight;
-            desiredFront = lotHeight - rearPadding - houseHeight;
-        }
-
-        const houseWidth = Math.max(120, lotWidth - sidePadding * 2);
-        const houseX = (lotWidth - houseWidth) / 2;
-        const houseY = Math.max(10, rearPadding);
-        const houseBottom = houseY + houseHeight;
-        const frontDepth = Math.max(10, desiredFront);
-
-        let roofDepth = Math.max(32, Math.min(houseHeight * 0.32, 88));
-        if (houseHeight - roofDepth < 96) roofDepth = Math.max(24, houseHeight - 96);
-        const facadeHeight = houseHeight - roofDepth;
-        const facadeTop = houseY + roofDepth;
 
         this.ctx.save();
         this.ctx.translate(lotOriginX, lotOriginY);
@@ -9878,10 +9569,10 @@ class BuildingRenderer {
 
         // Walkway
         const lawnHeight = Math.max(8, frontDepth * 0.65);
-        const walkwayWidth = Math.min(48, houseWidth * 0.28);
-        const walkwayX = lotWidth / 2 - walkwayWidth / 2;
-        const walkwayY = houseBottom;
-        const walkwayHeight = frontDepth;
+        const walkwayX = walkway.x;
+        const walkwayY = walkway.y;
+        const walkwayWidth = walkway.width;
+        const walkwayHeight = walkway.height;
 
         const walkwayGradient = this.ctx.createLinearGradient(walkwayX, walkwayY, walkwayX, walkwayY + walkwayHeight);
         walkwayGradient.addColorStop(0, '#e3dbd0');
@@ -10143,10 +9834,10 @@ class BuildingRenderer {
         }
 
         // Door
-        const doorWidth = Math.min(houseWidth * 0.26, 68);
-        const doorHeight = Math.max(58, Math.min(facadeHeight * 0.44, 104));
-        const doorX = houseX + houseWidth / 2 - doorWidth / 2;
-        const doorY = facadeTop + facadeHeight - doorHeight;
+        const doorWidth = door.width;
+        const doorHeight = door.height;
+        const doorX = door.x;
+        const doorY = door.y;
 
         const doorGradient = this.ctx.createLinearGradient(doorX, doorY, doorX, doorY + doorHeight);
         doorGradient.addColorStop(0, palette.accent);
@@ -10320,11 +10011,7 @@ class BuildingRenderer {
         this.ctx.fillRect(x - 24, y + height - canopyHeight, width + 48, canopyHeight);
 
         // Podium
-        const apronExtension = Math.max(60, Math.round(width * 0.3));
-        const podiumWidth = width + apronExtension * 2;
-        const podiumHeight = Math.max(72, Math.min(120, Math.round(height * 0.22)));
-        const podiumX = x - apronExtension;
-        const podiumY = y + height - 16;
+        const { podiumWidth, podiumHeight, plinthHeight, podiumX, podiumY } = computeCasinoPodiumGeometry(building);
 
         const podiumGradient = this.ctx.createLinearGradient(podiumX, podiumY, podiumX, podiumY + podiumHeight);
         podiumGradient.addColorStop(0, 'rgba(150, 210, 255, 0.9)');
@@ -10357,7 +10044,6 @@ class BuildingRenderer {
         this.ctx.fillRect(podiumX, podiumY, podiumWidth, 16);
 
         // Plinth
-        const plinthHeight = 40;
         const plinthY = podiumY + podiumHeight;
         this.ctx.fillStyle = '#c9b89f';
         this.ctx.fillRect(podiumX, plinthY, podiumWidth, plinthHeight);
@@ -13005,509 +12691,730 @@ class PhoneUI {
 
 
 // ═══════════════════════════════════════════════════════
-// js/systems/PoliceSystem.js
+// js/interiors/InteriorManager.js
 // ═══════════════════════════════════════════════════════
 /**
- * PoliceSystem - Verwaltet Polizei-Spawning, Verfolgung, Taser, Verhaftung,
- * Eskalation und SWAT-Einsatz.
+ * InteriorManager - Verwaltet den Wechsel zwischen Overworld und Interior-Szenen.
  *
- * SSOT fuer alle Polizei-Konstanten und -Logik.
+ * Portiert aus gta_old/overworld/js/overworld.js:
+ *   enterWeaponShop()  Zeilen 2363-2440
+ *   exitInterior()     Zeilen 2441-2515
+ *
+ * SSOT: Alle Interior-Wechsellogik hier zentralisiert.
  */
 
+/**
+ * @typedef {object} OverworldReturnState
+ * @property {{ x: number, y: number }} position
+ * @property {{ x: number, y: number }} camera
+ */
 
+class InteriorManager {
 
-// ── Polizeistation (Respawn-Punkt) ──────────────────────────────────────
-const POLICE_STATION_POS = { x: 1800, y: 400 };
+    constructor() {
+        /** @type {string} Aktuelle Szene ('overworld' oder Interior-Typ) */
+        this.scene = 'overworld';
 
-// ── Paletten ────────────────────────────────────────────────────────────
-const POLICE_PALETTE = {
-    head: '#f2d6c1',
-    torso: '#1a3a6b',
-    limbs: '#152d54',
-    accent: '#2563eb',
-    hair: '#1a1a1a',
-    eyes: '#ffffff',
-    pupil: '#1b1b1b',
-};
+        /** @type {object|null} Aktives Interior-Objekt */
+        this.activeInterior = null;
 
-const SWAT_PALETTE = {
-    head: '#2a2a2a',
-    torso: '#1a1a1a',
-    limbs: '#0d0d0d',
-    accent: '#333333',
-    hair: '#1a1a1a',
-    eyes: '#c0c0c0',
-    pupil: '#222222',
-};
-
-// ── Geschwindigkeiten ───────────────────────────────────────────────────
-const POLICE_CHASE_SPEED = 1.8;
-const SWAT_CHASE_SPEED = 2.2;
-const POLICE_WALK_ANIM_SPEED = 0.1;
-
-// ── Taser ───────────────────────────────────────────────────────────────
-const TASER_RANGE = 180;
-const TASER_COOLDOWN = 4000;
-const TASER_PROJECTILE_SPEED = 8;
-const TASER_HIT_RADIUS = 18;
-
-// ── Stun / Slow ─────────────────────────────────────────────────────────
-const STUN_DURATION = 2000;
-const SLOW_DURATION = 2000;
-const SLOW_FACTOR = 0.4;
-
-// ── Verhaftung ──────────────────────────────────────────────────────────
-const ARREST_RADIUS = 45;
-const ARREST_TIME = 5000;
-
-// ── Spawning ────────────────────────────────────────────────────────────
-const POLICE_SPAWN_DISTANCE_MIN = 280;
-const POLICE_SPAWN_DISTANCE_MAX = 400;
-const SPAWN_DELAY_INITIAL = 2000;
-const SPAWN_INTERVAL = 4000;
-const MAX_POLICE_TOTAL = 8;
-
-// ── Gesundheit ──────────────────────────────────────────────────────────
-const POLICE_HEALTH = 150;
-const SWAT_HEALTH = 300;
-
-// ── Eskalation ──────────────────────────────────────────────────────────
-const ESCALATION_STAGES = [
-    { time: 0,     weaponId: 'pistol',       maxPolice: 2, fireRate: 900,  spawnSwat: false },
-    { time: 20000, weaponId: 'smg',          maxPolice: 3, fireRate: 350,  spawnSwat: false },
-    { time: 45000, weaponId: 'assaultRifle', maxPolice: 5, fireRate: 280,  spawnSwat: true  },
-];
-
-// ── Polizei-Schussverhalten ─────────────────────────────────────────────
-const POLICE_GUN_RANGE = 350;
-const POLICE_BULLET_SPREAD = 0.08;
-
-let _nextPoliceId = 1;
-
-class PoliceSystem {
-    /**
-     * @param {import('../core/EventBus.js').EventBus} eventBus
-     * @param {import('../core/EntityMover.js').EntityMover} entityMover
-     * @param {Map<string, object>} weaponCatalog
-     */
-    constructor(eventBus, entityMover, weaponCatalog) {
-        this.eventBus = eventBus;
-        this.entityMover = entityMover;
-        this.weaponCatalog = weaponCatalog;
-
-        /** @type {Array<object>} Aktive Polizisten */
-        this.officers = [];
-
-        /** @type {Array<object>} Polizei-Projektile (Taser + Kugeln) */
-        this.projectiles = [];
-
-        /** Wanted-Status */
-        this.wanted = false;
-        this.wantedSince = 0;
-        this.policeShootBack = false;
-        this.shootBackSince = 0;
-
-        /** Spawn-Timing */
-        this._spawnDelayRemaining = 0;
-        this._lastSpawnAt = 0;
-
-        /** Verhaftungs-Fortschritt (ms) */
-        this.arrestProgress = 0;
-
-        /** Aktueller Eskalations-Index */
-        this._escalationIndex = 0;
-    }
-
-    // =====================================================================
-    //  Public API
-    // =====================================================================
-
-    /**
-     * Aktiviert den Wanted-Status (z.B. nach NPC-Kill).
-     * @param {number} now - performance.now()
-     */
-    setWanted(now) {
-        if (this.wanted) return;
-        this.wanted = true;
-        this.wantedSince = now;
-        this._spawnDelayRemaining = SPAWN_DELAY_INITIAL;
-        this._escalationIndex = 0;
-        this.policeShootBack = false;
-        this.arrestProgress = 0;
+        /** @type {OverworldReturnState|null} Gespeicherter Overworld-Zustand */
+        this.overworldReturnState = null;
     }
 
     /**
-     * Wird aufgerufen wenn ein Polizist vom Spieler getroffen wird.
-     * @param {number} now
+     * Prueft ob die aktuelle Szene ein Interior ist.
+     * @returns {boolean}
      */
-    onPoliceShot(now) {
-        if (!this.policeShootBack) {
-            this.policeShootBack = true;
-            this.shootBackSince = now;
-        }
+    isInInterior() {
+        return this.scene !== 'overworld' && this.activeInterior !== null;
     }
 
     /**
-     * Setzt den gesamten Polizei-Zustand zurueck (z.B. nach Respawn).
+     * Gibt den Typ des aktiven Interiors zurueck (oder null).
+     * @returns {string|null}
      */
-    reset() {
-        this.officers = [];
-        this.projectiles = [];
-        this.wanted = false;
-        this.wantedSince = 0;
-        this.policeShootBack = false;
-        this.shootBackSince = 0;
-        this._spawnDelayRemaining = 0;
-        this._lastSpawnAt = 0;
-        this.arrestProgress = 0;
-        this._escalationIndex = 0;
+    getInteriorType() {
+        return this.isInInterior() ? this.scene : null;
     }
 
     /**
-     * Haupt-Update pro Frame.
-     * @param {import('../entities/Player.js').Player} player
-     * @param {number} deltaTime - Sekunden seit letztem Frame
-     * @param {number} now - performance.now()
-     * @returns {{ wasted: boolean }} Ob der Spieler verhaftet/getoetet wurde
+     * Betritt ein Interior.
+     *
+     * @param {string} type - Interior-Typ (z.B. 'weaponShop', 'casino')
+     * @param {object} interiorData - Interior-Daten (von WeaponShop.createLayout() etc.)
+     * @param {object} player - Spieler-Entity
+     * @param {object} camera - Kamera-Objekt mit x, y
+     * @param {object} [inputSystem] - InputSystem zum Zuruecksetzen der Tasten
+     * @param {number} [canvasWidth=800] - Canvas-Breite (fuer Zentrierung)
+     * @param {number} [canvasHeight=600] - Canvas-Hoehe
      */
-    update(player, deltaTime, now) {
-        if (!this.wanted) {
-            return { wasted: false };
+    enterInterior(type, interiorData, player, camera, inputSystem, canvasWidth = 800, canvasHeight = 600) {
+        if (this.scene === type) {
+            return;
         }
 
-        const deltaMs = deltaTime * 1000;
+        // Interior zentrieren
+        interiorData.originX = Math.max(0, Math.floor((canvasWidth - interiorData.width) / 2));
+        interiorData.originY = Math.max(0, Math.floor((canvasHeight - interiorData.height) / 2));
 
-        // Spawn-Delay
-        if (this._spawnDelayRemaining > 0) {
-            this._spawnDelayRemaining -= deltaMs;
-            if (this._spawnDelayRemaining > 0) {
-                return { wasted: false };
-            }
+        // Overworld-Zustand sichern
+        this.overworldReturnState = {
+            position: { x: player.x, y: player.y },
+            camera: { x: camera.x, y: camera.y },
+        };
+
+        // Szene wechseln
+        this.scene = type;
+        this.activeInterior = interiorData;
+
+        // Spieler in Interior positionieren
+        player.x = interiorData.entry.x;
+        player.y = interiorData.entry.y;
+        player.moving = false;
+        player.animationPhase = 0;
+
+        // Kamera zuruecksetzen
+        camera.x = 0;
+        camera.y = 0;
+
+        // Input zuruecksetzen
+        if (inputSystem) {
+            this._resetInput(inputSystem);
         }
 
-        // Eskalation aktualisieren
-        this._updateEscalation(now);
-
-        // Polizisten spawnen
-        this._spawnIfNeeded(player, now);
-
-        // Polizisten-KI
-        let anyNearby = false;
-        for (const cop of this.officers) {
-            if (cop.dead) continue;
-            this._updateOfficerAI(cop, player, now);
-            if (this._distanceTo(cop, player) <= ARREST_RADIUS) {
-                anyNearby = true;
-            }
-        }
-
-        // Verhaftungs-Timer
-        if (anyNearby && player.stunTimer > 0) {
-            this.arrestProgress += deltaMs;
-        } else if (anyNearby) {
-            this.arrestProgress += deltaMs * 0.3;
-        } else {
-            this.arrestProgress = Math.max(0, this.arrestProgress - deltaMs * 0.5);
-        }
-
-        if (this.arrestProgress >= ARREST_TIME) {
-            return { wasted: true, reason: 'arrested' };
-        }
-
-        // Projektile aktualisieren
-        const playerHit = this._updateProjectiles(player);
-        if (playerHit.taser) {
-            player.stunTimer = STUN_DURATION;
-            player.slowTimer = SLOW_DURATION;
-        }
-        if (playerHit.damage > 0) {
-            player.health = Math.max(0, player.health - playerHit.damage);
-            if (player.health <= 0) {
-                return { wasted: true, reason: 'killed' };
-            }
-        }
-
-        // Tote Polizisten aufraeuemen
-        this.officers = this.officers.filter(c => !c.dead || c._deathAge < 10000);
-        for (const cop of this.officers) {
-            if (cop.dead) {
-                cop._deathAge = (cop._deathAge ?? 0) + deltaMs;
-            }
-        }
-
-        return { wasted: false };
+        eventBus.emit('interior:enter', { type, building: interiorData });
     }
 
-    // =====================================================================
-    //  Eskalation
-    // =====================================================================
+    /**
+     * Verlaesst das aktuelle Interior und stellt den Overworld-Zustand wieder her.
+     *
+     * @param {object} player - Spieler-Entity
+     * @param {object} camera - Kamera-Objekt mit x, y
+     * @param {object} [inputSystem] - InputSystem zum Zuruecksetzen der Tasten
+     */
+    exitInterior(player, camera, inputSystem) {
+        if (this.scene === 'overworld') {
+            return;
+        }
 
-    /** @param {number} now */
-    _updateEscalation(now) {
-        const elapsed = now - this.wantedSince;
-        for (let i = ESCALATION_STAGES.length - 1; i >= 0; i--) {
-            if (elapsed >= ESCALATION_STAGES[i].time) {
-                this._escalationIndex = i;
-                break;
+        const exitedType = this.scene;
+
+        // Menu im Interior schliessen
+        const interior = this.activeInterior;
+        if (interior) {
+            interior.menuOpen = false;
+        }
+
+        // Overworld-Zustand wiederherstellen
+        if (this.overworldReturnState) {
+            player.x = this.overworldReturnState.position.x;
+            player.y = this.overworldReturnState.position.y;
+            camera.x = this.overworldReturnState.camera.x;
+            camera.y = this.overworldReturnState.camera.y;
+        }
+
+        // Szene zuruecksetzen
+        this.scene = 'overworld';
+        this.activeInterior = null;
+        this.overworldReturnState = null;
+
+        // Spieler-Zustand zuruecksetzen
+        player.moving = false;
+        player.animationPhase = 0;
+
+        // Input zuruecksetzen
+        if (inputSystem) {
+            this._resetInput(inputSystem);
+        }
+
+        eventBus.emit('interior:exit', { type: exitedType });
+    }
+
+    /**
+     * Setzt alle Input-Keys zurueck.
+     * @param {object} inputSystem
+     * @private
+     */
+    _resetInput(inputSystem) {
+        if (inputSystem.keys) {
+            for (const key of Object.keys(inputSystem.keys)) {
+                inputSystem.keys[key] = false;
             }
         }
     }
+}
 
-    /** @returns {object} Aktuelle Eskalationsstufe */
-    _getCurrentStage() {
-        return ESCALATION_STAGES[this._escalationIndex] ?? ESCALATION_STAGES[0];
-    }
 
-    // =====================================================================
-    //  Spawning
-    // =====================================================================
+
+
+// ═══════════════════════════════════════════════════════
+// js/interiors/WeaponShop.js
+// ═══════════════════════════════════════════════════════
+/**
+ * WeaponShop - Interior fuer den Waffenladen (Ammu-Nation).
+ *
+ * Portiert aus gta_old/overworld/js/overworld.js:
+ *   createWeaponShopInterior()    Zeilen 2037-2129
+ *   handleWeaponShopMovement()    Zeilen 2130-2183
+ *   updateWeaponShopState()       Zeilen 2211-2243
+ *
+ * SSOT: Alle Waffenladen-Logik hier zentralisiert.
+ */
+
+/** Standard-Waffenreihenfolge */
+const DEFAULT_WEAPON_ORDER = ["pistol", "smg", "assaultRifle", "shotgun", "sniperRifle", "lmg"];
+
+/** Interior-Abmessungen */
+const INTERIOR_WIDTH = 720;
+const INTERIOR_HEIGHT = 420;
+const INTERIOR_MARGIN = 36;
+const COUNTER_HEIGHT = 72;
+const PLAYER_RADIUS = 14;
+
+class WeaponShop {
 
     /**
-     * @param {object} player
-     * @param {number} now
+     * @param {object} [config={}]
+     * @param {Array<string>} [config.weaponOrder] - Waffenreihenfolge
      */
-    _spawnIfNeeded(player, now) {
-        const stage = this._getCurrentStage();
-        const aliveCount = this.officers.filter(c => !c.dead).length;
+    constructor(config = {}) {
+        this.weaponOrder = config.weaponOrder ?? DEFAULT_WEAPON_ORDER;
+    }
 
-        if (aliveCount >= stage.maxPolice || aliveCount >= MAX_POLICE_TOTAL) return;
-        if (now - this._lastSpawnAt < SPAWN_INTERVAL) return;
+    /**
+     * Erstellt das Interior-Layout fuer den Waffenladen.
+     *
+     * @returns {object} Interior-Datenobjekt
+     */
+    createLayout() {
+        const width = INTERIOR_WIDTH;
+        const height = INTERIOR_HEIGHT;
+        const margin = INTERIOR_MARGIN;
+        const counterHeight = COUNTER_HEIGHT;
 
-        const shouldSpawnSwat = stage.spawnSwat && !this.officers.some(c => c.type === 'swat' && !c.dead);
-        const type = shouldSpawnSwat ? 'swat' : 'police';
+        const counter = {
+            x: margin,
+            y: 174,
+            width: width - margin * 2,
+            height: counterHeight,
+        };
 
-        const cop = this._createOfficer(player, type, stage.weaponId);
-        if (cop) {
-            this.officers.push(cop);
-            this._lastSpawnAt = now;
+        const vendor = {
+            x: counter.x + counter.width / 2,
+            y: counter.y - 26,
+            interactionRadius: 140,
+            parts: buildHumanoidParts({
+                head: '#f0c1a1',
+                torso: '#1f2d3d',
+                limbs: '#131b24',
+                accent: '#3d5a80',
+                hair: '#2b2118',
+                eyes: '#ffffff',
+                pupil: '#0b132b',
+            }),
+            animationPhase: 0,
+            moving: false,
+        };
+
+        const showcaseGap = 18;
+        const showcaseHeight = 88;
+        const showcaseCount = Math.max(1, this.weaponOrder.length);
+        const availableWidth = counter.width - 48;
+        const showcaseWidth = Math.min(
+            200,
+            (availableWidth - showcaseGap * (showcaseCount - 1)) / showcaseCount
+        );
+        const showcaseY = Math.max(margin + 24, counter.y - showcaseHeight - 32);
+
+        const showcases = [];
+        let showcaseX = counter.x + 24;
+        for (const weaponId of this.weaponOrder) {
+            showcases.push({
+                id: `showcase_${weaponId}`,
+                weaponId,
+                x: showcaseX,
+                y: showcaseY,
+                width: showcaseWidth,
+                height: showcaseHeight,
+            });
+            showcaseX += showcaseWidth + showcaseGap;
         }
-    }
 
-    /**
-     * Erstellt einen Polizisten an einer zufaelligen Position um den Spieler.
-     * @param {object} player
-     * @param {'police'|'swat'} type
-     * @param {string} weaponId
-     * @returns {object|null}
-     */
-    _createOfficer(player, type, weaponId) {
-        const angle = Math.random() * Math.PI * 2;
-        const dist = POLICE_SPAWN_DISTANCE_MIN + Math.random() * (POLICE_SPAWN_DISTANCE_MAX - POLICE_SPAWN_DISTANCE_MIN);
-        const x = player.x + Math.cos(angle) * dist;
-        const y = player.y + Math.sin(angle) * dist;
+        const cabinets = [
+            { id: 'cabinet_left', x: counter.x - 18, y: counter.y - 20, width: 18, height: counterHeight + 56 },
+            { id: 'cabinet_right', x: counter.x + counter.width, y: counter.y - 20, width: 18, height: counterHeight + 56 },
+        ];
 
-        const isSwat = type === 'swat';
-        const palette = isSwat ? SWAT_PALETTE : POLICE_PALETTE;
+        const serviceMat = {
+            x: counter.x + counter.width / 2 - 120,
+            y: counter.y + counter.height - 12,
+            width: 240,
+            height: 16,
+        };
+
+        const obstacles = [counter, ...cabinets];
 
         return {
-            id: _nextPoliceId++,
-            x, y,
-            width: 30,
-            height: 30,
-            speed: isSwat ? SWAT_CHASE_SPEED : POLICE_CHASE_SPEED,
-            health: isSwat ? SWAT_HEALTH : POLICE_HEALTH,
-            maxHealth: isSwat ? SWAT_HEALTH : POLICE_HEALTH,
-            dead: false,
-            moving: false,
-            hidden: false,
-            type,
-            isPolice: true,
-            parts: buildHumanoidParts(palette),
-            palette,
-            animationPhase: 0,
-            hitRadius: 14,
-            weaponId,
-            taserCooldownUntil: 0,
-            gunCooldownUntil: 0,
-            nearPlayerTimer: 0,
-            deathRotation: 0,
-            stayOnSidewalks: false,
+            width,
+            height,
+            margin,
+            entry: { x: width / 2, y: height - margin - 60 },
+            exitZone: {
+                x: width / 2 - 80,
+                y: height - margin - 24,
+                width: 160,
+                height: 36,
+            },
+            counter,
+            vendor,
+            showcases,
+            cabinets,
+            serviceMat,
+            obstacles,
+            playerRadius: PLAYER_RADIUS,
+            playerNearVendor: false,
+            playerNearExit: false,
+            menuOpen: false,
+            menuSelection: 0,
+            menuOptions: this.weaponOrder.slice(),
+            messageText: null,
+            messageTimer: 0,
         };
     }
 
-    // =====================================================================
-    //  KI-Update pro Polizist
-    // =====================================================================
+    /**
+     * Aktualisiert die Spieler-Bewegung im Waffenladen.
+     * Portiert aus handleWeaponShopMovement() Zeilen 2130-2183.
+     *
+     * @param {object} interior - Interior-Datenobjekt (von createLayout())
+     * @param {object} player - Spieler-Entity
+     * @param {object} inputSystem - InputSystem
+     * @param {number} deltaTime - Zeit seit letztem Frame in Sekunden
+     */
+    handleMovement(interior, player, inputSystem, deltaTime) {
+        if (!interior) {
+            return;
+        }
+
+        if (interior.menuOpen) {
+            player.moving = false;
+            player.speed = 0;
+            player.trySprintAndUpdateStamina(false, false, deltaTime);
+            return;
+        }
+
+        const { dx, dy } = inputSystem.getMovementVector();
+        const isMoving = dx !== 0 || dy !== 0;
+        const sprinting = player.trySprintAndUpdateStamina(inputSystem.isSprinting(), isMoving, deltaTime);
+        const baseSpeed = player.baseSpeed * 0.9;
+        const speed = sprinting ? baseSpeed * 1.4 : baseSpeed;
+
+        player.speed = speed;
+
+        const scaledDx = dx * speed;
+        const scaledDy = dy * speed;
+
+        const radius = interior.playerRadius ?? PLAYER_RADIUS;
+        const margin = interior.margin ?? INTERIOR_MARGIN;
+
+        if (scaledDx !== 0) {
+            const candidateX = Math.max(
+                radius + margin,
+                Math.min(player.x + scaledDx, interior.width - radius - margin)
+            );
+            if (!WeaponShop._circleHitsAnyObstacle(candidateX, player.y, radius, interior.obstacles)) {
+                player.x = candidateX;
+            }
+        }
+
+        if (scaledDy !== 0) {
+            const candidateY = Math.max(
+                radius + margin,
+                Math.min(player.y + scaledDy, interior.height - radius - margin)
+            );
+            if (!WeaponShop._circleHitsAnyObstacle(player.x, candidateY, radius, interior.obstacles)) {
+                player.y = candidateY;
+            }
+        }
+
+        player.moving = dx !== 0 || dy !== 0;
+    }
 
     /**
-     * @param {object} cop
-     * @param {object} player
-     * @param {number} now
+     * Aktualisiert den Waffenladen-Zustand (Naehe zum Verkaeufer, Ausgang, etc.).
+     * Portiert aus updateWeaponShopState() Zeilen 2211-2243.
+     *
+     * @param {object} interior - Interior-Datenobjekt
+     * @param {object} player - Spieler-Entity
      */
-    _updateOfficerAI(cop, player, now) {
-        const dx = player.x - cop.x;
-        const dy = player.y - cop.y;
-        const dist = Math.hypot(dx, dy);
+    updateState(interior, player) {
+        if (!interior) {
+            return;
+        }
 
-        // Bewegung zum Spieler
-        if (dist > 20) {
-            const ratio = cop.speed / dist;
-            const targetX = cop.x + dx * ratio;
-            const targetY = cop.y + dy * ratio;
-            this.entityMover.move(cop, targetX, targetY, { ignoreSidewalk: true });
-            cop.moving = true;
+        interior.playerNearVendor = false;
+        const radius = interior.playerRadius ?? PLAYER_RADIUS;
+        const vendor = interior.vendor;
+
+        if (vendor) {
+            const vendorRadius = vendor.interactionRadius ?? 100;
+            const distance = Math.hypot(player.x - vendor.x, player.y - vendor.y);
+            interior.playerNearVendor = distance <= vendorRadius;
+
+            if (interior.menuOpen && !interior.playerNearVendor) {
+                interior.menuOpen = false;
+            }
         } else {
-            cop.moving = false;
+            interior.menuOpen = false;
         }
 
-        // Animation
-        if (cop.moving) {
-            cop.animationPhase = (cop.animationPhase + cop.speed * POLICE_WALK_ANIM_SPEED) % (Math.PI * 2);
-        } else {
-            cop.animationPhase *= 0.85;
-        }
+        interior.playerNearExit = circleIntersectsRect(
+            player.x, player.y, radius,
+            interior.exitZone.x, interior.exitZone.y,
+            interior.exitZone.width, interior.exitZone.height
+        );
 
-        // Taser (immer verfuegbar)
-        if (dist <= TASER_RANGE && now >= cop.taserCooldownUntil) {
-            this._fireTaser(cop, player, now);
-            cop.taserCooldownUntil = now + TASER_COOLDOWN;
-        }
-
-        // Schusswaffen (nur wenn provoziert)
-        if (this.policeShootBack && dist <= POLICE_GUN_RANGE) {
-            const stage = this._getCurrentStage();
-            const weapon = getWeaponDefinition(this.weaponCatalog, cop.weaponId);
-            if (weapon && now >= cop.gunCooldownUntil) {
-                this._fireGun(cop, player, weapon, now);
-                cop.gunCooldownUntil = now + (stage.fireRate ?? weapon.fireRate ?? 500);
+        if (interior.messageTimer > 0) {
+            interior.messageTimer -= 1;
+            if (interior.messageTimer <= 0) {
+                interior.messageText = null;
             }
         }
     }
 
-    // =====================================================================
-    //  Taser
-    // =====================================================================
-
     /**
-     * @param {object} cop
-     * @param {object} player
-     * @param {number} now
+     * Verarbeitet Interaktionen im Waffenladen (Menu oeffnen/schliessen).
+     *
+     * @param {object} interior - Interior-Datenobjekt
+     * @param {object} inputSystem - InputSystem
+     * @returns {{ action: string, data?: any }|null} Aktion oder null
      */
-    _fireTaser(cop, player, now) {
-        const dx = player.x - cop.x;
-        const dy = player.y - cop.y;
-        const angle = Math.atan2(dy, dx);
-
-        this.projectiles.push({
-            x: cop.x + Math.cos(angle) * 16,
-            y: cop.y + Math.sin(angle) * 16,
-            vx: Math.cos(angle) * TASER_PROJECTILE_SPEED,
-            vy: Math.sin(angle) * TASER_PROJECTILE_SPEED,
-            speed: TASER_PROJECTILE_SPEED,
-            type: 'taser',
-            damage: 0,
-            color: '#ffee00',
-            maxDistance: TASER_RANGE + 40,
-            distance: 0,
-            createdAt: now,
-        });
-    }
-
-    // =====================================================================
-    //  Schusswaffen
-    // =====================================================================
-
-    /**
-     * @param {object} cop
-     * @param {object} player
-     * @param {object} weapon
-     * @param {number} now
-     */
-    _fireGun(cop, player, weapon, now) {
-        const dx = player.x - cop.x;
-        const dy = player.y - cop.y;
-        const baseAngle = Math.atan2(dy, dx);
-        const spread = POLICE_BULLET_SPREAD;
-        const angle = baseAngle + (Math.random() - 0.5) * spread * 2;
-        const projSpeed = weapon.projectileSpeed ?? 10;
-
-        this.projectiles.push({
-            x: cop.x + Math.cos(angle) * 16,
-            y: cop.y + Math.sin(angle) * 16,
-            vx: Math.cos(angle) * projSpeed,
-            vy: Math.sin(angle) * projSpeed,
-            speed: projSpeed,
-            type: 'bullet',
-            damage: weapon.damage ?? 15,
-            color: weapon.displayColor ?? '#fca311',
-            maxDistance: weapon.range ?? 600,
-            distance: 0,
-            createdAt: now,
-        });
-    }
-
-    // =====================================================================
-    //  Projektil-Update
-    // =====================================================================
-
-    /**
-     * @param {object} player
-     * @returns {{ taser: boolean, damage: number }}
-     */
-    _updateProjectiles(player) {
-        const result = { taser: false, damage: 0 };
-        if (!this.projectiles.length) return result;
-
-        const survivors = [];
-        const playerHitRadius = 16;
-
-        for (const proj of this.projectiles) {
-            proj.x += proj.vx;
-            proj.y += proj.vy;
-            proj.distance += proj.speed;
-
-            if (proj.distance >= proj.maxDistance) continue;
-
-            // Treffer auf Spieler pruefen
-            const dx = proj.x - (player.x + player.width / 2);
-            const dy = proj.y - (player.y + player.height / 2);
-            if (dx * dx + dy * dy <= playerHitRadius * playerHitRadius) {
-                if (proj.type === 'taser') {
-                    result.taser = true;
-                } else {
-                    result.damage += proj.damage;
-                }
-                continue;
-            }
-
-            survivors.push(proj);
+    handleInteraction(interior, inputSystem) {
+        if (!interior) {
+            return null;
         }
 
-        this.projectiles = survivors;
-        return result;
+        // E-Taste fuer Interaktion
+        if (inputSystem.isKeyPressed('e')) {
+            if (interior.playerNearExit) {
+                return { action: 'exit' };
+            }
+
+            if (interior.playerNearVendor && !interior.menuOpen) {
+                interior.menuOpen = true;
+                interior.menuSelection = 0;
+                return { action: 'menuOpen' };
+            }
+        }
+
+        // Menu-Navigation
+        if (interior.menuOpen) {
+            if (inputSystem.isKeyPressed('escape') || inputSystem.isKeyPressed('q')) {
+                interior.menuOpen = false;
+                return { action: 'menuClose' };
+            }
+
+            if (inputSystem.isKeyPressed('arrowup') || inputSystem.isKeyPressed('w')) {
+                interior.menuSelection = Math.max(0, interior.menuSelection - 1);
+                return { action: 'menuNavigate', data: interior.menuSelection };
+            }
+
+            if (inputSystem.isKeyPressed('arrowdown') || inputSystem.isKeyPressed('s')) {
+                interior.menuSelection = Math.min(
+                    interior.menuOptions.length - 1,
+                    interior.menuSelection + 1
+                );
+                return { action: 'menuNavigate', data: interior.menuSelection };
+            }
+
+            if (inputSystem.isKeyPressed('enter') || inputSystem.isKeyPressed(' ')) {
+                const selectedWeapon = interior.menuOptions[interior.menuSelection];
+                return { action: 'purchase', data: selectedWeapon };
+            }
+        }
+
+        return null;
     }
 
-    // =====================================================================
-    //  Hilfsfunktionen
-    // =====================================================================
+    // -----------------------------------------------------------------------
+    // Private Hilfsmethoden
+    // -----------------------------------------------------------------------
 
     /**
-     * @param {object} a
-     * @param {object} b
-     * @returns {number}
+     * Prueft ob ein Kreis ein Hindernis trifft.
+     * @private
      */
-    _distanceTo(a, b) {
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        return Math.hypot(dx, dy);
-    }
+    static _circleHitsAnyObstacle(x, y, radius, obstacles) {
+        if (!Array.isArray(obstacles)) {
+            return false;
+        }
 
-    /**
-     * Gibt die Anzahl lebender Polizisten zurueck.
-     * @returns {number}
-     */
-    getAliveCount() {
-        return this.officers.filter(c => !c.dead).length;
-    }
+        for (const obstacle of obstacles) {
+            if (circleIntersectsRect(x, y, radius, obstacle.x, obstacle.y, obstacle.width, obstacle.height)) {
+                return true;
+            }
+        }
 
-    /**
-     * Gibt den Verhaftungs-Fortschritt als 0-1 zurueck.
-     * @returns {number}
-     */
-    getArrestProgress() {
-        return Math.min(1, this.arrestProgress / ARREST_TIME);
+        return false;
     }
 }
+
+
+
+
+// ═══════════════════════════════════════════════════════
+// js/interiors/Casino.js
+// ═══════════════════════════════════════════════════════
+/**
+ * Casino - Logik fuer den Starlight Casino Tower.
+ *
+ * Portiert aus gta_old/overworld/js/overworld.js:
+ *   convertDollarsToCredits()    Zeilen 2708-2726
+ *   convertCreditsToDollars()    Zeilen 2728-2746
+ *   loadCasinoCredits()          Zeilen 2657-2678
+ *   storeCasinoCredits()         Zeilen 2681-2694
+ *   refreshCasinoCreditsCache()  Zeilen 2696-2705
+ *   handleCasinoEntry()          Zeilen 743-749
+ *   Casino-UI-Logik              Zeilen 751-920
+ *
+ * SSOT: Alle Casino-Konvertierungs- und Credits-Logik hier zentralisiert.
+ */
+
+/** Standard-Wechselkurs: 1 Dollar = N Credits */
+const DEFAULT_CREDIT_RATE = 10;
+
+/** LocalStorage-Key fuer Credits */
+const CREDITS_STORAGE_KEY = "casinoCredits";
+
+class Casino {
+
+    /**
+     * @param {object} [config={}]
+     * @param {number} [config.creditRate=10] - Wechselkurs Dollar -> Credits
+     */
+    constructor(config = {}) {
+        this.creditRate = config.creditRate ?? DEFAULT_CREDIT_RATE;
+    }
+
+    // -----------------------------------------------------------------------
+    // Credits-Persistenz (LocalStorage)
+    // -----------------------------------------------------------------------
+
+    /**
+     * Laedt Casino-Credits aus dem LocalStorage.
+     *
+     * @param {number} [fallback=0] - Rueckgabewert wenn nichts gespeichert
+     * @returns {number}
+     */
+    loadCredits(fallback = 0) {
+        if (typeof window === "undefined" || !window.localStorage) {
+            return Math.max(0, fallback);
+        }
+
+        try {
+            const raw = window.localStorage.getItem(CREDITS_STORAGE_KEY);
+            if (raw == null) {
+                return Math.max(0, fallback);
+            }
+
+            const parsed = parseInt(raw, 10);
+            if (!Number.isFinite(parsed) || parsed < 0) {
+                return 0;
+            }
+
+            return parsed;
+        } catch (err) {
+            console.warn("Casino credits konnten nicht geladen werden:", err);
+            return Math.max(0, fallback);
+        }
+    }
+
+    /**
+     * Speichert Casino-Credits im LocalStorage.
+     *
+     * @param {number} amount
+     * @returns {number} Gespeicherter Wert
+     */
+    storeCredits(amount) {
+        const value = Math.max(0, Math.floor(Number(amount) || 0));
+
+        if (typeof window !== "undefined" && window.localStorage) {
+            try {
+                window.localStorage.setItem(CREDITS_STORAGE_KEY, String(value));
+            } catch (err) {
+                console.warn("Casino credits konnten nicht gespeichert werden:", err);
+            }
+        }
+
+        return value;
+    }
+
+    // -----------------------------------------------------------------------
+    // Konvertierung
+    // -----------------------------------------------------------------------
+
+    /**
+     * Konvertiert Dollars zu Casino-Credits.
+     * Portiert aus convertDollarsToCredits() Zeilen 2708-2726.
+     *
+     * @param {object} player - Spieler-Entity (braucht player.money)
+     * @param {number} [amount] - Betrag in Dollar (Standard: alles)
+     * @returns {{ success: boolean, reason?: string, dollarsSpent: number, creditsAdded: number, totalCredits: number }}
+     */
+    convertDollarsToCredits(player, amount) {
+        const rate = this.creditRate;
+        const availableDollars = amount !== undefined
+            ? Math.floor(Math.max(0, Math.min(Number(amount), Number(player.money ?? 0))))
+            : Math.floor(Math.max(0, Number(player.money ?? 0)));
+
+        if (!(availableDollars > 0)) {
+            return {
+                success: false,
+                reason: "noMoney",
+                dollarsSpent: 0,
+                creditsAdded: 0,
+                totalCredits: this.loadCredits(player.casinoCredits ?? 0),
+            };
+        }
+
+        const creditsAdded = availableDollars * rate;
+        const currentCredits = this.loadCredits(player.casinoCredits ?? 0);
+        const newTotal = currentCredits + creditsAdded;
+
+        player.money = Math.max(0, (player.money ?? 0) - availableDollars);
+        this.storeCredits(newTotal);
+        player.casinoCredits = newTotal;
+
+        return {
+            success: true,
+            dollarsSpent: availableDollars,
+            creditsAdded,
+            totalCredits: newTotal,
+        };
+    }
+
+    /**
+     * Konvertiert Casino-Credits zurueck zu Dollars.
+     * Portiert aus convertCreditsToDollars() Zeilen 2728-2746.
+     *
+     * @param {object} player - Spieler-Entity (braucht player.money, player.casinoCredits)
+     * @param {number} [amount] - Credits zum Umtauschen (Standard: alle)
+     * @returns {{ success: boolean, reason?: string, creditsSpent: number, dollarsGained: number, totalCredits: number }}
+     */
+    convertCreditsToDollars(player, amount) {
+        const rate = this.creditRate;
+        const currentCredits = this.loadCredits(player.casinoCredits ?? 0);
+
+        const maxCredits = amount !== undefined
+            ? Math.floor(Math.max(0, Math.min(Number(amount), currentCredits)))
+            : currentCredits;
+
+        const availableCredits = Math.floor(Math.max(0, Number(maxCredits)));
+
+        if (availableCredits < rate) {
+            return {
+                success: false,
+                reason: "noCredits",
+                creditsSpent: 0,
+                dollarsGained: 0,
+                totalCredits: availableCredits,
+            };
+        }
+
+        const dollarsGained = Math.floor(availableCredits / rate);
+        const creditsSpent = dollarsGained * rate;
+        const newTotal = currentCredits - creditsSpent;
+
+        this.storeCredits(newTotal);
+        player.money = (player.money ?? 0) + dollarsGained;
+        player.casinoCredits = newTotal;
+
+        return {
+            success: true,
+            creditsSpent,
+            dollarsGained,
+            totalCredits: newTotal,
+        };
+    }
+
+    // -----------------------------------------------------------------------
+    // Hilfsfunktionen
+    // -----------------------------------------------------------------------
+
+    /**
+     * Aktualisiert den Credits-Cache des Spielers aus dem LocalStorage.
+     *
+     * @param {object} player
+     */
+    refreshCreditsCache(player) {
+        player.casinoCredits = this.loadCredits(player.casinoCredits ?? 0);
+    }
+
+    /**
+     * Gibt den Casino-Eingangs-URL zurueck (fuer Navigation zum Casino-Spiel).
+     *
+     * @returns {string}
+     */
+    getCasinoGameUrl() {
+        return "../casinogame/index.html";
+    }
+
+    /**
+     * Formatiert einen Geldbetrag fuer die Anzeige.
+     *
+     * @param {number} dollars
+     * @returns {string}
+     */
+    formatMoney(dollars) {
+        const value = Math.floor(Math.max(0, Number(dollars) || 0));
+        return value.toLocaleString("de-DE") + "$";
+    }
+
+    /**
+     * Formatiert Credits fuer die Anzeige.
+     *
+     * @param {number} credits
+     * @returns {string}
+     */
+    formatCredits(credits) {
+        const value = Math.floor(Math.max(0, Number(credits) || 0));
+        return value.toLocaleString("de-DE");
+    }
+
+    /**
+     * Berechnet den Info-Text fuer die Casino-Interaktion.
+     *
+     * @param {object} player
+     * @returns {string}
+     */
+    getInteractionMessage(player) {
+        const rate = this.creditRate;
+        const moneyText = this.formatMoney(player.money ?? 0);
+        const creditText = this.formatCredits(player.casinoCredits ?? 0) + " Credits";
+        return `Kurs 1$ = ${rate} Credits | Bargeld: ${moneyText} | Credits: ${creditText}`;
+    }
+
+    /**
+     * Berechnet ob Kauf/Auszahlung moeglich ist.
+     *
+     * @param {object} player
+     * @returns {{ canBuy: boolean, canCashOut: boolean, dollarsAvailable: number, creditsAvailable: number }}
+     */
+    getButtonState(player) {
+        const rate = this.creditRate;
+        const dollarsAvailable = Math.floor(Math.max(0, Number(player.money ?? 0)));
+        const creditsAvailable = Math.floor(Math.max(0, Number(player.casinoCredits ?? 0)));
+
+        return {
+            canBuy: dollarsAvailable > 0,
+            canCashOut: creditsAvailable >= rate,
+            dollarsAvailable,
+            creditsAvailable,
+        };
+    }
+}
+
 
 
 
@@ -13521,36 +13428,6 @@ class PoliceSystem {
  * Keine Logik wird hier dupliziert - alles wird an die spezialisierten
  * Systeme und Renderer delegiert.
  */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // ---------------------------------------------------------------------------
 // Welt-Konstanten (SSOT)
@@ -14610,7 +14487,6 @@ class Game {
     }
 }
 
-Game;
 
 
 
@@ -14622,11 +14498,9 @@ Game;
  * Erstellt die Game-Instanz und startet die Game-Loop.
  */
 
-
 const canvas = document.getElementById('gameCanvas');
 const game = new Game(canvas);
 game.start();
-
 
 
 })();

@@ -7,6 +7,7 @@
 
 import { buildHumanoidParts } from '../entities/buildHumanoidParts.js';
 import { getWeaponDefinition } from '../data/WeaponCatalog.js';
+import { WALK_ANIM_SPEED, ANIM_DECAY } from '../core/AnimationConstants.js';
 
 // ── Polizeistation (Respawn-Punkt) ──────────────────────────────────────
 export const POLICE_STATION_POS = { x: 1800, y: 400 };
@@ -35,7 +36,6 @@ const SWAT_PALETTE = {
 // ── Geschwindigkeiten ───────────────────────────────────────────────────
 const POLICE_CHASE_SPEED = 1.8;
 const SWAT_CHASE_SPEED = 2.2;
-const POLICE_WALK_ANIM_SPEED = 0.1;
 
 // ── Taser ───────────────────────────────────────────────────────────────
 const TASER_RANGE = 180;
@@ -344,9 +344,9 @@ export class PoliceSystem {
 
         // Animation
         if (cop.moving) {
-            cop.animationPhase = (cop.animationPhase + cop.speed * POLICE_WALK_ANIM_SPEED) % (Math.PI * 2);
+            cop.animationPhase = (cop.animationPhase + cop.speed * WALK_ANIM_SPEED) % (Math.PI * 2);
         } else {
-            cop.animationPhase *= 0.85;
+            cop.animationPhase *= ANIM_DECAY;
         }
 
         // Taser (immer verfuegbar)

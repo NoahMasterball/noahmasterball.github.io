@@ -4,6 +4,7 @@
  */
 
 import { pseudoRandom2D } from '../core/MathUtils.js';
+import { computeHouseMetrics, computeCasinoPodiumGeometry } from '../world/BuildingFactory.js';
 
 export class BuildingRenderer {
 
@@ -48,95 +49,6 @@ export class BuildingRenderer {
 
         // Interaktions-Punkte nicht mehr visuell zeichnen (Funktion bleibt erhalten)
         // this.drawInteractionPoints(buildings);
-    }
-
-    // --- computeHouseMetrics ---
-
-    computeHouseMetrics(building) {
-        if (!building || building.type !== 'house') return null;
-
-        const lotWidth = Number(building.width ?? 0);
-        const lotHeight = Number(building.height ?? 0);
-        if (!(lotWidth > 0 && lotHeight > 0)) return null;
-
-        const variant = building.variant ?? {};
-        const styleIndex = variant.styleIndex ?? building.colorIndex ?? 0;
-        const palettes = Array.isArray(this.houseStyles) ? this.houseStyles : [];
-        const palette = palettes.length > 0 ? palettes[styleIndex % palettes.length] : {};
-
-        const lotPaddingBase = building.lotPadding ?? Math.min(36, Math.min(lotWidth, lotHeight) * 0.22);
-        const sideMax = Math.max(12, (lotWidth - 140) / 2);
-        const sidePadding = Math.min(Math.max(14, lotPaddingBase), sideMax);
-        let rearPadding = Math.min(lotHeight * 0.22, Math.max(12, lotPaddingBase * 0.65));
-        const minHouseHeight = 120;
-        const maxFrontSpace = Math.max(20, lotHeight - rearPadding - minHouseHeight);
-        let desiredFront = Math.min(maxFrontSpace, Math.max(48, lotPaddingBase * 1.45, lotHeight * 0.26));
-        if (desiredFront < 32) {
-            desiredFront = Math.min(maxFrontSpace, Math.max(32, lotPaddingBase * 1.15));
-        }
-
-        let houseHeight = lotHeight - rearPadding - desiredFront;
-        if (houseHeight < minHouseHeight) {
-            houseHeight = minHouseHeight;
-            desiredFront = lotHeight - rearPadding - houseHeight;
-        }
-
-        const houseWidth = Math.max(120, lotWidth - sidePadding * 2);
-        const houseX = (lotWidth - houseWidth) / 2;
-        const houseY = Math.max(10, rearPadding);
-        const houseBottom = houseY + houseHeight;
-        const frontDepth = Math.max(10, desiredFront);
-
-        let roofDepth = Math.max(32, Math.min(houseHeight * 0.32, 88));
-        if (houseHeight - roofDepth < 96) {
-            roofDepth = Math.max(24, houseHeight - 96);
-        }
-
-        const facadeHeight = houseHeight - roofDepth;
-        const facadeTop = houseY + roofDepth;
-
-        const walkwayWidth = Math.min(48, houseWidth * 0.28);
-        const walkwayX = lotWidth / 2 - walkwayWidth / 2;
-        const walkwayY = houseBottom;
-        const walkwayHeight = frontDepth;
-
-        const doorWidth = Math.min(houseWidth * 0.26, 68);
-        const doorHeight = Math.max(58, Math.min(facadeHeight * 0.44, 104));
-        const doorX = houseX + houseWidth / 2 - doorWidth / 2;
-        const doorY = facadeTop + facadeHeight - doorHeight;
-
-        const houseWorldX = Number(building.x ?? 0);
-        const houseWorldY = Number(building.y ?? 0);
-        const doorWorldX = houseWorldX + doorX + doorWidth / 2;
-        const doorWorldBottom = houseWorldY + doorY + doorHeight;
-        const doorWorldCenterY = houseWorldY + doorY + doorHeight / 2;
-        const doorWorldInsideY = houseWorldY + doorY + doorHeight * 0.35;
-        const walkwayWorldBottom = doorWorldBottom + walkwayHeight;
-        const entranceY = doorWorldBottom + Math.max(6, walkwayHeight * 0.35);
-        const approachY = walkwayWorldBottom + Math.max(12, walkwayHeight * 0.4);
-        const interiorX = houseWorldX + houseX + houseWidth / 2;
-        const interiorY = houseWorldY + houseY + Math.max(40, facadeHeight * 0.45);
-
-        const boundsLeft = houseWorldX + houseX - Math.max(20, walkwayWidth * 0.6);
-        const boundsRight = houseWorldX + houseX + houseWidth + Math.max(20, walkwayWidth * 0.6);
-        const boundsTop = houseWorldY + houseY - Math.max(20, roofDepth * 0.4);
-        const minBoundsHeight = Math.max(60, facadeHeight * 0.5);
-        const boundsBottom = Math.max(boundsTop + minBoundsHeight, approachY + Math.max(16, walkwayHeight * 0.2));
-
-        return {
-            houseX, houseY, houseWidth, houseHeight, houseBottom,
-            roofDepth, facadeTop, facadeHeight, frontDepth,
-            walkway: { x: walkwayX, y: walkwayY, width: walkwayWidth, height: walkwayHeight },
-            door: {
-                x: doorX, y: doorY, width: doorWidth, height: doorHeight,
-                world: { x: doorWorldX, y: doorWorldCenterY, bottom: doorWorldBottom, insideY: doorWorldInsideY }
-            },
-            entrance: { x: doorWorldX, y: entranceY },
-            approach: { x: doorWorldX, y: approachY },
-            interior: { x: interiorX, y: interiorY },
-            bounds: { left: boundsLeft, right: boundsRight, top: boundsTop, bottom: boundsBottom },
-            palette
-        };
     }
 
     // --- House Window Interior ---
@@ -491,42 +403,15 @@ export class BuildingRenderer {
     // --- drawHouse ---
 
     drawHouse(building) {
+        const metrics = computeHouseMetrics(building, this.houseStyles);
+        if (!metrics) return;
+
         const { x: lotOriginX, y: lotOriginY, width: lotWidth, height: lotHeight, variant = {} } = building;
-        const styleIndex = variant.styleIndex ?? building.colorIndex ?? 0;
-        const palettes = Array.isArray(this.houseStyles) ? this.houseStyles : [];
-        const palette = palettes.length > 0 ? palettes[styleIndex % palettes.length] : {
-            base: '#b0a090', roof: '#444', accent: '#887766', highlight: '#ccbbaa',
-            metallic: '#8899aa', balcony: '#776655', windowFrame: 'rgba(28,32,40,0.78)'
-        };
+        const { houseX, houseY, houseWidth, houseHeight, houseBottom, roofDepth, facadeTop, facadeHeight, frontDepth, walkway, door, palette } = metrics;
+
         const floors = Math.max(2, variant.floors ?? palette.floors ?? 4);
         const roofGarden = Boolean(variant.roofGarden ?? palette.roofGarden ?? false);
         const balconyRhythm = Math.max(0, variant.balconyRhythm ?? 0);
-
-        const lotPaddingBase = building.lotPadding ?? Math.min(36, Math.min(lotWidth, lotHeight) * 0.22);
-        const sideMax = Math.max(12, (lotWidth - 140) / 2);
-        const sidePadding = Math.min(Math.max(14, lotPaddingBase), sideMax);
-        let rearPadding = Math.min(lotHeight * 0.22, Math.max(12, lotPaddingBase * 0.65));
-        const minHouseHeight = 120;
-        const maxFrontSpace = Math.max(20, lotHeight - rearPadding - minHouseHeight);
-        let desiredFront = Math.min(maxFrontSpace, Math.max(48, lotPaddingBase * 1.45, lotHeight * 0.26));
-        if (desiredFront < 32) desiredFront = Math.min(maxFrontSpace, Math.max(32, lotPaddingBase * 1.15));
-
-        let houseHeight = lotHeight - rearPadding - desiredFront;
-        if (houseHeight < minHouseHeight) {
-            houseHeight = minHouseHeight;
-            desiredFront = lotHeight - rearPadding - houseHeight;
-        }
-
-        const houseWidth = Math.max(120, lotWidth - sidePadding * 2);
-        const houseX = (lotWidth - houseWidth) / 2;
-        const houseY = Math.max(10, rearPadding);
-        const houseBottom = houseY + houseHeight;
-        const frontDepth = Math.max(10, desiredFront);
-
-        let roofDepth = Math.max(32, Math.min(houseHeight * 0.32, 88));
-        if (houseHeight - roofDepth < 96) roofDepth = Math.max(24, houseHeight - 96);
-        const facadeHeight = houseHeight - roofDepth;
-        const facadeTop = houseY + roofDepth;
 
         this.ctx.save();
         this.ctx.translate(lotOriginX, lotOriginY);
@@ -534,10 +419,10 @@ export class BuildingRenderer {
 
         // Walkway
         const lawnHeight = Math.max(8, frontDepth * 0.65);
-        const walkwayWidth = Math.min(48, houseWidth * 0.28);
-        const walkwayX = lotWidth / 2 - walkwayWidth / 2;
-        const walkwayY = houseBottom;
-        const walkwayHeight = frontDepth;
+        const walkwayX = walkway.x;
+        const walkwayY = walkway.y;
+        const walkwayWidth = walkway.width;
+        const walkwayHeight = walkway.height;
 
         const walkwayGradient = this.ctx.createLinearGradient(walkwayX, walkwayY, walkwayX, walkwayY + walkwayHeight);
         walkwayGradient.addColorStop(0, '#e3dbd0');
@@ -799,10 +684,10 @@ export class BuildingRenderer {
         }
 
         // Door
-        const doorWidth = Math.min(houseWidth * 0.26, 68);
-        const doorHeight = Math.max(58, Math.min(facadeHeight * 0.44, 104));
-        const doorX = houseX + houseWidth / 2 - doorWidth / 2;
-        const doorY = facadeTop + facadeHeight - doorHeight;
+        const doorWidth = door.width;
+        const doorHeight = door.height;
+        const doorX = door.x;
+        const doorY = door.y;
 
         const doorGradient = this.ctx.createLinearGradient(doorX, doorY, doorX, doorY + doorHeight);
         doorGradient.addColorStop(0, palette.accent);
@@ -976,11 +861,7 @@ export class BuildingRenderer {
         this.ctx.fillRect(x - 24, y + height - canopyHeight, width + 48, canopyHeight);
 
         // Podium
-        const apronExtension = Math.max(60, Math.round(width * 0.3));
-        const podiumWidth = width + apronExtension * 2;
-        const podiumHeight = Math.max(72, Math.min(120, Math.round(height * 0.22)));
-        const podiumX = x - apronExtension;
-        const podiumY = y + height - 16;
+        const { podiumWidth, podiumHeight, plinthHeight, podiumX, podiumY } = computeCasinoPodiumGeometry(building);
 
         const podiumGradient = this.ctx.createLinearGradient(podiumX, podiumY, podiumX, podiumY + podiumHeight);
         podiumGradient.addColorStop(0, 'rgba(150, 210, 255, 0.9)');
@@ -1013,7 +894,6 @@ export class BuildingRenderer {
         this.ctx.fillRect(podiumX, podiumY, podiumWidth, 16);
 
         // Plinth
-        const plinthHeight = 40;
         const plinthY = podiumY + podiumHeight;
         this.ctx.fillStyle = '#c9b89f';
         this.ctx.fillRect(podiumX, plinthY, podiumWidth, plinthHeight);

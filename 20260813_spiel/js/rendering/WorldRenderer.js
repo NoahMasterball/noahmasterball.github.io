@@ -218,33 +218,85 @@ export class WorldRenderer {
 
         for (const road of roadLayout) {
             if (road.type === "horizontal") {
-                const length = road.endX - road.startX;
                 const upperY = road.y - roadHalfWidth - sidewalkWidth;
                 const lowerY = road.y + roadHalfWidth;
 
-                this.ctx.fillStyle = surface;
-                this.ctx.fillRect(road.startX, upperY, length, sidewalkWidth);
-                this.ctx.fillRect(road.startX, lowerY, length, sidewalkWidth);
+                // Gaps where vertical roads cross this horizontal road
+                const gaps = [];
+                for (const other of roadLayout) {
+                    if (other.type === "vertical") {
+                        const oStart = Math.min(other.startY ?? other.y, other.endY ?? other.y);
+                        const oEnd = Math.max(other.startY ?? other.y, other.endY ?? other.y);
+                        if (oStart <= road.y && oEnd >= road.y) {
+                            gaps.push({ start: other.x - roadHalfWidth, end: other.x + roadHalfWidth });
+                        }
+                    }
+                }
+                gaps.sort((a, b) => a.start - b.start);
 
-                this.drawSidewalkPatternRect(road.startX, upperY, length, sidewalkWidth);
-                this.drawSidewalkPatternRect(road.startX, lowerY, length, sidewalkWidth);
+                const segments = this._splitSegment(road.startX, road.endX, gaps);
+                for (const seg of segments) {
+                    const segLen = seg.end - seg.start;
+                    this.ctx.fillStyle = surface;
+                    this.ctx.fillRect(seg.start, upperY, segLen, sidewalkWidth);
+                    this.ctx.fillRect(seg.start, lowerY, segLen, sidewalkWidth);
+                    this.drawSidewalkPatternRect(seg.start, upperY, segLen, sidewalkWidth);
+                    this.drawSidewalkPatternRect(seg.start, lowerY, segLen, sidewalkWidth);
+                }
 
             } else if (road.type === "vertical") {
-                const length = road.endY - road.startY;
                 const leftX = road.x - roadHalfWidth - sidewalkWidth;
                 const rightX = road.x + roadHalfWidth;
 
-                this.ctx.fillStyle = surface;
-                this.ctx.fillRect(leftX, road.startY, sidewalkWidth, length);
-                this.ctx.fillRect(rightX, road.startY, sidewalkWidth, length);
+                // Gaps where horizontal roads cross this vertical road
+                const gaps = [];
+                for (const other of roadLayout) {
+                    if (other.type === "horizontal") {
+                        const oStart = Math.min(other.startX ?? other.x, other.endX ?? other.x);
+                        const oEnd = Math.max(other.startX ?? other.x, other.endX ?? other.x);
+                        if (oStart <= road.x && oEnd >= road.x) {
+                            gaps.push({ start: other.y - roadHalfWidth, end: other.y + roadHalfWidth });
+                        }
+                    }
+                }
+                gaps.sort((a, b) => a.start - b.start);
 
-                this.drawSidewalkPatternRect(leftX, road.startY, sidewalkWidth, length);
-                this.drawSidewalkPatternRect(rightX, road.startY, sidewalkWidth, length);
+                const segments = this._splitSegment(road.startY, road.endY, gaps);
+                for (const seg of segments) {
+                    const segLen = seg.end - seg.start;
+                    this.ctx.fillStyle = surface;
+                    this.ctx.fillRect(leftX, seg.start, sidewalkWidth, segLen);
+                    this.ctx.fillRect(rightX, seg.start, sidewalkWidth, segLen);
+                    this.drawSidewalkPatternRect(leftX, seg.start, sidewalkWidth, segLen);
+                    this.drawSidewalkPatternRect(rightX, seg.start, sidewalkWidth, segLen);
+                }
 
             } else if (road.type === "diagonal") {
                 this._drawDiagonalSidewalks(road, sidewalkWidth, roadWidth);
             }
         }
+    }
+
+    /**
+     * Splits a range [start, end] into sub-segments by removing gaps.
+     * @param {number} start
+     * @param {number} end
+     * @param {Array<{start:number, end:number}>} gaps - sorted by start
+     * @returns {Array<{start:number, end:number}>}
+     */
+    _splitSegment(start, end, gaps) {
+        const segments = [];
+        let current = start;
+        for (const gap of gaps) {
+            if (gap.start > current) {
+                segments.push({ start: current, end: Math.min(gap.start, end) });
+            }
+            current = Math.max(current, gap.end);
+        }
+        if (current < end) {
+            segments.push({ start: current, end });
+        }
+        return segments;
     }
 
     // ------------------------------------------------------------------

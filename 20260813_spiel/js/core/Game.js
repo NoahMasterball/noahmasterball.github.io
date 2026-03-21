@@ -60,6 +60,7 @@ import {
     loadRentedProperty,
     persistRentedProperty,
 } from '../data/Persistence.js';
+import { WALK_ANIM_SPEED, SPRINT_ANIM_SPEED, ANIM_DECAY } from './AnimationConstants.js';
 
 // ---------------------------------------------------------------------------
 // Welt-Konstanten (SSOT)
@@ -70,12 +71,6 @@ const ROAD_WIDTH = 70;
 const ROAD_HALF_WIDTH = 35;
 const SIDEWALK_WIDTH = 36;
 const CAMERA_ZOOM = 2;
-
-// ---------------------------------------------------------------------------
-// Animations-Konstanten
-// ---------------------------------------------------------------------------
-const WALK_ANIM_SPEED = 0.1;
-const SPRINT_ANIM_SPEED = 0.14;
 
 export class Game {
     /**
@@ -613,7 +608,7 @@ export class Game {
             const animSpeed = sprinting ? SPRINT_ANIM_SPEED : WALK_ANIM_SPEED;
             player.animationPhase = (player.animationPhase + speed * animSpeed) % (Math.PI * 2);
         } else {
-            player.animationPhase *= 0.85;
+            player.animationPhase *= ANIM_DECAY;
         }
     }
 
@@ -660,7 +655,7 @@ export class Game {
         if (this.player.moving) {
             this.player.animationPhase = (this.player.animationPhase + this.player.speed * WALK_ANIM_SPEED) % (Math.PI * 2);
         } else {
-            this.player.animationPhase *= 0.85;
+            this.player.animationPhase *= ANIM_DECAY;
         }
     }
 

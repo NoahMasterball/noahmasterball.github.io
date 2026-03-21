@@ -7,7 +7,9 @@
       "Bash(powershell.exe -NoProfile -Command \"Get-ItemProperty ''HKLM:\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run''\")",
       "Bash(powershell.exe -NoProfile -Command \"Get-ScheduledTask | Where-Object {$_.TaskName -like ''*Armoury*'' -or $_.TaskName -like ''*ASUS*''} | Format-Table TaskName, State -AutoSize\")",
       "Bash(powershell.exe -NoProfile -Command \"Disable-ScheduledTask -TaskName ''ArmourySocketServer''\")",
-      "Bash(node build-bundle.js)"
+      "Bash(node build-bundle.js)",
+      "Bash(xargs grep:*)",
+      "WebSearch"
     ]
   }
 }

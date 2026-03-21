@@ -14,17 +14,10 @@
  *   getBuildingSidewalkExit()      (Zeilen 6535-6602)
  */
 
+import { NPC_WALK_ANIM_SPEED, PANIC_ANIM_SPEED, ANIM_DECAY } from '../core/AnimationConstants.js';
+
 /** Panik-Geschwindigkeitsfaktor relativ zur Basis-Geschwindigkeit */
 const PANIC_SPEED_MULTIPLIER = 2.2;
-
-/** Animations-Geschwindigkeitsfaktor beim normalen Gehen */
-const WALK_ANIM_FACTOR = 0.08;
-
-/** Animations-Geschwindigkeitsfaktor bei Panik */
-const PANIC_ANIM_FACTOR = 0.07;
-
-/** Abkling-Faktor fuer die Animation im Stehen */
-const ANIM_DECAY = 0.85;
 
 /** Mindest-Wartezeit nach Panik-Ende */
 const POST_PANIC_WAIT = 45;
@@ -260,7 +253,7 @@ export class AISystem {
         npc.isCrossing = false;
         npc.waitingForCrosswalk = null;
 
-        npc.animationPhase = (npc.animationPhase + panicSpeed * PANIC_ANIM_FACTOR) % (Math.PI * 2);
+        npc.animationPhase = (npc.animationPhase + panicSpeed * PANIC_ANIM_SPEED) % (Math.PI * 2);
 
         npc.panicTimer = Math.max(0, (npc.panicTimer ?? 0) - 1);
 
@@ -381,7 +374,7 @@ export class AISystem {
      */
     _updateAnimation(npc) {
         if (npc.moving && npc.waitTimer === 0) {
-            npc.animationPhase = (npc.animationPhase + npc.speed * WALK_ANIM_FACTOR) % (Math.PI * 2);
+            npc.animationPhase = (npc.animationPhase + npc.speed * NPC_WALK_ANIM_SPEED) % (Math.PI * 2);
         } else {
             npc.animationPhase *= ANIM_DECAY;
         }

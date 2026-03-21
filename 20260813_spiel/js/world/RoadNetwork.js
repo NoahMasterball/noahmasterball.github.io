@@ -196,15 +196,15 @@ export class RoadNetwork {
      */
     static createCrosswalks() {
         return [
-            { orientation: "horizontal", x: 1100, y: 1700, span: 260 },
-            { orientation: "horizontal", x: 2050, y: 1700, span: 260 },
-            { orientation: "horizontal", x: 1040, y: 1680, span: 180 },
-            { orientation: "horizontal", x: 1860, y: 1680, span: 180 },
-            { orientation: "vertical", x: 950, y: 900, span: 300 },
-            { orientation: "vertical", x: 1700, y: 900, span: 300 },
-            { orientation: "vertical", x: 2050, y: 1700, span: 300 },
-            { orientation: "horizontal", x: 2950, y: 1100, span: 260 },
-            { orientation: "horizontal", x: 3040, y: 1500, span: 280 },
+            { orientation: "horizontal", x: 1100, y: 1700, span: 80 },
+            { orientation: "horizontal", x: 2050, y: 1700, span: 80 },
+            { orientation: "horizontal", x: 1040, y: 1680, span: 80 },
+            { orientation: "horizontal", x: 1860, y: 1680, span: 80 },
+            { orientation: "vertical", x: 950, y: 900, span: 80 },
+            { orientation: "vertical", x: 1700, y: 900, span: 80 },
+            { orientation: "vertical", x: 2050, y: 1700, span: 80 },
+            { orientation: "horizontal", x: 2950, y: 1100, span: 80 },
+            { orientation: "horizontal", x: 3040, y: 1500, span: 80 },
         ];
     }
 

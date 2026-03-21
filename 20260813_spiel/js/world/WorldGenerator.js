@@ -16,6 +16,7 @@ import { Vehicle } from '../entities/Vehicle.js';
 import { createHouseStyles } from '../data/HouseStyles.js';
 import { pseudoRandom2D } from '../core/MathUtils.js';
 import { createStreetDetails } from './StreetDetails.js';
+import { computeHouseMetrics, computeCasinoPodiumGeometry } from './BuildingFactory.js';
 import { RENTAL_CATALOG, PROPERTY_CATALOG } from '../systems/RealEstateSystem.js';
 
 // ---------------------------------------------------------------------------
@@ -132,13 +133,9 @@ export class WorldGenerator {
             x: 3040, y: 860, width: 238, height: 560,
             name: "Starlight Casino Tower", type: "casino", interactive: true,
         };
-        const casinoApron = Math.max(60, Math.round(casinoTower.width * 0.3));
-        const casinoPodiumHeight = Math.max(72, Math.min(120, Math.round(casinoTower.height * 0.22)));
-        const casinoPlinthHeight = 40;
-        const casinoPodiumY = casinoTower.y + casinoTower.height - 16;
+        const casinoPodium = computeCasinoPodiumGeometry(casinoTower);
         casinoTower.collisionRects = [
-            { x: casinoTower.x, y: casinoTower.y, width: casinoTower.width, height: casinoTower.height },
-            { x: casinoTower.x - casinoApron, y: casinoPodiumY, width: casinoTower.width + casinoApron * 2, height: casinoPodiumHeight + casinoPlinthHeight },
+            { x: casinoPodium.podiumX, y: casinoPodium.podiumY, width: casinoPodium.podiumWidth, height: casinoPodium.podiumHeight + casinoPodium.plinthHeight },
         ];
         buildings.push(casinoTower);
 
@@ -158,10 +155,12 @@ export class WorldGenerator {
         buildings.push({
             x: 2540, y: 940, width: 160, height: 540,
             name: "Aurora Financial Center", type: "officeTower", interactive: false,
+            collisionRects: [{ x: 2540, y: 1360, width: 160, height: 120 }],
         });
         buildings.push({
             x: 2720, y: 980, width: 150, height: 500,
             name: "Skyline Exchange", type: "residentialTower", interactive: false,
+            collisionRects: [{ x: 2720, y: 1360, width: 150, height: 120 }],
         });
 
         // Mixed-Use Block
@@ -238,7 +237,7 @@ export class WorldGenerator {
             building.id = `building_${buildingIdCounter++}`;
 
             if (building.type === "house") {
-                const metrics = WorldGenerator.computeHouseMetrics(building, this.houseStyles);
+                const metrics = computeHouseMetrics(building, this.houseStyles);
                 if (metrics) {
                     building.metrics = metrics;
                     building.entrance = metrics.entrance;
@@ -293,11 +292,7 @@ export class WorldGenerator {
         let casinoPodiumPlan = null;
 
         if (casinoTower) {
-            const apron = Math.max(60, Math.round(casinoTower.width * 0.3));
-            const podiumHeight = Math.max(72, Math.min(120, Math.round(casinoTower.height * 0.22)));
-            const podiumWidth = casinoTower.width + apron * 2;
-            const podiumX = casinoTower.x - apron;
-            const podiumY = casinoTower.y + casinoTower.height - 16;
+            const { podiumWidth, podiumHeight, podiumX, podiumY } = computeCasinoPodiumGeometry(casinoTower);
             const margin = Math.max(18, Math.min(32, this.sidewalkWidth));
             const topY = podiumY + margin;
             const bottomY = podiumY + podiumHeight - margin;
@@ -518,7 +513,7 @@ export class WorldGenerator {
 
         for (let index = 0; index < houses.length; index++) {
             const house = houses[index];
-            const metrics = house.metrics ?? WorldGenerator.computeHouseMetrics(house, this.houseStyles);
+            const metrics = house.metrics ?? computeHouseMetrics(house, this.houseStyles);
 
             if (!metrics) {
                 continue;
@@ -690,118 +685,6 @@ export class WorldGenerator {
     }
 
     // -----------------------------------------------------------------------
-    // computeHouseMetrics - Statische Methode (SSOT fuer Haus-Geometrie)
-    // Portiert aus Zeilen 8748-8970
-    // -----------------------------------------------------------------------
-
-    /**
-     * Berechnet die Metriken (Abmessungen, Tuer, Eingang, etc.) fuer ein Haus.
-     *
-     * @param {object} building - Gebaeude-Objekt
-     * @param {Array}  [houseStyles] - Hausstile (optional, fuer Palette)
-     * @returns {object|null}
-     */
-    static computeHouseMetrics(building, houseStyles) {
-        if (!building || building.type !== "house") {
-            return null;
-        }
-
-        const lotWidth = Number(building.width ?? 0);
-        const lotHeight = Number(building.height ?? 0);
-
-        if (!(lotWidth > 0 && lotHeight > 0)) {
-            return null;
-        }
-
-        const variant = building.variant ?? {};
-        const styleIndex = variant.styleIndex ?? building.colorIndex ?? 0;
-        const palettes = Array.isArray(houseStyles) ? houseStyles : [];
-        const palette = palettes.length > 0 ? palettes[styleIndex % palettes.length] : {};
-
-        const lotPaddingBase = building.lotPadding ?? Math.min(36, Math.min(lotWidth, lotHeight) * 0.22);
-        const sideMax = Math.max(12, (lotWidth - 140) / 2);
-        const sidePadding = Math.min(Math.max(14, lotPaddingBase), sideMax);
-
-        let rearPadding = Math.min(lotHeight * 0.22, Math.max(12, lotPaddingBase * 0.65));
-        const minHouseHeight = 120;
-        const maxFrontSpace = Math.max(20, lotHeight - rearPadding - minHouseHeight);
-
-        let desiredFront = Math.min(maxFrontSpace, Math.max(48, lotPaddingBase * 1.45, lotHeight * 0.26));
-        if (desiredFront < 32) {
-            desiredFront = Math.min(maxFrontSpace, Math.max(32, lotPaddingBase * 1.15));
-        }
-
-        let houseHeight = lotHeight - rearPadding - desiredFront;
-        if (houseHeight < minHouseHeight) {
-            houseHeight = minHouseHeight;
-            desiredFront = lotHeight - rearPadding - houseHeight;
-        }
-
-        const houseWidth = Math.max(120, lotWidth - sidePadding * 2);
-        const houseX = (lotWidth - houseWidth) / 2;
-        const houseY = Math.max(10, rearPadding);
-        const houseBottom = houseY + houseHeight;
-        const frontDepth = Math.max(10, desiredFront);
-
-        let roofDepth = Math.max(32, Math.min(houseHeight * 0.32, 88));
-        if (houseHeight - roofDepth < 96) {
-            roofDepth = Math.max(24, houseHeight - 96);
-        }
-
-        const facadeHeight = houseHeight - roofDepth;
-        const facadeTop = houseY + roofDepth;
-        const walkwayWidth = Math.min(48, houseWidth * 0.28);
-        const walkwayX = lotWidth / 2 - walkwayWidth / 2;
-        const walkwayY = houseBottom;
-        const walkwayHeight = frontDepth;
-
-        const doorWidth = Math.min(houseWidth * 0.26, 68);
-        const doorHeight = Math.max(58, Math.min(facadeHeight * 0.44, 104));
-        const doorX = houseX + houseWidth / 2 - doorWidth / 2;
-        const doorY = facadeTop + facadeHeight - doorHeight;
-
-        const houseWorldX = Number(building.x ?? 0);
-        const houseWorldY = Number(building.y ?? 0);
-
-        const doorWorldX = houseWorldX + doorX + doorWidth / 2;
-        const doorWorldBottom = houseWorldY + doorY + doorHeight;
-        const doorWorldCenterY = houseWorldY + doorY + doorHeight / 2;
-        const doorWorldInsideY = houseWorldY + doorY + doorHeight * 0.35;
-        const walkwayWorldBottom = doorWorldBottom + walkwayHeight;
-
-        const entranceY = doorWorldBottom + Math.max(6, walkwayHeight * 0.35);
-        const approachY = walkwayWorldBottom + Math.max(12, walkwayHeight * 0.4);
-
-        const interiorX = houseWorldX + houseX + houseWidth / 2;
-        const interiorY = houseWorldY + houseY + Math.max(40, facadeHeight * 0.45);
-
-        const boundsLeft = houseWorldX + houseX - Math.max(20, walkwayWidth * 0.6);
-        const boundsRight = houseWorldX + houseX + houseWidth + Math.max(20, walkwayWidth * 0.6);
-        const boundsTop = houseWorldY + houseY - Math.max(20, roofDepth * 0.4);
-        const minBoundsHeight = Math.max(60, facadeHeight * 0.5);
-        const boundsBottom = Math.max(
-            boundsTop + minBoundsHeight,
-            approachY + Math.max(16, walkwayHeight * 0.2)
-        );
-
-        return {
-            houseX, houseY, houseWidth, houseHeight, houseBottom,
-            roofDepth, facadeTop, facadeHeight, frontDepth,
-            walkway: { x: walkwayX, y: walkwayY, width: walkwayWidth, height: walkwayHeight },
-            door: {
-                x: doorX, y: doorY, width: doorWidth, height: doorHeight,
-                world: {
-                    x: doorWorldX, y: doorWorldCenterY,
-                    bottom: doorWorldBottom, insideY: doorWorldInsideY,
-                },
-            },
-            entrance: { x: doorWorldX, y: entranceY },
-            approach: { x: doorWorldX, y: approachY },
-            interior: { x: interiorX, y: interiorY },
-            bounds: { left: boundsLeft, right: boundsRight, top: boundsTop, bottom: boundsBottom },
-            palette,
-        };
-    }
 }
 
 export default WorldGenerator;
