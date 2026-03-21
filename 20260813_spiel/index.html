@@ -25,14 +25,26 @@
             position: relative;
             width: 100vw;
             height: 100vh;
-            background: #222;
+            background: #000;
         }
 
         #gameCanvas {
-            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100vw;
             height: 100vh;
-            background: transparent;
+            z-index: 1;
+        }
+
+        #hudCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 2;
+            pointer-events: none;
         }
 
         #ui {
@@ -108,6 +120,7 @@
 <body>
     <div id="gameContainer">
         <canvas id="gameCanvas"></canvas>
+        <canvas id="hudCanvas"></canvas>
         <div id="ui">
             <div>Position: <span id="playerPos">0, 0</span></div>
             <div>FPS: <span id="fps">60</span></div>
@@ -184,6 +197,13 @@
             panel.textContent = `Promise error: ${event.reason}`;
         });
     </script>
-    <script src="bundle.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.170/build/three.module.js"
+        }
+    }
+    </script>
+    <script type="module" src="bundle.js"></script>
 </body>
 </html>
