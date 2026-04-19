@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { gameToThree } from './ThreeCoords.js';
+import { WorldRenderer } from './WorldRenderer.js';
 
 export class ThreeWorldRenderer {
 
@@ -28,37 +29,36 @@ export class ThreeWorldRenderer {
     }
 
     _buildOcean(worldHeight) {
-        const OCEAN_W = 600;
-        const geo = new THREE.PlaneGeometry(OCEAN_W, worldHeight);
+        const geo = new THREE.PlaneGeometry(WorldRenderer.OCEAN_WIDTH, worldHeight);
         const mat = new THREE.MeshLambertMaterial({ color: 0x1a6b8a });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.rotation.x = -Math.PI / 2;
-        mesh.position.set(-OCEAN_W / 2, -2, -worldHeight / 2);
+        mesh.position.set(-WorldRenderer.OCEAN_WIDTH / 2, -2, -worldHeight / 2);
         this.worldGroup.add(mesh);
 
         // Klippe
-        const cliffGeo = new THREE.BoxGeometry(12, 4, worldHeight);
+        const cliffGeo = new THREE.BoxGeometry(WorldRenderer.CLIFF_WIDTH, 4, worldHeight);
         const cliffMat = new THREE.MeshLambertMaterial({ color: 0x5a4a3a });
         const cliff = new THREE.Mesh(cliffGeo, cliffMat);
-        cliff.position.set(-6, -1, -worldHeight / 2);
+        cliff.position.set(-WorldRenderer.CLIFF_WIDTH / 2, -1, -worldHeight / 2);
         this.worldGroup.add(cliff);
     }
 
     _buildRoads(roadLayout, roadWidth, roadHalfWidth) {
-        const mat = new THREE.MeshLambertMaterial({ color: 0x444444 });
+        const mat = new THREE.MeshLambertMaterial({ color: 0x2c3036 });
 
         for (const road of roadLayout) {
             let w, h, cx, cy;
-            if (road.orientation === 'horizontal') {
-                w = (road.end ?? 3600) - (road.start ?? 0);
+            if (road.type === 'horizontal') {
+                w = road.endX - road.startX;
                 h = roadWidth;
-                cx = (road.start ?? 0) + w / 2;
-                cy = road.y ?? road.position ?? 0;
+                cx = road.startX + w / 2;
+                cy = road.y;
             } else {
                 w = roadWidth;
-                h = (road.end ?? 2800) - (road.start ?? 0);
-                cx = road.x ?? road.position ?? 0;
-                cy = (road.start ?? 0) + h / 2;
+                h = road.endY - road.startY;
+                cx = road.x;
+                cy = road.startY + h / 2;
             }
             const geo = new THREE.PlaneGeometry(w, h);
             const mesh = new THREE.Mesh(geo, mat);
@@ -69,13 +69,13 @@ export class ThreeWorldRenderer {
     }
 
     _buildSidewalks(roadLayout, sidewalkWidth, roadHalfWidth) {
-        const mat = new THREE.MeshLambertMaterial({ color: 0x888888 });
+        const mat = new THREE.MeshLambertMaterial({ color: 0xd9d1c4 });
 
         for (const road of roadLayout) {
-            if (road.orientation === 'horizontal') {
-                const len = (road.end ?? 3600) - (road.start ?? 0);
-                const cx = (road.start ?? 0) + len / 2;
-                const ry = road.y ?? road.position ?? 0;
+            if (road.type === 'horizontal') {
+                const len = road.endX - road.startX;
+                const cx = road.startX + len / 2;
+                const ry = road.y;
                 for (const side of [-1, 1]) {
                     const geo = new THREE.PlaneGeometry(len, sidewalkWidth);
                     const mesh = new THREE.Mesh(geo, mat);
@@ -84,9 +84,9 @@ export class ThreeWorldRenderer {
                     this.worldGroup.add(mesh);
                 }
             } else {
-                const len = (road.end ?? 2800) - (road.start ?? 0);
-                const cy = (road.start ?? 0) + len / 2;
-                const rx = road.x ?? road.position ?? 0;
+                const len = road.endY - road.startY;
+                const cy = road.startY + len / 2;
+                const rx = road.x;
                 for (const side of [-1, 1]) {
                     const geo = new THREE.PlaneGeometry(sidewalkWidth, len);
                     const mesh = new THREE.Mesh(geo, mat);

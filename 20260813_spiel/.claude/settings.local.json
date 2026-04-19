@@ -9,7 +9,9 @@
       "Bash(powershell.exe -NoProfile -Command \"Disable-ScheduledTask -TaskName ''ArmourySocketServer''\")",
       "Bash(node build-bundle.js)",
       "Bash(xargs grep:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(pip show:*)",
+      "Bash(pip install:*)"
     ]
   }
 }

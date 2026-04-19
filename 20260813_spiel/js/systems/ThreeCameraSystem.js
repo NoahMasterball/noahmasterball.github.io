@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { gameToThree } from '../rendering/ThreeCoords.js';
 
 export class ThreeCameraSystem {
 
