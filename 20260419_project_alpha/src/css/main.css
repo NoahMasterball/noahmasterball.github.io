@@ -1,0 +1,32 @@
+/* Root-Variablen spiegeln COLORS aus constants.js. Wenn dort geändert → hier mit-pflegen. */
+:root {
+  --hud-bg: rgba(0, 0, 0, 0.55);
+  --hud-border: rgba(255, 255, 255, 0.18);
+  --hud-text: #ececec;
+  --slot-bg: rgba(20, 20, 24, 0.75);
+  --slot-active: rgba(255, 210, 90, 0.9);
+  --bar-health: #d1453a;
+  --bar-hunger: #d98b2a;
+  --bar-thirst: #2a8cd9;
+  --bar-warn: #ffd56b;
+  --crosshair: rgba(255, 255, 255, 0.85);
+  --consume-ring: rgba(112, 204, 116, 0.95);
+}
+
+#game-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  touch-action: none;
+}
+
+#hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  color: var(--hud-text);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project Alpha — Post-Apocalyptic Survival</title>
+  <link rel="stylesheet" href="src/css/reset.css" />
+  <link rel="stylesheet" href="src/css/main.css" />
+  <link rel="stylesheet" href="src/css/hud.css" />
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+
+  <div id="hud" aria-hidden="true">
+    <div id="crosshair"></div>
+    <div id="pickup-ring" class="progress-ring"></div>
+    <div id="pickup-label"></div>
+    <div id="consume-ring" class="progress-ring"></div>
+    <div id="consume-label"></div>
+
+    <div id="stats-panel">
+      <div class="stat-row">
+        <span class="stat-label">HP</span>
+        <div class="stat-bar"><div class="stat-fill" data-bar="health"></div></div>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Hunger</span>
+        <div class="stat-bar"><div class="stat-fill" data-bar="hunger"></div></div>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Durst</span>
+        <div class="stat-bar"><div class="stat-fill" data-bar="thirst"></div></div>
+      </div>
+    </div>
+
+    <div id="clock-panel">
+      <div id="clock-time">--:--</div>
+      <div id="clock-phase">—</div>
+      <div id="night-counter">Nacht 0</div>
+    </div>
+
+    <div id="hotbar"></div>
+
+    <div id="loading-screen" class="hidden">
+      <div class="loading-label">LOADING</div>
+      <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+    </div>
+
+    <div id="start-screen">
+      <div class="start-title" data-text="PROJECT ALPHA">PROJECT ALPHA</div>
+      <div class="start-menu">
+        <button id="btn-start-game" class="start-btn" type="button">Start Game</button>
+        <button id="btn-options" class="start-btn" type="button">Options</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/js/main.js"></script>
+</body>
+</html>
