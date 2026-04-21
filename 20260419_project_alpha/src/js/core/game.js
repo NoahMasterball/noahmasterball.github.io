@@ -1,14 +1,16 @@
 import { Renderer } from './renderer.js';
 import { Input } from './input.js';
 import { Clock } from './clock.js';
+import { TracerManager } from './hit-scan.js';
 import { Player } from '../entities/player.js';
+import { DummyTarget } from '../entities/dummy-target.js';
 import { HUD } from '../ui/hud.js';
 import { World } from '../world/world.js';
 import { Inventory } from '../items/inventory.js';
 import { PickupManager } from '../items/pickups.js';
 import { getPrototype } from '../items/item-registry.js';
 import { ItemId } from '../config/enums.js';
-import { HOTBAR, UI } from '../config/constants.js';
+import { HOTBAR, UI, DUMMY_TARGET } from '../config/constants.js';
 
 // Orchestrator. Batch 1 + 2 + 3: Renderer + Input + Clock + World + Player + HUD + Inventory + Pickups.
 // Folge-Batches hängen sich hier ein: MonsterSpawner, LevelManager.
@@ -36,6 +38,14 @@ export class Game {
     this._pickupHudState = { target: null, progress01: 0 };
     // [Batch 4] Consume-Ring-State (zweiter Progress-Ring ums Crosshair).
     this._consumeHudState = { target: null, progress01: 0 };
+    // [Batch 5] Waffen-VFX + Hit-Targets + Reload-Ring-State.
+    this.tracers = new TracerManager(this.renderer.scene);
+    this.dummyTargets = [];
+    this._spawnDummyTargets();
+    this._weaponHudState = {
+      active: null, magAmmo: 0, magSize: 0, reserve: 0,
+      reloadProgress01: 0, reloading: false, ammoType: null,
+    };
     this._spawnInitialPickups();
 
     this.hud = new HUD();
@@ -115,9 +125,13 @@ export class Game {
       // [Batch 4] Stat-Decay + Health-Regen — pausiert identisch zu Clock/World.
       this.player.tickStats(dt);
       // [Batch 3] Inventar-Inputs + Pickup-Hold. [Batch 4] Hold-to-Consume.
+      // [Batch 5] Fire-Hold + Reload.
       this._handleInventoryInput(dt);
       this.inventory.tick(dt);
       this.pickups.update(dt);
+      // [Batch 5] Dummy-Tint + Tracer-TTLs.
+      for (const d of this.dummyTargets) d.update(dt);
+      this.tracers.update(dt);
     }
     // [Batch 6]: this.monsterSpawner?.update(dt, this.clock, this.player);
     // [Batch 8]: this.levelManager?.checkObjective(this.player, this.world);
@@ -128,7 +142,10 @@ export class Game {
     const sunAngle = this.clock.getSunAngle01();
     if (sunAngle >= 0) this.renderer.setSunPosition(sunAngle);
 
-    this.hud.update(this.player, this.clock, this.inventory, this._pickupHudState, this._consumeHudState);
+    this.hud.update(
+      this.player, this.clock, this.inventory,
+      this._pickupHudState, this._consumeHudState, this._weaponHudState,
+    );
   }
 
   _render() {
@@ -180,16 +197,59 @@ export class Game {
     this._pickupHudState.progress01 = state.progress01;
 
     // [Batch 4] Left-Click-Hold auf Consumable → tickActiveHold füllt Progress-Ring.
+    // [Batch 5] Ctx enthält Targets (dummies + world.root für Wand-Stops) und die
+    // TracerManager-Instanz. Kein globales window-Monkey-Patch — alles explizit.
     const leftDown = this.input.mouseButtons.left;
-    const ctx = { player: this.player, world: this.world, clock: this.clock };
+    const ctx = {
+      player: this.player,
+      world: this.world,
+      clock: this.clock,
+      targets: this._hitTargets(),
+      tracers: this.tracers,
+    };
     const consumeState = this.inventory.tickActiveHold(dt, leftDown, ctx);
     this._consumeHudState.target = consumeState.target;
     this._consumeHudState.progress01 = consumeState.progress01;
 
+    // [Batch 5] Full-Auto-Feuer (MG) pro Frame, solange Left-Click gehalten wird.
+    this.inventory.tickActiveFire(dt, leftDown, ctx);
+
+    // [Batch 5] Reload-Taste (R). Startet, wenn aktive Waffe nachladbar + Reserve > 0.
+    if (this.input.consumeKey('KeyR')) this.inventory.startActiveReload();
+
     // Use aktives Item (Left-Click, Rising-Edge). Consumables werden von useActive
-    // übersprungen — sie laufen via tickActiveHold. Batch 5 füllt den Waffen-Pfad.
+    // übersprungen — sie laufen via tickActiveHold. Single-Shot-Waffen feuern hier;
+    // Full-Auto-MG macht hier No-Op und läuft über tickActiveFire.
     if (this.input.consumeMouseButton('left')) {
       this.inventory.useActive(ctx);
     }
+
+    // [Batch 5] Weapon-Tick (Reload-Timer + fireCooldown) + HUD-State-Snapshot.
+    const ws = this.inventory.tickWeaponState(dt);
+    this._weaponHudState.active = ws.active;
+    this._weaponHudState.magAmmo = ws.magAmmo;
+    this._weaponHudState.magSize = ws.magSize;
+    this._weaponHudState.reserve = ws.reserve;
+    this._weaponHudState.reloadProgress01 = ws.reloadProgress01;
+    this._weaponHudState.reloading = ws.reloading;
+    this._weaponHudState.ammoType = ws.ammoType;
+  }
+
+  _spawnDummyTargets() {
+    const sp = this.world.spawnPoint;
+    const pos = { x: sp.x + DUMMY_TARGET.SPAWN_DX, z: sp.z + DUMMY_TARGET.SPAWN_DZ };
+    const d = new DummyTarget(pos);
+    this.renderer.scene.add(d.mesh);
+    this.dummyTargets.push(d);
+  }
+
+  // Ziel-Liste für hit-scan: zuerst Dummies (tragen hpOwner), dann world.root
+  // (stoppt Tracer an Wänden — kein Schaden, kein hpOwner). Array wird pro Shot
+  // konsumiert, daher kein Cache nötig.
+  _hitTargets() {
+    const out = [];
+    for (const d of this.dummyTargets) out.push(d.mesh);
+    if (this.world?.root) out.push(this.world.root);
+    return out;
   }
 }

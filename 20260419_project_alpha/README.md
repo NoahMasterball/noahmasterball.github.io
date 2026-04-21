@@ -42,7 +42,8 @@ Beim Start einer neuen Claude-Session: **Immer zuerst README lesen**, dann Spec-
 │   │   │   ├── game.js            ← Hauptschleife, Orchestrator, State-Management.
 │   │   │   ├── renderer.js        ← Three.js-Wrapper: Scene, Camera, Renderer, Lights.
 │   │   │   ├── input.js           ← Keyboard + Maus, Pointer-Lock, Hotkeys.
-│   │   │   └── clock.js           ← Tag/Nacht-Zyklus, Uhrzeit, Tageszeit-Phasen.
+│   │   │   ├── clock.js           ← Tag/Nacht-Zyklus, Uhrzeit, Tageszeit-Phasen.
+│   │   │   └── hit-scan.js        ← [Batch 5] THREE.Raycaster-Wrapper + TracerManager (Tracer- & Muzzle-Flash-Lifetime).
 │   │   ├── world/                 ← Map-Gen, Buildings, Biomes, Transitions, World-Orchestrator.
 │   │   │   ├── map-generator.js   ← Seeded Data-Gen: Zellen-Grid, Buildings, Meadows, SpawnPoint. Exportiert auch Mulberry32-RNG.
 │   │   │   ├── buildings.js       ← Baut Building-Meshes (Wände + Dach) aus Map-Gen-Daten.
@@ -50,13 +51,16 @@ Beim Start einer neuen Claude-Session: **Immer zuerst README lesen**, dann Spec-
 │   │   │   ├── transitions.js     ← Straßen-Grid + Sidewalk-Ringe um Gebäude.
 │   │   │   └── world.js           ← Orchestrator: kombiniert alles zu Meshes, liefert Queries (getBuildingsInRadius, raycastGround).
 │   │   ├── entities/              ← [Batch 6] Monster + Spawner. Player liegt hier (aktiv).
-│   │   │   └── player.js          ← Player-Controller (Movement, Look, Jump, Gravity).
+│   │   │   ├── player.js          ← Player-Controller (Movement, Look, Jump, Gravity).
+│   │   │   └── dummy-target.js    ← [Batch 5] Test-Dummy am Spawn (Mesh + HP + Hit-Tint). Wird von Batch 6 durch echte Monster ersetzt.
 │   │   ├── items/                 ← [Batch 3+] Inventar, Items, World-Pickups.
-│   │   │   ├── item.js            ← createItem + Default-MaxStack/Stackable-Regeln.
+│   │   │   ├── item.js            ← createItem + Default-MaxStack/Stackable-Regeln. [Batch 5] `runtime`/`onAutoFire` für Waffen.
 │   │   │   ├── item-registry.js   ← SSoT aller Item-Prototypen (Snack, Pistol, Tire, …).
-│   │   │   ├── inventory.js       ← 8-Slot-Inventory: addItem, dropActive, useActive, tickActiveHold, setActive, cycle.
+│   │   │   ├── inventory.js       ← 8-Slot-Inventory: addItem, dropActive, useActive, tickActiveHold, tickActiveFire, startActiveReload, tickWeaponState, setActive, cycle.
 │   │   │   ├── pickups.js         ← World-Pickup-Meshes + hold-to-pick-up Progress, Drop-vor-Player.
-│   │   │   └── food.js            ← [Batch 4] makeConsumeUse-Factory — liest CONSUMABLES-Deltas aus constants.js.
+│   │   │   ├── food.js            ← [Batch 4] makeConsumeUse-Factory — liest CONSUMABLES-Deltas aus constants.js.
+│   │   │   ├── weapons.js         ← [Batch 5] makeWeaponUse/makeWeaponAutoFire-Factory + Reload-Logik — liest WEAPONS aus constants.js.
+│   │   │   └── ammo.js            ← [Batch 5] Reserve-Zähler (getReserve / consumeFromReserve) über Inventory-Slots. Kein eigenes Stacking.
 │   │   ├── ui/                    ← HUD, Menüs, Overlays.
 │   │   │   └── hud.js             ← Rendert Hotbar (Icons/Names/Counts) + Stat-Bars + Pickup-Ring.
 │   │   └── levels/                ← [Batch 8] Level-Manager + Objectives.
@@ -68,7 +72,7 @@ Beim Start einer neuen Claude-Session: **Immer zuerst README lesen**, dann Spec-
         ├── batch-02-world-gen.md   ← [ERLEDIGT] Procedural Map, Buildings, Biomes, Transitions.
         ├── batch-03-inventory.md   ← [ERLEDIGT] Hotbar, 8 Slots, Pickup/Drop/Use, Q/Click.
         ├── batch-04-consumption.md ← [ERLEDIGT] Food/Drink (hold-to-consume), Hunger/Thirst/Health-Decay + Regen.
-        ├── batch-05-weapons.md     ← Nahkampf, Schusswaffen, Heavy-Weapons (1× tragbar).
+        ├── batch-05-weapons.md     ← [ERLEDIGT] Nahkampf, Schusswaffen, Heavy-Weapon-MG, Reload, Tracer/Muzzle-Flash, Dummy-Target.
         ├── batch-06-monsters.md    ← Monster-AI, Nacht-Wellen, Night-Counter, Monster-Typen.
         ├── batch-07-alarms.md      ← Alarmanlagen in Shops, Monster-Aggro-Stacking.
         ├── batch-08-levels.md      ← Level-Progression, Objectives (Reifen, Keycard …), Map-Change.
@@ -107,6 +111,15 @@ Beim Start einer neuen Claude-Session: **Immer zuerst README lesen**, dann Spec-
 - Slot-Wechsel: `1`-`8` oder Mausrad; kurze `HOTBAR.SWITCH_COOLDOWN_SEC` verhindert Spam.
 - Left-Click ruft `inventory.useActive()` — in Batch 3 No-Op-Durchreiche, Batch 4/5 füllen `onUse`.
 
+### Batch 5 — Weapons
+- 4 Waffen-Prototypen: Baseballschläger (Nahkampf-Fan, `MELEE.ARC_RAYS` Rays im `MELEE.ARC_DEG`-Winkel), Pistole (Single-Shot, 12-Mag), Schrotflinte (Single-Shot, 8-Pellet-Fan, 6-Mag), Maschinengewehr (Full-Auto, 60-Mag, `heavy: true` → nur 1× tragbar).
+- Fire-Pipeline: `items/weapons.js:makeWeaponUse(itemId)` baut aus `WEAPONS`-Daten pro ID einen onUse-Handler (Single-Shot) und — nur für `fullAuto`-Waffen — aus `makeWeaponAutoFire(itemId)` einen onAutoFire-Handler. Rising-Edge-Klick läuft über `Inventory.useActive`; Full-Auto läuft pro Frame über `Inventory.tickActiveFire` mit Rate-Limiter (`WEAPONS.*.fireRate` Shots/Sek).
+- Hit-Scan in `core/hit-scan.js`: dünner Wrapper um `THREE.Raycaster`. Targets = Dummy-Meshes (tragen `userData.hpOwner`) + `world.root` (stoppt Tracer an Wänden). Liefert `{ mesh, hpOwner, point, distance }` oder `null`.
+- Reload mit `R`: startet, wenn aktive Waffe nachladbar und Reserve > 0 ist. Reload-Timer in `item.runtime.reloadTimer`. Beim Abschluss wird die Reserve über `items/ammo.js:consumeFromReserve` dekrementiert (Summe über alle Inventory-Slots gleicher Ammo-ID — kein eigenes Stacking, Inventory.addItem macht weiterhin das Stacking).
+- Shared Visuals via `core/hit-scan.js:TracerManager`: Tracer sind kurze `THREE.Line`-Segmente, Mündungsfeuer ein kleines additiv gezeichnetes Quad. Beide mit TTL aus `WEAPON_VFX`.
+- Dummy-Target (`entities/dummy-target.js`): gelber Würfel am Spawn (`DUMMY_TARGET.SPAWN_DX/DZ`) mit HP, Hit-Tint beim Treffer, färbt sich bei 0 HP dunkel. Pure Test-Aid — Batch 6 liefert echte Monster.
+- HUD-Erweiterung: Ammo-Counter unten rechts (mag/reserve; nur bei aktiver Schusswaffe sichtbar; blau während Reload, rot bei leerem Magazin). Dritter Progress-Ring (Reload) ums Crosshair — shared `.progress-ring` Basis-Klasse, eigene Farbvariable `--reload-ring`.
+
 ### Batch 4 — Consumption + Stats
 - 5 Consumable-Prototypen: Snack, Dosensuppe, Wasserflasche, Limodose, Schmerzmittel (ItemIds aus Batch 3 weiter genutzt, nur neue ergänzt — kein Rename).
 - Hold-to-Consume: Left-Click halten auf aktivem FOOD/DRINK-Slot → `HOTBAR.CONSUME_HOLD_SEC`-Ring ums Crosshair (grün, parallel zum gelben Pickup-Ring). Loslassen vor Ende bricht ab, Item bleibt.
@@ -119,7 +132,6 @@ Beim Start einer neuen Claude-Session: **Immer zuerst README lesen**, dann Spec-
 
 Siehe `docs/spec.md` für die vollständige Vision. Kurzfassung:
 
-- **[Batch 5]** Waffen: Nahkampf + Pistole + Shotgun + Maschinengewehr (Heavy, nur 1× tragbar, wenig Ammo).
 - **[Batch 6]** Monster: Nacht-Spawning, pro überlebter Nacht neuer Monster-Typ (gruselig-langsam → schnell → groß-tanky → ...).
 - **[Batch 7]** Alarmanlagen in Shops: getriggerter Alarm zieht Monster heran, häuft Aggro an.
 - **[Batch 8]** Level-System: jedes Level hat ein Objective (Reifen fürs Auto, U-Bahn-Keycard, …). Bei Objective + Nacht überlebt → Map-Change.
@@ -140,7 +152,9 @@ Siehe `docs/spec.md` für die vollständige Vision. Kurzfassung:
 | `Q`             | Aktives Item droppen (vor den Spieler legen)          |
 | `E` (hold)      | Nähestes World-Pickup aufnehmen (0.6 s halten)        |
 | Left-Click (hold) | Aktives Consumable verbrauchen (`HOTBAR.CONSUME_HOLD_SEC` halten, grüner Ring ums Crosshair) *(Batch 4)* |
-| Left-Click      | Aktives Nicht-Consumable benutzen — `useActive()` *(Waffen kommen in Batch 5)* |
+| Left-Click      | Aktive Single-Shot-Waffe feuern (Pistole, Shotgun, Melee). Rate-limitiert über `WEAPONS.*.fireRate`. *(Batch 5)* |
+| Left-Click (hold) | Aktives Full-Auto-MG dauerhaft feuern (10 Shots/Sek). Reload nötig, wenn Magazin leer. *(Batch 5)* |
+| `R`             | Aktive Schusswaffe nachladen (blauer Reload-Ring ums Crosshair, zieht aus Inventory-Reserve). *(Batch 5)* |
 | `ESC`           | Pointer-Lock verlassen / Menü *(Batch 9)*             |
 
 ---
@@ -162,6 +176,11 @@ Kategorien (siehe Datei für konkrete Werte):
 - `STATS` (erweitert in Batch 4 genutzt) — Decay-Raten (HUNGER_DECAY, THIRST_DECAY), Starve-Damage, Health-Regen + Schwellen, `LOW_STAT_WARN_PCT` für HUD-Tint.
 - `HOTBAR.CONSUME_HOLD_SEC` — Hold-Dauer für Left-Click-Consume.
 - `COLORS.CONSUME_RING` / CSS `--consume-ring` — Farbe des zweiten Progress-Rings.
+- `WEAPONS` — [Batch 5] Pro Waffe `{ damage, fireRate, magSize, reloadSec, range, spread, heavy, ammoType, fullAuto?, pellets? }`. Single Source für `items/weapons.js:makeWeaponUse` / `makeWeaponAutoFire`.
+- `WEAPON_VFX` — [Batch 5] Tracer- und Muzzle-Flash-TTLs, Farben, Origin-Offsets. Geteilt von `core/hit-scan.js:TracerManager`.
+- `MELEE` — [Batch 5] Fan-Ray-Anzahl und -Winkel für Nahkampf-Swings.
+- `DUMMY_TARGET` — [Batch 5] HP, Mesh-Größe, Hit-Tint-Parameter und Spawn-Offset für `entities/dummy-target.js`. Test-Aid bis Batch 6.
+- `COLORS.RELOAD_RING` / CSS `--reload-ring` — Farbe des dritten Progress-Rings.
 
 ---
 

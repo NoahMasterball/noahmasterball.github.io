@@ -60,7 +60,7 @@ Alle Batches sind so geschnitten, dass sie in einem frischen Kontextfenster von 
 | 2 | World-Gen            | `docs/batches/batch-02-world-gen.md` | neu     | ERLEDIGT   |
 | 3 | Inventory + Hotbar   | `docs/batches/batch-03-inventory.md` | neu     | ERLEDIGT   |
 | 4 | Food/Drink + Stats   | `docs/batches/batch-04-consumption.md`| neu    | ERLEDIGT   |
-| 5 | Weapons              | `docs/batches/batch-05-weapons.md`   | neu     | offen      |
+| 5 | Weapons              | `docs/batches/batch-05-weapons.md`   | neu     | ERLEDIGT   |
 | 6 | Monsters + Nights    | `docs/batches/batch-06-monsters.md`  | neu     | offen      |
 | 7 | Alarms               | `docs/batches/batch-07-alarms.md`    | neu     | offen      |
 | 8 | Level-System         | `docs/batches/batch-08-levels.md`    | neu     | offen      |

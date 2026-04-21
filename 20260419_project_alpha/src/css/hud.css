@@ -200,8 +200,20 @@
           mask: radial-gradient(circle, transparent 16px, #000 18px);
 }
 
+/* [Batch 5] Reload-Ring: blau, noch etwas größer als der Consume-Ring, damit
+   die drei Ringe konzentrisch lesbar bleiben, wenn sie (selten) gleichzeitig
+   angezeigt werden. */
+#reload-ring {
+  --ring-color: var(--reload-ring);
+  width: 54px; height: 54px;
+  margin-left: -27px; margin-top: -27px;
+  -webkit-mask: radial-gradient(circle, transparent 21px, #000 23px);
+          mask: radial-gradient(circle, transparent 21px, #000 23px);
+}
+
 #pickup-label,
-#consume-label {
+#consume-label,
+#reload-label {
   position: absolute;
   left: 50%; top: 50%;
   transform: translate(-50%, 28px);
@@ -216,8 +228,35 @@
   transition: opacity 0.12s ease;
 }
 #consume-label { transform: translate(-50%, 44px); }
+#reload-label  { transform: translate(-50%, 60px); color: var(--reload-ring); }
 #pickup-label.visible,
-#consume-label.visible { opacity: 1; }
+#consume-label.visible,
+#reload-label.visible { opacity: 1; }
+
+/* [Batch 5] Ammo-Counter (unten rechts). Nur sichtbar, wenn aktive Slot eine
+   Schusswaffe ist — HUD toggelt .visible. Magazin fett, Reserve leise. */
+#ammo-counter {
+  position: absolute;
+  right: 24px; bottom: 30px;
+  padding: 6px 12px;
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-border);
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+  font-size: 18px;
+  letter-spacing: 1.5px;
+  color: var(--hud-text);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
+#ammo-counter.visible { opacity: 0.92; }
+#ammo-counter.low #ammo-mag { color: var(--bar-health); }
+#ammo-counter.reloading #ammo-mag { color: var(--reload-ring); }
+#ammo-counter #ammo-mag { font-weight: 700; }
+#ammo-counter .ammo-sep { opacity: 0.45; margin: 0 4px; }
+#ammo-counter #ammo-reserve { opacity: 0.7; font-size: 14px; }
 
 /* ===== Loading-Screen =====
    Wird vor dem Start-Screen gezeigt. --loading-duration wird von JS gesetzt,

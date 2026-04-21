@@ -1,8 +1,9 @@
 // SSoT — Alle Tunables des Spiels. Duplikate = Bug.
-// Gliederung: WORLD, PLAYER, HOTBAR, STATS, CLOCK, COLORS, BUILDINGS, ITEMS, CONSUMABLES, WEAPONS, MONSTERS, SPAWN_WAVE, ALARM, LEVELS, AUDIO, SAVE.
+// Gliederung: WORLD, PLAYER, HOTBAR, STATS, CLOCK, COLORS, BUILDINGS, ITEMS, CONSUMABLES, WEAPONS, WEAPON_VFX, MELEE, DUMMY_TARGET, MONSTERS, SPAWN_WAVE, ALARM, LEVELS, AUDIO, SAVE.
 // Batch 1 nutzt: WORLD, PLAYER, HOTBAR, STATS, CLOCK, COLORS. Batch 2 zusätzlich: WORLD (erweitert), BUILDINGS, COLORS (erweitert).
 // Batch 3 zusätzlich: ITEMS (Pickup-Mesh + Stacking + HUD-Warn).
 // Batch 4 zusätzlich: CONSUMABLES (Food/Drink-Effekte pro ItemId), COLORS.CONSUME_RING.
+// Batch 5 zusätzlich: WEAPONS (Damage/FireRate/Mag/Spread pro Waffe), WEAPON_VFX (Tracer/Muzzle-Flash-TTLs + Farben), MELEE (Fan-Rays + Winkel), DUMMY_TARGET (HP + Mesh-Params), COLORS.RELOAD_RING.
 
 import { ItemId } from './enums.js';
 
@@ -98,6 +99,8 @@ export const COLORS = Object.freeze({
   CROSSHAIR:   'rgba(255, 255, 255, 0.85)',
   // [Batch 4] Zweiter Progress-Ring (Consume) — bewusst abgesetzt vom Pickup-Ring (SLOT_ACTIVE gelb).
   CONSUME_RING:'rgba(112, 204, 116, 0.95)',
+  // [Batch 5] Dritter Progress-Ring (Reload) — abgesetzt von Pickup (gelb) und Consume (grün).
+  RELOAD_RING: 'rgba(90, 170, 255, 0.95)',
   // [Batch 2] Weltfarben — von world/biomes, world/transitions, world/buildings konsumiert.
   MEADOW:      0x4a7c3a,
   STREET:      0x2a2a2e,
@@ -153,12 +156,51 @@ export const CONSUMABLES = Object.freeze({
   [ItemId.PAINKILLERS]:  { hungerDelta:  0, thirstDelta:  0, healthDelta: 30 },
 });
 
-// [Batch 5]
+// [Batch 5] Waffen-Tunables. `fullAuto` markiert Dauerfeuer-Waffen (MG) —
+// sie feuern nicht auf Rising-Edge in useActive(), sondern pro Frame über
+// Inventory.tickActiveFire mit fireRate-Limiter. `ammoType`-Strings matchen
+// die ItemIds der Munitionsitems (siehe enums.js). Melee hat kein ammoType.
 export const WEAPONS = Object.freeze({
   MELEE_BAT:   { damage: 35, fireRate: 1.2, range: 2.0, heavy: false },
   PISTOL:      { damage: 18, fireRate: 4.0, magSize: 12, reloadSec: 1.4, range: 40, spread: 0.02, heavy: false, ammoType: 'ammo_pistol' },
   SHOTGUN:     { damage: 12, pellets: 8, fireRate: 1.0, magSize: 6, reloadSec: 2.2, range: 20, spread: 0.12, heavy: false, ammoType: 'ammo_shell' },
-  MACHINE_GUN: { damage: 14, fireRate: 10.0, magSize: 60, reloadSec: 3.5, range: 60, spread: 0.04, heavy: true, ammoType: 'ammo_rifle' },
+  MACHINE_GUN: { damage: 14, fireRate: 10.0, magSize: 60, reloadSec: 3.5, range: 60, spread: 0.04, heavy: true, ammoType: 'ammo_rifle', fullAuto: true },
+});
+
+// [Batch 5] Shared Visuals für Schussspur + Mündungsfeuer. Kein Partikelsystem —
+// nur kurze THREE.Line-Segmente + ein kleines additiv gezeichnetes Quad pro Schuss.
+// TTLs in Sekunden; SPAWN_DROP hebt den Tracer-Ursprung leicht unter die Kamera,
+// damit die Linie nicht exakt aus dem Augenpunkt kommt und sichtbar bleibt.
+export const WEAPON_VFX = Object.freeze({
+  TRACER_TTL_SEC: 0.08,
+  TRACER_COLOR: 0xffe7a8,
+  MUZZLE_FLASH_TTL_SEC: 0.06,
+  MUZZLE_FLASH_COLOR: 0xffd56b,
+  MUZZLE_FLASH_SIZE: 0.18,
+  TRACER_ORIGIN_DROP: 0.25,  // Y-Offset unter der Kamera für Tracer-Start
+  TRACER_ORIGIN_FORWARD: 0.6, // leicht vor die Kamera, damit es nicht ins Auge blitzt
+});
+
+// [Batch 5] Nahkampf-Fan: mehrere Raycasts in gleichmäßigem Winkel um den
+// Blickvektor. Gleicher Schaden pro getroffenem Ziel — bei nur einem Ziel
+// trifft also maximal ein Ray, mehrere Ziele können sich die Fans teilen.
+export const MELEE = Object.freeze({
+  ARC_RAYS: 5,
+  ARC_DEG: 45,
+});
+
+// [Batch 5] Test-Dummy am Spawn (bis Batch 6 echte Monster liefert). Pure Test-Aid:
+// statisches Mesh mit HP, Hit-Tint beim Treffer, nach 0 HP bleibt es stehen.
+export const DUMMY_TARGET = Object.freeze({
+  HP: 200,
+  SIZE: 1.6,
+  COLOR: 0xd0c040,
+  DEAD_COLOR: 0x443322,
+  HIT_TINT_COLOR: 0xffffff,
+  HIT_TINT_SEC: 0.12,
+  Y_OFFSET: 0.8,            // mesh center height above ground (half of SIZE)
+  SPAWN_DX: 6,              // relativ zum Player-Spawn
+  SPAWN_DZ: -10,
 });
 
 // [Batch 6]

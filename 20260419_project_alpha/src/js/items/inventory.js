@@ -1,6 +1,7 @@
 import { HOTBAR, ITEMS } from '../config/constants.js';
 import { ItemType } from '../config/enums.js';
 import { createItem } from './item.js';
+import { ensureWeaponRuntime, getWeaponConfig, startReload as startWeaponReload, tickWeapon } from './weapons.js';
 
 // Inventory. Owner: Player (instanziiert in core/game.js und dort gehalten).
 // HUD liest `slots` + `activeIndex`; nur diese Klasse darf sie schreiben.
@@ -8,9 +9,16 @@ import { createItem } from './item.js';
 // Heavy-Regel: `occupiesHeavySlot` → maximal EIN Heavy-Item gleichzeitig.
 // [Batch 4] `tickActiveHold(dt, holding, ctx)` kümmert sich um Hold-to-Consume
 // für FOOD/DRINK — parallel zu pickups.tickHold.
+// [Batch 5] `tickActiveFire(dt, holding, ctx)` treibt Full-Auto-Waffen (MG)
+// pro Frame. Reload-Timer läuft separat in tickWeaponState — liefert HUD-State
+// für den dritten Progress-Ring (Reload).
 
 function isConsumableType(t) {
   return t === ItemType.FOOD || t === ItemType.DRINK;
+}
+
+function isWeaponType(t) {
+  return t === ItemType.WEAPON_MELEE || t === ItemType.WEAPON_LIGHT || t === ItemType.WEAPON_HEAVY;
 }
 
 export class Inventory {
@@ -79,15 +87,71 @@ export class Inventory {
   }
 
   // Benutzt das aktive Item (Rising-Edge / Click-Pfad). Consumables werden
-  // bewusst übersprungen — sie laufen in Batch 4 ausschließlich über
-  // tickActiveHold (Hold-to-Consume), damit ein einzelner Klick nicht
-  // sofort Essen verbraucht. Batch 5 füllt den Waffen-Pfad auf.
+  // bewusst übersprungen — sie laufen ausschließlich über tickActiveHold
+  // (Hold-to-Consume), damit ein einzelner Klick nicht sofort Essen verbraucht.
+  // [Batch 5] Single-Shot-Waffen (Pistole, Shotgun, Melee) feuern hier bei
+  // Rising-Edge. Full-Auto-Waffen (MG) haben in ihrem onUse eine No-Op und
+  // werden über tickActiveFire gepumpt.
   useActive(ctx) {
     const item = this.slots[this.activeIndex];
     if (!item || typeof item.onUse !== 'function') return false;
     if (isConsumableType(item.type)) return false;
     this._applyOnUse(item, ctx);
     return true;
+  }
+
+  // [Batch 5] Full-Auto-Feuer für das aktive Item, solange `holding` true ist.
+  // Polymorphes Gegenstück zu tickActiveHold — eine Methode pro Aufgabe, damit
+  // die Hold-Logiken nicht in einem Sammel-Tick kollidieren.
+  tickActiveFire(dt, holding, ctx) {
+    const item = this.activeItem;
+    if (!item) return false;
+    if (typeof item.onAutoFire !== 'function') return false;
+    return !!item.onAutoFire(dt, holding, ctx, item);
+  }
+
+  // [Batch 5] Startet Reload für das aktive Item (falls Schusswaffe mit
+  // Reserve). Liefert true bei erfolgreichem Start — HUD kann z.B. einen
+  // Sound-Cue triggern.
+  startActiveReload() {
+    const item = this.activeItem;
+    if (!item || !isWeaponType(item.type)) return false;
+    return startWeaponReload(item, this);
+  }
+
+  // [Batch 5] Reload-Timer + fireCooldown ticken, HUD-State (Ammo-Counter +
+  // Reload-Ring) berechnen. Nur für das aktive Item — andere Waffen im
+  // Inventar "schlafen" bis sie aktiv werden.
+  tickWeaponState(dt) {
+    const item = this.activeItem;
+    if (!item || !isWeaponType(item.type)) {
+      return { active: null, magAmmo: 0, magSize: 0, reserve: 0, reloadProgress01: 0, reloading: false, ammoType: null };
+    }
+    tickWeapon(dt, item, this);
+    const cfg = getWeaponConfig(item.id);
+    const rt = ensureWeaponRuntime(item);
+    const magSize = cfg?.magSize ?? 0;
+    const reloadSec = cfg?.reloadSec ?? 0;
+    const reloading = rt.reloadTimer > 0;
+    const reloadProgress01 = reloading && reloadSec > 0
+      ? Math.min(1, 1 - rt.reloadTimer / reloadSec)
+      : 0;
+    return {
+      active: item,
+      magAmmo: rt.magAmmo,
+      magSize,
+      reserve: this._sumAmmoReserve(cfg?.ammoType),
+      reloadProgress01,
+      reloading,
+      ammoType: cfg?.ammoType ?? null,
+    };
+  }
+
+  _sumAmmoReserve(ammoType) {
+    if (!ammoType) return 0;
+    let sum = 0;
+    for (const s of this.slots) if (s && s.id === ammoType) sum += s.count;
+    return sum;
   }
 
   // [Batch 4] Hold-to-consume für aktive FOOD/DRINK. Pattern parallel zu

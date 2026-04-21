@@ -30,6 +30,13 @@ export class HUD {
     // Farbvariable (--consume-ring), nutzt dieselbe .progress-ring Basis-Klasse.
     this.consumeRing = document.getElementById('consume-ring');
     this.consumeLabel = document.getElementById('consume-label');
+    // [Batch 5] Dritter Progress-Ring (Reload) + Ammo-Counter. Reload-Ring nutzt
+    // die selbe Basis-Klasse .progress-ring mit eigener Farbvariable (--reload-ring).
+    this.reloadRing = document.getElementById('reload-ring');
+    this.reloadLabel = document.getElementById('reload-label');
+    this.ammoCounter = document.getElementById('ammo-counter');
+    this.ammoMagEl = document.getElementById('ammo-mag');
+    this.ammoReserveEl = document.getElementById('ammo-reserve');
     this._wasHeavyWarn = false;
   }
 
@@ -50,12 +57,13 @@ export class HUD {
     }
   }
 
-  update(player, clock, inventory = null, pickupState = null, consumeState = null) {
+  update(player, clock, inventory = null, pickupState = null, consumeState = null, weaponState = null) {
     this._updateStats(player);
     this._updateClock(clock);
     this._updateHotbar(inventory);
     this._updatePickup(pickupState);
     this._updateConsume(consumeState);
+    this._updateWeapon(weaponState);
   }
 
   _updateStats(player) {
@@ -131,6 +139,39 @@ export class HUD {
         this.pickupLabel.classList.add('visible');
       } else {
         this.pickupLabel.classList.remove('visible');
+      }
+    }
+  }
+
+  // [Batch 5] Rendert Ammo-Counter (unten rechts) + Reload-Ring. Nur sichtbar,
+  // wenn aktives Item eine Schusswaffe ist. Melee-Waffen haben keine Magazine
+  // und werden daher ebenfalls ausgeblendet (ammoType === null → versteckt).
+  _updateWeapon(state) {
+    const active = state?.active ?? null;
+    const hasMag = !!active && !!state.ammoType;
+    if (this.ammoCounter) {
+      this.ammoCounter.classList.toggle('visible', hasMag);
+      this.ammoCounter.classList.toggle('reloading', !!state?.reloading);
+      const magEmpty = hasMag && state.magAmmo === 0 && !state.reloading;
+      this.ammoCounter.classList.toggle('low', magEmpty);
+      if (hasMag) {
+        if (this.ammoMagEl)     this.ammoMagEl.textContent = String(state.magAmmo);
+        if (this.ammoReserveEl) this.ammoReserveEl.textContent = String(state.reserve);
+      }
+    }
+    if (this.reloadRing) {
+      const p = state?.reloadProgress01 ?? 0;
+      const reloading = !!state?.reloading;
+      this.reloadRing.style.setProperty('--progress-angle', `${p * 360}deg`);
+      this.reloadRing.classList.toggle('active', reloading && p > 0);
+      this.reloadRing.classList.toggle('visible', reloading);
+    }
+    if (this.reloadLabel) {
+      if (state?.reloading) {
+        this.reloadLabel.textContent = 'Nachladen…';
+        this.reloadLabel.classList.add('visible');
+      } else {
+        this.reloadLabel.classList.remove('visible');
       }
     }
   }
