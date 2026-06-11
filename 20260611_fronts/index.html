@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fronts — 2D-Weltstrategie</title>
+    <link rel="stylesheet" href="assets/styles/main.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Hauptmenü -->
+      <section id="scene-menu" class="scene active">
+        <h1 class="menu-title">Fronts</h1>
+        <p class="menu-subtitle">2D-Weltstrategie — wähle deine Ära</p>
+
+        <!-- Modus-Karten werden datengetrieben aus MODES eingefügt -->
+        <div id="mode-grid" class="mode-grid"></div>
+
+        <footer class="menu-footer">Phase 2 — Moderne Weltkarte</footer>
+      </section>
+
+      <!-- Spielszene: Canvas-Weltkarte + UI-Overlay (datengetrieben befüllt) -->
+      <section id="scene-game" class="scene">
+        <canvas id="game-canvas"></canvas>
+        <!-- HUD, Seitenpanel und Hinweise werden von ui/panel.js eingefügt -->
+        <div id="game-ui"></div>
+        <div id="game-loading" class="game-loading"></div>
+      </section>
+    </div>
+
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>
