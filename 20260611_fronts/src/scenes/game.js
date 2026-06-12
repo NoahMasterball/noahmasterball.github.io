@@ -6,15 +6,22 @@ import { showScene } from '../core/scenes.js';
 import { generateGrid, pixelToAxial, hexKey } from '../core/hexgrid.js';
 import { loadGeoJson, loadCities, rasterizeCountries } from '../core/geo.js';
 import { applyEconomy } from '../core/economy.js';
+import { computeAdjacency, assignCities, indexCountryHexes } from '../core/territory.js';
+import { aiTick, seedArmies } from '../core/ai.js';
 import {
   createCamera, screenToWorld, panByScreen, zoomAt, fitWorld, centerOn,
 } from '../core/camera.js';
-import { render, prepareMap } from '../core/renderer.js';
+import { render, prepareMap, repaintCaptured } from '../core/renderer.js';
 import {
   initState, getState, setPlayerCountry, setSelected, placeBuilding, produceTick,
-  research, buildUnit,
+  research, buildUnit, setViewMode, setSelectedCity, cityAt,
+  moveTroops, setTroopSource, troopSource, troopsAt,
+  isRailMode, setRailMode, toggleRailMode, toggleRailAt, hasRail, buildingsAt,
+  createTrain, cancelTrain,
 } from '../core/state.js';
-import { ZOOM_STEP, ZOOM_MAX, TICK_INTERVAL_MS, MENU_KEY } from '../config/constants.js';
+import {
+  ZOOM_STEP, ZOOM_MAX, TICK_INTERVAL_MS, MENU_KEY, WAVE_MIN_ZOOM, AI_TICK_MS,
+} from '../config/constants.js';
 import { initPanel, renderPanel, toast } from '../ui/panel.js';
 import {
   initWarMenu, toggleWarMenu, isWarMenuOpen, renderWarMenu,
@@ -27,6 +34,8 @@ let phase = 'choose-country';
 let hovered = null;
 let needsRender = false;
 let tickTimer = null;
+let aiTimer = null; // Bot-KI-Takt (Wirtschaft + Kriege)
+let rafId = null; // laufender Render-Loop (für Wellen-Animation)
 let onExit = null; // Rückkehr zum Menü
 
 /**
@@ -58,24 +67,42 @@ export async function startGameScene(mode, backToMenu) {
   }
   const { owners, countries } = rasterizeCountries(hexes, geojson);
   applyEconomy(countries); // Kleinland-Bonus + Wirtschaftskraft pro Land berechnen
+  assignCities(cities, owners, countries);   // Städte ihren Ländern zuordnen
+  indexCountryHexes(owners, countries);       // Hexfeld-Listen je Land (für KI)
+  const adjacency = computeAdjacency(hexes, owners); // Länder-Nachbarschaft
 
-  // 2) Zustand initialisieren und statische Karte (Flächen + Grenzen) vorberechnen.
-  initState({ mode, hexes, owners, countries, cities });
+  // 2) Zustand initialisieren, Welt bewaffnen, statische Karte vorberechnen.
+  initState({ mode, hexes, owners, countries, cities, adjacency });
+  seedArmies(getState()); // alle Länder (inkl. Spieler) mit Start-Armee
   prepareMap(getState());
 
   // 3) UI + Eingabe + Tick.
-  initPanel({ onBuild: handleBuild, onBack: exitToMenu, onOpenMenu: openMenu });
+  initPanel({
+    onBuild: handleBuild, onBack: exitToMenu, onOpenMenu: openMenu, onSetView: handleSetView,
+    onBuildUnit: handleBuildUnit, onMoveTroops: handleMoveTroops,
+    onToggleRail: handleToggleRail, onCreateTrain: handleCreateTrain, onCancelTrain: handleCancelTrain,
+  });
   initWarMenu({ onResearch: handleResearch, onBuild: handleBuildUnit });
   phase = 'choose-country';
   hovered = null;
+  trainPick = null;
   setSelected(null);
+  setSelectedCity(null);
   setPlayerCountry(null);
   attachInput();
   fitWorld(cam, canvas.width, canvas.height);
   startTick();
+  startAiLoop();
+  startRenderLoop();
 
   setLoading(null);
   renderPanel(getState(), phase);
+  requestRender();
+}
+
+// Wechselt die Kartensicht (politisch | terrain) und zeichnet neu.
+function handleSetView(viewId) {
+  setViewMode(viewId);
   requestRender();
 }
 
@@ -85,6 +112,9 @@ let dragging = false;
 let movedWhileDown = false;
 let lastX = 0, lastY = 0;
 let listenersAttached = false;
+// Zug-Einrichtung: null = aus; { a:null } = Startfeld wird erwartet;
+// { a:{q,r} } = Zielfeld wird erwartet. Reine UI-Hilfsgröße (keine Spieldaten).
+let trainPick = null;
 
 function attachInput() {
   if (listenersAttached) return; // Listener nur einmal binden (SSOT der Bindung).
@@ -172,9 +202,101 @@ function handleClick(e) {
     return;
   }
 
-  // phase === 'play': Feld auswählen.
+  // Schiene-Modus: Klicks legen/entfernen Gleis auf eigenen Feldern.
+  if (isRailMode()) {
+    const res = toggleRailAt(hex.q, hex.r);
+    if (!res.ok) toast(res.reason);
+    renderPanel(state, phase);
+    requestRender();
+    return;
+  }
+
+  // Zug-Einrichtung läuft? Dann sind die Klicks die Endpunkte A und B.
+  if (trainPick) {
+    handleTrainPickClick(hex);
+    return;
+  }
+
+  // Marschbefehl scharf? Dann ist dieser Klick das Zielfeld.
+  const src = troopSource();
+  if (src) {
+    setTroopSource(null);
+    if (src.q === hex.q && src.r === hex.r) {
+      toast('Marsch abgebrochen.');
+    } else {
+      const res = moveTroops(src.q, src.r, hex.q, hex.r);
+      toast(res.ok ? `Truppen marschieren (${res.legs} Feld${res.legs > 1 ? 'er' : ''} · ${res.legs * 10}s).` : res.reason);
+    }
+    afterWorldChange();
+    return;
+  }
+
+  // phase === 'play': Feld auswählen. Liegt auf dem Feld eine EIGENE Stadt,
+  // wird sie als Bau-Stadt gewählt (Truppen entstehen nur in Städten).
   setSelected(hex);
+  const city = cityAt(hex.q, hex.r);
+  setSelectedCity(city && owner === state.playerCountry ? city : null);
   renderPanel(state, phase);
+  requestRender();
+}
+
+// Macht das gewählte Feld zum Quellfeld eines Marschbefehls; der nächste Karten-
+// klick bestimmt das Ziel.
+function handleMoveTroops() {
+  const sel = getState().selected;
+  if (!sel || troopsAt(sel.q, sel.r) <= 0) { toast('Erst ein eigenes Feld mit Truppen wählen.'); return; }
+  setTroopSource({ q: sel.q, r: sel.r });
+  toast('Zielfeld anklicken — Truppen erobern Feld für Feld.');
+  requestRender();
+}
+
+// --- Schiene & Züge ---------------------------------------------------------
+// Schaltet den Schiene-Lege-Modus um (andere Modi werden dabei verworfen).
+function handleToggleRail() {
+  const on = toggleRailMode();
+  if (on) { trainPick = null; setTroopSource(null); }
+  toast(on ? 'Schiene-Modus an — Felder anklicken zum Legen/Entfernen.' : 'Schiene-Modus aus.');
+  renderPanel(getState(), phase);
+  requestRender();
+}
+
+// Startet die Zug-Einrichtung: der nächste Klick wählt das Startfeld, der
+// übernächste das Zielfeld (beide brauchen Gleis + Gebäude).
+function handleCreateTrain() {
+  setRailMode(false);
+  setTroopSource(null);
+  trainPick = { a: null };
+  toast('Startfeld des Zuges anklicken (Gleis + Gebäude).');
+  renderPanel(getState(), phase);
+  requestRender();
+}
+
+// Verarbeitet einen Klick während der Zug-Einrichtung (A, dann B → Zug erstellen).
+function handleTrainPickClick(hex) {
+  if (!hasRail(hex.q, hex.r) || !buildingsAt(hex.q, hex.r).length) {
+    toast('Endpunkt braucht Gleis und ein Gebäude.');
+    return;
+  }
+  if (!trainPick.a) {
+    trainPick = { a: { q: hex.q, r: hex.r } };
+    toast('Start gewählt — jetzt das Zielfeld anklicken.');
+    renderPanel(getState(), phase);
+    requestRender();
+    return;
+  }
+  const a = trainPick.a;
+  trainPick = null;
+  const res = createTrain(a.q, a.r, hex.q, hex.r);
+  toast(res.ok ? 'Zug eingerichtet — pendelt jetzt zwischen den Feldern.' : res.reason);
+  renderPanel(getState(), phase);
+  requestRender();
+}
+
+// Bestellt einen Zug ab (Ladung fällt ins aktuelle Feld).
+function handleCancelTrain(id) {
+  const res = cancelTrain(id);
+  if (!res.ok) toast(res.reason);
+  renderPanel(getState(), phase);
   requestRender();
 }
 
@@ -212,6 +334,39 @@ function handleBuildUnit(unitId) {
   toast(result.ok ? `Gebaut: ${u?.name}` : result.reason);
   renderWarMenu();
   renderPanel(getState(), phase);
+  requestRender();
+}
+
+
+// --- Bot-KI -----------------------------------------------------------------
+
+function startAiLoop() {
+  if (aiTimer) clearInterval(aiTimer);
+  aiTimer = setInterval(() => {
+    // Läuft auch nach einer Niederlage weiter, damit man der Welt zusehen kann.
+    if (phase !== 'play' && phase !== 'defeated') return;
+    aiTick(getState());
+    afterWorldChange();
+  }, AI_TICK_MS);
+}
+
+// Nach KI-Tick oder Spielerangriff: Karte bei Gebietsänderung neu zeichnen,
+// Niederlage prüfen, UI aktualisieren.
+function afterWorldChange() {
+  const state = getState();
+  if (state.mapDirty) {
+    repaintCaptured(state);  // nur eroberte Felder umfärben (kein voller Neuaufbau)
+    indexCountryHexes(state.owners, state.countries);   // Felder-Index auffrischen
+    state.adjacency = computeAdjacency(state.hexes, state.owners); // Nachbarschaft auffrischen
+    state.mapDirty = false;
+  }
+  if (state.playerDefeated && phase === 'play') {
+    phase = 'defeated';
+    toast('Dein Land wurde erobert! Du kannst zusehen oder zurück ins Menü.');
+  }
+  renderPanel(state, phase);
+  if (isWarMenuOpen()) renderWarMenu();
+  requestRender();
 }
 
 // --- Tick / Render ----------------------------------------------------------
@@ -221,19 +376,37 @@ function startTick() {
   tickTimer = setInterval(() => {
     if (phase !== 'play') return;
     produceTick();
+    requestRender(); // Züge bewegen sich pro Tick — auch herausgezoomt neu zeichnen
     renderPanel(getState(), phase);
     if (isWarMenuOpen()) renderWarMenu(); // Kosten-/Verfügbarkeitsstatus live
   }, TICK_INTERVAL_MS);
 }
 
-// Rendering bei Bedarf, auf einen Frame gebündelt (kein Dauer-Loop).
+// Fordert ein Neuzeichnen an. Der Dauer-Loop greift das Flag im nächsten Frame
+// auf (für diskrete Änderungen wie Pan/Zoom/Auswahl).
 function requestRender() {
-  if (needsRender) return;
   needsRender = true;
-  requestAnimationFrame(() => {
-    needsRender = false;
-    render(ctx, canvas, cam, getState(), hovered);
-  });
+}
+
+// Dauer-Render-Loop. Animiert die Küstenwellen nur bei genügend Zoom (sonst
+// unsichtbar/teuer); ansonsten wird nur bei angefordertem Neuzeichnen gerendert,
+// damit der Ruhezustand keine CPU verbraucht.
+function startRenderLoop() {
+  if (rafId) cancelAnimationFrame(rafId);
+  const loop = (t) => {
+    rafId = requestAnimationFrame(loop);
+    // Dauerhaft animieren, wenn Wellen sichtbar sind ODER Truppen marschieren
+    // (deren Position muss flüssig interpolieren).
+    const animating = cam.zoom >= WAVE_MIN_ZOOM || getState().movements.length > 0;
+    if (animating) {
+      render(ctx, canvas, cam, getState(), hovered, t);
+      needsRender = false;
+    } else if (needsRender) {
+      needsRender = false;
+      render(ctx, canvas, cam, getState(), hovered, t);
+    }
+  };
+  rafId = requestAnimationFrame(loop);
 }
 
 function resizeCanvas() {
@@ -243,6 +416,8 @@ function resizeCanvas() {
 
 function exitToMenu() {
   if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+  if (aiTimer) { clearInterval(aiTimer); aiTimer = null; }
+  if (rafId) { cancelAnimationFrame(rafId); rafId = null; } // Render-Loop stoppen
   if (isWarMenuOpen()) toggleWarMenu(); // Overlay schließen
   if (onExit) onExit();
 }

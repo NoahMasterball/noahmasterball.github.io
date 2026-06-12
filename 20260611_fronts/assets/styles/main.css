@@ -25,6 +25,7 @@
   --radius: 10px;
   --transition: 140ms ease;
   --font: 'Segoe UI', system-ui, sans-serif;
+  --side-panel-width: 300px; /* Breite des rechten Seitenpanels (eine Quelle) */
 }
 
 * {
@@ -234,7 +235,7 @@ body {
   top: 52px;
   right: 0;
   bottom: 0;
-  width: 300px;
+  width: var(--side-panel-width);
   background: rgba(14, 17, 23, 0.82);
   border-left: 1px solid var(--col-border);
   backdrop-filter: blur(6px);
@@ -254,6 +255,46 @@ body {
 .side-body .dim {
   color: var(--col-text-dim);
   font-size: 0.85rem;
+}
+
+/* Sicht-Umschalter (unten rechts, links neben dem Seitenpanel) */
+.view-switch {
+  position: absolute;
+  bottom: var(--gap-md);
+  right: calc(var(--side-panel-width) + var(--gap-md));
+  display: flex;
+  gap: var(--gap-xs);
+  padding: var(--gap-xs);
+  background: rgba(14, 17, 23, 0.82);
+  border: 1px solid var(--col-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(6px);
+}
+.view-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-xs);
+  padding: var(--gap-xs) var(--gap-sm);
+  background: transparent;
+  color: var(--col-text-dim);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
+}
+.view-btn:hover {
+  color: var(--col-text);
+}
+.view-btn.active {
+  color: var(--col-text);
+  background: var(--col-panel);
+  border-color: var(--col-accent);
+}
+.view-icon {
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
 /* Bauknöpfe (datengetrieben) */
@@ -529,4 +570,154 @@ body {
   grid-column: 1 / -1;
   color: var(--col-ww2-hover);
   font-size: 0.75rem;
+}
+
+/* --- Seitenpanel: Krieg (Armee, Truppenbau, Angriff, Weltgeschehen) ------- */
+.army-sum {
+  background: var(--col-bg-soft);
+  border: 1px solid var(--col-border);
+  border-radius: var(--radius);
+  padding: var(--gap-sm) var(--gap-md);
+  font-size: 0.95rem;
+}
+.side-sub {
+  font-size: 0.95rem;
+  margin: var(--gap-sm) 0 var(--gap-xs);
+  color: var(--col-text);
+}
+
+.troop-build,
+.attack-box,
+.war-log {
+  border-top: 1px solid var(--col-border);
+  padding-top: var(--gap-sm);
+  margin-top: var(--gap-sm);
+}
+
+.troop-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--gap-xs);
+}
+.troop-name {
+  flex: 1;
+  font-size: 0.9rem;
+}
+.unit-build,
+.attack-btn {
+  background: var(--col-panel);
+  color: var(--col-text);
+  border: 1px solid var(--col-border);
+  border-radius: var(--radius);
+  padding: var(--gap-xs) var(--gap-sm);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  transition: border-color var(--transition);
+}
+.unit-build:hover:not(:disabled),
+.attack-btn:hover:not(:disabled) {
+  border-color: var(--col-accent);
+}
+.unit-build:disabled,
+.attack-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.attack-btn {
+  width: 100%;
+  padding: var(--gap-sm);
+  font-size: 0.95rem;
+  border-color: var(--col-ww2);
+}
+.attack-btn:hover:not(:disabled) {
+  border-color: var(--col-ww2-hover);
+  background: rgba(182, 132, 58, 0.15);
+}
+
+.war-log ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.war-log li {
+  font-size: 0.8rem;
+  color: var(--col-text-dim);
+  border-left: 2px solid var(--col-border);
+  padding-left: var(--gap-sm);
+}
+.war-log li.log-annex {
+  color: var(--col-ww2-hover);
+  border-left-color: var(--col-ww2);
+  font-weight: 600;
+}
+
+/* --- Logistik: Schiene & Züge (Seitenpanel) ------------------------------ */
+.logi-box {
+  border-top: 1px solid var(--col-border);
+  padding-top: var(--gap-sm);
+  margin-top: var(--gap-sm);
+}
+.rail-btn,
+.train-btn {
+  width: 100%;
+  display: block;
+  margin-bottom: var(--gap-xs);
+  background: var(--col-panel);
+  color: var(--col-text);
+  border: 1px solid var(--col-border);
+  border-radius: var(--radius);
+  padding: var(--gap-xs) var(--gap-sm);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  transition: border-color var(--transition), background var(--transition);
+}
+.rail-btn:hover,
+.train-btn:hover {
+  border-color: var(--col-accent);
+}
+.rail-btn.active {
+  border-color: var(--col-accent);
+  background: rgba(74, 140, 255, 0.18);
+  font-weight: 600;
+}
+.train-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-xs);
+  margin-top: var(--gap-xs);
+}
+.train-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  font-size: 0.8rem;
+  background: var(--col-bg-soft);
+  border: 1px solid var(--col-border);
+  border-radius: var(--radius);
+  padding: var(--gap-xs) var(--gap-sm);
+}
+.train-row span {
+  flex: 1;
+  min-width: 0;
+}
+.train-cancel {
+  background: transparent;
+  color: var(--col-ww2-hover);
+  border: 1px solid var(--col-border);
+  border-radius: var(--radius);
+  padding: 0 var(--gap-sm);
+  cursor: pointer;
+  font-family: inherit;
+}
+.train-cancel:hover {
+  border-color: var(--col-ww2);
+  background: rgba(182, 132, 58, 0.15);
 }

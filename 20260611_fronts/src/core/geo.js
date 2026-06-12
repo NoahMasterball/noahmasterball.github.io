@@ -116,8 +116,14 @@ export function rasterizeCountries(hexes, geojson) {
     const key = countryKey(feature.properties);
     const { polys, bbox } = projectFeature(feature);
     if (!polys.length) continue;
-    const centroid = bboxCenter(bbox);
     prepared.push({ key, polys, bbox });
+    // Mehrere Features pro Land (selten): Geometrie und Bounding-Box zusammenführen.
+    const existing = countries.get(key);
+    if (existing) {
+      existing.polygons.push(...polys);
+      existing.bbox = mergeBbox(existing.bbox, bbox);
+      continue;
+    }
     countries.set(key, {
       key,
       name: feature.properties.name,
@@ -127,8 +133,12 @@ export function rasterizeCountries(hexes, geojson) {
       bloc: blocOf(feature.properties.name), // West/Ost -> Fahrzeugpalette
       gdp: feature.properties.gdp || 0,   // BIP in Mio. USD (Wirtschaftskraft)
       pop: feature.properties.pop || 0,
-      centroid,
+      centroid: bboxCenter(bbox),
       hexCount: 0,
+      // Projizierte Polygone (echte Geografie) als SSOT für Flächen & Grenzen.
+      // polygon = [aussenRing, loch1, ...] mit Ringen aus [x,y]-Paaren.
+      polygons: polys,
+      bbox,
     });
   }
 
@@ -159,6 +169,16 @@ export function rasterizeCountries(hexes, geojson) {
 
 function bboxCenter(b) {
   return { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 };
+}
+
+// Vereinigt zwei Bounding-Boxen (für Länder aus mehreren Features).
+function mergeBbox(a, b) {
+  return {
+    minX: Math.min(a.minX, b.minX),
+    minY: Math.min(a.minY, b.minY),
+    maxX: Math.max(a.maxX, b.maxX),
+    maxY: Math.max(a.maxY, b.maxY),
+  };
 }
 
 // Sorgt dafür, dass jedes Land mindestens ein Hexfeld besitzt — sonst wäre es

@@ -10,7 +10,7 @@ import { UNIT_CATEGORIES, unitsForBloc } from '../data/military.js';
 import { BLOCS } from '../data/alignment.js';
 import { RESOURCE_BY_ID } from '../data/buildings.js';
 import {
-  isResearched, canResearch, canBuildUnit, armyCount, hasMilitaryOutpost,
+  isResearched, canResearch, armyCount, countryPower,
   playerCountryData, getState,
 } from '../core/state.js';
 import { MENU_KEY } from '../config/constants.js';
@@ -129,13 +129,17 @@ function researchRow(u) {
   return unitRow(u, costStr(u.researchCost), status, reason);
 }
 
-// Streitkräfte: erforschte Einheiten bauen (Außenposten nötig); Anzahl je Typ.
+// Streitkräfte: Übersicht der eigenen Armee. Gebaut werden Truppen NUR in den
+// Städten (Stadt auf der Karte anklicken → Seitenpanel), nicht hier.
 function forcesTab(blocId) {
   const units = unitsForBloc(blocId);
-  const outpostHint = hasMilitaryOutpost()
-    ? ''
-    : '<p class="war-warn">⚠ Du brauchst einen <b>Militäraußenposten</b> (Seitenpanel), um Fahrzeuge zu bauen.</p>';
-  let html = `<p class="dim">Baue erforschte Fahrzeuge. Kosten in Geld und Gütern.</p>${outpostHint}`;
+  const state = getState();
+  const atk = Math.round(countryPower(state.playerCountry, 'atk'));
+  const def = Math.round(countryPower(state.playerCountry, 'def'));
+  let html = `<p class="dim">Truppen baust du in deinen <b>Städten</b> (alle Einheiten) oder an
+    einem <b>Militäraußenposten</b> (nur Infanterie) — auf der Karte anklicken.
+    Hier siehst du deine gesamten Streitkräfte.</p>
+    <p class="army-sum">Gesamt: ⚔ <b>${atk}</b> · 🛡 <b>${def}</b></p>`;
   for (const cat of UNIT_CATEGORIES) {
     const list = units.filter((u) => u.category === cat.id);
     html += categorySection(cat, list.map((u) => forcesRow(u)).join(''));
@@ -144,12 +148,11 @@ function forcesTab(blocId) {
 }
 
 function forcesRow(u) {
-  const check = canBuildUnit(u.id);
   const count = armyCount(u.id);
-  const countBadge = count > 0 ? `<span class="war-count">×${count}</span>` : '';
-  const status = `<button class="war-act" data-act="build" data-id="${u.id}" ${check.ok ? '' : 'disabled'}>Bauen ${countBadge}</button>`;
-  const reason = !check.ok ? `<small class="war-reason">${check.reason}</small>` : '';
-  return unitRow(u, costStr(u.buildCost), status, reason);
+  const status = !isResearched(u.id)
+    ? '<span class="war-reason">nicht erforscht</span>'
+    : (count > 0 ? `<span class="war-count">×${count}</span>` : '<span class="dim">—</span>');
+  return unitRow(u, costStr(u.buildCost), status, '');
 }
 
 // --- gemeinsame Bausteine ---------------------------------------------------

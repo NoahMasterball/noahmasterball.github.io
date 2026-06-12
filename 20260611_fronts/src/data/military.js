@@ -9,23 +9,35 @@
 import { BLOCS } from './alignment.js';
 
 // Anzeigereihenfolge der Kategorien (mit Icon fürs Menü).
+// atOutpost: true = diese Kategorie kann auch an einem Militäraußenposten gebaut
+// werden (nicht nur in Städten). Nur Infanterie ist leicht genug dafür; schwere
+// Technik (Panzer, Artillerie, Helikopter, Flugzeuge) braucht eine Stadt.
 export const UNIT_CATEGORIES = [
-  { id: 'infantry', label: 'Infanterie', icon: '🪖' },
+  { id: 'infantry', label: 'Infanterie', icon: '🪖', atOutpost: true },
   { id: 'tank', label: 'Panzer', icon: '🛡️' },
   { id: 'artillery', label: 'Artillerie', icon: '💥' },
   { id: 'helicopter', label: 'Helikopter', icon: '🚁' },
   { id: 'plane', label: 'Flugzeug', icon: '✈️' },
 ];
 
+// Kategorien, die an einem Militäraußenposten gebaut werden dürfen (aus den
+// Kategorien abgeleitet — keine zweite Liste pflegen). SSOT-Ableitung.
+export const OUTPOST_CATEGORIES = new Set(
+  UNIT_CATEGORIES.filter((c) => c.atOutpost).map((c) => c.id),
+);
+
 // Bauplan je Kategorie: Kosten/Werte je Stufe (Index 0 = Stufe 1, 1 = Stufe 2)
-// und die Einheitennamen je Block. researchCost in Geld, buildCost in Geld+Gütern.
+// und die Einheitennamen je Block. researchCost in Geld (global), buildCost in
+// Geld (global) + Metall + Zahnrädern (LOKAL: müssen am Bau-Standort liegen, also
+// per Zug angeliefert oder von einer Fabrik im selben Feld erzeugt werden).
 // Eine Tabelle statt 20 einzeln gepflegter Objekte — die Einheiten werden daraus
 // generiert (DRY/SSOT).
 const TECH_TABLE = {
   infantry: {
     research: [50, 150],
     money: [20, 45],
-    goods: [4, 9],
+    metal: [3, 6],
+    gears: [2, 5],
     atk: [3, 5],
     def: [3, 6],
     names: {
@@ -36,7 +48,8 @@ const TECH_TABLE = {
   tank: {
     research: [200, 500],
     money: [80, 160],
-    goods: [30, 55],
+    metal: [20, 38],
+    gears: [12, 24],
     atk: [10, 16],
     def: [9, 15],
     names: {
@@ -47,7 +60,8 @@ const TECH_TABLE = {
   artillery: {
     research: [180, 450],
     money: [70, 150],
-    goods: [25, 50],
+    metal: [16, 32],
+    gears: [10, 20],
     atk: [12, 18],
     def: [3, 5],
     names: {
@@ -58,7 +72,8 @@ const TECH_TABLE = {
   helicopter: {
     research: [300, 700],
     money: [120, 240],
-    goods: [40, 75],
+    metal: [26, 48],
+    gears: [16, 32],
     atk: [11, 17],
     def: [6, 9],
     names: {
@@ -69,7 +84,8 @@ const TECH_TABLE = {
   plane: {
     research: [400, 900],
     money: [160, 320],
-    goods: [60, 110],
+    metal: [38, 70],
+    gears: [24, 46],
     atk: [15, 22],
     def: [7, 11],
     names: {
@@ -101,7 +117,7 @@ function buildUnits() {
           name: t.names[blocId][i],
           icon: cat.icon,
           researchCost: { money: t.research[i] },
-          buildCost: { money: t.money[i], goods: t.goods[i] },
+          buildCost: { money: t.money[i], metal: t.metal[i], gears: t.gears[i] },
           atk: t.atk[i],
           def: t.def[i],
           // Stufe 2 setzt Stufe 1 derselben Kategorie/Block voraus.
