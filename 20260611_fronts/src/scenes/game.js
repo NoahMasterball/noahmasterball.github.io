@@ -71,9 +71,10 @@ export async function startGameScene(mode, backToMenu) {
   indexCountryHexes(owners, countries);       // Hexfeld-Listen je Land (für KI)
   const adjacency = computeAdjacency(hexes, owners); // Länder-Nachbarschaft
 
-  // 2) Zustand initialisieren, Welt bewaffnen, statische Karte vorberechnen.
+  // 2) Zustand initialisieren und statische Karte vorberechnen.
+  //    Die Welt wird erst NACH der Länderwahl bewaffnet (seedArmies in
+  //    handleClick), damit das gewählte Spielerland ohne Truppen startet.
   initState({ mode, hexes, owners, countries, cities, adjacency });
-  seedArmies(getState()); // alle Länder (inkl. Spieler) mit Start-Armee
   prepareMap(getState());
 
   // 3) UI + Eingabe + Tick.
@@ -190,6 +191,9 @@ function handleClick(e) {
       return;
     }
     setPlayerCountry(owner);
+    // Welt jetzt bewaffnen — seedArmies überspringt das Spielerland, das damit
+    // ohne Truppen startet (alle Bots sind hingegen gerüstet).
+    seedArmies(state);
     phase = 'play';
     setSelected(null);
     const country = state.countries.get(owner);

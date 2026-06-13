@@ -7,7 +7,7 @@
 // Dinge (Grenzlinien, Städte, Auswahl, Gebäude) liegen als Overlay oben.
 
 import { hexCorners, hexKey, hexNeighbors } from './hexgrid.js';
-import { buildTerrainCanvas } from './terrain.js';
+import { buildTerrainCanvas, elevationAt } from './terrain.js';
 import { trainHexKey } from './trains.js';
 import {
   HEX_SIZE,
@@ -46,6 +46,14 @@ import {
   COL_RAIL_TIE,
   COL_TRAIN,
   RAIL_LINE_WIDTH,
+  MOUNTAIN_MIN_ZOOM,
+  MOUNTAIN_SAMPLE_STEP,
+  MOUNTAIN_THRESHOLD,
+  MOUNTAIN_SNOW_THRESHOLD,
+  MOUNTAIN_BASE_SIZE,
+  COL_MOUNTAIN,
+  COL_MOUNTAIN_SHADE,
+  COL_MOUNTAIN_SNOW,
 } from '../config/constants.js';
 import { BUILDING_BY_ID } from '../data/buildings.js';
 
@@ -122,8 +130,35 @@ export function prepareMap(state) {
   const terrain = buildTerrainCanvas(state.countries);
 
   const seaMask = buildSeaMask(political);
-  mapCache = { political, terrain, shapes, seaMask, landField: buildLandField(seaMask) };
+  mapCache = {
+    political, terrain, shapes, seaMask,
+    landField: buildLandField(seaMask),
+    mountains: buildMountains(seaMask),
+  };
   ambientWaves = null; // Wellen-Pool für die neue Karte neu aufbauen lassen
+}
+
+// Erzeugt einmalig die Gebirgs-Gipfel: ein Raster aus Stichproben über Land, an
+// denen das Höhenmodell (terrain.elevationAt) über der Schwelle liegt. Leicht
+// verwürfelte Positionen vermeiden ein starres Gitter; benachbarte Treffer der
+// „ridged“-Höhe bilden zusammenhängende Ketten. Einmalig je Karte.
+function buildMountains(seaMask) {
+  const pts = [];
+  const step = MOUNTAIN_SAMPLE_STEP;
+  for (let y = 0; y < MAP_HEIGHT; y += step) {
+    const lat = 90 - (y / MAP_HEIGHT) * 180;
+    for (let x = 0; x < MAP_WIDTH; x += step) {
+      if (isSea(seaMask, x, y)) continue; // nur Land
+      const lon = (x / MAP_WIDTH) * 360 - 180;
+      const e = elevationAt(lon, lat);
+      if (e < MOUNTAIN_THRESHOLD) continue;
+      const j = (Math.imul(x | 0, 928371) ^ Math.imul(y | 0, 1234567)) >>> 0;
+      const ox = ((j & 255) / 255 - 0.5) * step * 0.7;
+      const oy = (((j >> 8) & 255) / 255 - 0.5) * step * 0.7;
+      pts.push({ x: x + ox, y: y + oy, e });
+    }
+  }
+  return pts;
 }
 
 // Richtungsfeld „zur nächsten Küste“: Multi-Source-BFS von allen Land-Zellen über
@@ -405,6 +440,11 @@ export function render(ctx, canvas, cam, state, hovered, time = 0) {
     ctx.stroke();
   }
 
+  // 2b) Gebirge als Relief — erst beim Reinzoomen sichtbar (sonst Überfüllung).
+  if (mapCache && cam.zoom >= MOUNTAIN_MIN_ZOOM) {
+    drawMountains(ctx, cam.zoom, bounds);
+  }
+
   // 3) Land des Spielers hervorheben.
   if (state.playerCountry) {
     ctx.strokeStyle = COL_PLAYER_OUTLINE;
@@ -622,6 +662,53 @@ function drawTrains(ctx, state, zoom, bounds) {
 
 // Städte: Marker in bildschirm-konstanter Größe; Hauptstädte größer und früher
 // beschriftet als Großstädte. Sichtbarkeits-Schwellen vermeiden Überfüllung.
+// Zeichnet die sichtbaren Gebirgsgipfel als kleine Relief-Symbole (Felsdreieck
+// mit Schattseite, hohe Gipfel mit Schneekappe). Größe bildschirm-konstant und
+// nach Höhe skaliert; mit Viewport-Culling.
+function drawMountains(ctx, zoom, bounds) {
+  const { minX, minY, maxX, maxY } = bounds;
+  const denom = 1 - MOUNTAIN_THRESHOLD || 1;
+  for (const m of mapCache.mountains) {
+    if (m.x < minX || m.x > maxX || m.y < minY || m.y > maxY) continue;
+    const s = (MOUNTAIN_BASE_SIZE / zoom) * (0.7 + 0.6 * ((m.e - MOUNTAIN_THRESHOLD) / denom));
+    drawPeak(ctx, m.x, m.y, s, m.e);
+  }
+}
+
+function drawPeak(ctx, px, py, s, e) {
+  const half = s;
+  const apexX = px;
+  const apexY = py - s * 0.9;
+  const baseY = py + s * 0.6;
+  // Felskörper.
+  ctx.beginPath();
+  ctx.moveTo(px - half, baseY);
+  ctx.lineTo(apexX, apexY);
+  ctx.lineTo(px + half, baseY);
+  ctx.closePath();
+  ctx.fillStyle = COL_MOUNTAIN;
+  ctx.fill();
+  // Schattseite (rechte Hälfte).
+  ctx.beginPath();
+  ctx.moveTo(apexX, apexY);
+  ctx.lineTo(px + half, baseY);
+  ctx.lineTo(apexX, baseY);
+  ctx.closePath();
+  ctx.fillStyle = COL_MOUNTAIN_SHADE;
+  ctx.fill();
+  // Schneekappe (oberer Teil) bei hohen Gipfeln.
+  if (e >= MOUNTAIN_SNOW_THRESHOLD) {
+    const t = 0.42; // Anteil von der Spitze nach unten
+    ctx.beginPath();
+    ctx.moveTo(apexX, apexY);
+    ctx.lineTo(apexX + (-half) * t, apexY + (baseY - apexY) * t);
+    ctx.lineTo(apexX + half * t, apexY + (baseY - apexY) * t);
+    ctx.closePath();
+    ctx.fillStyle = COL_MOUNTAIN_SNOW;
+    ctx.fill();
+  }
+}
+
 function drawCities(ctx, state, cam, minX, minY, maxX, maxY) {
   if (!state.cities || !state.cities.length) return;
   const z = cam.zoom;

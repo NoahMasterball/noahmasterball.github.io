@@ -203,6 +203,21 @@ export const TERRAIN_COLORS = {
   RAINFOREST: '#2f7d4a', // Regenwald
 };
 
+// --- Gebirge (beim Reinzoomen sichtbares Relief) ----------------------------
+// Gebirge erscheinen erst ab diesem Zoom (von weit weg unsichtbar/Überfüllung).
+export const MOUNTAIN_MIN_ZOOM = 2.2;
+// Abstand (Welteinheiten) zwischen geprüften Gipfel-Stichproben (Dichte).
+export const MOUNTAIN_SAMPLE_STEP = 15;
+// Höhen-Schwelle (siehe terrain.js elevationAt), ab der ein Punkt Gebirge ist.
+export const MOUNTAIN_THRESHOLD = 0.82;
+// Ab dieser Höhe bekommt ein Gipfel eine Schneekappe.
+export const MOUNTAIN_SNOW_THRESHOLD = 0.9;
+// Basisgröße eines Gipfel-Symbols in Bildschirm-Pixeln (skaliert mit Höhe).
+export const MOUNTAIN_BASE_SIZE = 7;
+export const COL_MOUNTAIN = '#6f675b';      // Fels
+export const COL_MOUNTAIN_SHADE = '#4f483e'; // Schattseite
+export const COL_MOUNTAIN_SNOW = '#eef2f6';  // Schnee
+
 // --- Küstenwellen (animiert) ------------------------------------------------
 // Erst ab diesem Zoom werden Wellen gezeichnet (von weit weg unsichtbar/teuer).
 export const WAVE_MIN_ZOOM = 1.4;

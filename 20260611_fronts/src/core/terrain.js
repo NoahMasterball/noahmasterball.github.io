@@ -26,10 +26,11 @@ function hash01(i, j) {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
 }
 
-// Glattes Wert-Rauschen (bilinear interpoliert, Smoothstep) über lon/lat.
-function valueNoise(lon, lat) {
-  const x = lon / BIOME_NOISE_SCALE;
-  const y = lat / BIOME_NOISE_SCALE;
+// Glattes Wert-Rauschen (bilinear interpoliert, Smoothstep) über lon/lat bei
+// gegebener Gitterweite (Grad). Eine Quelle für das Basisrauschen.
+function noiseAt(lon, lat, scale) {
+  const x = lon / scale;
+  const y = lat / scale;
   const ix = Math.floor(x);
   const iy = Math.floor(y);
   const fx = x - ix;
@@ -43,6 +44,26 @@ function valueNoise(lon, lat) {
   const top = a + (b - a) * sx;
   const bot = c + (d - c) * sx;
   return top + (bot - top) * sy;
+}
+
+// Biom-Rauschen (Klimaflecken) in der etablierten Gitterweite.
+function valueNoise(lon, lat) {
+  return noiseAt(lon, lat, BIOME_NOISE_SCALE);
+}
+
+/**
+ * Höhenmodell 0..1 für eine Position. „Ridged noise“ (1−|2n−1|) erzeugt scharfe
+ * Grate statt runder Hügel; zwei Oktaven liefern lange Gebirgsketten mit Detail.
+ * Es gibt keine echten Höhendaten — die Gebirge sind deterministisch prozedural,
+ * sehen aber wie zusammenhängende Ketten aus. SSOT für „wie hoch ist es hier“.
+ * @param {number} lon
+ * @param {number} lat
+ * @returns {number} 0 (flach) .. 1 (Hochgebirge)
+ */
+export function elevationAt(lon, lat) {
+  const r1 = 1 - Math.abs(2 * noiseAt(lon, lat, 4.5) - 1);          // grobe Ketten
+  const r2 = 1 - Math.abs(2 * noiseAt(lon + 137, lat - 91, 1.7) - 1); // Detailgrate
+  return r1 * 0.68 + r2 * 0.32;
 }
 
 // Biom-Schlüssel für eine Position. Klima nach |Breite|, die Klimagrenzen werden
