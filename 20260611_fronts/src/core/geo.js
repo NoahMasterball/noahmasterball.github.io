@@ -7,7 +7,7 @@
 
 import { MAP_WIDTH, MAP_HEIGHT } from '../config/constants.js';
 import { hexKey } from './hexgrid.js';
-import { blocOf } from '../data/alignment.js';
+import { blocOf, tankDoctrineOf } from '../data/alignment.js';
 
 // lon/lat -> Weltkoordinaten. Eine Quelle für die Projektion.
 export function lonLatToWorld(lon, lat) {
@@ -131,6 +131,8 @@ export function rasterizeCountries(hexes, geojson) {
       continent: feature.properties.continent,
       color: feature.properties.color,
       bloc: blocOf(feature.properties.name), // West/Ost -> Fahrzeugpalette
+      // Panzer-Doktrin -> welches Panzerbild der Truppen-Chip zeigt (T-80/Leopard 2/M1 Abrams)
+      tankDoctrine: tankDoctrineOf(feature.properties.name, feature.properties.continent),
       gdp: feature.properties.gdp || 0,   // BIP in Mio. USD (Wirtschaftskraft)
       pop: feature.properties.pop || 0,
       centroid: bboxCenter(bbox),

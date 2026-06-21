@@ -7,7 +7,7 @@ import { generateGrid, pixelToAxial, hexKey } from '../core/hexgrid.js';
 import { loadGeoJson, loadCities, rasterizeCountries } from '../core/geo.js';
 import { applyEconomy } from '../core/economy.js';
 import { computeAdjacency, assignCities, indexCountryHexes } from '../core/territory.js';
-import { aiTick, seedArmies } from '../core/ai.js';
+import { aiTick } from '../core/ai.js';
 import {
   createCamera, screenToWorld, panByScreen, zoomAt, fitWorld, centerOn,
 } from '../core/camera.js';
@@ -17,7 +17,7 @@ import {
   research, buildUnit, setViewMode, setSelectedCity, cityAt,
   moveTroops, setTroopSource, troopSource, troopsAt,
   isRailMode, setRailMode, toggleRailMode, toggleRailAt, hasRail, buildingsAt,
-  createTrain, cancelTrain,
+  createTrain, cancelTrain, setAircraftLoadout,
 } from '../core/state.js';
 import {
   ZOOM_STEP, ZOOM_MAX, TICK_INTERVAL_MS, MENU_KEY, WAVE_MIN_ZOOM, AI_TICK_MS,
@@ -72,8 +72,8 @@ export async function startGameScene(mode, backToMenu) {
   const adjacency = computeAdjacency(hexes, owners); // Länder-Nachbarschaft
 
   // 2) Zustand initialisieren und statische Karte vorberechnen.
-  //    Die Welt wird erst NACH der Länderwahl bewaffnet (seedArmies in
-  //    handleClick), damit das gewählte Spielerland ohne Truppen startet.
+  //    Es werden keine Start-Armeen gesetzt: alle Länder beginnen ohne Truppen
+  //    und bauen ihre Streitkräfte erst über die Zeit auf.
   initState({ mode, hexes, owners, countries, cities, adjacency });
   prepareMap(getState());
 
@@ -82,6 +82,7 @@ export async function startGameScene(mode, backToMenu) {
     onBuild: handleBuild, onBack: exitToMenu, onOpenMenu: openMenu, onSetView: handleSetView,
     onBuildUnit: handleBuildUnit, onMoveTroops: handleMoveTroops,
     onToggleRail: handleToggleRail, onCreateTrain: handleCreateTrain, onCancelTrain: handleCancelTrain,
+    onSetLoadout: handleSetLoadout,
   });
   initWarMenu({ onResearch: handleResearch, onBuild: handleBuildUnit });
   phase = 'choose-country';
@@ -105,6 +106,15 @@ export async function startGameScene(mode, backToMenu) {
 function handleSetView(viewId) {
   setViewMode(viewId);
   requestRender();
+}
+
+// Belegt einen Hardpoint des gewählten Flugzeugs (am aktuell gewählten Feld).
+function handleSetLoadout(uid, slot, weaponId) {
+  const sel = getState().selected;
+  if (!sel) return;
+  const res = setAircraftLoadout(sel.q, sel.r, uid, slot, weaponId);
+  if (!res.ok) toast(res.reason);
+  renderPanel(getState(), phase);
 }
 
 // --- Eingabe ----------------------------------------------------------------
@@ -191,9 +201,8 @@ function handleClick(e) {
       return;
     }
     setPlayerCountry(owner);
-    // Welt jetzt bewaffnen — seedArmies überspringt das Spielerland, das damit
-    // ohne Truppen startet (alle Bots sind hingegen gerüstet).
-    seedArmies(state);
+    // Keine Start-Armeen: alle Länder (Spieler wie Bots) beginnen ohne Truppen
+    // und bauen ihre Streitkräfte erst über die Zeit auf.
     phase = 'play';
     setSelected(null);
     const country = state.countries.get(owner);

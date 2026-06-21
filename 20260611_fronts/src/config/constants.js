@@ -108,9 +108,6 @@ export const AI_ARMY_HEX_WEIGHT = 0.22; // ×hexCount
 export const AI_ARMY_BUILD_RATE = 0.18;
 // Wie oft ein Bot pro Tick eine Fabrik auf eigenem Gebiet errichtet (sichtbar).
 export const AI_FACTORY_CHANCE = 0.15;
-// Anteil der Zielstärke, mit dem alle Länder zu Spielbeginn bewaffnet sind
-// (Welt startet gerüstet; Spieler hat eine Anfangsverteidigung).
-export const ARMY_SEED_FRACTION = 0.6;
 // Länder ohne echte Streitkräfte (keine souveränen Staaten) — von der KI und vom
 // Militärsystem ausgenommen.
 export const NON_COMBATANT_COUNTRIES = new Set(['Antarctica']);
@@ -127,6 +124,8 @@ export const TROOP_PATH_MAX_NODES = 8000;
 export const COL_TROOP_PLAYER = '#ffe08a';
 export const COL_TROOP_ENEMY = '#e2554b';
 export const COL_TROOP_TEXT = '#10141c';
+// Textfarbe der kleinen Truppen-Anzahl auf dem Panzerbild-Chip (heller Badge-Text).
+export const COL_TROOP_COUNT = '#ffffff';
 
 // --- Spielfeld / Kamera -----------------------------------------------------
 // ZOOM_MIN muss kleiner als der Welt-Fit-Zoom (Bildschirmbreite / MAP_WIDTH)

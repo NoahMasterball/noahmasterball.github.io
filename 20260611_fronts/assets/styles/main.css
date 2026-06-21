@@ -588,10 +588,36 @@ body {
 
 .troop-build,
 .attack-box,
+.loadout-box,
 .war-log {
   border-top: 1px solid var(--col-border);
   padding-top: var(--gap-sm);
   margin-top: var(--gap-sm);
+}
+
+/* Flugzeug-Loadout: je Flugzeug eine Zeile, Hardpoints als Dropdown-Raster */
+.plane-row {
+  padding: var(--gap-xs) 0;
+  border-bottom: 1px solid var(--col-border);
+}
+.plane-name {
+  font-size: 0.9rem;
+  margin-bottom: var(--gap-xs);
+}
+.loadout-slots {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap-xs);
+}
+.loadout-sel {
+  background: var(--col-panel);
+  color: var(--col-text);
+  border: 1px solid var(--col-border);
+  border-radius: var(--radius);
+  padding: 2px 4px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  max-width: 100%;
 }
 
 .troop-row {

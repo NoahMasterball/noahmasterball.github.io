@@ -8,7 +8,7 @@
 
 import { UNIT_CATEGORIES, unitsForBloc } from '../data/military.js';
 import { BLOCS } from '../data/alignment.js';
-import { RESOURCE_BY_ID } from '../data/buildings.js';
+import { RESOURCE_BY_ID, STRUCTURE_TECH, AA_BUILDINGS } from '../data/buildings.js';
 import {
   isResearched, canResearch, armyCount, countryPower,
   playerCountryData, getState,
@@ -116,7 +116,33 @@ function researchTab(blocId) {
     const list = units.filter((u) => u.category === cat.id);
     html += categorySection(cat, list.map((u) => researchRow(u)).join(''));
   }
+  // Strukturen (Flugabwehr) — erforschbar wie Einheiten, danach auf jedem Feld baubar.
+  html += categorySection(
+    { icon: '🛡️', label: 'Flugabwehr (Strukturen)' },
+    STRUCTURE_TECH.map((t) => structureRow(t)).join(''),
+  );
   return html;
+}
+
+// Forschungszeile für eine Struktur (Flugabwehr). Kein ⚔/🛡, aber Reichweite.
+function structureRow(t) {
+  const done = isResearched(t.id);
+  const check = canResearch(t.id);
+  const status = done
+    ? '<span class="war-done">✓ Erforscht</span>'
+    : `<button class="war-act" data-act="research" data-id="${t.id}" ${check.ok ? '' : 'disabled'}>Erforschen</button>`;
+  const reason = !done && !check.ok ? `<small class="war-reason">${check.reason}</small>` : '';
+  const range = AA_BUILDINGS.get(t.id)?.range;
+  return `<div class="war-row">
+    <div class="war-row-main">
+      <span class="war-name">${t.icon} ${t.label}</span>
+      <span class="war-stats">${range ? `Reichweite ${range} Felder` : ''}</span>
+    </div>
+    <div class="war-row-side">
+      <span class="war-cost">${costStr(t.researchCost)}</span>
+      ${status}
+    </div>
+    ${reason}</div>`;
 }
 
 function researchRow(u) {

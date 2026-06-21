@@ -6,12 +6,13 @@ import {
   RESOURCES, BUILDINGS, BUILDING_BY_ID, RESOURCE_BY_ID, LOCAL_RESOURCE_IDS,
 } from '../data/buildings.js';
 import {
-  canBuild, ownerOf, buildingsAt, buildingOutput, cityMulAt, fieldStockAt, isRailMode,
+  canBuildHere, ownerOf, buildingsAt, buildingOutput, cityMulAt, fieldStockAt, isRailMode,
   countryPower, canBuildUnit, armyCount, isResearched, troopsAt, troopSource,
-  currentBuildSite,
+  currentBuildSite, aircraftAt,
 } from '../core/state.js';
 import { BLOCS } from '../data/alignment.js';
 import { unitsForBloc, UNIT_BY_ID } from '../data/military.js';
+import { WEAPONS, PLANE_HARDPOINTS } from '../data/airpower.js';
 import { MENU_KEY, VIEW_MODES, DEFAULT_VIEW_MODE, TICK_INTERVAL_MS } from '../config/constants.js';
 
 let refs = null;
@@ -146,6 +147,8 @@ export function renderPanel(state, phase) {
   }
   // Truppen-/Feldaktionen am gewählten Feld (bewegen bzw. Eroberungshinweis).
   if (sel) html += fieldActionHtml(state, sel, owner);
+  // Flugzeuge am Flugplatz: Loadout je Hardpoint bestücken.
+  if (sel && owner === state.playerCountry) html += aircraftLoadoutHtml(sel);
   // Logistik: Schiene legen + Züge einrichten/verwalten.
   if (!defeated) html += logisticsHtml(state);
   html += warLogHtml(state);
@@ -188,7 +191,9 @@ function troopBuildHtml(state, country, site) {
   }
   const head = site.type === 'outpost'
     ? `🪖 ${site.label} — Truppen bauen <span class="dim">(nur Infanterie)</span>`
-    : `🏙 ${site.label} — Truppen bauen`;
+    : site.type === 'airbase'
+      ? `🛫 ${site.label} — Flugzeuge bauen <span class="dim">(nur Flugzeuge)</span>`
+      : `🏙 ${site.label} — Truppen bauen`;
   return `<div class="troop-build"><h3 class="side-sub">${head}</h3>${rows}</div>`;
 }
 
@@ -214,6 +219,27 @@ function fieldActionHtml(state, sel, owner) {
       Erobere es mit eigenen Truppen — Feld anklicken, das du angreifen willst.</p></div>`;
   }
   return '';
+}
+
+// Loadout-Editor: jede Flugzeug-Instanz am Feld mit ihren Hardpoint-Slots. Pro
+// Slot ein Dropdown der Waffen (AA/Anti-Radar/ATGM/GBU). Leer = unbestückt.
+function aircraftLoadoutHtml(sel) {
+  const planes = aircraftAt(sel.q, sel.r);
+  if (!planes.length) return '';
+  const rows = planes.map((p) => {
+    const u = UNIT_BY_ID.get(p.unitId);
+    const slots = p.loadout.map((wid, i) => {
+      const opts = ['<option value="">— leer —</option>']
+        .concat(WEAPONS.map((w) => `<option value="${w.id}"${wid === w.id ? ' selected' : ''}>${w.icon} ${w.label}</option>`))
+        .join('');
+      return `<select class="loadout-sel" data-uid="${p.uid}" data-slot="${i}">${opts}</select>`;
+    }).join('');
+    return `<div class="plane-row">
+      <div class="plane-name">${u?.icon ?? '✈️'} ${u?.name ?? p.unitId} <span class="dim">#${p.uid}</span></div>
+      <div class="loadout-slots">${slots}</div></div>`;
+  }).join('');
+  return `<div class="loadout-box"><h3 class="side-sub">✈️ Flugzeuge & Loadout (${planes.length})</h3>
+    <p class="dim">${PLANE_HARDPOINTS} Hardpoints je Flugzeug — wähle, womit es schießt.</p>${rows}</div>`;
 }
 
 // Gebäudeliste eines Feldes (Stadtfelder tragen mehrere); im Bau mit Restzeit.
@@ -300,6 +326,11 @@ function wireDynamic() {
   refs.body.querySelectorAll('button.move-btn').forEach((b) => {
     b.addEventListener('click', () => handlers.onMoveTroops());
   });
+  refs.body.querySelectorAll('select.loadout-sel').forEach((s) => {
+    s.addEventListener('change', () => handlers.onSetLoadout(
+      Number(s.dataset.uid), Number(s.dataset.slot), s.value || null,
+    ));
+  });
   refs.body.querySelectorAll('button.rail-btn').forEach((b) => {
     b.addEventListener('click', () => handlers.onToggleRail());
   });
@@ -349,11 +380,12 @@ function formatOutput(b, country, cityMul) {
 // Aktiviert/deaktiviert die Bauknöpfe anhand der Bauregeln (canBuild ist SSOT)
 // und zeigt den erwarteten Ertrag pro Tick (bzw. den Grund bei Sperre).
 function setBuildButtonsEnabled(isOwn, sel, country) {
-  const check = isOwn && sel ? canBuild(sel.q, sel.r) : { ok: false, reason: 'Erst eigenes Feld wählen.' };
   // Stadtnähe-Bonus des konkret gewählten Feldes in die Vorschau einrechnen.
   const cityMul = sel ? cityMulAt(sel.q, sel.r) : 1;
   for (const id in refs.buildButtons) {
     const btn = refs.buildButtons[id];
+    // Pro Gebäude prüfen (Forschungspflicht z. B. bei Flugabwehr ist gebäudespezifisch).
+    const check = isOwn && sel ? canBuildHere(sel.q, sel.r, id) : { ok: false, reason: 'Erst eigenes Feld wählen.' };
     btn.disabled = !check.ok;
     const b = BUILDING_BY_ID.get(id);
     btn.querySelector('small').textContent = check.ok ? formatOutput(b, country, cityMul) : check.reason;

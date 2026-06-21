@@ -4,10 +4,11 @@
 
 import { hexKey, hexDistance } from './hexgrid.js';
 import {
-  BUILDING_BY_ID, MILITARY_BUILDING_IDS,
+  BUILDING_BY_ID, MILITARY_BUILDING_IDS, AIRBASE_BUILDING_IDS, STRUCTURE_TECH_BY_ID,
   RESOURCE_SCOPE, GLOBAL_RESOURCE_IDS,
 } from '../data/buildings.js';
 import { UNIT_BY_ID, OUTPOST_CATEGORIES } from '../data/military.js';
+import { isPlaneUnit, emptyLoadout, PLANE_HARDPOINTS, WEAPON_BY_ID } from '../data/airpower.js';
 import { cityProximityMul } from './economy.js';
 import {
   addUnits, countryPower as cPower, countryUnitCount, stackSize,
@@ -40,6 +41,8 @@ const state = {
   cities: [],            // Städte [{name,capital,country,pop,x,y,q,r,id,countryKey}]
   research: new Set(),   // erforschte Einheiten-ids (siehe military.js)
   garrisons: new Map(),  // hexKey -> Map(unitId -> Anzahl)  (Truppen je Feld)
+  aircraft: new Map(),   // hexKey -> [{uid, unitId, loadout:[…6]}]  (Flugzeug-INSTANZEN am Flugfeld)
+  nextAircraftId: 1,     // fortlaufende Flugzeug-Nummer (eindeutige uid)
   movements: [],         // laufende Marschbefehle (combat.js)
   troopSource: null,     // Feld {q,r}, von dem aus als Nächstes Truppen ziehen
   dirtyHexes: new Set(), // eroberte Felder, die auf der politischen Karte neu zu malen sind
@@ -74,6 +77,8 @@ export function initState({ mode, hexes, owners, countries, cities, adjacency })
   state.selectedCity = null;
   state.research = new Set();
   state.garrisons = new Map();
+  state.aircraft = new Map();
+  state.nextAircraftId = 1;
   state.movements = [];
   state.troopSource = null;
   state.dirtyHexes = new Set();
@@ -222,18 +227,36 @@ export function canBuild(q, r) {
   return { ok: true };
 }
 
+/**
+ * Wie canBuild, zusätzlich GEBÄUDESPEZIFISCHE Regeln: erforschbare Strukturen
+ * (Flugabwehr) brauchen die passende Forschung. Eine Quelle dafür, ob ein
+ * KONKRETES Gebäude hier baubar ist (Panel nutzt es pro Bauknopf).
+ * @returns {{ ok:boolean, reason?:string }}
+ */
+export function canBuildHere(q, r, buildingId) {
+  const b = BUILDING_BY_ID.get(buildingId);
+  if (!b) return { ok: false, reason: 'Unbekannter Gebäudetyp.' };
+  if (b.requiresResearch && !state.research.has(buildingId))
+    return { ok: false, reason: 'Erst erforschen (Menü → Forschung).' };
+  return canBuild(q, r);
+}
+
 // Setzt ein Gebäude, falls erlaubt. Es startet im Bau (BUILD_TIME_TICKS Ticks)
-// und produziert/wirkt erst nach Fertigstellung. Gibt das canBuild-Ergebnis zurück.
+// und produziert/wirkt erst nach Fertigstellung. Gibt das canBuildHere-Ergebnis zurück.
 export function placeBuilding(q, r, buildingId) {
-  const check = canBuild(q, r);
+  const check = canBuildHere(q, r, buildingId);
   if (!check.ok) return check;
-  if (!BUILDING_BY_ID.has(buildingId))
-    return { ok: false, reason: 'Unbekannter Gebäudetyp.' };
   const key = hexKey(q, r);
   const arr = state.buildings.get(key) || [];
   arr.push({ id: buildingId, ticks: BUILD_TIME_TICKS });
   state.buildings.set(key, arr);
   return { ok: true };
+}
+
+// Trägt das Feld einen FERTIGEN Flugplatz (Flugfeld/Hangar)? Flugzeuge werden
+// nur dort gebaut und starten. Eine Quelle für diese Prüfung.
+export function hasAirbaseAt(q, r) {
+  return buildingsAt(q, r).some((e) => isBuilt(e) && AIRBASE_BUILDING_IDS.has(e.id));
 }
 
 // Besitzt der Spieler mindestens einen (fertigen) Militäraußenposten? Eine Quelle dafür.
@@ -327,30 +350,36 @@ export function produceTick() {
 }
 
 // --- Forschung --------------------------------------------------------------
-export function isResearched(unitId) {
-  return state.research.has(unitId);
+// Tech-Definition (Einheit ODER erforschbare Struktur) zu einer id. Beide teilen
+// dasselbe Format { researchCost, requires } und dieselbe state.research-Menge.
+function techDef(id) {
+  return UNIT_BY_ID.get(id) || STRUCTURE_TECH_BY_ID.get(id) || null;
+}
+
+export function isResearched(id) {
+  return state.research.has(id);
 }
 
 /**
- * Prüft, ob eine Einheit erforscht werden darf.
+ * Prüft, ob eine Einheit/Struktur erforscht werden darf.
  * @returns {{ ok:boolean, reason?:string }}
  */
-export function canResearch(unitId) {
-  const unit = UNIT_BY_ID.get(unitId);
-  if (!unit) return { ok: false, reason: 'Unbekannte Einheit.' };
-  if (state.research.has(unitId)) return { ok: false, reason: 'Bereits erforscht.' };
-  if (unit.requires && !state.research.has(unit.requires))
+export function canResearch(id) {
+  const tech = techDef(id);
+  if (!tech) return { ok: false, reason: 'Unbekannte Technologie.' };
+  if (state.research.has(id)) return { ok: false, reason: 'Bereits erforscht.' };
+  if (tech.requires && !state.research.has(tech.requires))
     return { ok: false, reason: 'Vorgänger erst erforschen.' };
-  if (!canAfford(unit.researchCost)) return { ok: false, reason: 'Nicht genug Geld.' };
+  if (!canAfford(tech.researchCost)) return { ok: false, reason: 'Nicht genug Geld.' };
   return { ok: true };
 }
 
-// Erforscht eine Einheit, falls erlaubt. Bucht die Forschungskosten ab.
-export function research(unitId) {
-  const check = canResearch(unitId);
+// Erforscht eine Einheit/Struktur, falls erlaubt. Bucht die Forschungskosten ab.
+export function research(id) {
+  const check = canResearch(id);
   if (!check.ok) return check;
-  spend(UNIT_BY_ID.get(unitId).researchCost);
-  state.research.add(unitId);
+  spend(techDef(id).researchCost);
+  state.research.add(id);
   return { ok: true };
 }
 
@@ -385,6 +414,8 @@ export function currentBuildSite() {
   }
   const sel = state.selected;
   if (sel && ownerOf(sel.q, sel.r) === state.playerCountry) {
+    if (hasAirbaseAt(sel.q, sel.r))
+      return { type: 'airbase', label: 'Flugfeld', q: sel.q, r: sel.r };
     if (hasBuiltMilitaryAt(sel.q, sel.r))
       return { type: 'outpost', label: 'Militäraußenposten', q: sel.q, r: sel.r };
   }
@@ -392,8 +423,9 @@ export function currentBuildSite() {
 }
 
 /**
- * Prüft, ob der Spieler eine Einheit bauen darf. Truppen entstehen nur an einem
- * Bau-Standort: Städte bauen alles, Außenposten nur Infanterie.
+ * Prüft, ob der Spieler eine Einheit bauen darf. Bau-Standorte: Städte bauen alle
+ * BODEN-Einheiten, Außenposten nur Infanterie, Flugfelder/Hangars nur Flugzeuge.
+ * Flugzeuge brauchen IMMER einen Flugplatz am selben Feld.
  * @returns {{ ok:boolean, reason?:string }}
  */
 export function canBuildUnit(unitId) {
@@ -401,13 +433,14 @@ export function canBuildUnit(unitId) {
   if (!unit) return { ok: false, reason: 'Unbekannte Einheit.' };
   if (!state.research.has(unitId)) return { ok: false, reason: 'Erst erforschen.' };
   const site = currentBuildSite();
-  if (site.type === 'city') {
-    // Städte bauen alle Kategorien.
-  } else if (site.type === 'outpost') {
-    if (!OUTPOST_CATEGORIES.has(unit.category))
-      return { ok: false, reason: 'Nur in Städten baubar.' };
-  } else {
-    return { ok: false, reason: 'Eigene Stadt oder Außenposten wählen.' };
+  if (!site.type) return { ok: false, reason: 'Eigene Stadt, Außenposten oder Flugfeld wählen.' };
+  if (isPlaneUnit(unit)) {
+    if (!hasAirbaseAt(site.q, site.r))
+      return { ok: false, reason: 'Flugzeuge nur am Flugfeld/Hangar baubar.' };
+  } else if (site.type === 'airbase') {
+    return { ok: false, reason: 'Flugfeld baut nur Flugzeuge.' };
+  } else if (site.type === 'outpost' && !OUTPOST_CATEGORIES.has(unit.category)) {
+    return { ok: false, reason: 'Nur in Städten baubar.' };
   }
   // Geld kommt aus der globalen Kasse; Metall/Zahnräder müssen LOKAL am Bau-Feld
   // liegen (per Zug angeliefert oder von einer Fabrik im selben Feld erzeugt).
@@ -418,17 +451,42 @@ export function canBuildUnit(unitId) {
   return { ok: true };
 }
 
-// Baut eine Einheit am aktuellen Bau-Standort; sie tritt der Garnison dieses
-// Feldes bei (Truppen liegen auf Feldern, nicht abstrakt pro Land). Geld global,
-// Material aus dem Feld-Lager.
+// Baut eine Einheit am aktuellen Bau-Standort. Bodentruppen treten der Garnison
+// des Feldes bei (gestapelt als Anzahl); Flugzeuge entstehen als EINZEL-Instanz
+// mit eigenem (leerem) Loadout am Flugplatz. Geld global, Material aus dem Feld-Lager.
 export function buildUnit(unitId) {
   const check = canBuildUnit(unitId);
   if (!check.ok) return check;
   const site = currentBuildSite();
-  const { global, local } = splitCost(UNIT_BY_ID.get(unitId).buildCost);
+  const unit = UNIT_BY_ID.get(unitId);
+  const { global, local } = splitCost(unit.buildCost);
   spend(global);
   spendLocal(local, site.q, site.r);
-  addUnits(state, hexKey(site.q, site.r), unitId, 1);
+  const key = hexKey(site.q, site.r);
+  if (isPlaneUnit(unit)) {
+    const list = state.aircraft.get(key) || [];
+    list.push({ uid: state.nextAircraftId++, unitId, loadout: emptyLoadout() });
+    state.aircraft.set(key, list);
+  } else {
+    addUnits(state, key, unitId, 1);
+  }
+  return { ok: true };
+}
+
+// --- Flugzeug-Loadouts ------------------------------------------------------
+// Flugzeug-Instanzen auf einem Feld (oder []). Nie das Ergebnis mutieren.
+export function aircraftAt(q, r) {
+  return state.aircraft.get(hexKey(q, r)) || [];
+}
+
+// Belegt einen Hardpoint einer Flugzeug-Instanz mit einer Waffe (oder null =
+// leeren). Gibt {ok, reason?} zurück.
+export function setAircraftLoadout(q, r, uid, slot, weaponId) {
+  const plane = aircraftAt(q, r).find((p) => p.uid === uid);
+  if (!plane) return { ok: false, reason: 'Flugzeug nicht gefunden.' };
+  if (slot < 0 || slot >= PLANE_HARDPOINTS) return { ok: false, reason: 'Ungültiger Hardpoint.' };
+  if (weaponId && !WEAPON_BY_ID.has(weaponId)) return { ok: false, reason: 'Unbekannte Waffe.' };
+  plane.loadout[slot] = weaponId || null;
   return { ok: true };
 }
 

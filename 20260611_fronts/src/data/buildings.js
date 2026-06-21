@@ -65,6 +65,49 @@ export const BUILDINGS = [
     military: true,
     note: 'Vorgeschobener Stützpunkt: baut Infanterie (schwere Technik nur in Städten).',
   },
+  {
+    id: 'airfield',
+    label: 'Flugfeld',
+    icon: '🛫',
+    color: '#6b7d8c',
+    produces: [],
+    airbase: true,
+    note: 'Startbahn: hier werden Flugzeuge gebaut und starten.',
+  },
+  {
+    id: 'hangar',
+    label: 'Hangar',
+    icon: '🛩️',
+    color: '#566472',
+    produces: [],
+    airbase: true,
+    note: 'Ausbau eines Flugplatzes: zusätzliche Flugzeug-Kapazität, baut alle Flugzeuge.',
+  },
+  {
+    // Flugabwehr — auf JEDES eigene Feld baubar, muss aber erforscht sein. Schießt
+    // (im kommenden Luftgefecht) automatisch auf Flugzeuge bis `range` Hexfelder.
+    id: 'aa1',
+    label: 'Flugabwehr I',
+    icon: '🟢',
+    color: '#4a8c5a',
+    produces: [],
+    aa: true,
+    range: 3, // Hexfelder Reichweite (Stufe 1: ~2–3 Felder)
+    requiresResearch: true,
+    researchCost: { money: 250 },
+  },
+  {
+    id: 'aa2',
+    label: 'Flugabwehr II',
+    icon: '🔵',
+    color: '#3a6cae',
+    produces: [],
+    aa: true,
+    range: 5, // Hexfelder Reichweite (Stufe 2: 5 Felder)
+    requiresResearch: true,
+    requiresTech: 'aa1', // Stufe 1 erst erforschen
+    researchCost: { money: 600 },
+  },
 ];
 
 // Schneller Zugriff per id — abgeleitet aus der einen Liste, keine Kopie der Werte.
@@ -85,3 +128,24 @@ export const LOCAL_RESOURCE_IDS = new Set(
 export const MILITARY_BUILDING_IDS = new Set(
   BUILDINGS.filter((b) => b.military).map((b) => b.id),
 );
+
+// Gebäude, von denen aus Flugzeuge gebaut werden/starten (Flugfeld, Hangar).
+export const AIRBASE_BUILDING_IDS = new Set(
+  BUILDINGS.filter((b) => b.airbase).map((b) => b.id),
+);
+
+// Flugabwehr-Gebäude (id -> {range}) — aus der einen Liste abgeleitet.
+export const AA_BUILDINGS = new Map(
+  BUILDINGS.filter((b) => b.aa).map((b) => [b.id, b]),
+);
+
+// Erforschbare Strukturen (Gebäude mit researchCost) als Tech-Einträge im selben
+// Format wie Einheiten-Tech: { id, researchCost, requires }. So kann der eine
+// Forschungsmechanismus (state.research) Einheiten UND Strukturen behandeln.
+export const STRUCTURE_TECH = BUILDINGS
+  .filter((b) => b.researchCost)
+  .map((b) => ({
+    id: b.id, label: b.label, icon: b.icon, category: 'aa',
+    researchCost: b.researchCost, requires: b.requiresTech || null,
+  }));
+export const STRUCTURE_TECH_BY_ID = new Map(STRUCTURE_TECH.map((t) => [t.id, t]));

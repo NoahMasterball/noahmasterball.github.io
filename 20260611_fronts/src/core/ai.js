@@ -15,7 +15,7 @@ import {
 import {
   AI_ARMY_BASE, AI_ARMY_GDP_WEIGHT, AI_ARMY_HEX_WEIGHT, AI_ARMY_BUILD_RATE,
   AI_ATTACK_CHANCE, AI_ATTACK_POWER_RATIO, AI_FACTORY_CHANCE, HOME_DEFENSE_BONUS,
-  ARMY_SEED_FRACTION, NON_COMBATANT_COUNTRIES,
+  NON_COMBATANT_COUNTRIES,
 } from '../config/constants.js';
 
 // Ist dieses Land ein eigenständiger Bot (kein Spieler, nicht eliminiert,
@@ -93,20 +93,9 @@ function botFront(state, c) {
   return null;
 }
 
-/**
- * Bewaffnet zu Spielbeginn alle Bots (NICHT den Spieler — der muss seine Truppen
- * selbst produzieren) auf einen Bruchteil ihrer Zielstärke. Die Truppen stehen
- * in der Hauptstadt.
- * @param {object} state
- */
-export function seedArmies(state) {
-  const maxGdp = maxGdpOf(state.countries);
-  for (const c of state.countries.values()) {
-    if (c.key === state.playerCountry) continue; // Spieler startet ohne Armee
-    if (c.eliminated || c.hexCount <= 0 || NON_COMBATANT_COUNTRIES.has(c.key)) continue;
-    addArmyToHex(state, c, homeHex(c), targetPower(c, maxGdp) * ARMY_SEED_FRACTION, techTier(c, maxGdp));
-  }
-}
+// Hinweis: Zu Spielbeginn werden KEINE Armeen gesetzt — alle Länder (Spieler wie
+// Bots) starten ohne Truppen und bauen ihre Streitkräfte erst über die Zeit auf
+// (Bots via aiTick → Zielstärke, Spieler über Städte/Außenposten).
 
 // Bots setzen Fabriken nur zur Sichtbarkeit aufs eigene Gebiet (ein Gebäude je
 // Feld). Sie umgehen bewusst Bau-Timer und Materialkette — direkt als fertig

@@ -42,6 +42,7 @@ import {
   COL_TROOP_PLAYER,
   COL_TROOP_ENEMY,
   COL_TROOP_TEXT,
+  COL_TROOP_COUNT,
   COL_RAIL,
   COL_RAIL_TIE,
   COL_TRAIN,
@@ -56,6 +57,23 @@ import {
   COL_MOUNTAIN_SNOW,
 } from '../config/constants.js';
 import { BUILDING_BY_ID } from '../data/buildings.js';
+import { TANK_DOCTRINE } from '../data/alignment.js';
+
+// Panzerbilder fürs Truppen-Chip einmalig vorladen — Pfade kommen aus
+// TANK_DOCTRINE (SSOT). Solange ein Bild noch lädt, fällt der Chip auf einen
+// einfachen gefüllten Kreis zurück.
+const TANK_IMAGES = new Map();
+for (const d of Object.values(TANK_DOCTRINE)) {
+  const img = new Image();
+  img.src = d.image;
+  TANK_IMAGES.set(d.id, img);
+}
+
+// Geladenes Panzerbild einer Doktrin oder null, falls noch nicht bereit/Fehler.
+function tankImage(doctrineId) {
+  const img = TANK_IMAGES.get(doctrineId);
+  return img && img.complete && img.naturalWidth > 0 ? img : null;
+}
 
 // Einmalig vorberechnete, statische Kartenbestandteile (Flächen + Grenzen).
 // Zwei Basisflächen (politisch / Terrain) mit transparentem Meer — so scheinen
@@ -499,24 +517,52 @@ function sumUnits(units) {
   return n;
 }
 
-// Truppen-Chip: gefüllter Kreis mit Anzahl, in Welt-Koordinaten. Größe bleibt am
-// Hexfeld; Text erst ab lesbarem Zoom.
-function drawTroopChip(ctx, x, y, count, color, zoom) {
+// Truppen-Chip: Panzerbild der jeweiligen Doktrin (T-80/Leopard 2/M1 Abrams) mit
+// Besitzer-Ring, dazu ein kleines Anzahl-Badge. Größe bleibt am Hexfeld. Solange
+// das Bild noch lädt, wird ein gefüllter Kreis als Rückfall gezeigt.
+function drawTroopChip(ctx, x, y, count, color, doctrineId, zoom) {
   const r = HEX_SIZE * 0.62;
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fillStyle = color;
-  ctx.fill();
-  ctx.lineWidth = 1.2 / zoom;
-  ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-  ctx.stroke();
-  if (zoom >= TROOP_CHIP_MIN_ZOOM) {
-    ctx.fillStyle = COL_TROOP_TEXT;
-    ctx.font = `bold ${HEX_SIZE * 0.95}px ${'Segoe UI, system-ui, sans-serif'}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(count), x, y + 0.5);
+  const img = tankImage(doctrineId);
+  if (img) {
+    // Besitzerfarbe als Hintergrund, Panzerbild rund hineingeschnitten, dann Ring.
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.clip();
+    ctx.drawImage(img, x - r, y - r, r * 2, r * 2);
+    ctx.restore();
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.lineWidth = 2 / zoom;
+    ctx.strokeStyle = color;
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.lineWidth = 1.2 / zoom;
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.stroke();
   }
+  // Kleines Anzahl-Badge unten rechts (dunkler Kreis, heller Text).
+  const br = r * 0.52;
+  const bx = x + r * 0.68;
+  const by = y + r * 0.68;
+  ctx.beginPath();
+  ctx.arc(bx, by, br, 0, Math.PI * 2);
+  ctx.fillStyle = COL_TROOP_TEXT;
+  ctx.fill();
+  ctx.lineWidth = 1 / zoom;
+  ctx.strokeStyle = color;
+  ctx.stroke();
+  ctx.fillStyle = COL_TROOP_COUNT;
+  ctx.font = `bold ${br * 1.25}px ${'Segoe UI, system-ui, sans-serif'}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(count), bx, by + 0.5);
 }
 
 // Zeichnet Garnisonen (Truppen je Feld), marschierende Trupps (interpoliert auf
@@ -533,8 +579,10 @@ function drawTroops(ctx, state, cam, bounds, time) {
     const hex = state.hexIndex.get(key);
     if (!hex) continue;
     if (hex.x < minX || hex.x > maxX || hex.y < minY || hex.y > maxY) continue;
-    const own = state.owners.get(key) === state.playerCountry;
-    drawTroopChip(ctx, hex.x, hex.y, count, own ? COL_TROOP_PLAYER : COL_TROOP_ENEMY, zoom);
+    const ownerKey = state.owners.get(key);
+    const own = ownerKey === state.playerCountry;
+    const doctrine = state.countries.get(ownerKey)?.tankDoctrine;
+    drawTroopChip(ctx, hex.x, hex.y, count, own ? COL_TROOP_PLAYER : COL_TROOP_ENEMY, doctrine, zoom);
   }
 
   // Marschierende Trupps: Position auf dem aktuellen Wegabschnitt interpolieren.
@@ -547,7 +595,8 @@ function drawTroops(ctx, state, cam, bounds, time) {
     const y = a.y + (b.y - a.y) * frac;
     if (x < minX || x > maxX || y < minY || y > maxY) continue;
     const own = m.owner === state.playerCountry;
-    drawTroopChip(ctx, x, y, sumUnits(m.units), own ? COL_TROOP_PLAYER : COL_TROOP_ENEMY, zoom);
+    const doctrine = state.countries.get(m.owner)?.tankDoctrine;
+    drawTroopChip(ctx, x, y, sumUnits(m.units), own ? COL_TROOP_PLAYER : COL_TROOP_ENEMY, doctrine, zoom);
   }
 
   // Quellfeld eines scharfen Marschbefehls hervorheben.
