@@ -4,6 +4,8 @@ import { MODES } from './config/constants.js';
 import { initMenu } from './scenes/menu.js';
 import { startGameScene } from './scenes/game.js';
 import { showScene } from './core/scenes.js';
+import { initUiSounds } from './core/audio.js';
+import { initSettingsMenu } from './ui/settingsmenu.js';
 
 function backToMenu() {
   showScene('menu');
@@ -16,7 +18,9 @@ function startGame(modeId) {
 }
 
 function main() {
+  initUiSounds();      // Globaler Klick-Klang für alle Buttons (eine Bindung)
   initMenu(startGame);
+  initSettingsMenu();  // Zahnrad-Knopf + Einstellungs-Overlay im Hauptmenü
 }
 
 main();

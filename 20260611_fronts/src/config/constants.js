@@ -29,6 +29,33 @@ export const MODES = [
 // Standardmodus, der im Menü vorausgewählt ist.
 export const DEFAULT_MODE_ID = 'modern';
 
+// --- Einstellungen / Audio --------------------------------------------------
+// NEW — Nutzereinstellungen (Sound) als Daten. settings.js besitzt die Werte,
+// audio.js liest sie, die Settings-UI baut ihre Regler datengetrieben auf.
+// localStorage-Schlüssel, unter dem die Einstellungen abgelegt werden.
+export const SETTINGS_STORAGE_KEY = 'fronts.settings';
+// Standardwerte (Single Source of Truth). Fehlende Felder werden hieraus
+// aufgefüllt; jeder Default existiert nur an dieser einen Stelle.
+export const DEFAULT_SETTINGS = {
+  soundEnabled: true,
+  volume: 0.6, // 0..1 — Hauptlautstärke für alle Klänge
+};
+// Datengetriebene Beschreibung der Settings-Regler (keine hardcodierten
+// Steuerelemente im Markup). 'key' referenziert DEFAULT_SETTINGS.
+export const SETTINGS_SCHEMA = [
+  { key: 'soundEnabled', label: 'Soundeffekte', type: 'toggle' },
+  { key: 'volume', label: 'Lautstärke', type: 'range', min: 0, max: 1, step: 0.05 },
+];
+// Synthetisierte UI-Klänge (Web Audio, keine Audiodateien nötig). Jeder Klang
+// ist ein kurzer Oszillator-Ton: type, Frequenz (Hz), Dauer (s), Spitzen-Gain.
+// Eine Quelle für alle Spielklänge — Buttons lesen ihren Klang über data-sound.
+export const SOUNDS = {
+  click: { type: 'triangle', freq: 660, dur: 0.05, gain: 0.22 }, // Standard-Knopf
+  start: { type: 'sine', freq: 520, dur: 0.14, gain: 0.28 },     // Spiel starten
+};
+// Klang, den ein Button ohne eigenes data-sound abspielt.
+export const DEFAULT_SOUND = 'click';
+
 // --- Hexraster --------------------------------------------------------------
 // Größe (Radius vom Mittelpunkt zur Ecke) eines Hexfelds in Pixeln.
 export const HEX_SIZE = 12;

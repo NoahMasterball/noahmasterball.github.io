@@ -26,6 +26,11 @@
   --transition: 140ms ease;
   --font: 'Segoe UI', system-ui, sans-serif;
   --side-panel-width: 300px; /* Breite des rechten Seitenpanels (eine Quelle) */
+
+  /* NEW — Mobil-Layout: eine Quelle für Breakpoint-Höhe des Seitenpanels.
+     Der Breakpoint-Wert selbst (640px) kann nicht als CSS-Variable in der
+     @media-Bedingung stehen, daher als Kommentar dokumentiert. */
+  --mobile-panel-h: 50vh; /* Höhe des unteren Seitenpanels auf dem Handy */
 }
 
 * {
@@ -150,6 +155,73 @@ body {
   bottom: var(--gap-md);
   color: var(--col-text-dim);
   font-size: 0.8rem;
+}
+
+/* Einstellungen-Öffner (Zahnrad, oben rechts im Hauptmenü). */
+.menu-settings-btn {
+  position: absolute;
+  top: var(--gap-md);
+  right: var(--gap-md);
+  background: var(--col-panel);
+  color: var(--col-text);
+  border: 1px solid var(--col-border);
+  border-radius: var(--radius);
+  padding: var(--gap-xs) var(--gap-md);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.95rem;
+  transition: border-color var(--transition);
+}
+.menu-settings-btn:hover {
+  border-color: var(--col-accent);
+}
+
+/* Einstellungs-Regler im Overlay (datengetrieben aus SETTINGS_SCHEMA). */
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-md);
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-md);
+}
+.settings-label {
+  font-size: 1.05rem;
+}
+.settings-control {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+}
+.settings-toggle {
+  min-width: 64px;
+  background: var(--col-panel);
+  color: var(--col-text-dim);
+  border: 1px solid var(--col-border);
+  border-radius: 999px;
+  padding: var(--gap-xs) var(--gap-md);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
+}
+.settings-toggle.on {
+  color: #06101f;
+  background: var(--col-accent);
+  border-color: var(--col-accent);
+}
+.settings-range {
+  width: 160px;
+  accent-color: var(--col-accent);
+}
+.settings-val {
+  min-width: 4ch;
+  text-align: right;
+  color: var(--col-text-dim);
+  font-variant-numeric: tabular-nums;
 }
 
 /* --- Spielszene ----------------------------------------------------------- */
@@ -746,4 +818,120 @@ body {
 .train-cancel:hover {
   border-color: var(--col-ww2);
   background: rgba(182, 132, 58, 0.15);
+}
+
+/* --- Mobil-Layout (Handy/schmale Viewports) ------------------------------ */
+/* NEW — Breakpoint 640px: Auf dem Handy übernahmen die Menüs sonst den ganzen
+   Bildschirm (festes 300px-Seitenpanel, große Modals). Hier wird das
+   Seitenpanel zu einer unteren Schublade, sodass die Karte sichtbar bleibt. */
+@media (max-width: 640px) {
+  /* Hauptmenü: Karten stapeln statt nebeneinander, Inhalt scrollbar. */
+  #scene-menu {
+    justify-content: flex-start;
+    gap: var(--gap-md);
+    padding: var(--gap-lg) var(--gap-md);
+    overflow-y: auto;
+  }
+  .menu-title {
+    font-size: 2.4rem;
+  }
+  .menu-subtitle {
+    font-size: 1rem;
+    text-align: center;
+  }
+  .mode-grid {
+    flex-direction: column;
+    gap: var(--gap-md);
+    width: 100%;
+  }
+  .mode-card {
+    width: 100%;
+    padding: var(--gap-md);
+  }
+  .mode-card .mode-year {
+    font-size: 2rem;
+  }
+  /* Footer nicht absolut, damit er bei gestapelten Karten nicht überlappt. */
+  .menu-footer {
+    position: static;
+    margin-top: var(--gap-md);
+  }
+  /* Zahnrad oben rechts kompakter, plus Platz darüber, damit nichts überlappt. */
+  .menu-settings-btn {
+    top: var(--gap-sm);
+    right: var(--gap-sm);
+    padding: var(--gap-xs) var(--gap-sm);
+    font-size: 0.85rem;
+  }
+  #scene-menu {
+    padding-top: var(--gap-xl);
+  }
+  .settings-range {
+    width: 130px;
+  }
+
+  /* HUD: umbrechen statt überlaufen, kompaktere Abstände. */
+  .hud {
+    height: auto;
+    flex-wrap: wrap;
+    gap: var(--gap-sm);
+    padding: var(--gap-sm) var(--gap-sm);
+  }
+  .hud-resources {
+    gap: var(--gap-md);
+    order: 3;
+    flex-basis: 100%;
+  }
+  .btn-back {
+    padding: var(--gap-xs) var(--gap-sm);
+    font-size: 0.85rem;
+  }
+
+  /* Seitenpanel: vom rechten Rand zur unteren Schublade — die Karte bleibt
+     in der oberen Bildschirmhälfte sichtbar. */
+  .side-panel {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: var(--mobile-panel-h);
+    border-left: none;
+    border-top: 1px solid var(--col-border);
+  }
+
+  /* Sicht-Umschalter über die Schublade legen (nicht dahinter verstecken). */
+  .view-switch {
+    right: var(--gap-sm);
+    bottom: calc(var(--mobile-panel-h) + var(--gap-sm));
+  }
+
+  /* Forschungs-/Streitkräfte-Modal: voll nutzbare Breite und Höhe. */
+  .war-panel {
+    width: 96vw;
+    max-height: 90vh;
+  }
+  .war-header {
+    flex-wrap: wrap;
+    padding: var(--gap-sm) var(--gap-md);
+  }
+  .war-res {
+    margin-left: 0;
+    flex-basis: 100%;
+    order: 3;
+  }
+  .war-tabs {
+    padding: var(--gap-sm) var(--gap-md) 0;
+    overflow-x: auto;
+  }
+  .war-content {
+    padding: var(--gap-md) var(--gap-md) var(--gap-md);
+  }
+  /* Tech-Zeile auf schmalen Schirmen stapeln, damit nichts abgeschnitten wird. */
+  .war-row {
+    grid-template-columns: 1fr;
+  }
+  .war-row-side {
+    justify-content: space-between;
+  }
 }

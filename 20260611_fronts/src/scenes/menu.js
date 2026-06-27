@@ -16,6 +16,7 @@ export function initMenu(onSelectMode) {
     const card = document.createElement('button');
     card.className = 'mode-card';
     card.dataset.mode = mode.id;
+    card.dataset.sound = 'start'; // eigener Klang beim Spielstart (sonst Standard-Klick)
     card.disabled = !mode.available;
     const badge = mode.available ? '' : '<div class="mode-badge">bald</div>';
     card.innerHTML = `
