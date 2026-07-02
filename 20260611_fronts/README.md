@@ -9,6 +9,25 @@ verwaltet so sein Reich. Zwei Spielmodi mit unterschiedlichen Weltkarten:
 
 ---
 
+## Spieltypen
+
+Ganz am Anfang wählt man den **Spieltyp**:
+
+- **Strategie** — das 2D-Weltstrategiespiel (unten beschrieben).
+- **MCF (Multiplayer-Shooter)** — ein 2D-Top-View-Shooter im Counter-Strike-Stil
+  (gegen Bots). Man wählt einen Namen, die Teamgröße (1 vs 1 / 5 vs 5) und den
+  Modus (Team-Deathmatch / Deathmatch). Mechaniken: Stehen = genau, Laufen =
+  ungenau; lernbares Spray-Muster (erste 10 Schüsse leichtes, immer gleiches
+  Wackeln, danach starker Links-/Rechts-Zug); der letzte Schuss eines gehaltenen
+  Feuerstoßes ist ein **Crit** (doppelter Schaden). Runde 1 ist Pistolenrunde,
+  Geld pro Kill, Waffen nach Stärke bepreist, zufällig erzeugte Arena, Granaten.
+  Wer stirbt, ist für die Runde raus. Steuerung: **WASD** laufen, **Maus** zielen,
+  **Klick** schießen, **R** nachladen, **G** Granate, **1/2** Waffe wechseln;
+  Kaufphase am Rundenanfang.
+  Code: `src/config/shooter.js` (SSOT), `src/shooter/*`, `src/scenes/shooter.js`.
+
+---
+
 ## Kernkonzept
 
 | Element        | Beschreibung                                                                 |
