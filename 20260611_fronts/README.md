@@ -9,25 +9,6 @@ verwaltet so sein Reich. Zwei Spielmodi mit unterschiedlichen Weltkarten:
 
 ---
 
-## Spieltypen
-
-Ganz am Anfang wählt man den **Spieltyp**:
-
-- **Strategie** — das 2D-Weltstrategiespiel (unten beschrieben).
-- **MCF (Multiplayer-Shooter)** — ein 2D-Top-View-Shooter im Counter-Strike-Stil
-  (gegen Bots). Man wählt einen Namen, die Teamgröße (1 vs 1 / 5 vs 5) und den
-  Modus (Team-Deathmatch / Deathmatch). Mechaniken: Stehen = genau, Laufen =
-  ungenau; lernbares Spray-Muster (erste 10 Schüsse leichtes, immer gleiches
-  Wackeln, danach starker Links-/Rechts-Zug); der letzte Schuss eines gehaltenen
-  Feuerstoßes ist ein **Crit** (doppelter Schaden). Runde 1 ist Pistolenrunde,
-  Geld pro Kill, Waffen nach Stärke bepreist, zufällig erzeugte Arena, Granaten.
-  Wer stirbt, ist für die Runde raus. Steuerung: **WASD** laufen, **Maus** zielen,
-  **Klick** schießen, **R** nachladen, **G** Granate, **1/2** Waffe wechseln;
-  Kaufphase am Rundenanfang.
-  Code: `src/config/shooter.js` (SSOT), `src/shooter/*`, `src/scenes/shooter.js`.
-
----
-
 ## Kernkonzept
 
 | Element        | Beschreibung                                                                 |
@@ -86,7 +67,13 @@ Ganz am Anfang wählt man den **Spieltyp**:
 │   │   └── game.js        # Spielszene (verdrahtet Laden, Eingabe, Tick)
 │   └── ui/
 │       ├── panel.js       # HUD + Seitenpanel (Auswahl, Bau-Optionen)
-│       └── warmenu.js     # Spielmenü-Overlay: Forschung & Streitkräfte
+│       ├── warmenu.js     # Spielmenü-Overlay („Kommandozentrale“): der Hub mit
+│       │                  #   allen Reitern (siehe unten)
+│       ├── uikit.js       # gemeinsame UI-Bausteine (Kosten-/Ertragstext,
+│       │                  #   Sicht-Umschalter, Weltgeschehen) — SSOT
+│       ├── logistics.js   # Schiene/Züge als Baustein (Panel + Menü)
+│       ├── settingspanel.js # Regler-Baustein (Hauptmenü + Spielmenü)
+│       └── settingsmenu.js  # Einstellungs-Overlay im Hauptmenü
 └── assets/
     └── styles/
         └── main.css       # Zentrale Styles (Farben/Abstände als CSS-Variablen)
@@ -95,6 +82,28 @@ Ganz am Anfang wählt man den **Spieltyp**:
 > Hinweis: Die Länderdaten liegen nicht als statische `countries.js` vor, sondern
 > werden zur Laufzeit aus dem GeoJSON gerastert (`geo.js`) — eine Quelle für die
 > Geometrie statt doppelter Pflege.
+
+---
+
+## Spielmenü — „Kommandozentrale“ (Taste `Tab` oder HUD-Knopf `☰ Menü`)
+
+Ein einziger Hub bündelt alles Spielbezogene; `Esc` oder ein Klick auf den Rand
+schließt ihn. Die Reiter werden datengetrieben aus einer Liste erzeugt
+(`src/ui/warmenu.js`), sie duplizieren keine Logik, sondern rendern dieselben
+Bausteine wie das Seitenpanel:
+
+| Reiter             | Inhalt                                                                     |
+| ------------------ | -------------------------------------------------------------------------- |
+| 📊 Übersicht       | Kennzahlen (Felder, Städte, Gebäude, Einnahmen/Tick, ⚔/🛡, Forschung, Züge) |
+| 🏗️ Bau             | Gebäudekatalog mit Ertrag; baut auf dem gewählten Feld                      |
+| 🔬 Forschung       | Einheiten & Flugabwehr erforschen                                          |
+| 🪖 Streitkräfte    | eigener Bestand je Einheit                                                 |
+| 🚂 Logistik        | Schiene legen, Züge einrichten/abbestellen                                 |
+| 🏙 Städte          | eigene Städte anspringen (Bau-Standorte für Truppen)                        |
+| ⚙️ Einstellungen   | Kartensicht (politisch/Terrain) + Ton                                      |
+
+Aktionen, die Klicks auf der Karte brauchen (Schiene, Zug, Hinspringen),
+schließen das Menü automatisch.
 
 ---
 
@@ -140,7 +149,8 @@ Ganz am Anfang wählt man den **Spieltyp**:
 ### Phase 3.5 — Militär & Forschung
 - [x] Militäraußenposten als Gebäude (Voraussetzung für Fahrzeugbau)
 - [x] Ost/West-Block je Land bestimmt die Fahrzeugpalette (z. B. China → T-80)
-- [x] Spielmenü (Taste `Tab` oder HUD-Knopf): Forschung & Streitkräfte
+- [x] Spielmenü (Taste `Tab` oder HUD-Knopf): Hub mit allen Reitern — Übersicht,
+      Bau, Forschung, Streitkräfte, Logistik, Städte, Einstellungen
 - [x] Fahrzeuge erforschen (Geld) und danach bauen (Geld + Güter):
       Infanterie, Panzer, Artillerie, Helikopter, Flugzeuge — je zwei Stufen
 

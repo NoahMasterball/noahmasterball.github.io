@@ -349,6 +349,49 @@ export function produceTick() {
   advanceMovements(state, performance.now());
 }
 
+// Geschätzter Zufluss GLOBALER Ressourcen (Geld/Nahrung) pro Tick aus allen
+// fertigen Gebäuden des Spielerlandes. Nutzt dieselbe Ertragsformel wie die
+// Produktion (buildingOutput) — eine Quelle für die Zahl, die die Übersicht im
+// Spielmenü zeigt. Lokale Materialien (Metall/Zahnräder) bleiben außen vor, weil
+// sie im Feld-Lager liegen und je Feld begrenzt sind.
+export function globalIncomePerTick() {
+  const country = playerCountryData();
+  const income = {};
+  for (const id of GLOBAL_RESOURCE_IDS) income[id] = 0;
+  for (const [key, arr] of state.buildings) {
+    if (state.owners.get(key) !== state.playerCountry) continue;
+    const hex = state.hexIndex.get(key);
+    const cityMul = hex ? cityProximityMul(hex, state.cities) : 1;
+    for (const e of arr) {
+      if (e.ticks > 0) continue;                       // noch im Bau
+      const b = BUILDING_BY_ID.get(e.id);
+      if (!b) continue;
+      for (const out of buildingOutput(b, country, cityMul)) {
+        if (RESOURCE_SCOPE.get(out.resource) === 'global') income[out.resource] += out.amount;
+      }
+    }
+  }
+  return income;
+}
+
+// Gebäude des Spielerlandes, aufgeschlüsselt nach Typ und Bauzustand. Eine
+// Quelle für „was habe ich schon gebaut“ (Übersicht im Spielmenü).
+// @returns {{ done:number, building:number, byId:Map<string,number> }}
+export function playerBuildingStats() {
+  const byId = new Map();
+  let done = 0;
+  let building = 0;
+  for (const [key, arr] of state.buildings) {
+    if (state.owners.get(key) !== state.playerCountry) continue;
+    for (const e of arr) {
+      if (e.ticks > 0) { building++; continue; }
+      done++;
+      byId.set(e.id, (byId.get(e.id) || 0) + 1);
+    }
+  }
+  return { done, building, byId };
+}
+
 // --- Forschung --------------------------------------------------------------
 // Tech-Definition (Einheit ODER erforschbare Struktur) zu einer id. Beide teilen
 // dasselbe Format { researchCost, requires } und dieselbe state.research-Menge.
@@ -471,6 +514,18 @@ export function buildUnit(unitId) {
     addUnits(state, key, unitId, 1);
   }
   return { ok: true };
+}
+
+// Anzahl aller Flugzeuge des Spielerlandes (Instanzen auf eigenen Feldern).
+// Flugzeuge liegen nicht in den Garnisonen, daher eine eigene Quelle für ihre
+// Gesamtzahl (Übersicht im Spielmenü).
+export function playerAircraftCount() {
+  let n = 0;
+  for (const [key, list] of state.aircraft) {
+    if (state.owners.get(key) !== state.playerCountry) continue;
+    n += list.length;
+  }
+  return n;
 }
 
 // --- Flugzeug-Loadouts ------------------------------------------------------

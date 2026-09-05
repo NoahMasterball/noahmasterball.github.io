@@ -1,11 +1,10 @@
 // Einstellungs-Overlay im Hauptmenü. Folgt exakt dem Muster des Spielmenüs
 // (warmenu.js): dunkles Overlay + Panel, Schließen per Knopf oder Randklick.
-// Die Regler werden datengetrieben aus SETTINGS_SCHEMA gebaut — keine
-// Steuerelemente im Markup hardcodiert. Werte kommen aus settings.js (SSOT).
+// Die Regler selbst kommen aus dem gemeinsamen Baustein settingspanel.js —
+// dieselbe Liste zeigt auch der Einstellungs-Reiter im Spielmenü.
 
-import { SETTINGS_SCHEMA } from '../config/constants.js';
-import { getSetting, setSetting } from '../core/settings.js';
-import { playSound } from '../core/audio.js';
+import { settingsListHtml, wireSettings } from './settingspanel.js';
+import { el } from './uikit.js';
 
 let refs = null;
 
@@ -49,61 +48,8 @@ function setOpen(value) {
   if (value) renderSettings();
 }
 
-// Baut die Reglerliste aus SETTINGS_SCHEMA neu auf.
+// Baut die Reglerliste neu auf (gemeinsamer Baustein).
 function renderSettings() {
-  refs.content.innerHTML = `<div class="settings-list">${SETTINGS_SCHEMA.map(rowHtml).join('')}</div>`;
-  wire();
-}
-
-function rowHtml(item) {
-  const val = getSetting(item.key);
-  let control = '';
-  if (item.type === 'toggle') {
-    control = `<button class="settings-toggle${val ? ' on' : ''}" data-key="${item.key}"
-      role="switch" aria-checked="${val}">${val ? 'An' : 'Aus'}</button>`;
-  } else if (item.type === 'range') {
-    control = `<input class="settings-range" type="range" data-key="${item.key}"
-        min="${item.min}" max="${item.max}" step="${item.step}" value="${val}">
-      <span class="settings-val" data-for="${item.key}">${pct(val)}</span>`;
-  }
-  return `<div class="settings-row">
-    <span class="settings-label">${item.label}</span>
-    <div class="settings-control">${control}</div>
-  </div>`;
-}
-
-// Verdrahtet die dynamisch erzeugten Regler nach jedem Neuaufbau.
-function wire() {
-  // Umschalter: Wert kippen. Der globale UI-Klang (initUiSounds) erzeugt das
-  // Klick-Feedback — hier daher KEIN zusätzlicher playSound (sonst doppelt).
-  // Beim Ausschalten bleibt es korrekt still, weil der Wert vor dem globalen
-  // Listener bereits auf „aus“ steht.
-  refs.content.querySelectorAll('.settings-toggle').forEach((b) => {
-    b.addEventListener('click', () => {
-      setSetting(b.dataset.key, !getSetting(b.dataset.key));
-      renderSettings();
-    });
-  });
-  // Schieberegler: live übernehmen und Prozentanzeige aktualisieren.
-  refs.content.querySelectorAll('.settings-range').forEach((r) => {
-    r.addEventListener('input', () => {
-      const v = Number(r.value);
-      setSetting(r.dataset.key, v);
-      const label = refs.content.querySelector(`.settings-val[data-for="${r.dataset.key}"]`);
-      if (label) label.textContent = pct(v);
-    });
-    // Beim Loslassen einen Ton zur Vorschau der neuen Lautstärke abspielen.
-    r.addEventListener('change', () => playSound('click'));
-  });
-}
-
-// Anteil 0..1 als Prozenttext.
-function pct(v) {
-  return `${Math.round(v * 100)}%`;
-}
-
-function el(tag, className) {
-  const e = document.createElement(tag);
-  if (className) e.className = className;
-  return e;
+  refs.content.innerHTML = settingsListHtml();
+  wireSettings(refs.content, renderSettings);
 }

@@ -162,6 +162,9 @@ export const ZOOM_MAX = 10;
 export const ZOOM_DEFAULT = 1;
 // Faktor pro Mausrad-Schritt beim Zoomen.
 export const ZOOM_STEP = 1.15;
+// Zoomstufe, auf die die Kamera beim Anspringen eines Ziels geht (Landwahl,
+// Stadt-Sprung aus dem Spielmenü). Eine Quelle für diesen Wert.
+export const FOCUS_ZOOM = 4;
 
 // --- Weltprojektion ---------------------------------------------------------
 // Die Welt wird äquirektangulär in einen Rechteck-„Weltraum“ projiziert.

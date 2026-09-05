@@ -6,14 +6,16 @@ import {
   RESOURCES, BUILDINGS, BUILDING_BY_ID, RESOURCE_BY_ID, LOCAL_RESOURCE_IDS,
 } from '../data/buildings.js';
 import {
-  canBuildHere, ownerOf, buildingsAt, buildingOutput, cityMulAt, fieldStockAt, isRailMode,
+  canBuildHere, ownerOf, buildingsAt, cityMulAt, fieldStockAt,
   countryPower, canBuildUnit, armyCount, isResearched, troopsAt, troopSource,
   currentBuildSite, aircraftAt,
 } from '../core/state.js';
 import { BLOCS } from '../data/alignment.js';
 import { unitsForBloc, UNIT_BY_ID } from '../data/military.js';
 import { WEAPONS, PLANE_HARDPOINTS } from '../data/airpower.js';
-import { MENU_KEY, VIEW_MODES, DEFAULT_VIEW_MODE, TICK_INTERVAL_MS } from '../config/constants.js';
+import { MENU_KEY, TICK_INTERVAL_MS } from '../config/constants.js';
+import { el, costStr, outputStr, viewSwitchHtml, warLogHtml } from './uikit.js';
+import { logisticsHtml, wireLogistics } from './logistics.js';
 
 let refs = null;
 let handlers = null;
@@ -68,26 +70,20 @@ export function initPanel(h) {
   side.append(title, body, buildList);
 
   // --- Sicht-Umschalter (unten rechts) ---
-  // Datengetrieben aus VIEW_MODES; der aktive Knopf wird hervorgehoben.
+  // Markup kommt aus dem gemeinsamen Baustein (uikit), der Inhalt wird bei jedem
+  // Rendern aus state.viewMode neu gesetzt — dieselbe Sicht-Auswahl steht auch im
+  // Spielmenü, ohne dass zwei Stellen den aktiven Knopf mitführen.
   const viewSwitch = el('div', 'view-switch');
-  const viewButtons = {};
-  for (const v of VIEW_MODES) {
-    const btn = el('button', 'view-btn');
-    btn.innerHTML = `<span class="view-icon">${v.icon}</span><span>${v.label}</span>`;
-    btn.classList.toggle('active', v.id === DEFAULT_VIEW_MODE);
-    btn.addEventListener('click', () => {
-      for (const id in viewButtons) viewButtons[id].classList.toggle('active', id === v.id);
-      handlers.onSetView(v.id);
-    });
-    viewButtons[v.id] = btn;
-    viewSwitch.appendChild(btn);
-  }
+  viewSwitch.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-view]');
+    if (btn) handlers.onSetView(btn.dataset.view);
+  });
 
   // --- Hinweis-/Statuszeile ---
   const toast = el('div', 'toast');
 
   root.append(hud, side, viewSwitch, toast);
-  refs = { modeLabel, resValues, side, title, body, buildList, buildButtons, viewButtons, toast };
+  refs = { modeLabel, resValues, side, title, body, buildList, buildButtons, viewSwitch, toast };
 }
 
 /**
@@ -100,6 +96,9 @@ export function renderPanel(state, phase) {
   refs.modeLabel.textContent = `${state.mode.label} · ${state.mode.year}`;
   // Ressourcen können durch Multiplikatoren fraktional werden -> abgerundet zeigen.
   for (const id in refs.resValues) refs.resValues[id].textContent = Math.floor(state.resources[id] ?? 0);
+  // Aktive Kartensicht kommt aus dem Zustand (SSOT) — auch wenn sie im Spielmenü
+  // umgeschaltet wurde.
+  refs.viewSwitch.innerHTML = viewSwitchHtml(state.viewMode);
 
   if (phase === 'choose-country') {
     refs.title.textContent = 'Land wählen';
@@ -266,56 +265,6 @@ function stockLine(sel) {
   return `<p class="dim">Feld-Lager: ${parts.join(' · ')}</p>`;
 }
 
-// Logistik-Box: Schiene-Lege-Modus umschalten + Züge einrichten/verwalten.
-function logisticsHtml(state) {
-  const railActive = isRailMode();
-  let html = `<div class="logi-box"><h3 class="side-sub">🚂 Logistik</h3>
-    <button class="rail-btn${railActive ? ' active' : ''}">${railActive
-    ? '🛤 Schiene legen: AN — Felder anklicken'
-    : '🛤 Schiene legen'}</button>
-    <button class="train-btn">🚂 Zug einrichten ➤</button>`;
-  if (state.trains.length) {
-    const rows = state.trains.map((t) => `<li class="train-row">
-      <span>Zug ${t.id}: ${stationLabel(t.aKey)} → ${stationLabel(t.bKey)}
-        <span class="dim">${loadSummary(t.load)}${t.idle ? ' · ⏸ wartet' : ''}</span></span>
-      <button class="train-cancel" data-id="${t.id}">✕</button></li>`).join('');
-    html += `<ul class="train-list">${rows}</ul>`;
-  } else {
-    html += '<p class="dim">Kein Zug. Lege Schiene zwischen zwei Gebäuden und richte dann einen Zug ein — Metall/Zahnräder fahren nur per Bahn.</p>';
-  }
-  return `${html}</div>`;
-}
-
-// Kurzbeschriftung eines Stationsfeldes (erstes Gebäude-Icon + Koordinaten).
-function stationLabel(key) {
-  const [q, r] = key.split(',').map(Number);
-  const first = buildingsAt(q, r)[0];
-  const icon = first ? (BUILDING_BY_ID.get(first.id)?.icon ?? '') : '';
-  return `${icon}(${q},${r})`;
-}
-
-// Geladenes Material eines Zuges (nur Materialien > 0; sonst „leer“).
-function loadSummary(load) {
-  const parts = [...LOCAL_RESOURCE_IDS]
-    .filter((id) => (load[id] || 0) > 0)
-    .map((id) => `${RESOURCE_BY_ID.get(id)?.icon ?? id} ${load[id]}`);
-  return parts.length ? parts.join(' ') : 'leer';
-}
-
-// Jüngste Kriegsereignisse (aus state.warLog).
-function warLogHtml(state) {
-  if (!state.warLog || !state.warLog.length) return '';
-  const items = state.warLog.slice(0, 6)
-    .map((e) => `<li class="${e.kind === 'annex' ? 'log-annex' : ''}">${e.message}</li>`).join('');
-  return `<div class="war-log"><h3 class="side-sub">Weltgeschehen</h3><ul>${items}</ul></div>`;
-}
-
-// Kostenobjekt -> "💰120 ⚙️40". Eine Quelle für die Kostendarstellung im Panel.
-function costStr(cost) {
-  return Object.keys(cost)
-    .map((id) => `${RESOURCE_BY_ID.get(id)?.icon ?? id} ${cost[id]}`).join(' ');
-}
-
 // Verdrahtet die dynamisch erzeugten Knöpfe (Truppenbau, Angriff) nach jedem
 // innerHTML-Neuaufbau des Body.
 function wireDynamic() {
@@ -331,15 +280,7 @@ function wireDynamic() {
       Number(s.dataset.uid), Number(s.dataset.slot), s.value || null,
     ));
   });
-  refs.body.querySelectorAll('button.rail-btn').forEach((b) => {
-    b.addEventListener('click', () => handlers.onToggleRail());
-  });
-  refs.body.querySelectorAll('button.train-btn').forEach((b) => {
-    b.addEventListener('click', () => handlers.onCreateTrain());
-  });
-  refs.body.querySelectorAll('button.train-cancel').forEach((b) => {
-    b.addEventListener('click', () => handlers.onCancelTrain(Number(b.dataset.id)));
-  });
+  wireLogistics(refs.body, handlers);
 }
 
 // Zeigt die beiden Balancing-Multiplikatoren des Landes an.
@@ -364,19 +305,6 @@ function blocLine(country) {
   return `<p class="dim">Bündnis: <b style="color:${bloc.color}">${bloc.label}</b> (${bloc.short})</p>`;
 }
 
-// Formatiert den Ertrag eines Gebäudes (mehrere Ressourcen) bzw. dessen Hinweis.
-// cityMul = Stadtnähe-Bonus des gewählten Feldes (wirkt auf Fabrik-Geld).
-function formatOutput(b, country, cityMul) {
-  const outs = buildingOutput(b, country, cityMul);
-  const consume = (b.consumes || [])
-    .map((c) => `−${c.amount} ${RESOURCE_BY_ID.get(c.resource)?.icon ?? ''}`).join(' ');
-  const produce = outs
-    .map((o) => `+${Math.round(o.amount)} ${RESOURCE_BY_ID.get(o.resource)?.icon ?? ''}`).join(' ');
-  const parts = [consume, produce].filter(Boolean);
-  if (!parts.length) return b.note || '';
-  return parts.join('  ');
-}
-
 // Aktiviert/deaktiviert die Bauknöpfe anhand der Bauregeln (canBuild ist SSOT)
 // und zeigt den erwarteten Ertrag pro Tick (bzw. den Grund bei Sperre).
 function setBuildButtonsEnabled(isOwn, sel, country) {
@@ -388,7 +316,7 @@ function setBuildButtonsEnabled(isOwn, sel, country) {
     const check = isOwn && sel ? canBuildHere(sel.q, sel.r, id) : { ok: false, reason: 'Erst eigenes Feld wählen.' };
     btn.disabled = !check.ok;
     const b = BUILDING_BY_ID.get(id);
-    btn.querySelector('small').textContent = check.ok ? formatOutput(b, country, cityMul) : check.reason;
+    btn.querySelector('small').textContent = check.ok ? outputStr(b, country, cityMul) : check.reason;
   }
 }
 
@@ -400,10 +328,4 @@ export function toast(message) {
   if (toastTimer) clearTimeout(toastTimer);
   // Kein Date.now nötig; reine UI-Verzögerung.
   toastTimer = setTimeout(() => refs.toast.classList.remove('show'), 2200);
-}
-
-function el(tag, className) {
-  const e = document.createElement(tag);
-  if (className) e.className = className;
-  return e;
 }

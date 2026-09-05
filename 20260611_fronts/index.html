@@ -11,21 +11,12 @@
       <!-- Hauptmenü -->
       <section id="scene-menu" class="scene active">
         <h1 class="menu-title">Fronts</h1>
-        <p class="menu-subtitle" id="menu-subtitle">Wähle deinen Spielmodus</p>
-        <button class="btn-back menu-back" id="menu-back" style="display: none">← Zurück</button>
+        <p class="menu-subtitle">2D-Weltstrategie — wähle deine Ära</p>
 
-        <!-- Stufe 1: Spieltyp-Auswahl (datengetrieben aus GAME_TYPES) -->
-        <div id="gametype-grid" class="mode-grid"></div>
+        <!-- Strategie-Modi (datengetrieben aus MODES) -->
+        <div id="mode-grid" class="mode-grid"></div>
 
-        <!-- Stufe 2a: Strategie-Modi (datengetrieben aus MODES) -->
-        <div id="strategy-panel" class="menu-panel" style="display: none">
-          <div id="mode-grid" class="mode-grid"></div>
-        </div>
-
-        <!-- Stufe 2b: MCF-Shooter-Setup (datengetrieben befüllt) -->
-        <div id="shooter-panel" class="menu-panel" style="display: none"></div>
-
-        <footer class="menu-footer">Fronts — Strategie & MCF-Shooter</footer>
+        <footer class="menu-footer">Fronts — 2D-Weltstrategie</footer>
       </section>
 
       <!-- Spielszene: Canvas-Weltkarte + UI-Overlay (datengetrieben befüllt) -->
@@ -34,12 +25,6 @@
         <!-- HUD, Seitenpanel und Hinweise werden von ui/panel.js eingefügt -->
         <div id="game-ui"></div>
         <div id="game-loading" class="game-loading"></div>
-      </section>
-
-      <!-- MCF-Shooter-Szene: Canvas + HUD-Overlay (von shooter/hud.js befüllt) -->
-      <section id="scene-shooter" class="scene">
-        <canvas id="shooter-canvas"></canvas>
-        <div id="shooter-ui"></div>
       </section>
     </div>
 

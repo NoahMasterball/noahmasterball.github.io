@@ -20,13 +20,14 @@ import {
   createTrain, cancelTrain, setAircraftLoadout,
 } from '../core/state.js';
 import {
-  ZOOM_STEP, ZOOM_MAX, TICK_INTERVAL_MS, MENU_KEY, WAVE_MIN_ZOOM, AI_TICK_MS,
+  ZOOM_STEP, TICK_INTERVAL_MS, MENU_KEY, WAVE_MIN_ZOOM, AI_TICK_MS, FOCUS_ZOOM,
 } from '../config/constants.js';
 import { initPanel, renderPanel, toast } from '../ui/panel.js';
 import {
-  initWarMenu, toggleWarMenu, isWarMenuOpen, renderWarMenu,
+  initWarMenu, toggleWarMenu, isWarMenuOpen, renderWarMenu, closeWarMenu,
 } from '../ui/warmenu.js';
 import { UNIT_BY_ID } from '../data/military.js';
+import { BUILDING_BY_ID } from '../data/buildings.js';
 
 // Sicht-/Eingabezustand dieser Szene (keine Spieldaten — die sind im state).
 let canvas, ctx, cam;
@@ -84,7 +85,14 @@ export async function startGameScene(mode, backToMenu) {
     onToggleRail: handleToggleRail, onCreateTrain: handleCreateTrain, onCancelTrain: handleCancelTrain,
     onSetLoadout: handleSetLoadout,
   });
-  initWarMenu({ onResearch: handleResearch, onBuild: handleBuildUnit });
+  // Das Spielmenü ist der Hub für alles Spielbezogene und nutzt dieselben
+  // Handler wie das Seitenpanel (eine Quelle je Aktion).
+  initWarMenu({
+    onResearch: handleResearch, onBuildBuilding: handleBuild,
+    onToggleRail: handleToggleRail, onCreateTrain: handleCreateTrain,
+    onCancelTrain: handleCancelTrain, onSetView: handleSetView,
+    onFocusHex: handleFocusHex,
+  });
   phase = 'choose-country';
   hovered = null;
   trainPick = null;
@@ -102,9 +110,27 @@ export async function startGameScene(mode, backToMenu) {
   requestRender();
 }
 
-// Wechselt die Kartensicht (politisch | terrain) und zeichnet neu.
+// Wechselt die Kartensicht (politisch | terrain) und zeichnet neu. Das Panel
+// wird mitgezeichnet, weil es den aktiven Knopf aus dem Zustand liest (die
+// Umschaltung kann auch aus dem Spielmenü kommen).
 function handleSetView(viewId) {
   setViewMode(viewId);
+  renderPanel(getState(), phase);
+  requestRender();
+}
+
+// Springt auf ein Feld (z. B. eine Stadt aus dem Spielmenü): Karte zentrieren,
+// Feld auswählen und — falls dort eine eigene Stadt liegt — als Bau-Standort setzen.
+function handleFocusHex(q, r) {
+  const state = getState();
+  const hex = state.hexIndex.get(hexKey(q, r));
+  if (!hex) return;
+  cam.zoom = Math.max(cam.zoom, FOCUS_ZOOM);
+  centerOn(cam, hex.x, hex.y, canvas.width, canvas.height);
+  setSelected({ q, r });
+  const city = cityAt(q, r);
+  setSelectedCity(city && state.owners.get(hexKey(q, r)) === state.playerCountry ? city : null);
+  renderPanel(state, phase);
   requestRender();
 }
 
@@ -172,8 +198,9 @@ function attachInput() {
     requestRender();
   });
 
-  // Spielmenü (Forschung & Streitkräfte) per Taste öffnen/schließen.
+  // Spielmenü (Hub) per Taste öffnen/schließen; Escape schließt es immer.
   window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isWarMenuOpen()) { closeWarMenu(); return; }
     if (e.key !== MENU_KEY) return;
     if (phase !== 'play') return;
     e.preventDefault(); // sonst springt der Fokus (z. B. bei Tab)
@@ -208,7 +235,7 @@ function handleClick(e) {
     const country = state.countries.get(owner);
     toast(`Du spielst jetzt: ${country.name}`);
     // Auf das gewählte Land zoomen.
-    cam.zoom = Math.min(ZOOM_MAX, 4);
+    cam.zoom = FOCUS_ZOOM;
     centerOn(cam, country.centroid.x, country.centroid.y, canvas.width, canvas.height);
     renderPanel(state, phase);
     requestRender();
@@ -310,19 +337,24 @@ function handleCancelTrain(id) {
   const res = cancelTrain(id);
   if (!res.ok) toast(res.reason);
   renderPanel(getState(), phase);
+  if (isWarMenuOpen()) renderWarMenu(); // Zugliste im Logistik-Reiter auffrischen
   requestRender();
 }
 
+// Baut ein Gebäude auf dem gewählten Feld. Wird vom Seitenpanel UND vom
+// Bau-Reiter des Spielmenüs benutzt (eine Quelle für die Bauaktion).
 function handleBuild(buildingId) {
   const state = getState();
-  if (!state.selected) return;
+  if (!state.selected) { toast('Erst ein eigenes Feld wählen.'); return; }
   const { q, r } = state.selected;
   const result = placeBuilding(q, r, buildingId);
   if (!result.ok) {
     toast(result.reason);
     return;
   }
+  toast(`Bau begonnen: ${BUILDING_BY_ID.get(buildingId)?.label ?? buildingId}`);
   renderPanel(state, phase);
+  if (isWarMenuOpen()) renderWarMenu();
   requestRender();
 }
 

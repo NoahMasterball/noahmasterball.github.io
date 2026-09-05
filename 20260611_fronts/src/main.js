@@ -3,7 +3,6 @@
 import { MODES } from './config/constants.js';
 import { initMenu } from './scenes/menu.js';
 import { startGameScene } from './scenes/game.js';
-import { startShooterScene } from './scenes/shooter.js';
 import { showScene } from './core/scenes.js';
 import { initUiSounds } from './core/audio.js';
 import { initSettingsMenu } from './ui/settingsmenu.js';
@@ -19,14 +18,9 @@ function startStrategy(modeId) {
   startGameScene(mode, backToMenu);
 }
 
-// MCF-Shooter starten (Setup-Konfiguration aus dem Menü).
-function startShooter(config) {
-  startShooterScene(config, backToMenu);
-}
-
 function main() {
   initUiSounds();      // Globaler Klick-Klang für alle Buttons (eine Bindung)
-  initMenu({ onStartStrategy: startStrategy, onStartShooter: startShooter });
+  initMenu({ onStartStrategy: startStrategy });
   initSettingsMenu();  // Zahnrad-Knopf + Einstellungs-Overlay im Hauptmenü
 }
 

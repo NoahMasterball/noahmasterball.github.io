@@ -1,0 +1,712 @@
+/* ============================================================
+   Geburtstagswochenende 25.–27.09.2026
+   Design-Tokens: alle Farben/Abstände nur hier (SSOT)
+   ============================================================ */
+
+:root {
+  /* Grundfarben */
+  --bg: #0b0b0e;
+  --bg-soft: #131318;
+  --ink: #f2f0ea;
+  --muted: #9a978f;
+  --line: rgba(242, 240, 234, 0.14);
+
+  /* Tages-Akzente */
+  --c-fri: #ff6b4a;   /* Freitag — Essen */
+  --c-sat: #2ec5d3;   /* Samstag — Therme */
+  --c-sun: #c8ff3d;   /* Sonntag — Lasertag */
+
+  /* Aktiver Akzent — wird per data-theme auf <body> umgeschaltet */
+  --accent: var(--c-fri);
+
+  /* Typografie */
+  --font-display: "Syne", sans-serif;
+  --font-body: "Space Grotesk", sans-serif;
+
+  /* Layout */
+  --pad: clamp(1.25rem, 4vw, 4rem);
+  --nav-h: 4rem;
+  --radius: 4px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body[data-theme="fri"]  { --accent: var(--c-fri); }
+body[data-theme="sat"]  { --accent: var(--c-sat); }
+body[data-theme="sun"]  { --accent: var(--c-sun); }
+body[data-theme="hero"] { --accent: var(--c-fri); }
+
+/* ---------- Reset / Basis ---------- */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: clamp(1rem, 0.95rem + 0.3vw, 1.125rem);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+img { max-width: 100%; display: block; }
+
+/* Author-Styles (display:flex etc.) dürfen [hidden] nicht aushebeln */
+[hidden] { display: none !important; }
+
+a { color: inherit; }
+
+::selection {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* Körnung über allem — verhindert den sterilen Gradient-Look */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------- Scroll-Progress ---------- */
+
+.progress {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  z-index: 200;
+}
+
+.progress span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: background 0.4s;
+}
+
+/* ---------- Navigation ---------- */
+
+.nav {
+  position: fixed;
+  top: 2px; left: 0; right: 0;
+  z-index: 100;
+  height: var(--nav-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 var(--pad);
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+
+.nav__brand {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nav__brand span { color: var(--accent); transition: color 0.4s; }
+
+.nav__brand em {
+  font-style: normal;
+  font-size: 0.6em;
+  vertical-align: 0.25em;
+  margin-left: 0.35em;
+  color: var(--muted);
+}
+
+.nav__links {
+  display: flex;
+  gap: clamp(1rem, 3vw, 2.5rem);
+}
+
+.nav__links a {
+  text-decoration: none;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  transition: color 0.2s;
+}
+
+.nav__links a:hover { color: var(--ink); }
+
+.nav__count {
+  font-size: 0.8rem;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  transition: color 0.4s;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .nav__count { display: none; }
+}
+
+/* ---------- Hero ---------- */
+
+.hero {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: calc(var(--nav-h) + 2rem) var(--pad) 5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero__blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.hero__blob--a {
+  width: 55vw; height: 55vw;
+  background: var(--c-fri);
+  top: -18vw; right: -12vw;
+  animation: drift 26s ease-in-out infinite alternate;
+}
+
+.hero__blob--b {
+  width: 45vw; height: 45vw;
+  background: var(--c-sat);
+  bottom: -20vw; left: -10vw;
+  animation: drift 32s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes drift {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(-6vw, 5vw) scale(1.15); }
+}
+
+.hero__eyebrow,
+.plan__eyebrow {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--muted);
+  margin-bottom: clamp(1.5rem, 4vh, 3rem);
+  padding-left: 0.25rem;
+}
+
+.hero__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: min(8.5vw, 8.5rem); /* 9 Glyphen "LASERTAG." müssen in 90vw passen */
+  line-height: 0.96;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.hero__title .line { display: block; }
+
+.hero__title em { font-style: normal; }
+
+/* Wortfarben = Tagesfarben, mit Hover-Rückmeldung */
+.t-fri { color: var(--c-fri); }
+.t-sat { color: var(--c-sat); }
+.t-sun { color: var(--c-sun); }
+
+.hero__title em {
+  transition: opacity 0.25s;
+}
+
+.hero__title:hover em { opacity: 0.35; }
+.hero__title em:hover { opacity: 1; }
+
+.hero__sub {
+  margin-top: clamp(1.5rem, 4vh, 2.5rem);
+  font-size: clamp(1.05rem, 1.6vw, 1.35rem);
+  color: var(--muted);
+  max-width: 34ch;
+}
+
+/* ---------- Countdown ---------- */
+
+.countdown {
+  display: flex;
+  gap: clamp(0.5rem, 2vw, 1rem);
+  margin-top: clamp(2rem, 5vh, 3.5rem);
+}
+
+.countdown__cell {
+  min-width: clamp(4.2rem, 9vw, 6rem);
+  padding: 0.9rem 0.6rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  text-align: center;
+  background: color-mix(in srgb, var(--bg-soft) 80%, transparent);
+}
+
+.countdown__cell b {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.6rem, 4vw, 2.6rem);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown__cell span {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+}
+
+.countdown__done {
+  margin-top: 2rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  color: var(--accent);
+}
+
+.hero__scroll {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  translate: -50% 0;
+  width: 1.5rem; height: 2.6rem;
+  border: 1.5px solid var(--muted);
+  border-radius: 999px;
+  display: grid;
+  justify-content: center;
+  padding-top: 0.5rem;
+}
+
+.hero__scroll span {
+  width: 3px; height: 0.6rem;
+  border-radius: 999px;
+  background: var(--accent);
+  animation: scrollHint 1.6s ease-in-out infinite;
+}
+
+@keyframes scrollHint {
+  0%, 100% { transform: translateY(0); opacity: 1; }
+  70%      { transform: translateY(0.7rem); opacity: 0; }
+}
+
+/* ---------- Marquee ---------- */
+
+.marquee {
+  overflow: hidden;
+  border-block: 1px solid var(--line);
+  padding: 0.9rem 0;
+  background: var(--bg-soft);
+}
+
+.marquee__track {
+  display: flex;
+  width: max-content;
+  animation: marquee 28s linear infinite;
+}
+
+.marquee__track span {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1rem, 2.2vw, 1.5rem);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+@keyframes marquee {
+  to { transform: translateX(-50%); }
+}
+
+/* ---------- Tages-Sektionen ---------- */
+
+.day {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: clamp(2rem, 5vw, 5rem);
+  align-items: center;
+  padding: clamp(5rem, 14vh, 9rem) var(--pad);
+  min-height: 100svh;
+  scroll-margin-top: var(--nav-h);
+  overflow: hidden;
+}
+
+.day--flip { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); }
+.day--flip .day__meta  { order: 2; }
+.day--flip .day__media { order: 1; }
+
+/* Riesige Nummer im Hintergrund */
+.day__num {
+  position: absolute;
+  top: 0.5rem;
+  right: var(--pad);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(8rem, 24vw, 20rem);
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1px var(--line);
+  user-select: none;
+  pointer-events: none;
+}
+
+.day--flip .day__num { right: auto; left: var(--pad); }
+
+.day__tag {
+  display: inline-block;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--day-accent);
+  border-radius: 999px;
+  color: var(--day-accent);
+  margin-bottom: 1.5rem;
+}
+
+.day__title,
+.plan__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(2.4rem, 5vw, 4.6rem);
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: -0.015em;
+  margin-bottom: 1.5rem;
+}
+
+.day__copy {
+  color: var(--muted);
+  max-width: 46ch;
+  margin-bottom: 2rem;
+}
+
+.day__facts {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.day__facts li {
+  font-size: 0.82rem;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 0.95rem;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+}
+
+.day__facts li::before {
+  content: "→ ";
+  color: var(--day-accent);
+}
+
+/* Tagesfarbe pro Sektion (steuert Pills & Bildrahmen) */
+.day--fri { --day-accent: var(--c-fri); }
+.day--sat { --day-accent: var(--c-sat); }
+.day--sun { --day-accent: var(--c-sun); }
+
+/* ---------- Bild-Collagen ---------- */
+
+.day__media {
+  position: relative;
+  display: grid;
+  /* minmax(0,·): Bild-Intrinsics dürfen die Tracks nicht aufblähen */
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: 4vw;
+  min-height: min(70vh, 42rem);
+  align-content: center;
+}
+
+.ph {
+  position: relative;
+  min-width: 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  will-change: transform;
+}
+
+.ph img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.7s var(--ease-out);
+}
+
+.ph:hover img { transform: scale(1.045); }
+
+.ph figcaption {
+  position: absolute;
+  left: 0.8rem;
+  bottom: 0.8rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(11, 11, 14, 0.72);
+  border: 1px solid var(--day-accent);
+  color: var(--ink);
+  backdrop-filter: blur(6px);
+}
+
+.ph--lg { grid-column: 1 / 9;  grid-row: 1 / span 9;  z-index: 1; }
+
+/* Caption des großen Bilds nach oben — unten überlappt die Collage */
+.ph--lg figcaption { top: 0.8rem; bottom: auto; }
+.ph--sm { grid-column: 8 / 13; grid-row: 3 / span 5;  z-index: 2; rotate: 1.5deg; }
+.ph--md { grid-column: 3 / 10; grid-row: 8 / span 6;  z-index: 3; rotate: -1.2deg; }
+
+/* ---------- Zeitplan ---------- */
+
+.plan {
+  padding: clamp(5rem, 12vh, 8rem) var(--pad);
+  border-top: 1px solid var(--line);
+  scroll-margin-top: var(--nav-h);
+}
+
+.plan__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(1.25rem, 3vw, 3rem);
+  margin-top: clamp(2rem, 5vh, 3.5rem);
+}
+
+.plan__day {
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--day-accent);
+  border-radius: var(--radius);
+  padding: clamp(1.4rem, 2.5vw, 2rem);
+}
+
+/* gleiche Farb-Variable wie in den Tages-Sektionen */
+.plan__day--fri { --day-accent: var(--c-fri); }
+.plan__day--sat { --day-accent: var(--c-sat); }
+.plan__day--sun { --day-accent: var(--c-sun); }
+
+.plan__day h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.plan__day h3 span {
+  color: var(--day-accent);
+  margin-left: 0.4rem;
+}
+
+.plan__day ol {
+  list-style: none;
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  border-left: 1px solid var(--line);
+  padding-left: 1.25rem;
+}
+
+.plan__day li {
+  position: relative;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+
+.plan__day li::before {
+  content: "";
+  position: absolute;
+  left: calc(-1.25rem - 5px);
+  top: 0.35em;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--day-accent);
+  box-shadow: 0 0 0 3px var(--bg-soft);
+}
+
+.plan__day li b {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--day-accent);
+  margin-bottom: 0.2rem;
+}
+
+/* ---------- Outro ---------- */
+
+.outro {
+  position: relative;
+  min-height: 85svh;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  overflow: hidden;
+  border-top: 1px solid var(--line);
+}
+
+.outro__bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.18;
+  filter: saturate(0.7);
+}
+
+.outro__inner { position: relative; padding: 4rem var(--pad); }
+
+.outro__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(2.5rem, 10.5vw, 9rem);
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.outro__sub {
+  margin-top: 2rem;
+  font-size: clamp(1rem, 1.8vw, 1.3rem);
+  color: var(--muted);
+}
+
+.outro__sub strong { color: var(--accent); transition: color 0.4s; }
+
+/* ---------- Footer ---------- */
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 1.5rem var(--pad);
+  border-top: 1px solid var(--line);
+  font-size: 0.8rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+/* ---------- Reveal-Animationen ---------- */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.8s var(--ease-out) var(--d, 0s),
+    transform 0.8s var(--ease-out) var(--d, 0s);
+}
+
+.reveal.is-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Parallax-Bilder: nach dem Einblenden kurze lineare Transition,
+   sonst zieht die 0.8s-Reveal-Kurve jede Scroll-Bewegung nach */
+.ph.is-in {
+  transition:
+    opacity 0.8s var(--ease-out) var(--d, 0s),
+    transform 0.2s linear;
+}
+
+/* ---------- Mobile ---------- */
+
+@media (max-width: 860px) {
+  .day,
+  .day--flip {
+    /* minmax(0,·) statt 1fr — sonst Grid-Blowout durch die Bild-Collage */
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+    padding-block: 4.5rem;
+  }
+
+  .day--flip .day__meta  { order: 1; }
+  .day--flip .day__media { order: 2; }
+
+  .day__media {
+    grid-auto-rows: 9vw;
+    min-height: 0;
+    margin-top: 1rem;
+  }
+
+  .day__num { font-size: 34vw; opacity: 0.7; }
+
+  .plan__grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .nav__brand { font-size: 0.95rem; }
+  .nav__brand em { display: none; }
+
+  /* Links dürfen bei sehr schmalen Screens seitlich gescrollt werden */
+  .nav__links {
+    gap: 0.75rem;
+    flex: 1;
+    min-width: 0;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-left: 0.75rem;
+  }
+
+  .nav__links::-webkit-scrollbar { display: none; }
+
+  .nav__links a {
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+}
+
+/* ---------- Reduced Motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .marquee__track,
+  .hero__blob,
+  .hero__scroll span {
+    animation: none;
+  }
+
+  .ph { transform: none !important; }
+}

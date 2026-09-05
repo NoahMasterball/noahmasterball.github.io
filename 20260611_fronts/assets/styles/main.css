@@ -31,12 +31,6 @@
      Der Breakpoint-Wert selbst (640px) kann nicht als CSS-Variable in der
      @media-Bedingung stehen, daher als Kommentar dokumentiert. */
   --mobile-panel-h: 50vh; /* Höhe des unteren Seitenpanels auf dem Handy */
-
-  /* MCF-Shooter — HP-Balkenfarben (auch im Canvas als COL_HP_* gespiegelt). */
-  --sh-hp-good: #5fbf6a;
-  --sh-hp-low: #d0553a;
-  --sh-team-a: #4a8cff;
-  --sh-team-b: #e2554b;
 }
 
 * {
@@ -161,349 +155,6 @@ body {
   bottom: var(--gap-md);
   color: var(--col-text-dim);
   font-size: 0.8rem;
-}
-
-/* Menü-Stufen (Spieltyp → Strategie / Shooter) */
-.menu-back {
-  position: absolute;
-  top: var(--gap-md);
-  left: var(--gap-md);
-}
-.menu-panel {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--gap-md);
-}
-
-/* MCF-Setup-Formular */
-#shooter-panel {
-  width: min(460px, 92vw);
-  background: var(--col-panel);
-  border: 1px solid var(--col-border);
-  border-radius: var(--radius);
-  padding: var(--gap-lg);
-  gap: var(--gap-lg);
-}
-.sh-setup-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--gap-md);
-  width: 100%;
-}
-.sh-setup-label {
-  color: var(--col-text-dim);
-  font-size: 0.95rem;
-}
-.sh-setup-name {
-  flex: 1;
-  max-width: 220px;
-  background: var(--col-bg-soft);
-  color: var(--col-text);
-  border: 1px solid var(--col-border);
-  border-radius: var(--radius);
-  padding: var(--gap-sm) var(--gap-md);
-  font-family: inherit;
-  font-size: 1rem;
-}
-.sh-setup-name:focus {
-  outline: none;
-  border-color: var(--col-accent);
-}
-.sh-seg {
-  display: flex;
-  gap: var(--gap-xs);
-  background: var(--col-bg-soft);
-  border: 1px solid var(--col-border);
-  border-radius: var(--radius);
-  padding: var(--gap-xs);
-}
-.sh-seg-btn {
-  background: transparent;
-  color: var(--col-text-dim);
-  border: none;
-  border-radius: var(--radius);
-  padding: var(--gap-xs) var(--gap-md);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 0.9rem;
-  transition: color var(--transition), background var(--transition);
-}
-.sh-seg-btn.active {
-  color: #06101f;
-  background: var(--col-accent);
-  font-weight: 700;
-}
-.sh-setup-desc {
-  color: var(--col-text-dim);
-  font-size: 0.9rem;
-  text-align: center;
-  min-height: 1.2em;
-}
-.sh-setup-start {
-  width: 100%;
-  background: var(--col-accent);
-  color: #06101f;
-  border: none;
-  border-radius: var(--radius);
-  padding: var(--gap-md);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 1.1rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  transition: background var(--transition);
-}
-.sh-setup-start:hover {
-  background: var(--col-accent-hover);
-}
-
-/* --- MCF-Shooter-Szene ---------------------------------------------------- */
-#scene-shooter {
-  flex-direction: column;
-}
-#shooter-canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  cursor: crosshair;
-}
-#shooter-ui {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  font-variant-numeric: tabular-nums;
-}
-#shooter-ui button,
-#shooter-ui .sh-buy,
-#shooter-ui .sh-over {
-  pointer-events: auto;
-}
-
-/* Top-HUD */
-.sh-hud {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 52px;
-  display: flex;
-  align-items: center;
-  gap: var(--gap-lg);
-  padding: 0 var(--gap-md);
-  background: rgba(14, 17, 23, 0.82);
-  border-bottom: 1px solid var(--col-border);
-  backdrop-filter: blur(6px);
-}
-.sh-hp {
-  display: flex;
-  align-items: center;
-  gap: var(--gap-sm);
-  min-width: 120px;
-}
-.sh-hp-bar {
-  display: inline-block;
-  width: 90px;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-  overflow: hidden;
-}
-.sh-hp-bar i {
-  display: block;
-  height: 100%;
-  width: 100%;
-  background: var(--sh-hp-good);
-  transition: width 90ms linear;
-}
-.sh-money {
-  color: #ffd36b;
-  font-weight: 800;
-  font-size: 1.1rem;
-}
-.sh-round {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.1;
-}
-.sh-score {
-  color: var(--col-text-dim);
-  font-size: 0.8rem;
-}
-.sh-weapon {
-  margin-left: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  line-height: 1.1;
-}
-.sh-weapon > span:first-child {
-  font-weight: 700;
-}
-.sh-ammo {
-  color: var(--col-text-dim);
-  font-size: 0.85rem;
-}
-.sh-nade {
-  font-size: 1rem;
-}
-
-/* Killfeed */
-.sh-killfeed {
-  position: absolute;
-  top: 60px;
-  right: var(--gap-md);
-  display: flex;
-  flex-direction: column;
-  gap: var(--gap-xs);
-  align-items: flex-end;
-}
-.sh-kill {
-  background: rgba(14, 17, 23, 0.7);
-  border: 1px solid var(--col-border);
-  border-radius: var(--radius);
-  padding: 2px var(--gap-sm);
-  font-size: 0.82rem;
-}
-.sh-kill i {
-  color: var(--col-text-dim);
-  font-style: normal;
-}
-.sh-kill.crit {
-  border-color: #ffd36b;
-  color: #ffe6a3;
-}
-
-/* Zentrales Banner */
-.sh-banner {
-  position: absolute;
-  top: 90px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(14, 17, 23, 0.82);
-  border: 1px solid var(--col-border);
-  border-radius: var(--radius);
-  padding: var(--gap-sm) var(--gap-lg);
-  font-weight: 700;
-  letter-spacing: 0.03em;
-}
-
-/* Buy-Menü */
-.sh-buy {
-  position: absolute;
-  left: 50%;
-  bottom: var(--gap-lg);
-  transform: translateX(-50%);
-  width: min(880px, 94vw);
-  display: flex;
-  flex-direction: column;
-  gap: var(--gap-md);
-  background: rgba(14, 17, 23, 0.94);
-  border: 1px solid var(--col-border);
-  border-radius: var(--radius);
-  padding: var(--gap-md) var(--gap-lg);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-}
-.sh-buy-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-}
-.sh-buy-money {
-  color: #ffd36b;
-  font-weight: 800;
-}
-.sh-buy-cols {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--gap-md);
-}
-.sh-buy-col h4 {
-  color: var(--col-text-dim);
-  font-size: 0.85rem;
-  margin-bottom: var(--gap-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.sh-buy-item {
-  display: grid;
-  width: 100%;
-  margin-bottom: var(--gap-xs);
-  background: var(--col-panel);
-  color: var(--col-text);
-  border: 1px solid var(--col-border);
-  border-radius: var(--radius);
-  padding: var(--gap-xs) var(--gap-sm);
-  cursor: pointer;
-  font-family: inherit;
-  text-align: left;
-  transition: border-color var(--transition);
-}
-.sh-buy-item:hover:not(:disabled) {
-  border-color: var(--col-accent);
-}
-.sh-buy-item:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-.sh-buy-name {
-  font-weight: 700;
-  font-size: 0.9rem;
-}
-.sh-buy-stat {
-  color: var(--col-text-dim);
-  font-size: 0.72rem;
-}
-.sh-buy-price {
-  color: #ffd36b;
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-.sh-buy-hint {
-  color: var(--col-text-dim);
-  font-size: 0.78rem;
-  text-align: center;
-}
-
-/* Match-Ende-Overlay */
-.sh-over {
-  position: absolute;
-  inset: 0;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: rgba(8, 11, 16, 0.72);
-  backdrop-filter: blur(3px);
-}
-.sh-over-panel {
-  background: var(--col-bg-soft);
-  border: 1px solid var(--col-border);
-  border-radius: var(--radius);
-  padding: var(--gap-lg) var(--gap-xl);
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: var(--gap-md);
-}
-.sh-over-panel h2 {
-  font-size: 2rem;
-}
-.sh-over-actions {
-  display: flex;
-  gap: var(--gap-md);
-  justify-content: center;
-}
-
-@media (max-width: 640px) {
-  .sh-buy-cols {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .sh-hud {
-    gap: var(--gap-md);
-    flex-wrap: wrap;
-    height: auto;
-  }
 }
 
 /* Einstellungen-Öffner (Zahnrad, oben rechts im Hauptmenü). */
@@ -857,6 +508,7 @@ body {
 
 .war-tabs {
   display: flex;
+  flex-wrap: wrap; /* der Hub hat viele Reiter — auf schmalen Schirmen umbrechen */
   gap: var(--gap-xs);
   padding: var(--gap-sm) var(--gap-lg) 0;
   border-bottom: 1px solid var(--col-border);
@@ -991,6 +643,43 @@ body {
   grid-column: 1 / -1;
   color: var(--col-ww2-hover);
   font-size: 0.75rem;
+}
+
+/* Übersichts-Reiter des Spielmenüs: Kennzahlen als Kachelraster */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--gap-sm);
+  margin-bottom: var(--gap-lg);
+}
+.stat-card {
+  background: var(--col-panel);
+  border: 1px solid var(--col-border);
+  border-radius: var(--radius);
+  padding: var(--gap-sm) var(--gap-md);
+}
+.stat-label {
+  color: var(--col-text-dim);
+  font-size: 0.8rem;
+}
+.stat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin: 2px 0;
+}
+.stat-hint {
+  color: var(--col-text-dim);
+  font-size: 0.75rem;
+}
+
+/* Sicht-Umschalter im Menü: gleiche Knöpfe, aber im Fluss statt schwebend */
+.view-switch-inline {
+  position: static;
+  background: transparent;
+  border: none;
+  padding: 0;
+  backdrop-filter: none;
 }
 
 /* --- Seitenpanel: Krieg (Armee, Truppenbau, Angriff, Weltgeschehen) ------- */
