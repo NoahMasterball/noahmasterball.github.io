@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"
+     data-title="Mongolian Death Worm – Glyph"
+     data-description="The Mongolian Death Worm as a glyph built from circles: segments rise out of a Gobi dune to a round, toothed maw that hangs over the horizon like a desert sun. Holo sticker."
+     data-cryptid="Mongolian Death Worm"
+     data-direction="C"
+     data-finish="holo"
+     data-palettes="printstream asiimov vulcan neonoir"
+     data-mechanic="none"
+     data-note="Glyphe aus Kreisen: Segmente wachsen aus der Gobi-Düne zum runden Zahnmaul; der Schlund steht wie eine Wüstensonne über dem Horizont (Holo = glühender Schlund). Set-Idee: jede Glyphe spielt mit derselben Bodenlinie – er taucht auf, der Goblin schwebt.">
+  <!-- Glyphen-System C: Raster 64 px · Linie 64 (rund) · Kopf/Maul-Kreis r160 · Boden y864
+       Stanzform = Linien + 32 Papier (128) + w-outline 36 zentriert auf der Papierkante (164). -->
+  <defs>
+    <clipPath id="above-ground"><rect width="1024" height="864"/></clipPath>
+    <circle id="seg3" cx="448" cy="800" r="96"/>
+    <circle id="seg2" cx="408" cy="664" r="112"/>
+    <circle id="seg1" cx="440" cy="500" r="128"/>
+    <circle id="maw" cx="544" cy="320" r="160"/>
+    <path id="ground" d="M240 864 H784"/>
+    <!-- ein Zahn, 12× um den Maulmittelpunkt gedreht; Basis liegt unter dem Ring -->
+    <path id="tooth" d="M507.8 184.8 L544 236 L580.2 184.8 Z"/>
+    <g id="shape">
+      <use href="#seg3" clip-path="url(#above-ground)"/>
+      <use href="#seg2"/><use href="#seg1"/><use href="#maw"/><use href="#ground"/>
+    </g>
+  </defs>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <g class="f-outline s-outline" stroke-width="164"><use href="#shape"/></g>
+    <g class="f-paper s-paper" stroke-width="128"><use href="#shape"/></g>
+    <g class="f-paper s-ink" stroke-width="64">
+      <use href="#shape"/>
+    </g>
+    <circle class="f-accent" cx="544" cy="320" r="140"/>
+    <g class="f-paper">
+      <use href="#tooth"/><use href="#tooth" transform="rotate(30 544 320)"/><use href="#tooth" transform="rotate(60 544 320)"/>
+      <use href="#tooth" transform="rotate(90 544 320)"/><use href="#tooth" transform="rotate(120 544 320)"/><use href="#tooth" transform="rotate(150 544 320)"/>
+      <use href="#tooth" transform="rotate(180 544 320)"/><use href="#tooth" transform="rotate(210 544 320)"/><use href="#tooth" transform="rotate(240 544 320)"/>
+      <use href="#tooth" transform="rotate(270 544 320)"/><use href="#tooth" transform="rotate(300 544 320)"/><use href="#tooth" transform="rotate(330 544 320)"/>
+    </g>
+    <use href="#maw" class="s-ink" fill="none" stroke-width="64"/>
+  </g>
+</svg>

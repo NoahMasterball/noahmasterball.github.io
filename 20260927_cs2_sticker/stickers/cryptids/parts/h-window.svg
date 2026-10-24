@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Richtung H (Dreamcore): Bogenfenster mit Pastellhimmel, Wolkenbank, Glitzer, Rahmen.
+       Slot #scene in <defs> des Stickers: wird im Fenster (beschnitten) über der Wolkenbank gezeichnet.
+       Eigene Kinder des Stickers liegen über dem Rahmen (z. B. Glitzer, der hinausragt). Keine Schrift. -->
+  <defs>
+    <g data-include="fx-stars"/>
+    <path id="h-arch" d="M212 860V480A300 300 0 0 1 812 480V860Z"/>
+    <clipPath id="h-clip"><use xlink:href="#h-arch"/></clipPath>
+    <linearGradient id="h-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" class="sc-accent"/>
+      <stop offset="0.5" class="sc-paper"/>
+      <stop offset="1" class="sc-accent2"/>
+    </linearGradient>
+    <filter id="h-blur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+
+  <use xlink:href="#h-arch" class="f-outline s-outline w-outline" stroke-linejoin="round"/>
+  <use xlink:href="#h-arch" fill="url(#h-sky)"/>
+  <g clip-path="url(#h-clip)">
+    <g class="f-glow" filter="url(#h-blur)" opacity="0.95">
+      <circle cx="240" cy="840" r="110"/><circle cx="380" cy="880" r="120"/><circle cx="530" cy="860" r="110"/>
+      <circle cx="680" cy="880" r="120"/><circle cx="810" cy="840" r="110"/>
+      <circle cx="300" cy="300" r="40" opacity="0.6"/><circle cx="340" cy="290" r="52" opacity="0.6"/>
+      <circle cx="700" cy="250" r="36" opacity="0.6"/><circle cx="736" cy="262" r="44" opacity="0.6"/>
+    </g>
+    <use xlink:href="#scene"/>
+  </g>
+  <use xlink:href="#h-arch" fill="none" class="s-ink2 w-bold" stroke-linejoin="round"/>
+  <use xlink:href="#h-arch" fill="none" class="s-glow w-fine" opacity="0.8" transform="translate(512 520) scale(0.955) translate(-512 -520)"/>
+  <use xlink:href="#d-star" transform="translate(286 236) scale(0.55)"/>
+  <use xlink:href="#d-star" transform="translate(770 380) scale(0.4)"/>
+  <use xlink:href="#d-star" transform="translate(250 560) scale(0.35)"/>
+</svg>

@@ -1,0 +1,7 @@
+__pycache__/
+# Valve-Ressourcen (UV-Sheets, Waffenmodelle) — groß, nicht unsere Rechte (SPEC §6.3)
+assets/
+# Generiert und reproduzierbar: python pipeline/cli.py build
+stickers/*/out/
+preview/manifest.js
+paintkits/out/

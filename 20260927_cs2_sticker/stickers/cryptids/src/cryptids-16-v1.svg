@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1024 1024" width="1024" height="1024"
+     stroke-linejoin="round" stroke-linecap="round"
+     data-title="Bigfoot – Shift Walk"
+     data-description="Bigfoot is known for huge, loud footprints – here he tiptoes across a giant SHIFT key, finger on his lips. Paper sticker from the de_wildlife series."
+     data-cryptid="Bigfoot"
+     data-direction="E"
+     data-finish="paper"
+     data-palettes="dust"
+     data-mechanic="none"
+     data-note="Bigfoot ist berühmt für seine riesigen, lauten Schritte – hier schleicht er auf Zehenspitzen über eine riesige SHIFT-Taste, Finger auf den Lippen: Shift-Walk, damit ihn keiner hört.">
+  <defs>
+    <!-- SHIFT-Taste: Seitenwände + Oberseite -->
+    <path id="keySkirt" d="M 176,760 H 848 L 916,888 C 926,908 912,926 890,926 H 134 C 112,926 98,908 108,888 Z"/>
+    <rect id="keyTop" x="170" y="690" width="684" height="164" rx="36"/>
+    <g id="keySil"><use href="#keySkirt"/><use href="#keyTop"/></g>
+    <clipPath id="keyTopClip"><use href="#keyTop"/></clipPath>
+
+    <!-- Bigfoot (blickt nach rechts), Teile ohne Farbe -->
+    <path id="farLeg" d="M 470,500 C 484,505 490,530 488,548 C 486,566 467,593 456,610 C 445,627 433,643 420,650 C 407,657 395,655 380,652 C 365,649 344,636 330,630 C 316,624 302,622 296,614 C 290,606 284,584 292,580 C 300,576 327,588 344,588 Q 352,580 371,574 Q 369,585 370,588 Q 374,578 389,563 Q 388,577 392,580 Q 387,573 383,553 Q 393,552 397,551 Q 388,537 385,513 Q 399,521 404,520 C 417,507 456,495 470,500 Z"/>
+    <path id="farFoot" d="M 314,507 C 323,514 331,531 330,546 C 329,561 315,578 308,595 C 300,613 293,637 285,650 C 276,663 269,674 256,676 C 244,677 223,670 210,661 C 197,652 182,635 181,622 C 179,608 190,592 201,579 C 211,567 233,560 245,547 C 257,535 260,514 272,507 C 283,500 304,501 314,507 Z"/>
+    <path id="farToes" d="M 211,692 A 23,23 0 1,0 257,692 A 23,23 0 1,0 211,692 Z M 177,680 A 20,20 0 1,0 217,680 A 20,20 0 1,0 177,680 Z M 156,658 A 17,17 0 1,0 190,658 A 17,17 0 1,0 156,658 Z M 144,633 A 15,15 0 1,0 174,633 A 15,15 0 1,0 144,633 Z M 148,606 A 13,13 0 1,0 174,606 A 13,13 0 1,0 148,606 Z"/>
+    <path id="torso" d="M 690,300 C 706,324 710,332 714,352 C 718,372 718,398 714,420 C 710,442 704,464 692,482 C 680,500 664,515 642,526 C 620,537 589,542 560,546 C 531,550 495,552 470,548 C 445,544 426,536 410,520 Q 395,517 376,502 Q 385,492 387,489 Q 371,481 353,458 Q 368,454 372,450 Q 362,442 353,423 Q 366,423 369,421 Q 359,411 352,387 Q 367,392 372,391 Q 360,379 355,350 Q 372,361 378,360 Q 372,348 372,325 Q 384,329 388,329 Q 382,315 385,288 Q 397,297 403,298 Q 396,282 402,253 Q 414,269 420,270 Q 419,257 428,236 Q 437,245 441,246 Q 441,231 454,209 Q 460,223 465,226 Q 465,210 482,186 Q 485,206 490,210 Q 499,196 520,180 Q 528,191 531,194 Q 543,180 568,167 Q 567,183 570,188 C 592,188 600,191 620,210 C 640,229 674,276 690,300 Z"/>
+    <path id="head" d="M 600,250 Q 587,243 575,226 Q 586,223 589,220 Q 579,210 573,188 Q 586,191 590,190 Q 584,179 583,158 Q 593,160 597,159 Q 592,146 595,123 Q 605,132 610,132 Q 609,120 616,102 Q 624,109 628,110 Q 629,97 643,80 Q 645,95 648,98 C 661,95 678,107 690,116 C 702,125 713,144 722,154 C 731,164 743,170 746,178 C 749,186 742,194 742,200 C 742,206 742,208 746,214 C 750,220 762,230 764,236 C 766,242 757,247 758,252 C 759,257 768,262 768,268 C 768,274 765,284 758,290 C 751,296 739,302 726,304 C 713,306 701,311 680,302 C 659,293 615,269 600,250 Z"/>
+    <path id="face" d="M 704,150 C 713,148 740,170 746,178 C 752,186 742,194 742,200 C 742,206 742,208 746,214 C 750,220 762,230 764,236 C 766,242 757,247 758,252 C 759,257 768,262 768,268 C 768,274 765,284 758,290 C 751,296 737,304 726,304 C 715,304 701,301 694,292 C 687,283 685,267 684,250 C 683,233 687,207 690,190 C 693,173 695,152 704,150 Z"/>
+    <path id="nearLeg" d="M 540,500 C 560,493 601,509 622,520 C 643,531 656,553 664,568 C 672,583 671,598 670,612 C 669,626 660,639 656,652 C 652,665 656,683 648,690 C 640,697 614,699 606,694 C 598,689 601,672 598,660 Q 588,650 577,628 Q 585,622 588,620 Q 576,617 554,608 Q 555,596 556,592 Q 545,595 523,593 Q 524,582 524,578 Q 507,581 484,573 Q 498,565 500,560 C 497,545 520,507 540,500 Z"/>
+    <path id="nearFoot" d="M 600,668 C 609,667 635,670 646,676 C 657,682 661,696 668,704 C 675,712 681,720 690,724 C 699,728 717,727 724,730 C 731,733 734,741 730,744 C 726,747 712,750 700,750 C 688,750 672,749 660,746 C 648,743 637,737 626,730 C 615,723 602,712 596,704 C 590,696 589,690 590,684 C 591,678 591,669 600,668 Z"/>
+    <path id="nearToes" d="M 716,734 A 22,18 0 1,0 760,734 A 22,18 0 1,0 716,734 Z M 693,744 A 19,16 0 1,0 731,744 A 19,16 0 1,0 693,744 Z M 672,748 A 16,13 0 1,0 704,748 A 16,13 0 1,0 672,748 Z"/>
+    <path id="nearArm" d="M 588,318 Q 578,323 571,340 Q 583,338 586,340 Q 578,350 574,374 Q 587,368 592,369 Q 583,382 580,409 Q 594,399 600,400 Q 595,411 595,434 Q 606,433 610,434 Q 604,448 605,474 Q 618,468 622,468 Q 616,484 621,509 Q 630,493 636,492 C 650,506 667,496 682,484 C 697,472 712,443 724,420 C 736,397 754,363 754,346 C 754,329 733,313 722,320 C 711,327 700,370 690,388 C 680,406 669,433 662,430 C 655,427 653,393 650,372 C 647,351 652,315 642,306 C 632,297 595,302 588,318 Z"/>
+    <path id="fist" d="M 712,306 C 715,297 731,291 740,290 C 749,289 761,294 766,300 C 771,306 774,318 772,326 C 770,334 760,343 752,346 C 744,349 729,351 722,344 C 715,337 709,315 712,306 Z"/>
+    <path id="finger" d="M 754,312 C 751,305 756,285 758,272 C 760,259 760,242 764,236 C 768,230 779,230 782,236 C 785,242 781,259 780,272 C 779,285 780,307 776,314 C 772,321 757,319 754,312 Z"/>
+    <g id="farSide"><use href="#farLeg"/><use href="#farFoot"/><use href="#farToes"/></g>
+    <!-- Silhouette = SSoT für Stanzrand und Außenkontur -->
+    <g id="beastSil">
+      <use href="#farSide"/><use href="#torso"/><use href="#head"/>
+      <use href="#nearLeg"/><use href="#nearFoot"/><use href="#nearToes"/><use href="#nearArm"/><use href="#fist"/><use href="#finger"/>
+    </g>
+    <clipPath id="torsoClip"><use href="#torso"/></clipPath>
+  </defs>
+
+  <!-- Taste: Stanzrand, Seitenwände, Oberseite, Beschriftung -->
+  <use href="#keySil" class="f-outline s-outline w-outline"/>
+  <use href="#keySil" class="f-ink s-ink w-bold"/>
+  <g class="s-ink w-line">
+    <use href="#keySkirt" class="f-shade"/>
+    <use href="#keyTop" class="f-paper"/>
+    <rect x="160" y="690" width="700" height="30" class="f-shade" stroke="none" opacity="0.6" clip-path="url(#keyTopClip)"/>
+    <path d="M 214,712 H 810" fill="none" class="s-glow w-line" opacity="0.8"/>
+    <use href="#keyTop" fill="none"/>
+  </g>
+  <g class="f-accent">
+    <path d="M 250,788 L 290,748 L 330,788 H 308 V 828 H 272 V 788 Z"/>
+    <text x="358" y="834" font-size="104" font-weight="bold" class="t-sans">SHIFT</text>
+  </g>
+
+  <!-- Bigfoot: Stanzrand, Außenkontur, Flächen mit Innenlinien -->
+  <use href="#beastSil" class="f-outline s-outline w-outline"/>
+  <use href="#beastSil" class="f-ink s-ink w-bold"/>
+  <g class="s-ink w-line">
+    <use href="#farLeg" class="f-accent2"/>
+    <use href="#farLeg" class="f-ink" stroke="none" opacity="0.32"/>
+    <use href="#farFoot" class="f-shade"/><use href="#farToes" class="f-shade"/>
+    <use href="#torso" class="f-accent2"/>
+    <g clip-path="url(#torsoClip)" stroke="none" class="f-ink" opacity="0.18">
+      <path d="M 300,180 L 480,200 C 440,280 440,400 500,470 C 560,520 640,510 720,470 L 720,600 L 300,600 Z"/>
+    </g>
+    <use href="#nearLeg" class="f-accent2"/>
+    <use href="#nearFoot" class="f-shade"/>
+    <use href="#nearToes" class="f-shade"/>
+    <use href="#head" class="f-accent2"/>
+    <use href="#face" class="f-shade"/>
+    <ellipse cx="722" cy="206" rx="15" ry="12" class="f-glow"/>
+    <circle cx="714" cy="208" r="6" class="f-ink" stroke="none"/>
+    <path d="M 698,186 C 716,178 738,176 750,184" fill="none" class="s-ink w-bold"/>
+    <use href="#nearArm" class="f-accent2"/>
+    <use href="#fist" class="f-shade"/>
+    <use href="#finger" class="f-shade"/>
+  </g>
+</svg>

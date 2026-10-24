@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Richtung E „de_-Wildlife“: gesprühter Wegweiser-Pfeil (250 x 130, Spitze rechts, Ursprung oben links).
+       Farbe/Größe/Lage setzt der Include (class, transform). -->
+  <path d="M 0,40 H 150 V 0 L 250,65 L 150,130 V 90 H 0 Z"/>
+</svg>

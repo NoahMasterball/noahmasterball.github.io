@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Jersey Devil (aus cryptids-01). Formen ohne Füllklasse: Farbe/Kontur kommen vom <use>.
+       Einbinden in <defs>; #jd-creature = ganze Figur, Einzelteile jd-* für Gravuren. -->
+  <defs>
+    <!-- Kreatur-Formen ohne Füllklasse: Stanzrand, Kontur und Farbe kommen vom <use> -->
+    <path id="jd-wing" d="M528 340 C560 312 590 298 620 290 C660 240 700 180 730 140 C800 108 880 96 950 112 C905 165 915 230 962 282 C905 310 882 360 896 424 C850 418 806 446 782 500 C730 486 660 520 620 578 C596 520 560 420 528 340 Z"/>
+    <!-- Konstruktionslinie für die Membran-Gravur = Hinterkante von #wing (bei Änderung mitziehen) -->
+    <path id="jd-wing-trail" d="M950 112 C905 165 915 230 962 282 C905 310 882 360 896 424 C850 418 806 446 782 500 C730 486 660 520 620 578"/>
+    <path id="jd-wing-thumb" d="M722 146 C710 128 710 110 720 94 C726 114 734 126 744 136 Z"/>
+    <path id="jd-body" d="M424 198 C404 194 386 200 372 210 C350 226 306 254 280 272 C262 284 254 300 262 312 C266 318 272 322 282 322 L334 318 L276 348 C270 356 274 366 288 366 C320 366 346 360 364 360 C390 372 428 364 442 332 C444 366 430 404 422 440 C412 482 414 530 432 570 C446 600 472 626 506 634 C540 642 580 642 602 626 C620 610 628 580 622 545 C612 480 572 400 544 352 C522 300 480 244 446 214 C438 206 432 200 424 198 Z"/>
+    <path id="jd-horn" d="M396 210 C398 172 430 138 480 120 C492 116 504 112 510 110 C498 122 470 140 456 160 C444 176 436 194 432 214 Z"/>
+    <path id="jd-leg" d="M546 506 C500 524 462 596 458 648 C456 670 466 686 484 692 C514 700 540 712 548 724 C552 734 548 742 544 746 C540 750 536 752 534 754 L516 772 L558 772 L560 752 C566 744 574 732 584 720 C592 710 602 704 596 698 C584 694 540 674 518 654 C562 652 614 632 630 592 C642 552 602 502 546 506 Z"/>
+    <path id="jd-arm" d="M436 464 C464 470 484 502 478 532 C474 550 452 556 424 550 C412 548 404 540 400 530 C398 516 404 508 414 506 C432 506 450 506 458 494 C462 480 452 470 436 464 Z"/>
+    <path id="jd-claw" d="M0 -6 C-14 -6 -28 0 -36 14 C-26 6 -14 4 0 6 Z"/>
+    <path id="jd-tail" d="M614 584 C650 612 690 644 730 660 C760 672 790 670 806 646 C812 636 816 626 818 616 C812 602 806 588 804 570 C816 582 824 592 828 602 C840 596 852 590 868 586 C858 600 848 612 836 622 C834 640 828 654 820 664 C800 690 770 700 736 694 C690 684 640 660 602 624 Z"/>
+    <clipPath id="jd-clip-wing"><use href="#jd-wing"/></clipPath>
+    <!-- Flügel = Membran (erbt Farbe vom <use>) + Gravur: Hinterkante zum Handgelenk hin skaliert -->
+    <g id="jd-wing-set" stroke-linejoin="round" stroke-linecap="round">
+      <use href="#jd-wing"/>
+      <g fill="none" class="s-ink w-fine" clip-path="url(#jd-clip-wing)">
+        <use href="#jd-wing-trail" transform="translate(730 140) scale(0.86) translate(-730 -140)" vector-effect="non-scaling-stroke"/>
+        <use href="#jd-wing-trail" transform="translate(730 140) scale(0.72) translate(-730 -140)" vector-effect="non-scaling-stroke"/>
+        <use href="#jd-wing-trail" transform="translate(730 140) scale(0.58) translate(-730 -140)" vector-effect="non-scaling-stroke"/>
+      </g>
+      <g fill="none" class="s-ink">
+        <path d="M730 140 Q860 180 962 282" class="w-line"/>
+        <path d="M730 140 Q830 280 896 424" class="w-line"/>
+        <path d="M730 140 Q770 330 782 500" class="w-line"/>
+        <path d="M528 340 L620 290 L730 140" class="w-bold"/>
+      </g>
+      <use href="#jd-wing-thumb" class="f-ink"/>
+    </g>
+    <!-- Platzierte Teile: jede Lage genau einmal definiert, genutzt von Stanzform und Zeichnung -->
+    <use id="jd-wing-far" href="#jd-wing-set" transform="matrix(-0.92 0 0 0.94 990.76 10.4)"/>
+    <use id="jd-horn-far" href="#jd-horn" transform="translate(22 4)"/>
+    <use id="jd-leg-far" href="#jd-leg" transform="translate(40 -6)"/>
+    <g id="jd-claws">
+      <use href="#jd-claw" transform="translate(406 514) rotate(-12) scale(1.3)"/>
+      <use href="#jd-claw" transform="translate(402 530) rotate(6) scale(1.3)"/>
+      <use href="#jd-claw" transform="translate(406 545) rotate(24) scale(1.3)"/>
+    </g>
+    <g id="jd-creature">
+      <use href="#jd-wing-far"/>
+      <use href="#jd-horn-far"/>
+      <use href="#jd-leg-far"/>
+      <use href="#jd-body"/>
+      <use href="#jd-horn"/>
+      <use href="#jd-wing-set"/>
+      <use href="#jd-tail"/>
+      <use href="#jd-leg"/>
+      <use href="#jd-claws"/>
+      <use href="#jd-arm"/>
+    </g>
+  </defs>
+</svg>

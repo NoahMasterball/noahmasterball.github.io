@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1024 1024" width="1024" height="1024"
+     stroke-linejoin="round" stroke-linecap="round"
+     data-title="Chupacabra – Rush B"
+     data-description="Wildlife documentary moment: a Chupacabra sprints towards B with the bomb in its jaws, dust cloud behind it. Paper sticker from the de_wildlife series – cryptids that know their callouts."
+     data-cryptid="Chupacabra"
+     data-direction="E"
+     data-finish="paper"
+     data-palettes="dust"
+     data-mechanic="none"
+     data-note="Chupacabra sprintet mit der Bombe im Maul Richtung B – ‚Rush B‘ als Tierdoku-Moment. Wand mit gesprühtem B als Lebensraum, Staubwolke = Dust.">
+  <defs>
+    <!-- B (eigene Lettern), 232 x 300 -->
+    <path id="letterB" fill-rule="evenodd" d="M 0,0 H 130 C 190,0 220,35 220,78 C 220,108 204,132 178,142 C 212,152 232,182 232,220 C 232,268 196,300 136,300 H 0 Z M 72,58 H 120 C 140,58 150,70 150,86 C 150,102 140,114 120,114 H 72 Z M 72,170 H 128 C 150,170 162,184 162,202 C 162,222 150,242 128,242 H 72 Z"/>
+
+    <!-- Chupacabra: Teile (ohne Farbe; Farbe setzt die Verwendung) -->
+    <path id="fin" d="M 28,0 C 15,-42 -10,-72 -30,-85 C -22,-45 -25,-20 -28,0 Z"/>
+    <g id="spines">
+      <use href="#fin" transform="translate(330,566) scale(0.45)"/>
+      <use href="#fin" transform="translate(390,563) scale(0.58)"/>
+      <use href="#fin" transform="translate(450,567) scale(0.7)"/>
+      <use href="#fin" transform="translate(510,577) scale(0.82)"/>
+      <use href="#fin" transform="translate(570,585) scale(0.92)"/>
+      <use href="#fin" transform="translate(630,579) scale(1)"/>
+      <use href="#fin" transform="translate(685,552) rotate(-20) scale(0.95)"/>
+      <use href="#fin" transform="translate(735,512) rotate(-35) scale(0.8)"/>
+      <use href="#fin" transform="translate(772,458) rotate(-58) scale(0.55)"/>
+    </g>
+    <path id="tail" d="M 313,560 C 303,554 270,536 249,525 C 227,515 205,503 183,498 C 162,494 137,493 119,497 C 100,501 83,513 72,521 C 61,529 56,542 53,546 C 50,549 55,553 57,550 C 61,547 67,535 78,529 C 88,523 105,514 121,513 C 138,512 158,515 177,522 C 195,528 213,542 231,555 C 250,568 277,592 287,600 Z"/>
+    <path id="torso" d="M 295,560 C 350,545 440,552 520,566 C 580,576 640,566 685,540 C 720,520 745,490 765,468 L 800,560 C 770,590 745,620 735,655 C 725,695 720,725 690,732 C 650,740 600,715 560,695 C 520,676 470,680 430,692 C 380,706 300,702 275,665 C 255,630 262,580 295,560 Z"/>
+    <path id="foreNear" d="M 611,642 C 616,649 630,673 643,688 C 655,703 669,719 686,730 C 702,741 726,748 744,754 C 761,759 778,760 790,764 C 801,768 808,773 811,775 C 826,784 840,762 825,753 C 821,750 812,741 800,736 C 789,731 771,729 756,722 C 742,715 725,705 714,694 C 704,683 699,670 693,656 C 687,642 682,616 679,608 C 657,563 589,596 611,642 Z"/>
+    <path id="foreFar" d="M 569,636 C 576,647 597,684 610,702 C 624,721 634,735 650,746 C 666,756 689,760 705,766 C 721,773 735,778 745,784 C 754,789 761,796 764,799 C 776,810 792,792 780,781 C 777,778 770,767 759,760 C 749,753 733,745 719,738 C 705,730 685,724 674,714 C 663,704 661,695 654,678 C 646,660 635,619 631,608 Z"/>
+    <path id="hindNear" d="M 346,588 C 341,597 325,626 314,642 C 303,657 293,669 281,681 C 268,692 253,703 238,710 C 224,718 207,721 195,726 C 183,731 172,738 167,740 C 151,747 161,771 177,764 C 182,762 192,757 205,754 C 217,751 234,750 252,746 C 269,742 290,736 309,729 C 328,722 347,713 366,702 C 385,692 414,674 424,668 C 477,616 399,536 346,588 Z"/>
+    <path id="hindFar" d="M 352,607 C 351,620 352,664 348,684 C 344,703 340,713 331,724 C 322,735 306,742 294,748 C 282,754 268,756 257,761 C 247,765 235,773 231,775 C 216,782 227,804 241,797 C 245,795 256,790 267,787 C 277,784 291,784 306,780 C 322,775 342,771 359,760 C 377,749 396,736 412,716 C 428,697 450,655 458,643 Z"/>
+    <path id="ear" d="M 800,448 C 760,418 720,398 672,392 C 690,420 715,455 750,488 Z"/>
+    <use id="earFar" href="#ear" transform="translate(-22,14)"/>
+    <path id="head" d="M 742,560 C 722,520 732,462 776,440 C 808,425 845,432 858,452 C 868,466 874,470 885,476 C 910,487 935,496 952,508 C 968,519 962,540 944,544 C 915,551 880,554 848,558 C 825,568 800,580 775,578 C 758,576 748,570 742,560 Z"/>
+    <!-- Bombe (generisch): Block + Zünder -->
+    <rect id="bomb" x="0" y="0" width="150" height="96" rx="12" transform="translate(812,560) rotate(8)"/>
+    <g id="bombDetail" transform="translate(812,560) rotate(8)" stroke="none">
+      <path d="M 6,32 H 144 M 6,64 H 144" class="s-ink w-line" opacity="0.4"/>
+      <rect x="116" y="0" width="18" height="96" class="f-ink" opacity="0.4"/>
+      <rect x="14" y="12" width="92" height="70" rx="8" class="f-shade s-ink w-line"/>
+      <rect x="24" y="22" width="72" height="26" rx="4" class="f-ink"/>
+      <text x="60" y="41" text-anchor="middle" font-size="17" font-weight="bold" class="t-mono f-accent">7355608</text>
+      <circle cx="38" cy="64" r="5" class="f-ink2"/><circle cx="60" cy="64" r="5" class="f-ink2"/><circle cx="82" cy="64" r="5" class="f-ink2"/>
+      <circle cx="136" cy="-2" r="10" class="f-accent s-ink w-line"/>
+    </g>
+    <g id="dust">
+      <circle cx="100" cy="782" r="40"/><circle cx="148" cy="806" r="32"/><circle cx="66" cy="808" r="26"/><circle cx="132" cy="750" r="28"/>
+    </g>
+    <!-- fern liegende Körperteile (werden abgedunkelt) -->
+    <g id="farSide">
+      <use href="#earFar"/><use href="#hindFar"/><use href="#foreFar"/>
+    </g>
+    <!-- Silhouette = SSoT für Stanzrand und Außenkontur -->
+    <g id="beastSil">
+      <use href="#farSide"/><use href="#tail"/><use href="#spines"/><use href="#ear"/><use href="#torso"/>
+      <use href="#foreNear"/><use href="#hindNear"/>
+      <use href="#head"/><use href="#bomb"/><use href="#dust"/>
+    </g>
+    <clipPath id="torsoClip"><use href="#torso"/></clipPath>
+    <mask id="dustMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024"><use href="#dust" fill="white"/></mask>
+  </defs>
+
+  <g transform="translate(0,42)">
+    <!-- Wand (Teil e-wall) mit gesprühter Markierung -->
+    <g data-include="e-wall">
+      <g class="f-accent">
+        <use href="#letterB" transform="translate(238,152)"/>
+        <g data-include="e-arrow" transform="translate(508,238)"/>
+      </g>
+    </g>
+
+    <!-- Chupacabra: Stanzrand, Außenkontur, Flächen mit Innenlinien -->
+    <use href="#beastSil" class="f-outline s-outline w-outline"/>
+    <use href="#beastSil" class="f-ink s-ink w-bold"/>
+    <g class="s-ink w-line">
+      <use href="#farSide" class="f-accent2"/>
+      <use href="#farSide" class="f-ink" stroke="none" opacity="0.32"/>
+      <use href="#dust" class="f-shade" stroke="none"/>
+      <g mask="url(#dustMask)"><use href="#dust" class="f-paper" stroke="none" transform="translate(-7,-9)"/></g>
+      <use href="#tail" class="f-accent2"/>
+      <use href="#spines" class="f-accent"/>
+      <use href="#torso" class="f-accent2"/>
+      <ellipse cx="520" cy="740" rx="300" ry="90" class="f-ink" stroke="none" opacity="0.18" clip-path="url(#torsoClip)"/>
+      <path d="M 520,600 C 530,620 532,640 526,662 M 556,604 C 568,626 570,648 564,672" fill="none"/>
+      <use href="#hindNear" class="f-accent2"/>
+      <use href="#foreNear" class="f-accent2"/>
+      <use href="#ear" class="f-accent2"/>
+      <path d="M 782,452 C 752,432 725,418 696,410 C 712,430 728,452 748,472 Z" class="f-accent" stroke="none" opacity="0.85"/>
+      <use href="#bomb" class="f-ink2"/>
+      <use href="#bombDetail"/>
+      <use href="#head" class="f-accent2"/>
+      <path d="M 858,556 L 880,552 L 870,582 Z M 891,551 L 911,547 L 902,575 Z M 921,546 L 939,542 L 931,566 Z" class="f-outline" stroke="none"/>
+      <circle cx="816" cy="490" r="36" class="f-glow"/>
+      <circle cx="832" cy="494" r="18" class="f-accent" stroke="none"/>
+      <ellipse cx="835" cy="494" rx="5.5" ry="14" class="f-ink" stroke="none"/>
+      <circle cx="826" cy="486" r="5.5" class="f-outline" stroke="none"/>
+      <path d="M 772,446 C 804,448 846,466 876,496 L 866,508 C 838,484 802,468 772,464 Z" class="f-accent2"/>
+      <circle cx="940" cy="516" r="6" class="f-ink" stroke="none"/>
+    </g>
+  </g>
+</svg>

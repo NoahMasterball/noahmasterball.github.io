@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024"
+     data-title="Jersey Devil – Subject 1735"
+     data-description="Containment file, subject 1735: the Jersey Devil locked in a scanner ring on a clean white sci-fi plate with a black data band and orange warning accents. Holo sticker – the orange parts and the glowing eye catch the light. Made for white-orange-black crafts."
+     data-cryptid="Jersey Devil"
+     data-direction="F"
+     data-finish="holo"
+     data-palettes="asiimov"
+     data-mechanic="none"
+     data-note="Skin-Craft Asiimov: nur Palette/Stimmung (Weiß, Schwarz, Orange, Sci-Fi-Platten), keine Grafik des Skins. Abgeschrägte Plakette, Scanner-Ring, Jersey Devil (Teil aus cryptids-01) als schwarze Silhouette, schwarzes Datenband mit Subjektnummer = Jahr der Legende (1735). Holo auf Orange + Auge.">
+  <defs>
+    <g data-include="fig-jersey-devil"/>
+    <path id="plate" d="M150 150H746L874 278V874H278L150 746Z"/>
+    <clipPath id="clip-plate"><use xlink:href="#plate"/></clipPath>
+    <g id="devil" transform="translate(512 438) scale(0.62) translate(-533 -433)">
+      <use xlink:href="#jd-creature"/>
+    </g>
+  </defs>
+
+  <!-- 1 · Stanzform + Plattenkante -->
+  <use xlink:href="#plate" class="f-outline s-outline w-outline" stroke-linejoin="round"/>
+  <use xlink:href="#plate" class="f-paper s-ink w-bold" stroke-linejoin="round"/>
+
+  <!-- 2 · Plattenaufteilung: Datenband, Warnstreifen, Ecke, Fugen -->
+  <g clip-path="url(#clip-plate)">
+    <rect x="150" y="704" width="724" height="170" class="f-ink"/>
+    <rect x="150" y="684" width="724" height="14" class="f-accent"/>
+    <path d="M686 150H746L874 278V338Z" class="f-accent"/>
+    <path d="M150 190H330M150 220H290" fill="none" class="s-shade w-line"/>
+    <path d="M874 600H760L736 624H560" fill="none" class="s-shade w-line"/>
+  </g>
+
+  <!-- 3 · Scanner-Ring mit Fadenkreuz -->
+  <g fill="none" stroke-linecap="round">
+    <circle cx="512" cy="430" r="232" class="s-shade w-line"/>
+    <circle cx="512" cy="430" r="232" class="s-accent w-bold" stroke-dasharray="120 244.5" stroke-dashoffset="60"/>
+    <path d="M512 170V214M512 646V670M252 430H296M728 430H772" class="s-ink w-line"/>
+  </g>
+
+  <!-- 4 · Subjekt -->
+  <g stroke-linejoin="round" stroke-linecap="round">
+    <use xlink:href="#devil" class="f-ink s-paper w-fine"/>
+  </g>
+  <circle cx="413" cy="317" r="12" class="f-accent"/>
+  <circle cx="413" cy="317" r="5" class="f-glow"/>
+
+  <!-- 5 · Datenband -->
+  <text x="840" y="806" text-anchor="end" font-size="88" font-weight="bold" letter-spacing="4" class="t-sans f-paper">SUBJECT 1735</text>
+  <text x="840" y="846" text-anchor="end" font-size="24" letter-spacing="3" class="t-mono f-accent">JERSEY DEVIL // PINE BARRENS</text>
+  <rect x="186" y="762" width="40" height="40" class="f-accent"/>
+</svg>

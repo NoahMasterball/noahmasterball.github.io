@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1024 1024" width="1024" height="1024"
+     stroke-linejoin="round" stroke-linecap="round"
+     data-title="Owlman – Check Your Corners"
+     data-description="The sprayed arrow points around the corner – and that's exactly where the Owlman waits, claws on the edge, head turned all the way round. Paper sticker from the de_wildlife series."
+     data-cryptid="Owlman"
+     data-direction="E"
+     data-finish="paper"
+     data-palettes="dust"
+     data-mechanic="none"
+     data-note="‚Check your corners‘: Der gesprühte Pfeil zeigt ums Eck – und genau dort lauert Owlman hinter der Wand, Krallen an der Kante, den Kopf eulentypisch schief gelegt. Wer die Ecke nicht checkt, ist raus. Ohne Text.">
+  <defs>
+    <!-- Owlman-Kopf, lokal aufrecht um (0,0); gedreht/skaliert eingesetzt -->
+    <path id="head" d="M -140,-10 C -142,-90 -110,-136 -84,-152 L -106,-204 L -30,-172 C -10,-178 10,-178 30,-172 L 106,-204 L 84,-152 C 110,-136 142,-90 140,-10 C 138,90 80,142 0,146 C -80,142 -138,90 -140,-10 Z"/>
+    <path id="disc" d="M 0,-80 C -36,-124 -130,-116 -132,-24 C -132,52 -74,98 0,126 C 74,98 132,52 132,-24 C 130,-116 36,-124 0,-80 Z"/>
+    <path id="beak" d="M -18,16 C -10,4 10,4 18,16 C 16,40 8,58 0,76 C -8,58 -16,40 -18,16 Z"/>
+    <path id="body" d="M 720,470 C 733,395 773,440 800,440 C 827,440 859,450 880,470 C 901,490 917,522 924,560 C 940,560 943,601 927,604 C 943,606 941,652 925,653 C 941,656 936,701 920,700 C 935,704 928,745 912,743 C 927,749 916,787 901,784 C 915,792 901,825 886,820 C 869,852 848,878 820,890 C 792,902 737,960 720,890 C 703,820 707,545 720,470 Z"/>
+    <path id="talons" d="M 568,384 Q 563,433 530,438 Q 546,414 552,384 Z M 604,384 Q 599,433 566,438 Q 582,414 588,384 Z M 640,384 Q 635,433 602,438 Q 618,414 624,384 Z M 780,568 Q 731,563 726,530 Q 750,546 780,552 Z M 780,604 Q 731,599 726,566 Q 750,582 780,588 Z M 780,640 Q 731,635 726,602 Q 750,618 780,624 Z"/>
+    <g id="behind"><use href="#body"/><use href="#head" transform="translate(734,302) rotate(62) scale(1.1)"/></g>
+  </defs>
+
+  <!-- Owlman hinter der Wand: Stanzrand, Kontur, Flächen -->
+  <use href="#behind" class="f-outline s-outline w-outline"/>
+  <use href="#behind" class="f-ink s-ink w-bold"/>
+  <g class="s-ink w-line">
+    <use href="#body" class="f-accent2"/>
+    <path d="M 820,520 C 876,560 896,680 868,810 M 796,600 C 836,640 846,730 822,830" fill="none" opacity="0.45"/>
+    <g transform="translate(734,302) rotate(62) scale(1.1)">
+      <use href="#head" class="f-accent2"/>
+      <use href="#disc" class="f-paper"/>
+      <path d="M -94,-70 L -32,-46 M 94,-70 L 32,-46" fill="none" class="s-ink w-bold"/>
+      <use href="#beak" class="f-ink2"/>
+    </g>
+    <!-- Augen (Bild-Koordinaten, Licht oben links) -->
+    <g class="f-accent">
+      <circle cx="723" cy="235" r="47"/><circle cx="783" cy="348" r="47"/>
+    </g>
+    <g class="f-ink" stroke="none">
+      <circle cx="719" cy="238" r="22"/><circle cx="779" cy="351" r="22"/>
+    </g>
+    <g class="f-outline" stroke="none">
+      <circle cx="708" cy="221" r="8"/><circle cx="768" cy="334" r="8"/>
+    </g>
+  </g>
+
+  <!-- Wand (Teil e-wall) mit gesprühtem Pfeil ums Eck -->
+  <g data-include="e-wall" transform="translate(-100,290)">
+    <g data-include="e-arrow" class="f-accent" transform="translate(318,326) rotate(-28) scale(1.6)"/>
+  </g>
+
+  <!-- Krallen greifen um die Kante -->
+  <use href="#talons" class="f-outline s-outline w-outline"/>
+  <use href="#talons" class="f-ink s-ink w-bold"/>
+  <use href="#talons" class="f-ink2"/>
+</svg>

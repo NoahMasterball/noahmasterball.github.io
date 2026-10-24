@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rotland</title>
+    <link rel="icon" href="data:," />
+    <style>
+      /* Shared UI tokens: every HUD/menu colour and font comes from here (SSOT). */
+      :root {
+        --fg: #f1ece2;
+        --fg-dim: rgba(241, 236, 226, 0.6);
+        --panel: rgba(16, 14, 12, 0.7);
+        --panel-strong: rgba(16, 14, 12, 0.9);
+        --line: rgba(241, 236, 226, 0.2);
+        --accent: #e8b04a;
+        --danger: #e0503c;
+        --ok: #7fc96a;
+        --slot: 44px;
+        --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        --mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+        --radius: 4px;
+      }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0a09; color: var(--fg); font-family: var(--font); user-select: none; }
+      #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+      #ui { position: fixed; inset: 0; pointer-events: none; }
+      #ui .interactive { pointer-events: auto; }
+      [hidden] { display: none !important; }
+
+      /* HUD */
+      #ui { --health: #d9473a; --hunger: #d29a3c; --thirst: #4b95d6; --gap: 6px; --shadow: 0 2px 6px rgba(0, 0, 0, 0.45); }
+      .hud-top { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+      .hud-bars { display: grid; gap: 4px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+      .bar { display: grid; grid-template-columns: 52px 150px 30px; align-items: center; gap: 8px; font-size: 12px; }
+      .bar-label { color: var(--fg-dim); }
+      .bar-track { height: 10px; background: rgba(0, 0, 0, 0.5); border: 1px solid var(--line); border-radius: 2px; overflow: hidden; }
+      .bar-fill { height: 100%; transition: width 0.2s linear; }
+      .bar-health .bar-fill { background: var(--health); }
+      .bar-hunger .bar-fill { background: var(--hunger); }
+      .bar-thirst .bar-fill { background: var(--thirst); }
+      .bar-value { font-family: var(--mono); text-align: right; }
+      .bar.low .bar-track { animation: pulse 0.8s ease-in-out infinite alternate; border-color: var(--danger); }
+      @keyframes pulse { from { box-shadow: 0 0 0 transparent; } to { box-shadow: 0 0 8px var(--danger); } }
+      .hud-info { display: grid; justify-items: end; gap: 4px; }
+      .hud-clock, .hud-biome { padding: 4px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); font-size: 13px; box-shadow: var(--shadow); }
+      .hud-clock { font-family: var(--mono); }
+      .hud-clock.night { color: var(--accent); }
+      .hud-biome { color: var(--fg-dim); }
+
+      .hotbar { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; padding: 5px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+      .hotbar-name { position: absolute; bottom: calc(var(--slot) + 30px); left: 50%; transform: translateX(-50%); font-size: 13px; text-shadow: 0 1px 2px #000; }
+      .slot { position: relative; width: var(--slot); height: var(--slot); box-sizing: border-box; background: rgba(0, 0, 0, 0.45); border: 1px solid var(--line); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+      .slot:hover { border-color: var(--fg-dim); }
+      .slot.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+      .slot.hotbar-row { background: color-mix(in srgb, var(--accent) 8%, rgba(0, 0, 0, 0.45)); }
+      .slot.small { --slot: 34px; cursor: inherit; }
+      .slot-icon { width: 72%; height: 72%; border: 2px solid; border-radius: 3px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font: bold 10px var(--mono); color: #fff; text-shadow: 0 1px 1px #000, 0 0 2px #000; text-transform: uppercase; }
+      .slot-count { position: absolute; right: 3px; bottom: 1px; font: bold 11px var(--mono); text-shadow: 0 1px 2px #000; }
+      .slot-key { position: absolute; left: 3px; top: 1px; font: 9px var(--mono); color: var(--fg-dim); }
+
+      .toasts { position: absolute; left: 12px; bottom: 12px; display: grid; gap: 4px; }
+      .toast { padding: 4px 10px; background: var(--panel); border-left: 3px solid var(--ok); border-radius: var(--radius); font-size: 13px; animation: toast-in 0.15s ease-out; }
+      @keyframes toast-in { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+
+      .death-screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: rgba(60, 0, 0, 0.45); }
+      .death-title { font-size: 40px; font-weight: 700; color: var(--danger); text-shadow: 0 2px 8px #000; letter-spacing: 1px; }
+      .death-timer { font-family: var(--mono); font-size: 16px; }
+
+      /* Panels / inventory */
+      .panel { background: var(--panel-strong); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; box-shadow: var(--shadow); }
+      .panel-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--fg-dim); margin: 0 0 8px; }
+      .inventory-screen { position: absolute; top: 90px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; align-items: flex-start; max-height: calc(100% - 110px); }
+      .inv-column { display: grid; gap: 12px; }
+      .slot-grid { display: grid; gap: 4px; }
+      .craft-panel { width: 290px; max-height: 70vh; display: flex; flex-direction: column; }
+      .craft-list { overflow-y: auto; display: grid; gap: 4px; padding-right: 4px; }
+      .craft-row { display: flex; gap: 8px; align-items: center; padding: 4px; border: 1px solid transparent; border-radius: var(--radius); opacity: 0.5; cursor: pointer; }
+      .craft-row:hover { border-color: var(--line); }
+      .craft-row.craftable { opacity: 1; }
+      .craft-row.craftable .craft-name { color: var(--ok); }
+      .craft-name { font-size: 13px; }
+      .craft-inputs, .craft-station { font-size: 11px; color: var(--fg-dim); }
+      .drag-ghost { position: fixed; z-index: 10; pointer-events: none; transform: translate(-50%, -50%); padding: 4px 6px; border-radius: 3px; font: bold 11px var(--mono); color: #fff; text-shadow: 0 1px 1px #000; text-transform: uppercase; box-shadow: var(--shadow); }
+
+      /* Pause menu / debug */
+      .pause-menu { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.45); }
+      .menu-panel { min-width: 340px; padding: 18px 20px; }
+      .menu-title { font-size: 28px; font-weight: 700; margin-bottom: 12px; color: var(--accent); }
+      .menu-buttons { display: flex; gap: 8px; margin-bottom: 16px; }
+      .btn { font: 14px var(--font); color: var(--fg); background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 14px; cursor: pointer; }
+      .btn:hover { border-color: var(--fg-dim); }
+      .btn-primary { border-color: var(--accent); color: var(--accent); }
+      .controls-list { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; font-size: 13px; }
+      .controls-key { font-family: var(--mono); color: var(--accent); }
+      .debug-overlay { position: absolute; top: 120px; left: 10px; margin: 0; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); font: 12px/1.45 var(--mono); }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <div id="ui"></div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

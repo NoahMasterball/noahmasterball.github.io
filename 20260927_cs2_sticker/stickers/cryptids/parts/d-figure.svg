@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Richtung D: Sternbild-Silhouette (Schein, heller Rand, helle Füllung). Zeichnet #fig, das der
+       Sticker in <defs> als <g id="fig"> definiert; danach folgen im Sticker Linien und Sterne.
+       Kräftiger als die Inline-Silhouette von cryptids-07/08 (Lesbarkeit bei 32/64 px). -->
+  <use xlink:href="#fig" class="f-glow" opacity="0.2" filter="url(#d-soft)"/>
+  <use xlink:href="#fig" class="s-accent2 w-bold" stroke-linejoin="round" opacity="0.65"/>
+  <use xlink:href="#fig" class="f-ink2"/>
+  <use xlink:href="#fig" class="f-glow" opacity="0.27"/>
+</svg>

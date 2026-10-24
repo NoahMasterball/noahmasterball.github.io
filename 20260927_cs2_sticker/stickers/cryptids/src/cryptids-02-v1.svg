@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"
+     data-title="Mothman – Specimen Plate"
+     data-description="Plate II of the field guide: Mothman spread like a moth specimen, burnt-orange underwings, fur collar and glowing red eyes. Anthropteryx pleasantensis – Point Pleasant, West Virginia, 1966. Foil sticker."
+     data-cryptid="Mothman"
+     data-direction="A"
+     data-finish="foil"
+     data-palettes="fieldguide printstream"
+     data-mechanic="none"
+     data-note="Bestimmungstafel II: Mothman als aufgespannter Falter (Ordensband-Hinterflügel, Fühler, Pelzkragen, glühende Augen), Pseudo-Latein „Anthropteryx“ = Menschenflügel, 3-Zehen-Spur, Maßstab, Fundort. Foil: Gravurlinien werden Relief.">
+  <defs>
+    <!-- Tafel-Vorlage (gleich in allen Tafeln der Richtung A) -->
+    <rect id="plate" x="196" y="176" width="632" height="680" rx="22"/>
+    <rect id="plate-inner" x="214" y="194" width="596" height="644" rx="10"/>
+    <circle id="disc" cx="512" cy="480" r="268"/>
+    <path id="banner-band" d="M150 796 H874 V916 H150 Z"/>
+    <path id="banner-tails" d="M70 826 H180 V946 H70 L104 886 Z M954 826 L920 886 L954 946 H844 V826 Z"/>
+    <circle id="roundel" cx="252" cy="722" r="64"/>
+    <rect id="scalebar" x="652" y="764" width="152" height="16"/>
+    <path id="scalebar-ticks" d="M652 764 h38 v16 h-38 Z M728 764 h38 v16 h-38 Z"/>
+    <pattern id="hatch-h" width="12" height="12" patternUnits="userSpaceOnUse">
+      <path d="M0 6 H12" class="s-ink2" stroke-width="3"/>
+    </pattern>
+    <clipPath id="clip-plate"><use href="#plate-inner"/></clipPath>
+    <radialGradient id="eye-glow">
+      <stop offset="0" class="sc-glow"/>
+      <stop offset="0.35" class="sc-glow"/>
+      <stop offset="1" class="sc-accent"/>
+    </radialGradient>
+    <g id="toe">
+      <path d="M0 -2 L0 -30" fill="none" stroke-width="13" stroke-linecap="round"/>
+      <path d="M-5 -34 L0 -48 L5 -34 Z"/>
+    </g>
+    <g id="track">
+      <ellipse cx="0" cy="14" rx="13" ry="12"/>
+      <use href="#toe"/>
+      <use href="#toe" transform="translate(-6 4) rotate(-42)"/>
+      <use href="#toe" transform="translate(6 4) rotate(42)"/>
+    </g>
+    <!-- Kreatur-Formen (rechte Hälfte; links = Spiegelung). Kontur erbt vom <use>: Stanzrand bzw. Tinte -->
+    <path id="forewing" d="M552 294 C600 238 690 172 790 136 C850 116 900 108 940 112 C944 126 938 140 928 152 C914 206 894 276 850 376 C800 396 700 416 600 416 C570 416 552 396 548 376 Z"/>
+    <!-- Konstruktionslinien für Saum- und Ordensbänder = Außenkanten von #forewing / #hindwing (bei Änderung mitziehen) -->
+    <path id="fore-edge" d="M940 112 C944 126 938 140 928 152 C914 206 894 276 850 376"/>
+    <path id="hindwing" d="M546 376 C620 386 720 386 810 396 C860 406 880 456 866 506 C850 566 800 616 730 630 C670 642 610 616 580 576 C560 550 548 516 546 476 Z"/>
+    <path id="hind-edge" d="M790 376 C860 406 880 456 866 506 C850 566 800 616 730 630 C670 642 610 616 580 576 C560 550 548 516 546 476"/>
+    <path id="antenna" d="M526 254 C530 196 572 142 640 124 C612 156 578 202 540 254 Z"/>
+    <path id="antenna-shaft" d="M533 252 C544 200 580 156 638 126"/>
+    <path id="body" d="M512 212 C540 212 560 226 568 252 C574 266 588 274 606 278 C622 282 630 298 626 318 C620 358 596 404 578 446 C566 476 560 506 562 532 C564 558 576 580 580 604 C584 636 588 666 582 692 C578 708 572 722 570 740 C570 750 574 758 580 766 L612 782 L584 776 L590 790 L568 778 L556 788 L552 766 C550 746 548 724 546 706 C542 688 540 670 538 652 C534 632 524 620 512 620 C500 620 490 632 486 652 C484 670 482 688 478 706 C476 724 474 746 472 766 L468 788 L456 778 L434 790 L440 776 L412 782 L444 766 C450 758 454 750 454 740 C452 722 446 708 442 692 C436 666 440 636 444 604 C448 580 460 558 462 532 C464 506 458 476 446 446 C428 404 404 358 398 318 C394 298 402 282 418 278 C436 274 450 266 456 252 C464 226 484 212 512 212 Z"/>
+    <clipPath id="clip-fore"><use href="#forewing"/></clipPath>
+    <clipPath id="clip-hind"><use href="#hindwing"/></clipPath>
+    <clipPath id="clip-antenna"><use href="#antenna"/></clipPath>
+    <clipPath id="clip-body"><use href="#body"/></clipPath>
+    <clipPath id="clip-hood"><path d="M380 176 H644 V348 H380 Z"/></clipPath>
+
+    <!-- Rechte Hälfte: Hinterflügel (Ordensband), Vorderflügel (Querlinien, Saumband), Fühler -->
+    <g id="half-r" stroke-linejoin="round" stroke-linecap="round">
+      <use href="#hindwing" class="f-accent"/>
+      <g clip-path="url(#clip-hind)" fill="none" class="s-ink">
+        <use href="#hind-edge" stroke-width="30" transform="translate(560 446) scale(0.88) translate(-560 -446)"/>
+        <use href="#hind-edge" stroke-width="22" transform="translate(560 446) scale(0.64) translate(-560 -446)"/>
+        <path d="M560 446 Q700 446 860 496 M560 456 Q680 536 760 626 M560 446 Q720 476 840 576" class="w-fine"/>
+      </g>
+      <use href="#forewing" class="f-ink2"/>
+      <g clip-path="url(#clip-fore)" fill="none" class="s-ink">
+        <path d="M560 346 Q740 226 930 126 M560 356 Q760 276 900 226 M560 366 Q760 326 880 306 M560 376 Q720 376 850 376" class="w-fine"/>
+        <path d="M680 182 L660 226 L684 266 L660 306 L682 348 L664 396" class="w-line"/>
+        <path d="M800 136 L778 182 L802 226 L776 270 L800 314 L772 356 L790 406" class="w-line"/>
+        <use href="#fore-edge" stroke-width="44"/>
+        <path d="M922 166 C906 226 884 296 846 368" class="s-paper w-fine" stroke-dasharray="1 22"/>
+      </g>
+      <use href="#antenna"/>
+      <use href="#antenna-shaft" fill="none" class="s-paper" stroke-width="30" stroke-dasharray="3 7" stroke-linecap="butt" clip-path="url(#clip-antenna)"/>
+      <use href="#antenna-shaft" fill="none" class="s-ink w-fine"/>
+    </g>
+    <g id="creature">
+      <use href="#half-r"/>
+      <use href="#half-r" transform="matrix(-1 0 0 1 1024 0)"/>
+      <use href="#body" class="f-ink s-paper w-fine" stroke-linejoin="round"/>
+      <g fill="none" class="s-paper w-fine" stroke-linecap="round" clip-path="url(#clip-body)">
+        <!-- Pelzkragen: gestrichelte Kontur, nur oben -->
+        <g clip-path="url(#clip-hood)">
+          <use href="#body" stroke-width="22" stroke-dasharray="3 9" stroke-linecap="butt"/>
+        </g>
+        <path d="M420 362 C428 390 440 416 456 442"/>
+        <path d="M438 376 C446 398 454 416 464 434"/>
+        <path d="M472 542 C470 568 462 588 458 608"/>
+        <path d="M456 642 C454 666 454 682 456 696"/>
+      </g>
+      <g stroke="none">
+        <circle cx="476" cy="296" r="32" class="f-accent" opacity="0.3"/>
+        <circle cx="548" cy="296" r="32" class="f-accent" opacity="0.3"/>
+        <circle cx="476" cy="296" r="20" fill="url(#eye-glow)"/>
+        <circle cx="548" cy="296" r="20" fill="url(#eye-glow)"/>
+      </g>
+    </g>
+    <g id="cut">
+      <use href="#plate"/>
+      <use href="#creature"/>
+      <use href="#banner-band"/>
+      <use href="#banner-tails"/>
+      <use href="#roundel"/>
+    </g>
+  </defs>
+
+  <g transform="translate(0 -18)">
+    <!-- 1 · Stanzrand + Tinten-Kontur der Gesamtform -->
+    <use href="#cut" class="f-outline s-outline w-outline" stroke-linejoin="round"/>
+    <use href="#cut" class="f-ink s-ink w-bold" stroke-linejoin="round"/>
+
+    <!-- 2 · Tafel: Papier, Mondscheibe mit Gravurhimmel -->
+    <use href="#plate" class="f-paper"/>
+    <g clip-path="url(#clip-plate)">
+      <use href="#disc" class="f-shade"/>
+      <use href="#disc" fill="url(#hatch-h)" opacity="0.5"/>
+      <ellipse cx="512" cy="786" rx="124" ry="12" fill="url(#hatch-h)"/>
+    </g>
+    <use href="#plate-inner" fill="none" class="s-ink w-fine"/>
+
+    <!-- 3 · Kreatur -->
+    <use href="#creature" class="f-ink s-ink w-bold"/>
+
+    <!-- 4 · Fig. 2: Spur -->
+    <use href="#roundel" class="f-paper s-ink w-bold"/>
+    <use href="#track" transform="translate(254 734) rotate(-14) scale(1.3)" class="f-ink s-ink"/>
+
+    <!-- 5 · Maßstab -->
+    <use href="#scalebar" class="f-paper"/>
+    <use href="#scalebar-ticks" class="f-ink"/>
+    <use href="#scalebar" fill="none" class="s-ink" stroke-width="4"/>
+    <text x="804" y="752" text-anchor="end" font-size="24" class="t-mono f-ink">1 m</text>
+
+    <!-- 6 · Band: Pseudo-Latein + Tafel/Fundort/Jahr -->
+    <use href="#banner-tails" class="f-ink"/>
+    <use href="#banner-band" class="f-accent s-ink w-line"/>
+    <text x="512" y="854" text-anchor="middle" font-size="50" font-style="italic" class="t-serif f-paper">Anthropteryx pleasantensis</text>
+    <text x="512" y="896" text-anchor="middle" font-size="21" letter-spacing="2" class="t-mono f-paper">PL. II · POINT PLEASANT, W.VA. · 1966</text>
+  </g>
+</svg>

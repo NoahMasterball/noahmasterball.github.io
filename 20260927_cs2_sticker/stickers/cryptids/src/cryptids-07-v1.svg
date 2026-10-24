@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024"
+     data-title="Pes Magnus – Bigfoot Constellation"
+     data-description="Bigfoot as the constellation Pes Magnus, striding across a star-chart disc with degree ring and coordinate grid. Glitter sticker – the stars and lines sparkle. Part of a cryptid constellation series."
+     data-cryptid="Bigfoot"
+     data-direction="D"
+     data-finish="glitter"
+     data-palettes="starmap"
+     data-mechanic="none"
+     data-note="Bigfoot als Sternbild ‚Pes Magnus‘ auf einer Sternkarten-Scheibe (Gradskala, Koordinatennetz). Schreitende Silhouette als heller Schatten hinter den Sternlinien, damit er bei 64 px lesbar bleibt; Sterne an Gelenken und Füßen = Glitter.">
+  <defs>
+    <!-- Bigfoot-Silhouette (Körper, Beine, Arme, Fellbüschel) -->
+    <g id="bf">
+      <path d="M458 249C479 208 493 169 513 150C523 140 537 140 546 150C566 164 578 180 585 196C589 205 585 210 578 212C589 221 594 233 589 243C585 252 576 257 569 259C601 272 627 301 629 338C631 379 620 414 608 439C597 462 590 481 567 492C541 507 506 509 479 507C442 506 416 490 411 467C407 448 414 428 423 411C414 389 404 358 405 331C407 317 411 305 416 296C425 275 441 259 458 249Z"/>
+      <path d="M594 455C615 499 620 551 606 590C601 622 624 661 643 687C669 696 708 706 722 719C731 727 726 738 708 738L620 738C599 738 590 724 594 706C590 689 576 671 564 652C546 627 539 604 539 587C532 569 506 534 479 507Z"/>
+      <path d="M430 462C416 507 397 550 377 580C361 604 333 625 319 648C310 664 312 682 326 690C351 705 381 720 400 731C414 738 421 736 420 727C416 717 404 708 391 699C379 690 372 683 369 676C383 657 400 643 414 631C430 615 441 599 448 583C464 551 488 523 506 500Z"/>
+      <path d="M467 277C495 256 541 279 532 321C515 358 462 386 429 409C400 430 374 451 355 470C347 481 346 492 339 502C330 516 309 516 300 506C293 495 300 477 309 463C316 453 321 446 325 440C347 414 369 389 389 369C395 358 405 349 409 340C427 314 444 293 467 277Z"/>
+      <path d="M537 286C567 279 587 292 590 314C601 349 611 380 619 401C639 418 665 447 683 468C699 484 713 504 712 519C710 534 693 540 682 533C671 524 659 510 649 500C629 480 601 453 575 425C564 411 559 400 557 391C546 365 532 331 522 310C518 300 525 289 537 286Z"/>
+      <path d="M479 222C467 236 455 247 439 254C451 257 460 263 469 272Z"/>
+      <path d="M420 321C407 328 397 331 383 333C393 340 402 349 409 360Z"/>
+      <path d="M405 354C393 354 381 351 369 344C376 356 381 368 386 381Z"/>
+      <path d="M363 599C353 615 339 624 319 629C332 632 339 636 342 643Z"/>
+      <path d="M552 594C545 611 534 622 518 629C532 632 541 639 550 648Z"/>
+      <path d="M634 485C624 490 616 498 604 505C609 491 609 478 610 465Z"/>
+    </g>
+  </defs>
+
+  <g data-include="d-cut-ribbon"/>
+  <g data-include="d-disc"/>
+  <g data-include="d-field"/>
+
+  <!-- Sternbild: Silhouette, Linien, Sterne -->
+  <g>
+    <use xlink:href="#bf" class="f-glow" opacity="0.16" filter="url(#d-soft)"/>
+    <use xlink:href="#bf" class="s-accent2 w-line" stroke-linejoin="round" opacity="0.4"/>
+    <use xlink:href="#bf" class="f-ink2"/>
+    <use xlink:href="#bf" class="f-accent2" opacity="0.14"/>
+    <path d="M532 321C515 358 462 386 429 409M539 587C532 569 506 534 479 507" fill="none" class="s-accent2 w-fine" stroke-linecap="round" opacity="0.4"/>
+    <path fill="none" class="s-accent w-line" stroke-linecap="round" stroke-linejoin="round"
+          d="M546 198L506 298L472 476M506 298L409 386L317 492M506 298L583 411L690 514M472 476L573 588L608 720L710 726M472 476L405 597L326 678L409 731"/>
+    <use xlink:href="#d-star" transform="translate(546 198) scale(0.8)"/>
+    <use xlink:href="#d-star" transform="translate(506 298)"/>
+    <use xlink:href="#d-star" transform="translate(409 386) scale(0.45)"/>
+    <use xlink:href="#d-star" transform="translate(317 492) scale(0.7)"/>
+    <use xlink:href="#d-star" transform="translate(583 411) scale(0.45)"/>
+    <use xlink:href="#d-star" transform="translate(690 514) scale(0.7)"/>
+    <use xlink:href="#d-star" transform="translate(472 476) scale(0.55)"/>
+    <use xlink:href="#d-star" transform="translate(573 588) scale(0.45)"/>
+    <use xlink:href="#d-star" transform="translate(608 720) scale(0.5)"/>
+    <use xlink:href="#d-star" transform="translate(710 726) scale(0.8)"/>
+    <use xlink:href="#d-star" transform="translate(405 597) scale(0.45)"/>
+    <use xlink:href="#d-star" transform="translate(326 678) scale(0.45)"/>
+    <use xlink:href="#d-star" transform="translate(409 731) scale(0.6)"/>
+  </g>
+
+  <!-- Namensband -->
+  <g data-include="d-ribbon">
+    <text class="t-serif f-ink" font-size="68" font-weight="bold" letter-spacing="12" text-anchor="middle">
+      <textPath xlink:href="#d-nameline" startOffset="50%">PES MAGNUS</textPath>
+    </text>
+  </g>
+</svg>

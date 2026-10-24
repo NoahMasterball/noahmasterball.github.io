@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024"
+     data-title="Lepus Cornutus – Jackalope Constellation"
+     data-description="The Jackalope as the constellation Lepus Cornutus: a sitting hare whose antlers are the brightest chain of stars. Holo sticker from the cryptid constellation series."
+     data-cryptid="Jackalope"
+     data-direction="D"
+     data-finish="holo"
+     data-palettes="starmap"
+     data-mechanic="none"
+     data-note="Jackalope als Sternbild ‚Lepus Cornutus‘: sitzender Hase, das Geweih ist die hellste Sternkette (Sterne an den Sprossen-Enden). Gleiche Sternkarten-Scheibe wie Pes Magnus; Holo auf dem Himmel.">
+  <defs>
+    <!-- Jackalope-Silhouette (Körper, Keule, Läufe, Löffel, Geweih) -->
+    <g id="jk">
+      <path d="M313 426C319 407 336 388 359 376C374 367 388 359 401 355C416 352 429 353 439 359C454 370 464 391 469 410C492 437 549 456 596 484C644 511 678 532 695 562C712 598 716 646 707 684C701 711 695 730 686 743L568 747C549 737 538 714 540 688C536 661 511 642 490 629C471 616 454 595 444 570C426 532 416 494 408 467C397 462 384 462 368 460C350 456 327 446 317 437C312 431 312 428 313 426Z"/>
+      <path d="M719 613C741 660 721 716 674 738C628 760 573 738 550 691C528 643 548 587 595 565C641 543 696 565 719 613Z"/>
+      <path d="M460 551C460 618 446 680 439 724C437 739 431 749 418 749L388 749C374 749 374 735 386 730C397 724 403 716 405 703C410 656 416 589 427 494Z"/>
+      <path d="M692 722C701 737 695 750 678 750L503 750C488 750 486 737 502 732C549 722 625 718 692 722Z"/>
+      <path d="M705 600C728 591 745 610 739 629C733 648 716 650 709 638Z"/>
+      <path d="M426 365C444 314 492 247 549 207C564 196 583 190 585 200C587 213 574 228 560 243C520 287 488 338 465 388Z"/>
+      <path d="M450 372C492 323 549 276 598 245C612 238 627 236 625 247C623 258 610 270 596 281C549 319 507 357 475 399Z"/>
+      <path d="M417 354C385 308 352 252 363 181C365 174 353 172 351 180C331 254 356 323 381 375Z"/>
+      <path d="M379 305C357 302 336 294 326 268C324 262 314 265 316 272C325 303 350 321 373 330Z"/>
+      <path d="M359 252C339 247 326 237 320 208C319 202 310 203 311 210C312 242 330 262 351 273Z"/>
+      <path d="M356 232C377 222 387 203 389 178C390 172 383 171 382 176C377 200 368 211 350 217Z"/>
+      <path d="M439 364C444 310 444 251 465 190C468 183 457 179 454 186C426 247 418 306 405 358Z"/>
+      <path d="M436 296C457 286 471 266 475 235C476 230 468 228 467 233C460 262 447 273 428 277Z"/>
+    </g>
+  </defs>
+
+  <g data-include="d-cut-ribbon"/>
+  <g data-include="d-disc"/>
+  <g data-include="d-field" transform="translate(1024 0) scale(-1 1)"/>
+
+  <!-- Sternbild: Silhouette, Linien, Sterne -->
+  <g>
+    <use xlink:href="#jk" class="f-glow" opacity="0.16" filter="url(#d-soft)"/>
+    <use xlink:href="#jk" class="s-accent2 w-line" stroke-linejoin="round" opacity="0.4"/>
+    <use xlink:href="#jk" class="f-ink2"/>
+    <use xlink:href="#jk" class="f-accent2" opacity="0.14"/>
+    <path d="M550 691C528 643 548 587 595 565C625 551 663 554 692 575" fill="none" class="s-accent2 w-fine" stroke-linecap="round" opacity="0.4"/>
+    <path fill="none" class="s-accent w-line" stroke-linecap="round" stroke-linejoin="round"
+          d="M321 428L376 401L397 359L374 315L353 260L357 182M353 260L315 209M374 315L321 270M376 401L450 382L579 201M450 382L644 519L724 619L690 739L503 743M376 401L433 521L395 743"/>
+    <use xlink:href="#d-star" transform="translate(321 428) scale(0.5)"/>
+    <use xlink:href="#d-star" transform="translate(376 401)"/>
+    <use xlink:href="#d-star" transform="translate(397 359) scale(0.35)"/>
+    <use xlink:href="#d-star" transform="translate(374 315) scale(0.3)"/>
+    <use xlink:href="#d-star" transform="translate(353 260) scale(0.3)"/>
+    <use xlink:href="#d-star" transform="translate(357 182) scale(0.6)"/>
+    <use xlink:href="#d-star" transform="translate(321 270) scale(0.45)"/>
+    <use xlink:href="#d-star" transform="translate(315 209) scale(0.45)"/>
+    <use xlink:href="#d-star" transform="translate(450 382) scale(0.4)"/>
+    <use xlink:href="#d-star" transform="translate(579 201) scale(0.65)"/>
+    <use xlink:href="#d-star" transform="translate(644 519) scale(0.5)"/>
+    <use xlink:href="#d-star" transform="translate(724 619) scale(0.6)"/>
+    <use xlink:href="#d-star" transform="translate(690 739) scale(0.45)"/>
+    <use xlink:href="#d-star" transform="translate(503 743) scale(0.6)"/>
+    <use xlink:href="#d-star" transform="translate(433 521) scale(0.45)"/>
+    <use xlink:href="#d-star" transform="translate(395 743) scale(0.6)"/>
+  </g>
+
+  <!-- Namensband -->
+  <g data-include="d-ribbon">
+    <text class="t-serif f-ink" font-size="68" font-weight="bold" letter-spacing="3" text-anchor="middle">
+      <textPath xlink:href="#d-nameline" startOffset="50%">LEPUS CORNUTUS</textPath>
+    </text>
+  </g>
+</svg>

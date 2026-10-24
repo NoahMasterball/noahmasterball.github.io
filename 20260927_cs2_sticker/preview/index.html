@@ -1,0 +1,237 @@
+<!doctype html>
+<!-- NEW — Vorschau (SPEC §5.4). Alle Listen, Größen, Hintergründe kommen aus manifest.js
+     (generiert von pipeline/manifest.py aus pipeline/config.py) — hier nichts hardcoden. -->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sticker-Vorschau</title>
+<style>
+  :root {
+    --ui-bg: #111214;
+    --ui-panel: #1a1b1f;
+    --ui-line: #2b2d33;
+    --ui-text: #ebe8e1;
+    --ui-muted: #9b978e;
+    --ui-accent: #e8c66a;
+    --radius: 12px;
+    --gap: 16px;
+    --stage: #1b1c1e; /* wird aus manifest.backgrounds gesetzt */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ui-bg); color: var(--ui-text);
+    font: 15px/1.45 system-ui, "Segoe UI", sans-serif;
+  }
+  header {
+    position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 12px 20px;
+    align-items: center; padding: 12px var(--gap); background: color-mix(in srgb, var(--ui-bg) 92%, transparent);
+    backdrop-filter: blur(8px); border-bottom: 1px solid var(--ui-line);
+  }
+  h1 { font-size: 17px; margin: 0; font-weight: 650; letter-spacing: .01em; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .meta { color: var(--ui-muted); font-size: 13px; margin-left: auto; }
+  .seg { display: inline-flex; border: 1px solid var(--ui-line); border-radius: 999px; overflow: hidden; }
+  .seg button, .chip {
+    border: 0; background: transparent; color: var(--ui-muted); padding: 5px 12px; cursor: pointer;
+    font: inherit; font-size: 13px;
+  }
+  .seg button[aria-pressed="true"] { background: var(--ui-line); color: var(--ui-text); }
+  .seg .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px;
+    vertical-align: -1px; border: 1px solid #fff3; }
+  label.toggle { font-size: 13px; color: var(--ui-muted); display: inline-flex; gap: 6px; align-items: center; }
+  select { background: var(--ui-panel); color: var(--ui-text); border: 1px solid var(--ui-line);
+    border-radius: 8px; padding: 4px 8px; font: inherit; font-size: 13px; }
+
+  main { padding: 8px var(--gap) 48px; max-width: 1400px; margin: 0 auto; }
+  section { margin-top: 28px; }
+  section > h2 { font-size: 15px; margin: 0 0 12px; font-weight: 600; color: var(--ui-muted); }
+  section > h2 b { color: var(--ui-accent); font-weight: 700; margin-right: 8px; }
+  .grid { display: grid; gap: var(--gap); grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); }
+
+  .card { background: var(--ui-panel); border: 1px solid var(--ui-line); border-radius: var(--radius); overflow: hidden; }
+  .stage { position: relative; background: var(--stage); aspect-ratio: 1; display: grid; place-items: center;
+    cursor: default; touch-action: manipulation; }
+  .stage.has-frames { cursor: ew-resize; }
+  .stage img { width: 88%; height: 88%; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+  .badge { position: absolute; left: 10px; top: 10px; font-size: 12px; padding: 2px 8px; border-radius: 999px;
+    background: #000a; color: #fff; }
+  .zoom-btn { position: absolute; right: 8px; top: 8px; border: 0; border-radius: 8px; padding: 4px 8px;
+    background: #000a; color: #fff; cursor: pointer; font-size: 12px; }
+  .sizes { display: flex; gap: 14px; align-items: flex-end; padding: 10px 12px; background: var(--stage);
+    border-top: 1px solid var(--ui-line); }
+  .sizes figure { margin: 0; display: grid; justify-items: center; gap: 2px; }
+  .sizes figcaption { font-size: 10px; color: var(--ui-muted); background: #000a; padding: 0 4px; border-radius: 4px; }
+  .info { padding: 10px 12px 14px; }
+  .info code { font-size: 12px; color: var(--ui-accent); }
+  .info h3 { margin: 2px 0 4px; font-size: 16px; }
+  .info .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+  .tag { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--ui-line); color: var(--ui-muted); }
+  .info .note { color: var(--ui-muted); font-size: 13px; margin: 6px 0 0; }
+  .palettes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .palettes .chip { border: 1px solid var(--ui-line); border-radius: 999px; }
+  .palettes .chip[aria-pressed="true"] { border-color: var(--ui-accent); color: var(--ui-text); }
+  .hint { font-size: 12px; color: var(--ui-muted); }
+  .old { opacity: .6; }
+
+  dialog { border: 0; padding: 0; background: transparent; max-width: 96vw; }
+  dialog::backdrop { background: #000c; }
+  dialog .stage { width: min(90vw, 90vh, var(--zoom-size)); border-radius: var(--radius); }
+  dialog .stage img { width: 100%; height: 100%; }
+  .empty { color: var(--ui-muted); padding: 40px 0; }
+</style>
+<script src="manifest.js"></script>
+</head>
+<body>
+<header>
+  <h1>Sticker-Vorschau</h1>
+  <div class="controls" id="controls"></div>
+  <div class="meta" id="meta"></div>
+</header>
+<main id="app"></main>
+<dialog id="zoom"></dialog>
+
+<script>
+(() => {
+  const M = window.MANIFEST;
+  const app = document.getElementById("app");
+  if (!M) {
+    app.innerHTML = '<p class="empty">manifest.js fehlt — <code>python pipeline/cli.py build</code> ausführen.</p>';
+    return;
+  }
+  const STORE_KEY = "stickerPreview";
+  const bgNames = Object.keys(M.backgrounds);
+  const sets = [...new Set(M.stickers.map(s => s.set))];
+  const maxSize = Math.max(...M.sizes);
+  const stripSizes = M.sizes.filter(s => s !== maxSize);
+  const mechanicHint = { lenticular: "Maus links↔rechts = Blickwinkel", scrape: "Maus links↔rechts = Abnutzung" };
+
+  const state = { bg: bgNames[0], set: sets[0] || "", old: false };
+  try { Object.assign(state, JSON.parse(localStorage.getItem(STORE_KEY) || "{}")); } catch { /* Speicher gesperrt: Standardwerte */ }
+  if (!bgNames.includes(state.bg)) state.bg = bgNames[0];
+  if (!sets.includes(state.set)) state.set = sets[0] || "";
+  const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch { /* optional */ } };
+
+  const el = (tag, props = {}, ...kids) => {
+    const n = Object.assign(document.createElement(tag), props);
+    kids.flat().forEach(k => n.append(k));
+    return n;
+  };
+
+  function renderControls() {
+    const c = document.getElementById("controls");
+    c.replaceChildren();
+    if (sets.length > 1) {
+      const sel = el("select", { onchange: e => { state.set = e.target.value; save(); render(); } },
+        sets.map(s => el("option", { value: s, textContent: s, selected: s === state.set })));
+      c.append(sel);
+    }
+    c.append(el("div", { className: "seg" }, bgNames.map(name => el("button", {
+      ariaPressed: String(name === state.bg),
+      onclick: () => { state.bg = name; save(); renderControls(); applyBg(); },
+    }, el("span", { className: "swatch", style: `background:${M.backgrounds[name]}` }), name))));
+    c.append(el("label", { className: "toggle" },
+      el("input", { type: "checkbox", checked: state.old, onchange: e => { state.old = e.target.checked; save(); render(); } }),
+      "alte Versionen"));
+  }
+  const applyBg = () => document.documentElement.style.setProperty("--stage", M.backgrounds[state.bg]);
+
+  function visibleStickers() {
+    const inSet = M.stickers.filter(s => s.set === state.set);
+    const latest = {};
+    inSet.forEach(s => { latest[s.nr] = Math.max(latest[s.nr] || 0, s.version); });
+    return inSet
+      .map(s => ({ ...s, isOld: s.version < latest[s.nr] }))
+      .filter(s => state.old || !s.isOld)
+      .sort((a, b) => a.nr - b.nr || b.version - a.version);
+  }
+
+  // Stage mit Frame-Wechsel über Mausposition (Lenticular-/Scrape-Simulation)
+  function makeStage(s, view, onChange) {
+    const img = el("img", { alt: s.title, draggable: false });
+    const badge = el("span", { className: "badge" });
+    const stage = el("div", { className: "stage" + (s.frames.length > 1 ? " has-frames" : "") }, img);
+    const update = () => {
+      const pal = s.palettes[view.palette];
+      img.src = pal.images[view.frame];
+      badge.textContent = s.frames.length ? `${s.frames[view.frame]} (${view.frame + 1}/${s.frames.length})` : "";
+      badge.hidden = !s.frames.length;
+      onChange && onChange();
+    };
+    if (s.frames.length > 1) {
+      stage.append(badge);
+      const pick = x => {
+        const r = stage.getBoundingClientRect();
+        const i = Math.min(s.frames.length - 1, Math.max(0, Math.floor((x - r.left) / r.width * s.frames.length)));
+        if (i !== view.frame) { view.frame = i; update(); }
+      };
+      stage.addEventListener("pointermove", e => pick(e.clientX));
+      stage.addEventListener("pointerleave", () => { view.frame = 0; update(); });
+    }
+    update();
+    return { stage, update };
+  }
+
+  function card(s) {
+    const view = { palette: 0, frame: 0 };
+    const strip = stripSizes.map(size => {
+      const im = el("img", { width: size, height: size, alt: "" });
+      return { im, fig: el("figure", {}, im, el("figcaption", { textContent: `${size}px` })) };
+    });
+    const syncStrip = () => strip.forEach(({ im }) => { im.src = s.palettes[view.palette].images[view.frame]; });
+    const { stage, update } = makeStage(s, view, syncStrip);
+    stage.append(el("button", { className: "zoom-btn", textContent: `${maxSize}px`, onclick: () => openZoom(s, view) }));
+
+    const chips = s.palettes.length > 1 ? el("div", { className: "palettes" }, s.palettes.map((p, i) => el("button", {
+      className: "chip", textContent: p.name, ariaPressed: String(i === 0),
+      onclick: e => {
+        view.palette = i; update();
+        e.target.parentElement.querySelectorAll("button").forEach((b, j) => b.ariaPressed = String(j === i));
+      },
+    }))) : "";
+
+    const tags = [...new Set([s.cryptid, s.finish, s.mechanic !== "none" ? s.mechanic : ""])].filter(Boolean)
+      .map(t => el("span", { className: "tag", textContent: t }));
+    return el("article", { className: "card" + (s.isOld ? " old" : "") },
+      stage,
+      el("div", { className: "sizes" }, strip.map(x => x.fig)),
+      el("div", { className: "info" },
+        el("code", { textContent: s.id }),
+        el("h3", { textContent: s.title }),
+        el("div", { className: "tags" }, tags),
+        s.frames.length > 1 ? el("div", { className: "hint", textContent: mechanicHint[s.mechanic] || "" }) : "",
+        chips,
+        s.note ? el("p", { className: "note", textContent: s.note }) : ""));
+  }
+
+  function openZoom(s, view) {
+    const dlg = document.getElementById("zoom");
+    dlg.style.setProperty("--zoom-size", `${maxSize}px`);
+    const zview = { ...view };
+    dlg.replaceChildren(makeStage(s, zview).stage);
+    dlg.onclick = e => { if (e.target === dlg) dlg.close(); };
+    dlg.showModal();
+  }
+
+  function render() {
+    const list = visibleStickers();
+    document.getElementById("meta").textContent =
+      `${list.length} Sticker · generiert ${M.generated.replace("T", " ")}`;
+    app.replaceChildren();
+    if (!list.length) { app.append(el("p", { className: "empty", textContent: "Keine Sticker in diesem Set." })); return; }
+    Object.entries(M.directions).forEach(([key, name]) => {
+      const group = list.filter(s => s.direction === key);
+      if (!group.length) return;
+      app.append(el("section", {},
+        el("h2", {}, el("b", { textContent: key }), name),
+        el("div", { className: "grid" }, group.map(card))));
+    });
+  }
+
+  applyBg();
+  renderControls();
+  render();
+})();
+</script>
+</body>
+</html>

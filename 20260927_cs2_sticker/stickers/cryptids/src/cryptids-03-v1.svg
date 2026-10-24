@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"
+     data-title="Owlman – Now You See It"
+     data-description="A quiet forest clearing under the moon… tilt your weapon and two eyes light up between the pines, then the Owlman spreads his wings in front of the moon. Lenticular sticker – the frame and name plate stay still, only the window changes."
+     data-cryptid="Owlman"
+     data-direction="B"
+     data-finish="lenticular"
+     data-palettes="night"
+     data-mechanic="lenticular"
+     data-frames="links mitte rechts"
+     data-note="Lenticular, 3 Frames nur im runden Fenster: links Waldlichtung mit Mond, Mitte leuchten zwei Augen zwischen den fernen Tannen, rechts steht der Owlman mit Neon-Kontur und ausgebreiteten Flügeln vor dem Mond. Rahmen, Schild und herausragende Tannenspitze bleiben statisch (außerhalb der Holo-Maske). Der linke Frame trägt allein als ruhiges Nachtbild. Set-Regel: Grün ist immer nur die Kryptide.">
+  <defs>
+    <!-- Fenster: einzige Region, in der die Frames wechseln -->
+    <circle id="window" cx="512" cy="482" r="372"/>
+    <clipPath id="win"><use href="#window"/></clipPath>
+    <rect id="plate" x="282" y="806" width="460" height="100" rx="50"/>
+
+    <!-- Tanne, Basis bei (0,0), Höhe 400 -->
+    <path id="pine" d="M0-400Q12-352 42-316Q30-318 18-324Q36-272 64-226Q44-230 26-238Q52-184 86-136Q60-142 34-150Q70-92 106-44Q70-40 14-44L14 0H-14V-44Q-70-40-106-44Q-70-92-34-150Q-60-142-86-136Q-52-184-26-238Q-44-230-64-226Q-36-272-18-324Q-30-318-42-316Q-12-352 0-400Z"/>
+    <!-- Außenbaum: nur die Spitze ragt über das Fenster hinaus -->
+    <clipPath id="breakout"><use href="#window"/><rect x="0" y="0" width="1024" height="420"/></clipPath>
+    <mask id="outside" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024"><rect width="1024" height="1024" fill="white"/><use href="#window" fill="black"/></mask>
+    <g id="pineOut" clip-path="url(#breakout)"><use href="#pine" transform="translate(226 800) scale(1 1.55)"/></g>
+
+    <!-- Owlman: Flügel waagerecht entworfen, per transform angehoben; Hälfte x relativ zur Mittelachse -->
+    <path id="owlWing" d="M54 504 C 84 464, 130 414, 190 398 C 212 390, 232 388, 245 392
+      A 15.6 46 42 0 1 268 413 A 15.4 56 61 0 1 283 440 A 15.2 62 81 0 1 288 470
+      A 15.2 64 99 0 1 283 500 A 15.4 62 119 0 1 268 527 A 14.9 56 138 0 1 246 547
+      A 13.7 46 156 0 1 221 558 A 11 22 133 0 1 206 574 A 19 20 162 0 1 170 586
+      A 19.4 18 168 0 1 132 594 A 19.2 16 171 0 1 94 600 L 40 612 Z"/>
+    <g id="owlHalf">
+      <use href="#owlWing" transform="translate(54 504) rotate(-28) scale(0.88) translate(-54 -504)"/>
+      <path d="M-4 496 L 52 494 C 84 522, 98 572, 92 624 C 88 680, 76 730, 60 770 L -4 772 Z"/>
+    </g>
+    <g id="owl">
+      <use href="#owlHalf" transform="translate(512 0)"/>
+      <use href="#owlHalf" transform="translate(512 0) scale(-1 1)"/>
+      <path d="M512 436 C 526 436, 540 430, 548 422 C 556 408, 564 394, 578 376
+               C 580 398, 584 416, 584 440 C 586 480, 574 512, 552 530 Q 512 552, 472 530
+               C 450 512, 438 480, 440 440 C 440 416, 444 398, 446 376
+               C 460 394, 468 408, 476 422 C 484 430, 498 436, 512 436 Z"/>
+    </g>
+
+    <!-- Augen: gleiche Position in Mitte und Rechts -->
+    <radialGradient id="eyeGlow">
+      <stop offset="0" class="sc-accent" stop-opacity="0.5"/>
+      <stop offset="1" class="sc-accent" stop-opacity="0"/>
+    </radialGradient>
+    <g id="eyes">
+      <ellipse cx="512" cy="468" rx="92" ry="56" fill="url(#eyeGlow)"/>
+      <circle cx="486" cy="468" r="20" class="f-accent"/>
+      <circle cx="538" cy="468" r="20" class="f-accent"/>
+      <circle cx="488" cy="470" r="7" class="f-ink"/>
+      <circle cx="536" cy="470" r="7" class="f-ink"/>
+      <path d="M458 442 L512 464 L566 442 L566 454 L512 478 L458 454 Z" class="f-ink"/>
+    </g>
+
+    <linearGradient id="sky" gradientUnits="userSpaceOnUse" x1="0" y1="110" x2="0" y2="620">
+      <stop offset="0" class="sc-paper"/>
+      <stop offset="1" class="sc-ink2"/>
+    </linearGradient>
+    <linearGradient id="mist" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" class="sc-outline" stop-opacity="0"/>
+      <stop offset="0.55" class="sc-outline" stop-opacity="0.12"/>
+      <stop offset="1" class="sc-outline" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="halo">
+      <stop offset="0.45" class="sc-outline" stop-opacity="0.3"/>
+      <stop offset="1" class="sc-outline" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Stanzrand (statisch) -->
+  <g fill="none" class="s-outline w-outline" stroke-linejoin="round">
+    <use href="#window"/>
+    <use href="#plate"/>
+    <use href="#pineOut"/>
+  </g>
+
+  <!-- Fenster-Inhalt -->
+  <g clip-path="url(#win)">
+    <rect x="100" y="100" width="824" height="780" fill="url(#sky)"/>
+    <circle cx="676" cy="272" r="200" fill="url(#halo)"/>
+    <circle cx="676" cy="272" r="92" class="f-outline"/>
+    <g class="f-outline">
+      <circle cx="430" cy="196" r="5"/>
+      <circle cx="560" cy="150" r="4"/>
+      <circle cx="800" cy="440" r="4"/>
+      <circle cx="400" cy="330" r="3"/>
+      <circle cx="505" cy="262" r="4"/>
+      <circle cx="840" cy="400" r="3"/>
+      <circle cx="600" cy="370" r="3"/>
+    </g>
+    <!-- ferne Baumreihe (Tarnung: zwei höhere Wipfel = die Federohren) -->
+    <g class="f-shade">
+      <rect x="100" y="540" width="824" height="340"/>
+      <use href="#pine" transform="translate(458 600) scale(0.36 0.535)"/>
+      <use href="#pine" transform="translate(566 600) scale(0.36 0.535)"/>
+      <use href="#pine" transform="translate(512 600) scale(0.6 0.42)"/>
+      <use href="#pine" transform="translate(420 600) scale(0.5 0.36)"/>
+      <use href="#pine" transform="translate(604 600) scale(0.5 0.34)"/>
+      <use href="#pine" transform="translate(350 600) scale(0.5 0.28)"/>
+      <use href="#pine" transform="translate(680 600) scale(0.55 0.3)"/>
+      <use href="#pine" transform="translate(750 600) scale(0.45 0.22)"/>
+      <use href="#pine" transform="translate(280 600) scale(0.45 0.2)"/>
+    </g>
+
+    <!-- Bodennebel in der Lichtung -->
+    <rect x="100" y="560" width="824" height="200" fill="url(#mist)"/>
+    <use href="#pineOut" class="f-ink"/>
+
+    <!-- Frames -->
+    <g data-frame="links"/><!-- leer: nur Wald und Mond -->
+    <g data-frame="mitte"><use href="#eyes"/></g>
+    <g data-frame="rechts">
+      <use href="#owl" fill="none" class="s-accent w-line" stroke-linejoin="round"/>
+      <use href="#owl" class="f-ink"/>
+      <use href="#eyes"/>
+    </g>
+
+    <!-- nahe Baumreihe: Lichtung in der Mitte -->
+    <g class="f-ink">
+      <rect x="100" y="740" width="824" height="180"/>
+      <use href="#pine" transform="translate(300 800) scale(0.75 0.700)"/>
+      <use href="#pine" transform="translate(360 800) scale(0.65 0.550)"/>
+      <use href="#pine" transform="translate(420 800) scale(0.6 0.425)"/>
+      <use href="#pine" transform="translate(470 800) scale(0.55 0.350)"/>
+      <use href="#pine" transform="translate(530 800) scale(0.55 0.325)"/>
+      <use href="#pine" transform="translate(590 800) scale(0.6 0.375)"/>
+      <use href="#pine" transform="translate(650 800) scale(0.65 0.475)"/>
+      <use href="#pine" transform="translate(710 800) scale(0.7 0.575)"/>
+      <use href="#pine" transform="translate(770 800) scale(0.75 0.650)"/>
+      <use href="#pine" transform="translate(830 800) scale(0.8 0.800)"/>
+      <use href="#pine" transform="translate(884 800) scale(0.9 0.950)"/>
+    </g>
+  </g>
+
+  <!-- Statischer Rahmen -->
+  <use href="#window" fill="none" class="s-ink w-bold"/>
+  <use href="#pineOut" class="f-ink" mask="url(#outside)"/>
+  <use href="#plate" class="f-ink"/>
+  <!-- Set-Zeichen: zwei leuchtende Augenpunkte links und rechts vom Namen -->
+  <g class="f-accent">
+    <circle cx="318" cy="856" r="6"/><circle cx="336" cy="856" r="6"/>
+    <circle cx="688" cy="856" r="6"/><circle cx="706" cy="856" r="6"/>
+  </g>
+  <text x="512" y="875" text-anchor="middle" class="t-sans f-outline" font-size="54" font-weight="700" letter-spacing="8">OWLMAN</text>
+</svg>

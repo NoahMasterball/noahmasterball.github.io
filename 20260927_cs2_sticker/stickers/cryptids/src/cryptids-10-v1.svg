@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1024 1024" width="1024" height="1024"
+     stroke-linejoin="round" stroke-linecap="round"
+     data-title="Tsuchinoko – Smoke Mid"
+     data-description="The Tsuchinoko is famous for its fat belly – this one swallowed a smoke grenade. Pin in its mouth, smoke rolling out over MID. Holo sticker from the de_wildlife series."
+     data-cryptid="Tsuchinoko"
+     data-direction="E"
+     data-finish="holo"
+     data-palettes="dust"
+     data-mechanic="none"
+     data-note="Tsuchinoko hat eine Smoke-Granate verschluckt: der berühmte dicke Bauch IST die Granate. Stift im Maul, Rauch kommt raus und zieht über das gesprühte MID – ‚Smoke Mid‘ wörtlich.">
+  <defs>
+    <!-- MID (eigene Lettern), Höhe 220 -->
+    <g id="wordMID">
+      <path d="M 0,220 V 0 H 64 L 110,108 L 156,0 H 220 V 220 H 160 V 100 L 126,178 H 94 L 60,100 V 220 Z"/>
+      <path d="M 250,0 H 316 V 220 H 250 Z"/>
+      <path fill-rule="evenodd" d="M 346,0 H 430 C 500,0 540,46 540,110 C 540,174 500,220 430,220 H 346 Z M 410,56 V 164 H 428 C 460,164 476,142 476,110 C 476,78 460,56 428,56 Z"/>
+    </g>
+
+    <!-- Tsuchinoko: Teile (ohne Farbe; Farbe setzt die Verwendung) -->
+    <path id="tail" d="M 251,711 C 242,715 215,731 197,736 C 179,742 158,745 143,743 C 128,742 116,735 107,728 C 99,721 95,709 95,700 C 95,692 102,684 107,680 C 112,677 121,680 124,680 C 129,680 129,672 124,672 C 120,672 108,667 101,672 C 94,676 82,688 81,700 C 80,711 83,729 93,742 C 102,754 118,766 137,773 C 155,779 181,780 203,780 C 225,779 258,771 269,769 Z"/>
+    <!-- Körper: Bauch = Granatenkörper, dann Zünder, dann Hals -->
+    <path id="body" d="M 290,566 C 380,552 510,552 600,562 C 626,566 640,582 646,606 C 668,602 690,604 702,612 C 720,612 738,606 756,598 L 800,660 C 780,700 740,748 702,752 C 684,756 660,756 646,752 C 642,780 628,796 600,800 C 510,812 380,812 290,798 C 244,790 226,746 226,682 C 226,620 244,574 290,566 Z"/>
+    <path id="head" d="M 745,676 C 728,632 748,580 800,566 C 850,552 915,558 945,588 C 965,608 960,640 935,652 C 905,666 860,678 820,698 C 790,712 758,702 745,676 Z"/>
+    <circle id="pin" cx="906" cy="730" r="27"/>
+    <g id="smoke">
+      <circle cx="930" cy="566" r="15"/>
+      <circle cx="912" cy="530" r="19"/><circle cx="934" cy="522" r="13"/>
+      <circle cx="890" cy="486" r="23"/><circle cx="916" cy="476" r="16"/>
+      <circle cx="884" cy="432" r="28"/><circle cx="856" cy="446" r="20"/>
+      <circle cx="900" cy="382" r="30"/><circle cx="866" cy="372" r="24"/>
+      <circle cx="850" cy="300" r="46"/><circle cx="912" cy="290" r="36"/><circle cx="790" cy="318" r="38"/>
+      <circle cx="800" cy="248" r="42"/><circle cx="866" cy="226" r="38"/><circle cx="928" cy="238" r="26"/><circle cx="742" cy="356" r="26"/>
+    </g>
+    <!-- Silhouette = SSoT für Stanzrand und Außenkontur -->
+    <g id="beastSil">
+      <use href="#tail"/><use href="#body"/><use href="#head"/><use href="#pin"/><use href="#smoke"/>
+    </g>
+    <clipPath id="bodyClip"><use href="#body"/></clipPath>
+    <mask id="smokeMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024"><use href="#smoke" fill="white"/></mask>
+  </defs>
+
+  <g transform="translate(0,42)">
+    <!-- Wand (Teil e-wall) mit gesprühtem Callout -->
+    <g data-include="e-wall">
+      <use href="#wordMID" class="f-accent" transform="translate(242,160)"/>
+    </g>
+
+    <!-- Tsuchinoko: Stanzrand, Außenkontur, Flächen mit Innenlinien -->
+    <use href="#beastSil" class="f-outline s-outline w-outline"/>
+    <use href="#beastSil" class="f-ink s-ink w-bold"/>
+    <g class="s-ink w-line">
+      <use href="#tail" class="f-accent2"/>
+      <use href="#body" class="f-accent2"/>
+      <g clip-path="url(#bodyClip)" stroke="none">
+        <rect x="220" y="600" width="376" height="20" class="f-glow" opacity="0.22"/>
+        <rect x="220" y="750" width="640" height="70" class="f-ink" opacity="0.2"/>
+        <!-- Schlangenmuster, über der Granate gedehnt -->
+        <g class="f-ink" opacity="0.3">
+          <path d="M 238,596 L 276,574 L 314,596 L 276,618 Z"/>
+          <path d="M 340,580 L 410,561 L 480,580 L 410,599 Z"/>
+          <path d="M 500,580 L 555,563 L 610,580 L 555,597 Z"/>
+          <path d="M 700,624 L 722,612 L 744,624 L 722,636 Z"/>
+        </g>
+      </g>
+      <!-- Granate unter der Haut: Kappe, Hebel, Lüftungslöcher -->
+      <path d="M 600,564 C 614,620 614,745 600,800 M 646,610 C 654,650 654,712 646,752" fill="none"/>
+      <path d="M 646,612 C 600,630 520,632 460,630" fill="none" opacity="0.55"/>
+      <g class="f-ink" stroke="none" opacity="0.45">
+        <circle cx="572" cy="660" r="9"/><circle cx="574" cy="700" r="9"/><circle cx="572" cy="740" r="9"/>
+      </g>
+      <use href="#head" class="f-accent2"/>
+      <path d="M 772,600 C 790,590 812,588 830,592" fill="none" opacity="0.4"/>
+      <path d="M 952,622 C 925,640 885,652 850,656" fill="none"/>
+      <!-- Sicherungsstift -->
+      <circle cx="906" cy="730" r="16" class="f-outline" stroke="none"/>
+      <path d="M 914,646 C 909,664 906,682 906,703" fill="none" class="s-ink w-bold"/>
+      <path d="M 914,646 C 909,664 906,682 906,703" fill="none" class="s-glow w-fine"/>
+      <use href="#pin" fill="none" class="s-ink w-bold"/>
+      <use href="#pin" fill="none" class="s-glow w-fine"/>
+      <!-- Rauch -->
+      <use href="#smoke" class="f-shade" stroke="none"/>
+      <g mask="url(#smokeMask)"><use href="#smoke" class="f-glow" stroke="none" transform="translate(-7,-9)"/></g>
+      <!-- Auge: erschrocken -->
+      <circle cx="850" cy="608" r="34" class="f-glow"/>
+      <circle cx="857" cy="610" r="12" class="f-accent" stroke="none"/>
+      <circle cx="858" cy="610" r="6" class="f-ink" stroke="none"/>
+      <circle cx="842" cy="597" r="6" class="f-outline" stroke="none"/>
+      <path d="M 816,566 C 832,556 856,554 876,560" fill="none"/>
+      <circle cx="930" cy="592" r="5" class="f-ink" stroke="none"/>
+    </g>
+  </g>
+</svg>

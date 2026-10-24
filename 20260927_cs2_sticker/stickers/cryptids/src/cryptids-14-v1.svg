@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024"
+     data-title="Snallygaster Constellation"
+     data-description="The Snallygaster, Maryland's dragon-bird, as a constellation in flight: hooked toothed beak, crest, raised feathered wings and a curled tail. Holo sticker from the cryptid constellation series."
+     data-cryptid="Snallygaster"
+     data-direction="D"
+     data-finish="holo"
+     data-palettes="starmap"
+     data-mechanic="none"
+     data-note="Snallygaster als Sternbild ohne Schrift: Drache-Vogel im Flug – langer Hakenschnabel mit Zähnen, Kamm, zwei erhobene Federflügel, eingerollter Echsenschwanz; das eine Auge ist der hellste Stern. Vergrößerte Scheibe wie der Kraken; Holo auf dem Himmel.">
+  <defs>
+    <!-- Snallygaster: Hakenschnabel mit Zähnen, Kamm, Hals, Rumpf, zwei Federflügel, Kralle, eingerollter Schwanz -->
+    <g id="fig" data-include="fig-snallygaster"/>
+    <!-- Sternbild in Scheiben-Koordinaten; gezeichnet von d-disc-big -->
+    <g id="art">
+      <g data-include="d-field" transform="rotate(120 512 466) matrix(-1 0 0 1 1024 0)"/>
+      <g transform="translate(14 34) rotate(-8 512 466)">
+        <g data-include="d-figure"/>
+        <path d="M384.7 268.4L321.9 220.7M412.8 267.5L351.4 189.3M443.4 268.9L393.4 170.4M474.8 273.1L440.1 165.5M506.3 279.9L486.8 174.7M537.4 289.2L531.9 196.4M650 272.7L679.7 215.8M664.8 296.2L713.1 233.8M678.4 321.8L740.4 262.7M690.5 348.6L759.8 297.8M700.5 376L768.3 336" fill="none" class="s-accent2 w-fine" stroke-linecap="round" opacity="0.4"/>
+      </g>
+      <path fill="none" class="s-accent w-line" stroke-linecap="round" stroke-linejoin="round"
+            d="M198 524 L326 457 L453 500 L574 493 L767 573 L763 693M453 500 L386 320 L346 198M574 493 L639 296 L707 222"/>
+      <use xlink:href="#d-star" transform="translate(326 457) scale(0.85)"/>
+      <use xlink:href="#d-star" transform="translate(198 524) scale(0.5)"/>
+      <use xlink:href="#d-star" transform="translate(453 500) scale(0.4)"/>
+      <use xlink:href="#d-star" transform="translate(386 320) scale(0.4)"/>
+      <use xlink:href="#d-star" transform="translate(346 198) scale(0.6)"/>
+      <use xlink:href="#d-star" transform="translate(574 493) scale(0.5)"/>
+      <use xlink:href="#d-star" transform="translate(639 296) scale(0.35)"/>
+      <use xlink:href="#d-star" transform="translate(707 222) scale(0.55)"/>
+      <use xlink:href="#d-star" transform="translate(767 573) scale(0.4)"/>
+      <use xlink:href="#d-star" transform="translate(763 693) scale(0.5)"/>
+    </g>
+  </defs>
+
+  <g data-include="d-disc-big"/>
+</svg>

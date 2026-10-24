@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Richtung D: Stanzform der Sternkarten-Scheibe (heller Rand). Als Erstes einbinden, dann d-disc.
+       Mit Namensband stattdessen d-cut-ribbon (bindet dieses Teil ein). -->
+  <circle cx="512" cy="466" r="428" class="f-outline s-outline w-outline"/>
+</svg>

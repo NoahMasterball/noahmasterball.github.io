@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Richtung D: Form des Namensbands (#d-band, #d-tailL, #d-tailR, Schriftlinie #d-nameline) +
+       heller Stanzrand. Gezeichnet wird das Band von d-ribbon. Mit Scheibe: d-cut-ribbon. -->
+  <defs>
+    <path id="d-band" d="M170 800Q512 900 854 800L854 912Q512 1012 170 912Z"/>
+    <path id="d-tailL" d="M200 840L66 802L104 858L66 914L200 952Z"/>
+    <path id="d-tailR" d="M824 840L958 802L920 858L958 914L824 952Z"/>
+    <path id="d-nameline" d="M170 880Q512 980 854 880" fill="none"/>
+  </defs>
+  <g class="f-outline s-outline w-outline" stroke-linejoin="round">
+    <use xlink:href="#d-band"/>
+    <use xlink:href="#d-tailL"/>
+    <use xlink:href="#d-tailR"/>
+  </g>
+</svg>

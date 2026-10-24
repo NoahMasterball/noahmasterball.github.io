@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024"
+     data-title="Nessie – Smooth"
+     data-description="Nessie as one smooth glossy stroke: long neck and two humps rising out of the loch inside a round badge. Holo sticker from the Smooth series – no text, clean curves, made to stack."
+     data-cryptid="Loch Ness Monster"
+     data-direction="G"
+     data-finish="holo"
+     data-palettes="candy"
+     data-mechanic="none"
+     data-note="Smooth G: Hals mit Kopf als ein Bogen, zwei Buckel. Auge = Glow-Punkt.">
+  <defs>
+    <g id="glyph">
+      <path d="M318 690C308 500 340 310 470 272C566 244 666 292 668 382"/>
+    </g>
+    <g id="mass">
+      <path d="M360 700C380 480 800 480 816 700C700 776 476 776 360 700Z"/>
+    </g>
+  </defs>
+  <g data-include="g-badge"/>
+  <circle cx="604" cy="318" r="22" class="f-ink"/>
+  <circle cx="597" cy="311" r="8" class="f-glow"/>
+</svg>

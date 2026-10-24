@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1024 1024" width="1024" height="1024"
+     stroke-linejoin="round" stroke-linecap="round"
+     data-title="Mothman – Flashed"
+     data-description="Moths fly into the light – so Mothman flies straight into a popping flashbang, the grenade every player hates, and loves it. Holo sticker from the de_wildlife series."
+     data-cryptid="Mothman"
+     data-direction="E"
+     data-finish="holo"
+     data-palettes="dust"
+     data-mechanic="none"
+     data-note="Motten fliegen aufs Licht: Mothman fliegt verzückt in eine platzende Flashbang – die Granate, die jeder CS-Spieler hasst, ist für ihn die schönste Lampe der Welt. Ohne Text.">
+  <defs>
+    <!-- Blitz der Flashbang (Mitte 512 300) -->
+    <path id="burst" d="M 512,44 L 553,139 L 613,111 L 629,164 L 734,128 L 688,209 L 750,224 L 719,268 L 835,300 L 719,332 L 756,378 L 688,391 L 729,468 L 629,436 L 616,494 L 553,461 L 512,556 L 471,461 L 411,489 L 395,436 L 290,472 L 336,391 L 274,376 L 305,332 L 189,300 L 305,268 L 268,222 L 336,209 L 295,132 L 395,164 L 408,106 L 471,139 Z"/>
+    <path id="core" d="M 561,141 L 575,205 L 622,203 L 621,243 L 696,255 L 637,296 L 662,330 L 621,349 L 646,409 L 575,387 L 552,423 L 512,402 L 463,451 L 449,387 L 402,389 L 403,349 L 328,337 L 387,296 L 362,262 L 403,243 L 378,183 L 449,205 L 472,169 L 512,190 Z"/>
+
+    <!-- Flashbang (generisch), lokal um (0,0): Körper, Zünder, abfedernder Bügel (Drehpunkt oben), gezogener Ring -->
+    <rect id="fbBody" x="-50" y="-62" width="100" height="160" rx="28"/>
+    <path id="fbFuze" d="M -32,-56 V -90 C -32,-100 -24,-108 -14,-108 H 14 C 24,-108 32,-100 32,-90 V -56 Z"/>
+    <path id="fbSpoon" d="M -2,-120 C 36,-124 66,-106 70,-78 L 72,52 C 72,68 50,70 50,54 L 48,-72 C 46,-90 28,-100 -2,-100 Z" transform="rotate(-14,-2,-110)"/>
+    <circle id="fbRing" cx="-94" cy="-122" r="28"/>
+    <g id="flashbang">
+      <use href="#fbSpoon"/><use href="#fbFuze"/><use href="#fbBody"/>
+    </g>
+
+    <!-- Mothman: linke Hälfte, rechte = gespiegelt (Achse x=512) -->
+    <path id="foreWing" d="M 486,618 C 420,550 330,440 250,366 C 214,334 166,312 128,320 C 102,326 94,354 102,386 C 116,446 148,520 190,572 C 262,636 380,666 482,676 Z"/>
+    <path id="hindWing" d="M 482,668 C 400,664 292,644 222,664 C 160,684 138,752 156,812 C 176,880 248,924 320,914 C 402,900 462,816 494,738 Z"/>
+    <path id="antenna" d="M 488,430 L 483,393 L 466,377 L 461,349 L 436,343 L 426,318 L 398,321 L 383,302 L 357,311 L 336,305 L 322,322 L 329,342 L 346,344 L 357,364 L 377,361 L 384,382 L 408,379 L 415,399 L 441,400 L 454,416 Z"/>
+    <path id="thigh" d="M 448,786 C 438,806 440,830 452,842 C 458,856 474,858 482,848 C 494,854 506,842 504,826 C 510,808 504,790 494,780 Z"/>
+    <path id="shin" d="M 458,838 C 454,868 450,894 450,914 L 470,914 C 472,894 478,868 484,840 Z"/>
+    <path id="foot" d="M 444,910 C 434,926 428,942 426,956 C 440,950 446,940 452,930 L 458,962 C 466,950 468,940 468,930 C 476,942 484,950 496,954 C 490,940 484,924 476,910 Z"/>
+    <ellipse id="eye" cx="460" cy="490" rx="50" ry="56"/>
+    <g id="half">
+      <use href="#foreWing"/><use href="#hindWing"/><use href="#antenna"/><use href="#shin"/><use href="#foot"/><use href="#thigh"/><use href="#arm"/><use href="#eye"/>
+    </g>
+    <path id="torso" d="M 452,600 C 440,660 446,740 466,802 C 478,838 546,838 558,802 C 578,740 584,660 572,600 C 552,590 472,590 452,600 Z"/>
+    <path id="ruff" d="M 416,580 C 414,606 432,624 452,620 C 462,636 486,640 498,628 C 506,640 518,640 526,628 C 538,640 562,636 572,620 C 592,624 610,606 608,580 C 584,560 440,560 416,580 Z"/>
+    <path id="arm" d="M 440,608 C 418,630 410,664 420,690 C 428,710 452,712 470,698 L 500,670 C 510,660 500,644 488,652 L 462,670 C 452,676 446,664 448,652 C 450,638 456,626 462,618 Z"/>
+    <path id="hands" d="M 512,628 C 534,628 548,644 546,664 C 544,684 530,696 512,696 C 494,696 480,684 478,664 C 476,644 490,628 512,628 Z"/>
+    <path id="head" d="M 512,404 C 566,404 606,432 612,480 C 618,526 584,570 540,580 C 526,584 498,584 484,580 C 440,570 406,526 412,480 C 418,432 458,404 512,404 Z"/>
+
+    <!-- Silhouette = SSoT für Stanzrand und Außenkontur -->
+    <g id="mothSil">
+      <use href="#half"/><use href="#half" transform="translate(1024,0) scale(-1,1)"/>
+      <use href="#torso"/><use href="#ruff"/><use href="#hands"/><use href="#head"/>
+    </g>
+    <clipPath id="fbClip"><use href="#fbBody"/></clipPath>
+    <clipPath id="foreClip"><use href="#foreWing"/></clipPath>
+    <clipPath id="hindClip"><use href="#hindWing"/></clipPath>
+    <clipPath id="torsoClip"><use href="#torso"/></clipPath>
+    <!-- Flügelzeichnung (linke Seite, wird gespiegelt) -->
+    <g id="wingArt">
+      <g clip-path="url(#foreClip)" stroke="none">
+        <path d="M 60,310 C 90,450 150,570 250,630 L 150,670 L 40,490 Z" class="f-ink" opacity="0.25"/>
+      </g>
+      <g clip-path="url(#hindClip)" stroke="none">
+        <path d="M 120,750 C 160,870 240,910 330,890 L 360,970 L 100,950 Z" class="f-ink" opacity="0.25"/>
+      </g>
+      <path d="M 470,630 C 380,550 290,450 200,380 M 460,660 C 360,620 270,570 170,490 M 470,690 C 390,690 300,700 230,730 M 474,710 C 420,750 380,830 330,890" fill="none" class="s-ink w-fine" opacity="0.5"/>
+      <circle cx="286" cy="782" r="54" class="f-accent"/>
+      <circle cx="286" cy="782" r="26" class="f-ink" stroke="none"/>
+      <circle cx="276" cy="770" r="9" class="f-outline" stroke="none"/>
+      <path d="M 210,428 C 236,416 262,428 268,452 C 244,462 220,452 210,428 Z" class="f-glow" opacity="0.8"/>
+    </g>
+  </defs>
+
+  <!-- Blitz: Stanzrand, Fläche, heller Kern, Kontur -->
+  <use href="#burst" class="f-outline s-outline w-outline"/>
+  <use href="#burst" class="f-glow"/>
+  <use href="#core" class="f-outline"/>
+  <use href="#burst" fill="none" class="s-ink w-bold"/>
+
+  <!-- Mothman: Stanzrand, Außenkontur, Flächen mit Innenlinien -->
+  <use href="#mothSil" class="f-outline s-outline w-outline"/>
+  <use href="#mothSil" class="f-ink s-ink w-bold"/>
+  <g class="s-ink w-line">
+    <g class="f-accent2">
+      <use href="#hindWing"/><use href="#hindWing" transform="translate(1024,0) scale(-1,1)"/>
+      <use href="#foreWing"/><use href="#foreWing" transform="translate(1024,0) scale(-1,1)"/>
+    </g>
+    <use href="#wingArt"/><use href="#wingArt" transform="translate(1024,0) scale(-1,1)"/>
+    <g class="f-accent2">
+      <use href="#antenna"/><use href="#antenna" transform="translate(1024,0) scale(-1,1)"/>
+    </g>
+    <path d="M 488,430 Q 420,334 322,322 M 536,430 Q 604,334 702,322" fill="none"/>
+    <g class="f-accent2">
+      <use href="#shin"/><use href="#shin" transform="translate(1024,0) scale(-1,1)"/>
+      <use href="#foot"/><use href="#foot" transform="translate(1024,0) scale(-1,1)"/>
+    </g>
+    <use href="#torso" class="f-accent2"/>
+    <g clip-path="url(#torsoClip)">
+      <path d="M 440,680 Q 512,700 584,680 M 440,730 Q 512,750 584,730 M 440,780 Q 512,800 584,780" fill="none"/>
+      <rect x="430" y="600" width="50" height="240" class="f-ink" stroke="none" opacity="0.2"/>
+    </g>
+    <g class="f-accent2">
+      <use href="#thigh"/><use href="#thigh" transform="translate(1024,0) scale(-1,1)"/>
+    </g>
+    <use href="#ruff" class="f-accent2"/>
+    <g class="f-accent2">
+      <use href="#arm"/><use href="#arm" transform="translate(1024,0) scale(-1,1)"/>
+      <use href="#hands"/>
+    </g>
+    <path d="M 500,634 V 690 M 512,632 V 694 M 524,634 V 690" fill="none" opacity="0.55" class="s-ink w-fine"/>
+    <use href="#head" class="f-accent2"/>
+    <!-- Augen: glühend, mit Blitz-Funkeln -->
+    <g class="f-accent">
+      <use href="#eye"/><use href="#eye" transform="translate(1024,0) scale(-1,1)"/>
+    </g>
+    <g class="f-outline" stroke="none">
+      <path d="M 470,448 L 478,474 L 504,482 L 478,490 L 470,516 L 462,490 L 436,482 L 462,474 Z"/>
+      <path d="M 554,448 L 562,474 L 588,482 L 562,490 L 554,516 L 546,490 L 520,482 L 546,474 Z"/>
+    </g>
+    <path d="M 494,558 Q 512,570 530,558" fill="none"/>
+  </g>
+
+  <!-- Flashbang: Stanzrand, Kontur, Details -->
+  <g transform="translate(512,292) rotate(14)">
+    <use href="#flashbang" class="f-outline s-outline w-outline"/>
+    <use href="#flashbang" class="f-ink s-ink w-bold"/>
+    <g class="s-ink w-line">
+      <path d="M -36,-86 L -70,-106" fill="none" class="s-outline w-outline"/>
+      <path d="M -36,-86 L -70,-106" fill="none" class="s-ink w-bold"/>
+      <path d="M -36,-86 L -70,-106" fill="none" class="s-glow w-fine"/>
+      <use href="#fbRing" fill="none" class="s-outline w-outline"/>
+      <use href="#fbRing" fill="none" class="s-ink w-bold"/>
+      <use href="#fbRing" fill="none" class="s-glow w-fine"/>
+      <use href="#fbFuze" class="f-shade"/>
+      <path d="M -30,-76 H 30" fill="none" opacity="0.5"/>
+      <use href="#fbBody" class="f-glow"/>
+      <g clip-path="url(#fbClip)" stroke="none">
+        <rect x="22" y="-70" width="40" height="180" class="f-shade"/>
+        <rect x="-54" y="4" width="108" height="24" class="f-accent"/>
+        <g class="f-ink2">
+          <circle cx="-24" cy="-30" r="8"/><circle cx="2" cy="-30" r="8"/><circle cx="28" cy="-30" r="8"/>
+          <circle cx="-24" cy="64" r="8"/><circle cx="2" cy="64" r="8"/><circle cx="28" cy="64" r="8"/>
+        </g>
+      </g>
+      <use href="#fbBody" fill="none"/>
+      <use href="#fbSpoon" class="f-ink2"/>
+    </g>
+  </g>
+</svg>

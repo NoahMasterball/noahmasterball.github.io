@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024"
+     data-title="Snallygaster – Bestiary"
+     data-description="A page torn from a medieval bestiary: the Snallygaster, Maryland's dragon-bird, painted in sepia ink inside a gilded arch on a diamond-patterned ground. Foil sticker in parchment, sepia and gold – made to sit next to old-world dragon skins in your crafts."
+     data-cryptid="Snallygaster"
+     data-direction="F"
+     data-finish="foil"
+     data-palettes="lore"
+     data-mechanic="none"
+     data-note="Skin-Craft Dragon Lore: nur Farbe/Stimmung (Pergament, Sepia, Blattgold), kein Element des Skins. Bestiarium-Miniatur: Rundbogen mit Goldrahmen, Rautenhintergrund wie in Buchmalerei, Snallygaster (Teil aus cryptids-14) als Sepia-Figur mit Goldkante, Namensband der Sternbild-Serie. Foil = Blattgold.">
+  <defs>
+    <g id="beast" data-include="fig-snallygaster"/>
+    <!-- Bogenfeld der Miniatur; Bogenmitte (512 430), r 330 -->
+    <path id="panel" d="M182 860V430A330 330 0 0 1 842 430V860Z"/>
+    <path id="panel-inner" d="M222 860V430A290 290 0 0 1 802 430V860Z"/>
+    <clipPath id="clip-inner"><use xlink:href="#panel-inner"/></clipPath>
+    <pattern id="diaper" width="64" height="64" patternUnits="userSpaceOnUse" patternTransform="translate(512 0)">
+      <path d="M32 0L64 32L32 64L0 32Z" fill="none" class="s-ink2" stroke-width="4"/>
+      <circle cx="32" cy="32" r="5" class="f-accent"/>
+    </pattern>
+    <g id="beast-placed" transform="translate(512 500) scale(0.86) translate(-482 -410)">
+      <use xlink:href="#beast"/>
+    </g>
+  </defs>
+
+  <!-- 1 · Stanzform: Bogen + Band (Band-Stanzrand zeichnet d-ribbon-cut) -->
+  <use xlink:href="#panel" class="f-outline s-outline w-outline" stroke-linejoin="round"/>
+  <g data-include="d-ribbon-cut"/>
+
+  <!-- 2 · Goldrahmen, Pergament, Rautengrund -->
+  <use xlink:href="#panel" class="f-accent s-ink w-line" stroke-linejoin="round"/>
+  <use xlink:href="#panel-inner" class="f-paper s-ink w-fine"/>
+  <g clip-path="url(#clip-inner)">
+    <use xlink:href="#panel-inner" fill="url(#diaper)" opacity="0.55"/>
+  </g>
+  <g class="f-ink">
+    <circle cx="202" cy="430" r="7"/><circle cx="822" cy="430" r="7"/>
+    <circle cx="202" cy="640" r="7"/><circle cx="822" cy="640" r="7"/>
+    <circle cx="512" cy="120" r="7"/>
+  </g>
+
+  <!-- 3 · Snallygaster: Goldkante, Sepiakörper -->
+  <g stroke-linejoin="round" stroke-linecap="round">
+    <use xlink:href="#beast-placed" class="s-accent" stroke-width="26"/>
+    <use xlink:href="#beast-placed" class="f-ink2 s-ink w-line"/>
+  </g>
+  <circle cx="356" cy="485" r="11" class="f-glow s-ink" stroke-width="4"/>
+
+  <!-- 4 · Band mit Namen -->
+  <g data-include="d-ribbon">
+    <text class="t-serif f-ink" font-size="66" font-weight="bold" letter-spacing="4" text-anchor="middle">
+      <textPath xlink:href="#d-nameline" startOffset="50%">SNALLYGASTER</textPath>
+    </text>
+  </g>
+</svg>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Richtung D „Sternbilder“: Sternkarten-Scheibe (Himmel, Gradskala, Koordinatennetz)
+       + gemeinsame Defs aus fx-stars: #d-star (Stern mit Halo), #d-soft (Schein-Filter).
+       Mitte (512 466), Himmel r=368. Darunter liegt die Stanzform (d-cut bzw. d-cut-ribbon).
+       Ohne Namensband: Stanzform + Scheibe + Motiv in einer Gruppe per transform vergrößern/zentrieren. -->
+  <defs>
+    <radialGradient id="d-sky" cx="512" cy="420" r="380" gradientUnits="userSpaceOnUse">
+      <stop offset="0" class="sc-shade"/>
+      <stop offset="1" class="sc-paper"/>
+    </radialGradient>
+    <clipPath id="d-skyclip"><circle cx="512" cy="466" r="368"/></clipPath>
+    <g data-include="fx-stars"/>
+  </defs>
+
+  <!-- Himmel mit Gradskala -->
+  <circle cx="512" cy="466" r="406" class="f-ink"/>
+  <circle cx="512" cy="466" r="368" fill="url(#d-sky)"/>
+  <circle cx="512" cy="466" r="394" fill="none" class="s-accent w-fine"/>
+  <circle cx="512" cy="466" r="368" fill="none" class="s-accent w-fine" opacity="0.6"/>
+  <circle cx="512" cy="466" r="388" fill="none" class="s-accent w-line" stroke-dasharray="2.5 31.36"/>
+  <circle cx="512" cy="466" r="383" fill="none" class="s-accent w-bold" stroke-dasharray="4 196.54"/>
+
+  <!-- Koordinatennetz -->
+  <g clip-path="url(#d-skyclip)" fill="none" class="s-ink2 w-fine" stroke-dasharray="2 18" opacity="0.7" stroke-linecap="round">
+    <circle cx="512" cy="1400" r="1080"/>
+    <circle cx="512" cy="1400" r="840"/>
+    <ellipse cx="512" cy="466" rx="200" ry="368"/>
+  </g>
+</svg>

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Richtung D: Hintergrund-Sternfeld innerhalb des Himmels von d-disc (r=368 um 512 466).
+       Pro Sticker per transform spiegeln/drehen (um 512 466), damit es nicht überall gleich aussieht. -->
+  <defs>
+    <circle id="d-dot1" r="3"/>
+    <circle id="d-dot2" r="5"/>
+    <path id="d-dot3" d="M0 -14C2 -4 4 -2 14 0C4 2 2 4 0 14C-2 4 -4 2 -14 0C-4 -2 -2 -4 0 -14Z"/>
+  </defs>
+  <g class="f-accent2" opacity="0.55">
+    <use xlink:href="#d-dot1" x="292" y="379"/><use xlink:href="#d-dot1" x="181" y="538"/><use xlink:href="#d-dot1" x="361" y="455"/><use xlink:href="#d-dot1" x="587" y="197"/><use xlink:href="#d-dot1" x="551" y="367"/><use xlink:href="#d-dot1" x="795" y="542"/><use xlink:href="#d-dot1" x="852" y="389"/><use xlink:href="#d-dot1" x="651" y="479"/><use xlink:href="#d-dot1" x="863" y="456"/><use xlink:href="#d-dot1" x="427" y="155"/><use xlink:href="#d-dot1" x="683" y="547"/><use xlink:href="#d-dot1" x="262" y="646"/><use xlink:href="#d-dot1" x="710" y="184"/><use xlink:href="#d-dot1" x="447" y="397"/><use xlink:href="#d-dot1" x="474" y="774"/><use xlink:href="#d-dot1" x="529" y="121"/><use xlink:href="#d-dot1" x="263" y="551"/><use xlink:href="#d-dot1" x="626" y="139"/><use xlink:href="#d-dot1" x="365" y="738"/><use xlink:href="#d-dot1" x="794" y="355"/><use xlink:href="#d-dot1" x="660" y="418"/><use xlink:href="#d-dot1" x="482" y="223"/><use xlink:href="#d-dot1" x="542" y="708"/><use xlink:href="#d-dot1" x="562" y="277"/>
+  </g>
+  <g class="f-accent2" opacity="0.8">
+    <use xlink:href="#d-dot2" x="476" y="568"/><use xlink:href="#d-dot2" x="299" y="277"/><use xlink:href="#d-dot2" x="520" y="619"/><use xlink:href="#d-dot2" x="453" y="480"/><use xlink:href="#d-dot2" x="640" y="271"/><use xlink:href="#d-dot2" x="470" y="700"/><use xlink:href="#d-dot2" x="514" y="474"/><use xlink:href="#d-dot2" x="650" y="748"/><use xlink:href="#d-dot2" x="495" y="313"/><use xlink:href="#d-dot2" x="406" y="523"/><use xlink:href="#d-dot2" x="658" y="337"/><use xlink:href="#d-dot2" x="597" y="590"/><use xlink:href="#d-dot2" x="579" y="450"/><use xlink:href="#d-dot2" x="711" y="465"/><use xlink:href="#d-dot2" x="757" y="289"/><use xlink:href="#d-dot2" x="219" y="322"/><use xlink:href="#d-dot2" x="218" y="471"/>
+  </g>
+  <g class="f-glow">
+    <use xlink:href="#d-dot3" x="382" y="254"/><use xlink:href="#d-dot3" x="308" y="213"/><use xlink:href="#d-dot3" x="222" y="620"/><use xlink:href="#d-dot3" x="822" y="640"/><use xlink:href="#d-dot3" x="767" y="226"/>
+  </g>
+</svg>

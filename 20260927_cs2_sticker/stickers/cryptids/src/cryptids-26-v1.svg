@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024"
+     data-title="Nessie – Liminal Pool"
+     data-description="An empty tiled pool that shouldn't exist, under a pastel rainbow – and Nessie, quietly rising out of it. Dreamcore holo sticker: liminal, soft and a little uncanny, no text."
+     data-cryptid="Loch Ness Monster"
+     data-direction="H"
+     data-finish="holo"
+     data-palettes="dream"
+     data-mechanic="none"
+     data-note="Dreamcore H: Liminal Pool – Fliesenboden (Schachbrett), Pool mit Lichtstreifen, Regenbogen dahinter, Nessies Hals als weiche Lavendel-Linie.">
+  <defs>
+    <pattern id="tiles" width="64" height="64" patternUnits="userSpaceOnUse">
+      <rect width="64" height="64" class="f-outline"/>
+      <rect width="32" height="32" class="f-shade"/><rect x="32" y="32" width="32" height="32" class="f-shade"/>
+    </pattern>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" class="sc-accent2"/>
+      <stop offset="1" class="sc-ink2"/>
+    </linearGradient>
+    <g id="scene">
+      <g fill="none" stroke-linecap="butt" opacity="0.9">
+        <path d="M262 640A250 250 0 0 1 762 640" class="s-accent" stroke-width="34"/>
+        <path d="M296 640A216 216 0 0 1 728 640" class="s-glow" stroke-width="34"/>
+        <path d="M330 640A182 182 0 0 1 694 640" class="s-accent2" stroke-width="34"/>
+      </g>
+      <rect x="150" y="640" width="724" height="260" fill="url(#tiles)"/>
+      <rect x="290" y="672" width="444" height="128" rx="28" fill="url(#water)" class="s-outline w-bold"/>
+      <g fill="none" class="s-glow w-line" stroke-linecap="round" opacity="0.8">
+        <path d="M330 712H420"/><path d="M600 740H690"/><path d="M450 770H520"/>
+      </g>
+      <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M600 724C604 600 604 470 540 432C494 406 446 420 432 460" class="s-ink2 w-heavy"/>
+        <path d="M586 720C590 604 590 490 534 456" class="s-glow w-line" opacity="0.6"/>
+      </g>
+      <circle cx="486" cy="440" r="12" class="f-ink"/>
+    </g>
+  </defs>
+  <g data-include="h-window"/>
+</svg>

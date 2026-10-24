@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Richtung G (Smooth): Kreis-Badge + Glyphe mit Verlauf, Schatten und Glanzkante. Slots in <defs>
+       des Stickers (beide Pflicht, dürfen leer sein, Elemente ohne Klasse):
+       #glyph = offene Mittellinien (dicke runde Linie), #mass = geschlossene Flächen (gefüllt).
+       Eigene Kinder des Stickers (Augen, Punkte) liegen obendrauf. Keine Schrift. -->
+  <defs>
+    <radialGradient id="g-disc" cx="0.38" cy="0.32" r="0.8">
+      <stop offset="0" class="sc-ink2"/>
+      <stop offset="1" class="sc-paper"/>
+    </radialGradient>
+    <linearGradient id="g-fill" gradientUnits="userSpaceOnUse" x1="260" y1="180" x2="780" y2="860">
+      <stop offset="0" class="sc-glow"/>
+      <stop offset="0.35" class="sc-accent"/>
+      <stop offset="1" class="sc-accent2"/>
+    </linearGradient>
+    <clipPath id="g-clip-mass"><use xlink:href="#mass"/></clipPath>
+  </defs>
+  <circle cx="512" cy="512" r="420" class="f-outline s-outline w-outline"/>
+  <circle cx="512" cy="512" r="420" fill="url(#g-disc)" class="s-shade w-line"/>
+  <circle cx="512" cy="512" r="384" fill="none" stroke="url(#g-fill)" class="w-line"/>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <g transform="translate(0 18)" opacity="0.7">
+      <use xlink:href="#mass" class="f-shade"/>
+      <use xlink:href="#glyph" fill="none" class="s-shade w-heavy"/>
+    </g>
+    <use xlink:href="#mass" fill="url(#g-fill)"/>
+    <use xlink:href="#glyph" fill="none" stroke="url(#g-fill)" class="w-heavy"/>
+    <g fill="none" class="s-glow w-line" opacity="0.55">
+      <!-- Glanzkante innen oben links: verschobene Kontur, auf die Fläche beschnitten -->
+      <g clip-path="url(#g-clip-mass)"><use xlink:href="#mass" transform="translate(18 20)"/></g>
+      <use xlink:href="#glyph" transform="translate(-18 -20)"/>
+    </g>
+  </g>
+</svg>

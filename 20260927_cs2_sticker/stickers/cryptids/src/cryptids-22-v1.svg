@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024"
+     data-title="Mothman – Smooth"
+     data-description="Mothman reduced to a smooth glossy glyph: wide moth wings, a tall body and two big glowing red eyes. Holo sticker from the Smooth series – no text, clean curves, made to stack."
+     data-cryptid="Mothman"
+     data-direction="G"
+     data-finish="holo"
+     data-palettes="candy"
+     data-mechanic="none"
+     data-note="Smooth G: Vier Flügel als geschlossene Schlaufen, Körper senkrecht, Kopf mit zwei großen Augen (accent2) und Glanzpunkt.">
+  <defs>
+    <g id="glyph">
+      <path d="M512 430V700"/>
+    </g>
+    <g id="mass">
+      <path d="M512 500C420 280 220 200 196 360C176 500 380 560 512 500Z"/>
+      <path d="M512 500C604 280 804 200 828 360C848 500 644 560 512 500Z"/>
+      <path d="M512 540C430 580 300 650 330 740C360 820 470 720 512 620Z"/>
+      <path d="M512 540C594 580 724 650 694 740C664 820 554 720 512 620Z"/>
+    </g>
+  </defs>
+  <g data-include="g-badge"/>
+  <circle cx="512" cy="336" r="96" class="f-shade"/>
+  <circle cx="470" cy="332" r="40" class="f-accent2"/>
+  <circle cx="554" cy="332" r="40" class="f-accent2"/>
+  <circle cx="456" cy="317" r="13" class="f-outline"/>
+  <circle cx="540" cy="317" r="13" class="f-outline"/>
+</svg>

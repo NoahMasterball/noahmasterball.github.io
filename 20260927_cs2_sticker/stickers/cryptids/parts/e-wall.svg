@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1024 1024" width="1024" height="1024"
+     stroke-linejoin="round" stroke-linecap="round">
+  <!-- Richtung E „de_-Wildlife“: Wandblock als Lebensraum (Stanzrand, Sandfläche, Sockelschatten, Kontur).
+       Eigene Kinder des Includes (Callout-Lettern) liegen obendrauf; #e-slab / #e-slab-clip für Zuschnitte. -->
+  <defs>
+    <path id="e-slab" d="M 206,110 H 818 Q 864,110 864,156 V 644 Q 864,690 818,690 H 206 Q 160,690 160,644 V 156 Q 160,110 206,110 Z"/>
+    <clipPath id="e-slab-clip"><use href="#e-slab"/></clipPath>
+  </defs>
+  <use href="#e-slab" class="f-outline s-outline w-outline"/>
+  <use href="#e-slab" class="f-paper"/>
+  <rect x="160" y="620" width="704" height="70" class="f-shade" clip-path="url(#e-slab-clip)"/>
+  <use href="#e-slab" fill="none" class="s-ink w-bold"/>
+</svg>

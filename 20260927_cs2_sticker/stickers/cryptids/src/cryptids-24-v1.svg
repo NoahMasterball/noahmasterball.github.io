@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024"
+     data-title="Death Worm – Smooth"
+     data-description="The Mongolian Death Worm as a smooth glossy S-curve rising up, its round maw open at the top. Holo sticker from the Smooth series – no text, clean curves, made to stack."
+     data-cryptid="Mongolian Death Worm"
+     data-direction="G"
+     data-finish="holo"
+     data-palettes="candy"
+     data-mechanic="none"
+     data-note="Smooth G: S-Kurve aus der Düne, oben runder Schlund (Ring) mit Zahnpunkten.">
+  <defs>
+    <g id="glyph">
+      <path d="M396 770C276 660 326 548 458 526C590 504 650 424 584 360"/>
+    </g>
+    <g id="mass">
+      <circle cx="540" cy="296" r="140"/>
+    </g>
+  </defs>
+  <g data-include="g-badge"/>
+  <circle cx="540" cy="296" r="68" class="f-ink"/>
+  <g class="f-outline">
+    <circle cx="540" cy="196" r="12"/><circle cx="611" cy="225" r="12"/><circle cx="640" cy="296" r="12"/>
+    <circle cx="611" cy="367" r="12"/><circle cx="540" cy="396" r="12"/><circle cx="469" cy="367" r="12"/>
+    <circle cx="440" cy="296" r="12"/><circle cx="469" cy="225" r="12"/>
+  </g>
+</svg>

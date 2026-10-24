@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Richtung D: Namensband (Enden, Falten, Band). Form aus d-cut-ribbon. Der Name ist eigenes
+       Kind im Sticker: <text class="t-serif f-ink" …><textPath xlink:href="#d-nameline" …>. -->
+  <g class="s-ink w-fine" stroke-linejoin="round">
+    <use xlink:href="#d-tailL" class="f-accent"/>
+    <use xlink:href="#d-tailR" class="f-accent"/>
+  </g>
+  <use xlink:href="#d-tailL" class="f-ink" opacity="0.3"/>
+  <use xlink:href="#d-tailR" class="f-ink" opacity="0.3"/>
+  <path d="M170 912L200 920L200 952Z" class="f-ink" opacity="0.55"/>
+  <path d="M854 912L824 920L824 952Z" class="f-ink" opacity="0.55"/>
+  <use xlink:href="#d-band" class="f-accent s-ink w-fine" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024"
+     data-title="Kraken – Smooth"
+     data-description="A single Kraken tentacle curling into a smooth glossy spiral, suckers glowing along the inside. Holo sticker from the Smooth series – no text, clean curves, made to stack."
+     data-cryptid="Kraken"
+     data-direction="G"
+     data-finish="holo"
+     data-palettes="candy"
+     data-mechanic="none"
+     data-note="Smooth G: ein Tentakel als Spirale (ähnlich der Screenshot-Kurve), Saugnäpfe als Glow-Punkte innen.">
+  <defs>
+    <g id="glyph">
+      <path transform="translate(520 500) scale(1.05) translate(-520 -480)" d="M560 210C700 280 760 450 690 590C620 720 450 740 380 640C320 555 370 450 460 450C530 450 560 520 520 560"/>
+    </g>
+    <g id="mass">
+      
+    </g>
+  </defs>
+  <g data-include="g-badge"/>
+  <g class="f-glow" opacity="0.9" transform="translate(520 500) scale(1.05) translate(-520 -480)">
+    <circle cx="640" cy="330" r="13"/><circle cx="670" cy="420" r="13"/><circle cx="660" cy="510" r="13"/>
+    <circle cx="615" cy="595" r="12"/><circle cx="545" cy="640" r="11"/><circle cx="465" cy="640" r="10"/>
+  </g>
+</svg>

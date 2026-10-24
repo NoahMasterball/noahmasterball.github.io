@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024"
+     data-title="Mothman – Cloud Watcher"
+     data-description="A soft pastel sky in an arched window – and one of the clouds has moth wings and two eyes that are watching you. Dreamcore holo sticker: pink-to-baby-blue sky, sparkles, no text."
+     data-cryptid="Mothman"
+     data-direction="H"
+     data-finish="holo"
+     data-palettes="dream"
+     data-mechanic="none"
+     data-note="Dreamcore H: Wolke in Mottenflügel-Form (zwei große, zwei kleine Lappen), Fühler, zwei dunkle Augen mit rosa Glühen. Unheimlich-süß.">
+  <defs>
+    <g id="cloud-shape">
+      <circle cx="390" cy="450" r="120"/><circle cx="634" cy="450" r="120"/>
+      <circle cx="306" cy="510" r="84"/><circle cx="718" cy="510" r="84"/>
+      <circle cx="430" cy="610" r="96"/><circle cx="594" cy="610" r="96"/>
+      <circle cx="512" cy="530" r="120"/>
+    </g>
+    <g id="scene">
+      <radialGradient id="cloud" gradientUnits="userSpaceOnUse" cx="470" cy="420" r="330">
+        <stop offset="0" class="sc-glow"/>
+        <stop offset="1" class="sc-shade"/>
+      </radialGradient>
+      <g fill="none" class="s-ink2 w-line" stroke-linecap="round">
+        <path d="M490 430C470 380 440 340 400 318"/>
+        <path d="M534 430C554 380 584 340 624 318"/>
+      </g>
+      <circle cx="400" cy="318" r="14" class="f-ink2"/><circle cx="624" cy="318" r="14" class="f-ink2"/>
+      <g class="f-shade" opacity="0.6" filter="url(#h-blur)" transform="translate(0 30)">
+        <use xlink:href="#cloud-shape"/>
+      </g>
+      <g fill="url(#cloud)"><use xlink:href="#cloud-shape"/></g>
+      <g class="f-accent" opacity="0.7" filter="url(#h-blur)">
+        <ellipse cx="462" cy="520" rx="46" ry="34"/><ellipse cx="562" cy="520" rx="46" ry="34"/>
+      </g>
+      <ellipse cx="462" cy="520" rx="30" ry="22" class="f-ink"/>
+      <ellipse cx="562" cy="520" rx="30" ry="22" class="f-ink"/>
+      <circle cx="454" cy="513" r="8" class="f-accent"/><circle cx="554" cy="513" r="8" class="f-accent"/>
+    </g>
+  </defs>
+  <g data-include="h-window"/>
+</svg>

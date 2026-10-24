@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"
+     data-title="Jersey Devil – Specimen Plate"
+     data-description="Plate I from a field guide that was never printed: the Jersey Devil, pinned and labelled as Leedsia pinelandica, with its hoof print and a 1 m scale bar. Pine Barrens, New Jersey, 1735. Paper sticker, part of a cryptid field-guide series."
+     data-cryptid="Jersey Devil"
+     data-direction="A"
+     data-finish="paper"
+     data-palettes="fieldguide printstream"
+     data-mechanic="none"
+     data-note="Bestimmungstafel I aus einem erfundenen Bestimmungsbuch: Jersey Devil als Präparat, Pseudo-Latein „Leedsia“ (Mutter Leeds), Hufspur als Fig. 2, Maßstab, Fundort. Flügel sprengen die Tafel.">
+  <defs>
+    <!-- Tafel-Vorlage (gleich in allen Tafeln der Richtung A) -->
+    <rect id="plate" x="196" y="176" width="632" height="680" rx="22"/>
+    <rect id="plate-inner" x="214" y="194" width="596" height="644" rx="10"/>
+    <circle id="disc" cx="512" cy="480" r="268"/>
+    <path id="banner-band" d="M150 796 H874 V916 H150 Z"/>
+    <path id="banner-tails" d="M70 826 H180 V946 H70 L104 886 Z M954 826 L920 886 L954 946 H844 V826 Z"/>
+    <circle id="roundel" cx="252" cy="722" r="64"/>
+    <rect id="scalebar" x="652" y="764" width="152" height="16"/>
+    <path id="scalebar-ticks" d="M652 764 h38 v16 h-38 Z M728 764 h38 v16 h-38 Z"/>
+    <pattern id="hatch-h" width="12" height="12" patternUnits="userSpaceOnUse">
+      <path d="M0 6 H12" class="s-ink2" stroke-width="3"/>
+    </pattern>
+
+    <path id="mouth" d="M338 314 L262 314 L270 356 Z"/>
+    <path id="hoofprint" d="M4 -28 C12 -20 17 -6 17 8 C17 20 12 26 6 26 C3 26 2 20 2 10 C2 -4 2 -18 4 -28 Z M-4 -28 C-12 -20 -17 -6 -17 8 C-17 20 -12 26 -6 26 C-3 26 -2 20 -2 10 C-2 -4 -2 -18 -4 -28 Z M-10 34 a4 5 0 1 0 0.1 0 Z M10 34 a4 5 0 1 0 0.1 0 Z"/>
+    <!-- Jersey Devil: parts/fig-jersey-devil.svg (ids jd-*) -->
+    <g data-include="fig-jersey-devil"/>
+
+    <radialGradient id="eye-glow">
+      <stop offset="0" class="sc-glow"/>
+      <stop offset="0.35" class="sc-glow"/>
+      <stop offset="1" class="sc-accent"/>
+    </radialGradient>
+    <clipPath id="clip-plate"><use href="#plate-inner"/></clipPath>
+    <clipPath id="clip-body"><use href="#jd-body"/></clipPath>
+    <clipPath id="clip-leg"><use href="#jd-leg"/></clipPath>
+    <clipPath id="clip-horn"><use href="#jd-horn"/></clipPath>
+
+    <g id="cut">
+      <use href="#plate"/>
+      <use href="#jd-creature"/>
+      <use href="#banner-band"/>
+      <use href="#banner-tails"/>
+      <use href="#roundel"/>
+    </g>
+  </defs>
+
+  <g transform="translate(0 -18)">
+    <!-- 1 · Stanzrand + Tinten-Kontur der Gesamtform -->
+    <use href="#cut" class="f-outline s-outline w-outline" stroke-linejoin="round"/>
+    <use href="#cut" class="f-ink s-ink w-bold" stroke-linejoin="round"/>
+
+    <!-- 2 · Tafel: Papier, Habitat-Scheibe mit Gravurhimmel -->
+    <use href="#plate" class="f-paper"/>
+    <g clip-path="url(#clip-plate)">
+      <use href="#disc" class="f-shade"/>
+      <use href="#disc" fill="url(#hatch-h)" opacity="0.5"/>
+      <ellipse cx="556" cy="772" rx="104" ry="12" fill="url(#hatch-h)"/>
+    </g>
+    <use href="#plate-inner" fill="none" class="s-ink w-fine"/>
+
+    <!-- 3 · Kreatur (hinten → vorn) -->
+    <g stroke-linejoin="round" stroke-linecap="round">
+      <use href="#jd-wing-far" class="f-ink2 s-ink w-bold"/>
+      <use href="#jd-horn-far" class="f-ink s-paper w-fine"/>
+      <!-- Offene Kanten: Papierlinie nur Vorderkante bis Kniekehle (Umfang #leg ≈ 858, #arm ≈ 304) -->
+      <use href="#jd-leg-far" class="f-ink s-paper w-fine" stroke-dasharray="586 272" stroke-dashoffset="-14"/>
+      <use href="#mouth" class="f-accent"/>
+      <use href="#jd-body" class="f-ink s-paper w-fine"/>
+      <use href="#jd-horn" class="f-ink s-paper w-fine"/>
+      <g fill="none" class="s-paper w-fine" clip-path="url(#clip-horn)">
+        <path d="M398 188 L432 196"/>
+        <path d="M408 164 L444 178"/>
+        <path d="M426 142 L460 158"/>
+      </g>
+      <use href="#jd-wing-set" class="f-ink2 s-ink w-bold"/>
+      <use href="#jd-tail" class="f-ink s-paper w-fine"/>
+      <use href="#jd-leg" class="f-ink s-paper w-fine" stroke-dasharray="586 272" stroke-dashoffset="-14"/>
+      <use href="#jd-claws" class="f-ink"/>
+      <use href="#jd-arm" class="f-ink s-paper w-fine" stroke-dasharray="270 34" stroke-dashoffset="-20"/>
+      <!-- Gravur-Lichter: Papierlinien auf Tinte, Licht von links oben -->
+      <g fill="none" class="s-paper w-fine" clip-path="url(#clip-body)">
+        <path d="M300 268 C324 252 346 238 364 226"/>
+        <path d="M352 222 C366 214 382 212 396 216"/>
+        <path d="M266 296 C270 288 278 286 284 290"/>
+        <path d="M404 290 C424 300 432 322 424 342"/>
+        <path d="M436 362 C428 380 424 396 422 412"/>
+        <path d="M520 440 C506 462 504 486 512 506"/>
+        <path d="M540 452 C526 474 524 498 532 518"/>
+        <path d="M560 466 C548 486 546 506 552 526"/>
+        <path d="M472 608 C490 620 510 626 530 628"/>
+      </g>
+      <g fill="none" class="s-paper w-fine" clip-path="url(#clip-leg)">
+        <path d="M478 590 C468 616 466 640 472 662"/>
+        <path d="M494 580 C484 606 482 630 488 652"/>
+        <path d="M530 756 L562 756"/>
+      </g>
+      <circle cx="373" cy="235" r="20" class="f-accent" opacity="0.3"/>
+      <path d="M356 239 C362 227 378 224 390 229 C384 241 370 246 356 239 Z" fill="url(#eye-glow)"/>
+      <path d="M292 321 l6 12 l6 -12 z M312 320 l5 11 l5 -11 z" class="f-paper"/>
+    </g>
+
+    <!-- 4 · Fig. 2: Hufspur -->
+    <use href="#roundel" class="f-paper s-ink w-bold"/>
+    <use href="#hoofprint" transform="translate(252 714) rotate(-14) scale(1.5)" class="f-ink"/>
+
+    <!-- 5 · Maßstab -->
+    <use href="#scalebar" class="f-paper"/>
+    <use href="#scalebar-ticks" class="f-ink"/>
+    <use href="#scalebar" fill="none" class="s-ink" stroke-width="4"/>
+    <text x="804" y="752" text-anchor="end" font-size="24" class="t-mono f-ink">1 m</text>
+
+    <!-- 6 · Band: Pseudo-Latein + Tafel/Fundort/Jahr -->
+    <use href="#banner-tails" class="f-ink"/>
+    <use href="#banner-band" class="f-accent s-ink w-line"/>
+    <text x="512" y="854" text-anchor="middle" font-size="56" font-style="italic" class="t-serif f-paper">Leedsia pinelandica</text>
+    <text x="512" y="896" text-anchor="middle" font-size="21" letter-spacing="2" class="t-mono f-paper">PL. I · PINE BARRENS, N.J. · 1735</text>
+  </g>
+</svg>

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"
+     data-title="Hopkinsville Goblin – Glyph"
+     data-description="The Hopkinsville Goblin (Kelly, Kentucky, 1955) reduced to a single bold glyph: huge ears, glowing eyes, hands raised – and floating, with a gap between feet and shadow. Foil sticker, readable from tiny to large."
+     data-cryptid="Hopkinsville Goblin"
+     data-direction="C"
+     data-finish="foil"
+     data-palettes="printstream asiimov vulcan neonoir"
+     data-mechanic="none"
+     data-note="Glyphe: Riesenohren, leuchtende Augen, Hände hoch (Kelly 1955) – und er schwebt: zwischen Füßen und Schatten bleibt eine Lücke. Foil = der berichtete Silberglanz.">
+  <!-- Glyphen-System C: Raster 64 px · Linie 64 (rund) · Kopf/Maul-Kreis r160 · Eckradius 96 · Boden y864
+       Stanzform = Linien + 32 Papier (128) + w-outline 36 zentriert auf der Papierkante (164). -->
+  <defs>
+    <!-- Kopf: Kinnbogen des r160-Kreises, Ohrkanten tangential zum Kreis, Stirnbogen oben -->
+    <path id="head" d="M512 528 A160 160 0 0 1 379.9 458.3 L176 160 A420 420 0 0 1 432 229.4
+                       A160 160 0 0 1 592 229.4 A420 420 0 0 1 848 160 L644.1 458.3
+                       A160 160 0 0 1 512 528 Z"/>
+    <path id="body" d="M512 528 V656 M512 592 H352 A96 96 0 0 1 256 496 V464 M512 592 H672 A96 96 0 0 0 768 496 V464
+                       M464 752 V704 A48 48 0 0 1 560 704 V752 M480 864 H544"/>
+    <!-- nur Stanzform: schließt Innenlücken (Achsel, Schwebe-Lücke) -->
+    <path id="gaps" d="M256 464 L379.9 458.3 L512 592 L352 592 Z M768 464 L644.1 458.3 L512 592 L672 592 Z
+                       M512 704 V864"/>
+    <g id="lines"><use href="#head"/><use href="#body"/></g>
+    <g id="cut"><use href="#lines"/><use href="#gaps"/></g>
+  </defs>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <g class="f-outline s-outline" stroke-width="164"><use href="#cut"/></g>
+    <g class="f-paper s-paper" stroke-width="128"><use href="#cut"/></g>
+    <g class="s-ink" stroke-width="64">
+      <use href="#body" fill="none"/>
+      <use href="#head" class="f-paper"/>
+    </g>
+    <circle class="f-accent" cx="432" cy="336" r="48"/>
+    <circle class="f-accent" cx="592" cy="336" r="48"/>
+  </g>
+</svg>

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024"
+     data-title="Bigfoot – Stairs to Nowhere"
+     data-description="A staircase floating in a pastel sky, leading up to a glowing door – and giant footprints going up. Bigfoot found the way out. Dreamcore holo sticker, no text."
+     data-cryptid="Bigfoot"
+     data-direction="H"
+     data-finish="holo"
+     data-palettes="dream"
+     data-mechanic="none"
+     data-note="Dreamcore H: schwebende Treppe (5 Stufen, Oberseite weiß, Front lavendel), Bigfoot-Fußspuren nach oben, oben leuchtende Tür im Himmel.">
+  <defs>
+    <g id="step"><rect width="190" height="30" rx="6" class="f-outline"/><rect y="26" width="190" height="74" rx="6" class="f-shade"/></g>
+    <g id="foot" class="f-ink2">
+      <ellipse rx="22" ry="34"/>
+      <circle cx="-16" cy="-44" r="7"/><circle cx="-4" cy="-50" r="7"/><circle cx="9" cy="-48" r="7"/><circle cx="19" cy="-40" r="6"/>
+    </g>
+    <g id="scene">
+      <g class="f-glow" filter="url(#h-blur)" opacity="0.9"><rect x="500" y="230" width="164" height="230" rx="24"/></g>
+      <path d="M516 444V300A66 66 0 0 1 648 300V444Z" class="f-glow s-accent w-bold"/>
+      <circle cx="628" cy="384" r="10" class="f-accent"/>
+      <g>
+        <use xlink:href="#step" x="190" y="760"/><use xlink:href="#step" x="270" y="680"/>
+        <use xlink:href="#step" x="350" y="600"/><use xlink:href="#step" x="430" y="520"/>
+        <use xlink:href="#step" x="490" y="440"/>
+      </g>
+      <use xlink:href="#foot" transform="translate(260 774) rotate(90) scale(0.62)"/>
+      <use xlink:href="#foot" transform="translate(350 694) rotate(90) scale(0.62)"/>
+      <use xlink:href="#foot" transform="translate(420 614) rotate(90) scale(0.62)"/>
+      <use xlink:href="#foot" transform="translate(510 534) rotate(90) scale(0.62)"/>
+    </g>
+  </defs>
+  <g data-include="h-window"/>
+</svg>

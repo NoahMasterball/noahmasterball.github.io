@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"
+     data-title="Loch Ness – Now You See It"
+     data-description="A calm loch in the moonlight with only a small head above the water. Scrape the sticker and the giant body under the surface goes first – your weapon shows through as Nessie's silhouette. Paper sticker built around the scrape mechanic."
+     data-cryptid="Loch Ness Monster"
+     data-direction="B"
+     data-finish="paper"
+     data-palettes="night"
+     data-mechanic="scrape"
+     data-frames="neu abgekratzt"
+     data-note="Scrape (Paper): Neu ein ruhiger See im Mondlicht, nur ein kleiner Kopf mit grünem Auge ragt aus dem Wasser (Suchbild). In der Wear-Mask sind die Nessie-Form unter der Oberfläche und ein paar Blasen am dunkelsten: sie werden zuerst abgekratzt, dort scheint die Waffe als riesiger Körper durch. Die hellen Wellenlinien sorgen dafür, dass das Loch auch auf dunklen Skins lesbar bleibt. Rahmen, Schild und Tannenspitze wie beim Owlman, Grün ist immer nur die Kryptide.">
+  <defs>
+    <!-- Fenster (gleich wie Owlman) -->
+    <circle id="window" cx="512" cy="482" r="372"/>
+    <clipPath id="win"><use href="#window"/></clipPath>
+    <rect id="plate" x="282" y="806" width="460" height="100" rx="50"/>
+
+    <!-- Tanne, Basis bei (0,0), Höhe 400 -->
+    <path id="pine" d="M0-400Q12-352 42-316Q30-318 18-324Q36-272 64-226Q44-230 26-238Q52-184 86-136Q60-142 34-150Q70-92 106-44Q70-40 14-44L14 0H-14V-44Q-70-40-106-44Q-70-92-34-150Q-60-142-86-136Q-52-184-26-238Q-44-230-64-226Q-36-272-18-324Q-30-318-42-316Q-12-352 0-400Z"/>
+    <!-- Außenbaum am Ufer: nur die Spitze ragt über das Fenster hinaus -->
+    <clipPath id="breakout"><use href="#window"/><rect x="0" y="0" width="1024" height="420"/></clipPath>
+    <mask id="outside" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024"><rect width="1024" height="1024" fill="white"/><use href="#window" fill="black"/></mask>
+    <g id="pineOut" clip-path="url(#breakout)"><use href="#pine" transform="translate(226 560) scale(0.95 0.95)"/></g>
+
+    <linearGradient id="sky" gradientUnits="userSpaceOnUse" x1="0" y1="110" x2="0" y2="620">
+      <stop offset="0" class="sc-paper"/>
+      <stop offset="1" class="sc-ink2"/>
+    </linearGradient>
+    <linearGradient id="water" gradientUnits="userSpaceOnUse" x1="0" y1="490" x2="0" y2="820">
+      <stop offset="0" class="sc-ink2"/>
+      <stop offset="1" class="sc-paper"/>
+    </linearGradient>
+    <radialGradient id="halo">
+      <stop offset="0.45" class="sc-outline" stop-opacity="0.3"/>
+      <stop offset="1" class="sc-outline" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Nessie unter Wasser = das, was die Wear-Mask zuerst wegkratzt -->
+    <path id="nessieBody" d="M674 574 C 670 604, 652 628, 626 640 C 590 630, 540 624, 490 628
+      C 436 632, 394 644, 364 660 C 340 672, 314 680, 288 686 C 278 688, 274 694, 282 696
+      C 312 700, 340 702, 362 700 C 402 722, 452 738, 512 738 C 574 738, 626 722, 660 694
+      C 690 668, 704 626, 704 574 Z
+      M642 704 C 640 736, 610 764, 566 780 C 552 785, 544 776, 552 768 C 570 752, 584 734, 594 718 Z
+      M670 688 C 670 716, 660 738, 640 756 C 632 762, 622 756, 628 748 C 640 732, 644 714, 642 700 Z
+      M420 716 C 414 746, 390 766, 352 778 C 340 782, 332 772, 342 764 C 360 750, 372 734, 378 714 Z
+      M456 728 C 454 748, 446 764, 426 774 C 418 778, 410 770, 416 764 C 428 752, 432 740, 432 730 Z"/>
+    <mask id="scraped" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+      <rect width="1024" height="1024" fill="white"/>
+      <use href="#nessieBody" fill="black"/>
+      <!-- Blasen = die „paar Kratzstellen daneben“: über Hals und Schwanz -->
+      <g fill="black">
+        <circle cx="604" cy="606" r="9"/>
+        <circle cx="592" cy="580" r="6"/>
+        <circle cx="604" cy="558" r="4"/>
+        <circle cx="300" cy="652" r="7"/>
+        <circle cx="312" cy="630" r="4"/>
+      </g>
+    </mask>
+
+    <!-- Szene (beide Frames) -->
+    <g id="scene">
+      <rect x="100" y="100" width="824" height="400" fill="url(#sky)"/>
+      <circle cx="570" cy="262" r="200" fill="url(#halo)"/>
+      <circle cx="570" cy="262" r="92" class="f-outline"/>
+      <g class="f-outline">
+        <circle cx="400" cy="200" r="5"/>
+        <circle cx="450" cy="140" r="4"/>
+        <circle cx="760" cy="190" r="4"/>
+        <circle cx="820" cy="310" r="3"/>
+        <circle cx="350" cy="320" r="3"/>
+        <circle cx="700" cy="120" r="3"/>
+      </g>
+      <!-- ferne Hügel -->
+      <path class="f-shade" d="M100 496 V 430 C 180 412, 250 394, 330 406 C 400 418, 440 456, 520 462
+        C 600 468, 660 420, 740 396 C 800 378, 860 392, 924 420 V 496 Z"/>
+      <g class="f-shade">
+        <use href="#pine" transform="translate(716 410) scale(0.2 0.2)"/>
+        <use href="#pine" transform="translate(746 400) scale(0.22 0.24)"/>
+        <use href="#pine" transform="translate(776 394) scale(0.2 0.2)"/>
+        <use href="#pine" transform="translate(806 392) scale(0.18 0.16)"/>
+      </g>
+      <!-- Wasser -->
+      <rect x="100" y="490" width="824" height="410" fill="url(#water)"/>
+      <!-- Mondstreifen -->
+      <g class="s-outline" stroke-linecap="round" fill="none">
+        <g class="w-fine">
+          <path d="M552 498H584"/>
+          <path d="M540 506H553 M563 506H580"/>
+          <path d="M540 515H590"/>
+          <path d="M535 524H542 M553 524H593"/>
+          <path d="M528 535H598"/>
+          <path d="M527 547H587 M599 547H609"/>
+        </g>
+        <g class="w-line">
+          <path d="M512 560H608"/>
+          <path d="M517 574H540 M553 574H627"/>
+          <path d="M504 589H587 M601 589H628"/>
+          <path d="M493 607H637"/>
+          <path d="M478 625H583 M600 625H640"/>
+          <path d="M467 646H651"/>
+          <path d="M459 669H619 M636 669H665"/>
+          <path d="M450 694H502 M520 694H610 M628 694H682"/>
+          <path d="M439 722H533 M552 722H699"/>
+          <path d="M419 752H558 M579 752H711"/>
+        </g>
+      </g>
+      <!-- leise Wellen: machen den See zur Mitteltonfläche, damit das Loch auch auf dunklen Skins lesbar ist -->
+      <g class="s-outline w-fine" stroke-linecap="round" fill="none" stroke-opacity="0.3">
+        <path d="M481 498H514 M617 498H683"/>
+        <path d="M484 506H516 M371 506H441 M629 506H684"/>
+        <path d="M456 515H499 M615 515H670 M718 515H752"/>
+        <path d="M429 524H488 M637 524H688 M745 524H792"/>
+        <path d="M452 535H508 M330 535H397 M660 535H716"/>
+        <path d="M417 547H488 M662 547H710 M744 547H801"/>
+        <path d="M391 560H461 M297 560H368 M657 560H703 M738 560H806"/>
+        <path d="M443 574H487 M670 574H724 M779 574H814"/>
+        <path d="M373 589H449 M240 589H314 M658 589H699"/>
+        <path d="M407 607H455 M674 607H747 M780 607H818"/>
+        <path d="M371 625H430 M269 625H335 M674 625H737"/>
+        <path d="M381 646H454 M702 646H802"/>
+        <path d="M378 669H419 M208 669H324 M709 669H751"/>
+        <path d="M385 694H429 M311 694H344 M741 694H836"/>
+        <path d="M313 722H407 M158 722H268 M724 722H837"/>
+        <path d="M248 752H386 M750 752H856"/>
+      </g>
+      <!-- Ufer links mit Tanne -->
+      <path class="f-ink" d="M100 470 C 160 470, 220 490, 262 516 C 300 540, 330 556, 372 566
+        C 384 569, 386 576, 374 578 C 300 584, 200 590, 100 594 Z"/>
+      <use href="#pineOut" class="f-ink"/>
+      <!-- Hals mit Kopf über Wasser (Suchbild) -->
+      <path class="f-ink" d="M674 574 C 672 546, 680 522, 694 506 C 702 496, 716 490, 730 494
+        C 742 497, 752 502, 758 510 C 750 516, 736 518, 724 518 C 716 532, 706 552, 704 574 Z"/>
+      <circle cx="728" cy="503" r="4" class="f-accent"/>
+      <g class="s-accent w-fine" fill="none" stroke-linecap="round">
+        <path d="M649 576 A 40 8 0 0 0 729 576" stroke-opacity="0.8"/>
+        <path d="M627 579 A 62 13 0 0 0 751 579" stroke-opacity="0.4"/>
+      </g>
+    </g>
+  </defs>
+
+  <!-- Stanzrand (statisch) -->
+  <g fill="none" class="s-outline w-outline" stroke-linejoin="round">
+    <use href="#window"/>
+    <use href="#plate"/>
+    <use href="#pineOut"/>
+  </g>
+
+  <!-- Fenster-Inhalt: Frames -->
+  <g clip-path="url(#win)">
+    <g data-frame="neu"><use href="#scene"/></g>
+    <g data-frame="abgekratzt" mask="url(#scraped)"><use href="#scene"/></g>
+  </g>
+
+  <!-- Statischer Rahmen -->
+  <use href="#window" fill="none" class="s-ink w-bold"/>
+  <use href="#pineOut" class="f-ink" mask="url(#outside)"/>
+  <use href="#plate" class="f-ink"/>
+  <!-- Set-Zeichen: zwei leuchtende Augenpunkte links und rechts vom Namen -->
+  <g class="f-accent">
+    <circle cx="318" cy="856" r="6"/><circle cx="336" cy="856" r="6"/>
+    <circle cx="688" cy="856" r="6"/><circle cx="706" cy="856" r="6"/>
+  </g>
+  <text x="512" y="875" text-anchor="middle" class="t-sans f-outline" font-size="54" font-weight="700" letter-spacing="8">NESSIE</text>
+</svg>
